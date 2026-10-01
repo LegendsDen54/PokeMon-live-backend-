@@ -98,7 +98,7 @@ app.get("/health", (req, res) => {
   WEB PUSH PUBLIC KEY
 
   Safe for the frontend to request.
-  The private key is NEVER exposed.
+  Private key is never exposed.
 */
 
 app.get(
@@ -127,8 +127,8 @@ app.get(
 /*
   WEB PUSH STATUS
 
-  Does NOT expose subscriptions
-  or private keys.
+  Does not expose private keys
+  or subscription endpoints.
 */
 
 app.get(
@@ -142,9 +142,6 @@ app.get(
 
 /*
   SAVE PUSH SUBSCRIPTION
-
-  Called by the installed
-  iPhone Home Screen app.
 */
 
 app.post(
@@ -233,67 +230,76 @@ app.post(
   No retailer API call.
 */
 
-app.get("/api/scanner", (req, res) => {
-  const state =
-    getScannerState();
+app.get(
+  "/api/scanner",
+  (req, res) => {
+    const state =
+      getScannerState();
 
-  res.json({
-    ...state,
-    automaticPolling:
-      enableFullPolling,
-    pollSeconds:
-      enableFullPolling
-        ? pollSeconds
-        : null
-  });
-});
+    res.json({
+      ...state,
+      automaticPolling:
+        enableFullPolling,
+      pollSeconds:
+        enableFullPolling
+          ? pollSeconds
+          : null
+    });
+  }
+);
 
 /*
   CURRENT DASHBOARD DATA
   No retailer API call.
 */
 
-app.get("/api/status", (req, res) => {
-  const data =
-    getLatest();
+app.get(
+  "/api/status",
+  (req, res) => {
+    const data =
+      getLatest();
 
-  res.json({
-    lastRun:
-      data.lastRun,
-    running:
-      data.running,
-    count:
-      data.items.length,
-    items:
-      data.items
-  });
-});
+    res.json({
+      lastRun:
+        data.lastRun,
+      running:
+        data.running,
+      count:
+        data.items.length,
+      items:
+        data.items
+    });
+  }
+);
 
 /*
   DIRECT RETAILER RESULTS
   No retailer API call.
 */
 
-app.get("/api/products", (req, res) => {
-  const data =
-    getLatest();
+app.get(
+  "/api/products",
+  (req, res) => {
+    const data =
+      getLatest();
 
-  const filtered =
-    data.items.filter(
-      item =>
-        item.directSeller === true &&
-        item.withinPriceRule !== false
-    );
+    const filtered =
+      data.items.filter(
+        item =>
+          item.directSeller === true &&
+          item.withinPriceRule !== false
+      );
 
-  res.json({
-    lastRun:
-      data.lastRun,
-    count:
-      filtered.length,
-    items:
-      filtered
-  });
-});
+    res.json({
+      lastRun:
+        data.lastRun,
+      count:
+        filtered.length,
+      items:
+        filtered
+    });
+  }
+);
 
 /*
   CONTROLLED WALMART TEST
@@ -301,8 +307,8 @@ app.get("/api/products", (req, res) => {
   Example:
   /api/test/product/prismatic-etb
 
-  This DOES contact Walmart,
-  but checks only ONE product.
+  Contacts Walmart for ONE
+  configured product only.
 */
 
 app.get(
@@ -363,7 +369,8 @@ app.get(
         requestedProductId:
           product.id,
         configuredItemId:
-          product.walmartItemId || null,
+          product.walmartItemId ||
+          null,
         result:
           savedResult
       });
@@ -390,7 +397,7 @@ app.get(
 );
 
 /*
-  ORIGINAL ETB TEST
+  ORIGINAL PRISMATIC ETB TEST
 */
 
 app.get(
@@ -430,7 +437,8 @@ app.get(
         dashboardUpdated:
           true,
         configuredItemId:
-          product.walmartItemId || null,
+          product.walmartItemId ||
+          null,
         result:
           savedResult
       });
@@ -451,4 +459,95 @@ app.get(
             false,
           error:
             error.message
-       
+        });
+    }
+  }
+);
+
+/*
+  SCHEDULED FULL-CATALOG SCAN
+*/
+
+async function runScheduledScan() {
+  try {
+    console.log(
+      "Starting scheduled catalog scan..."
+    );
+
+    const result =
+      await runCheck();
+
+    console.log(
+      "Scheduled catalog scan finished:",
+      result
+    );
+
+  } catch (error) {
+    console.error(
+      "Scheduled catalog scan failed:",
+      error
+    );
+  }
+}
+
+/*
+  START SERVER
+*/
+
+app.listen(
+  port,
+  async () => {
+    console.log(
+      `Pokemon monitor backend listening on ${port}`
+    );
+
+    console.log(
+      "Web Push status:",
+      push.getPushStatus()
+    );
+
+    /*
+      STARTUP SCAN
+
+      Default OFF.
+    */
+
+    if (runOnStartup) {
+      console.log(
+        "RUN_ON_STARTUP enabled."
+      );
+
+      await runScheduledScan();
+
+    } else {
+      console.log(
+        "Startup scan disabled."
+      );
+    }
+
+    /*
+      AUTOMATIC FULL-CATALOG SCANNER
+
+      Activates ONLY when:
+      ENABLE_FULL_POLLING=true
+
+      Default is FALSE.
+    */
+
+    if (enableFullPolling) {
+      console.log(
+        `Automatic catalog polling ENABLED every ${pollSeconds} seconds.`
+      );
+
+      setInterval(
+        runScheduledScan,
+        pollSeconds * 1000
+      );
+
+    } else {
+      console.log(
+        "Automatic catalog polling disabled."
+      );
+    }
+  }
+);
