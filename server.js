@@ -22,10 +22,6 @@ const port = Number(
 const allowedOrigin =
   process.env.ALLOWED_ORIGIN || "*";
 
-/*
-  SAFETY SWITCHES
-*/
-
 const runOnStartup =
   String(
     process.env.RUN_ON_STARTUP || "false"
@@ -36,24 +32,12 @@ const enableFullPolling =
     process.env.ENABLE_FULL_POLLING || "false"
   ).toLowerCase() === "true";
 
-/*
-  Default = 5 minutes.
-
-  This value does NOTHING unless
-  ENABLE_FULL_POLLING=true.
-*/
-
-const pollSeconds =
-  Math.max(
-    60,
-    Number(
-      process.env.POLL_SECONDS || 300
-    )
-  );
-
-/*
-  MIDDLEWARE
-*/
+const pollSeconds = Math.max(
+  60,
+  Number(
+    process.env.POLL_SECONDS || 300
+  )
+);
 
 app.use(
   cors({
@@ -72,7 +56,8 @@ app.use(express.json());
 
 app.get("/", (req, res) => {
   res.json({
-    name: "Pokemon Live Monitor Backend",
+    name:
+      "Pokemon Live Monitor Backend",
     ok: true,
     provider:
       process.env.DATA_PROVIDER || "mock",
@@ -86,10 +71,8 @@ app.get("/", (req, res) => {
 });
 
 /*
-  HEALTH CHECK
-
-  FREE.
-  Does not contact Walmart.
+  HEALTH
+  No retailer API call.
 */
 
 app.get("/health", (req, res) => {
@@ -107,9 +90,8 @@ app.get("/health", (req, res) => {
 });
 
 /*
-  SCANNER INFORMATION
-
-  FREE.
+  SCANNER CONFIGURATION
+  No retailer API call.
 */
 
 app.get("/api/scanner", (req, res) => {
@@ -128,9 +110,8 @@ app.get("/api/scanner", (req, res) => {
 });
 
 /*
-  CURRENT DASHBOARD STATE
-
-  FREE.
+  CURRENT DASHBOARD DATA
+  No retailer API call.
 */
 
 app.get("/api/status", (req, res) => {
@@ -150,9 +131,8 @@ app.get("/api/status", (req, res) => {
 });
 
 /*
-  WALMART-DIRECT RESULTS ONLY
-
-  FREE.
+  DIRECT RETAILER RESULTS
+  No retailer API call.
 */
 
 app.get("/api/products", (req, res) => {
@@ -177,16 +157,13 @@ app.get("/api/products", (req, res) => {
 });
 
 /*
-  CONTROLLED ONE-PRODUCT TEST
+  CONTROLLED WALMART TEST
 
   Example:
-
   /api/test/product/prismatic-etb
 
-  THIS DOES CONTACT WALMART.
-
-  Only the requested product
-  is checked.
+  This DOES contact Walmart,
+  but checks only ONE product.
 */
 
 app.get(
@@ -247,8 +224,7 @@ app.get(
         requestedProductId:
           product.id,
         configuredItemId:
-          product.walmartItemId ||
-          null,
+          product.walmartItemId || null,
         result:
           savedResult
       });
@@ -275,10 +251,152 @@ app.get(
 );
 
 /*
-  OLD PRISMATIC TEST LINK
-
-  Kept for compatibility.
+  ORIGINAL ETB TEST
 */
 
 app.get(
-  "/
+  "/api/test/prismatic-etb",
+  async (req, res) => {
+    try {
+      const product =
+        products.find(
+          item =>
+            item.id ===
+            "prismatic-etb"
+        );
+
+      if (!product) {
+        return res
+          .status(404)
+          .json({
+            ok: false,
+            error:
+              "prismatic-etb not found"
+          });
+      }
+
+      const result =
+        await walmart.checkProduct(
+          product,
+          "walmart"
+        );
+
+      const savedResult =
+        saveResult(result);
+
+      return res.json({
+        ok: true,
+        test:
+          "single-product",
+        dashboardUpdated:
+          true,
+        configuredItemId:
+          product.walmartItemId || null,
+        result:
+          savedResult
+      });
+
+    } catch (error) {
+      console.error(
+        "Controlled Walmart test failed:",
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          ok: false,
+          test:
+            "single-product",
+          dashboardUpdated:
+            false,
+          error:
+            error.message
+        });
+    }
+  }
+);
+
+/*
+  SCHEDULED FULL-CATALOG SCAN
+*/
+
+async function runScheduledScan() {
+  try {
+    console.log(
+      "Starting scheduled catalog scan..."
+    );
+
+    const result =
+      await runCheck();
+
+    console.log(
+      "Scheduled catalog scan finished:",
+      result
+    );
+
+  } catch (error) {
+    console.error(
+      "Scheduled catalog scan failed:",
+      error
+    );
+  }
+}
+
+/*
+  START SERVER
+*/
+
+app.listen(
+  port,
+  async () => {
+    console.log(
+      `Pokemon monitor backend listening on ${port}`
+    );
+
+    /*
+      STARTUP SCAN
+
+      Default OFF.
+    */
+
+    if (runOnStartup) {
+      console.log(
+        "RUN_ON_STARTUP enabled."
+      );
+
+      await runScheduledScan();
+
+    } else {
+      console.log(
+        "Startup scan disabled."
+      );
+    }
+
+    /*
+      24/7 AUTOMATIC SCANNER
+
+      This activates ONLY if:
+
+      ENABLE_FULL_POLLING=true
+
+      Default is FALSE.
+    */
+
+    if (enableFullPolling) {
+      console.log(
+        `Automatic catalog polling ENABLED every ${pollSeconds} seconds.`
+      );
+
+      setInterval(
+        runScheduledScan,
+        pollSeconds * 1000
+      );
+
+    } else {
+      console.log(
+        "Automatic catalog polling disabled."
+      );
+    }
+  }
+);
