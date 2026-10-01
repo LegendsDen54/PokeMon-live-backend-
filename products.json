@@ -1,54 +1,185 @@
 [
   {
-    "id": "pokemon-30th-1",
-    "name": "Pok\u00e9mon 30th Anniversary Product",
-    "set": "30th Anniversary",
-    "retailers": [
-      "target",
-      "walmart"
-    ],
+    "id": "30th-booster-bundle",
+    "name": "Pokemon TCG 30th Celebration Booster Bundle",
+    "set": "30th Celebration",
+    "productType": "Booster Bundle",
+    "searchTerm": "Pokemon 30th Celebration Booster Bundle",
+    "retailers": ["walmart"],
     "msrp": null,
-    "targetUrl": "",
-    "walmartUrl": "",
     "enabled": true
   },
   {
-    "id": "prismatic-1",
-    "name": "Pok\u00e9mon Prismatic Evolutions Product",
+    "id": "30th-mini-tin",
+    "name": "Pokemon TCG 30th Celebration Mini Tin",
+    "set": "30th Celebration",
+    "productType": "Mini Tin",
+    "searchTerm": "Pokemon 30th Celebration Mini Tin",
+    "retailers": ["walmart"],
+    "msrp": null,
+    "enabled": true
+  },
+  {
+    "id": "30th-tech-sticker",
+    "name": "Pokemon TCG 30th Celebration Tech Sticker Collection",
+    "set": "30th Celebration",
+    "productType": "Tech Sticker Collection",
+    "searchTerm": "Pokemon 30th Celebration Tech Sticker Collection",
+    "retailers": ["walmart"],
+    "msrp": null,
+    "enabled": true
+  },
+
+  {
+    "id": "prismatic-etb",
+    "name": "Pokemon TCG Prismatic Evolutions Elite Trainer Box",
     "set": "Prismatic Evolutions",
-    "retailers": [
-      "target",
-      "walmart"
-    ],
+    "productType": "Elite Trainer Box",
+    "searchTerm": "Pokemon Prismatic Evolutions Elite Trainer Box",
+    "retailers": ["walmart"],
     "msrp": null,
-    "targetUrl": "",
-    "walmartUrl": "",
     "enabled": true
   },
   {
-    "id": "destined-rivals-1",
-    "name": "Pok\u00e9mon Destined Rivals Product",
+    "id": "prismatic-binder",
+    "name": "Pokemon TCG Prismatic Evolutions Binder Collection",
+    "set": "Prismatic Evolutions",
+    "productType": "Binder Collection",
+    "searchTerm": "Pokemon Prismatic Evolutions Binder Collection",
+    "retailers": ["walmart"],
+    "msrp": null,
+    "enabled": true
+  },
+  {
+    "id": "prismatic-poster",
+    "name": "Pokemon TCG Prismatic Evolutions Poster Collection",
+    "set": "Prismatic Evolutions",
+    "productType": "Poster Collection",
+    "searchTerm": "Pokemon Prismatic Evolutions Poster Collection",
+    "retailers": ["walmart"],
+    "msrp": null,
+    "enabled": true
+  },
+  {
+    "id": "prismatic-tech-sticker",
+    "name": "Pokemon TCG Prismatic Evolutions Tech Sticker Collection",
+    "set": "Prismatic Evolutions",
+    "productType": "Tech Sticker Collection",
+    "searchTerm": "Pokemon Prismatic Evolutions Tech Sticker Collection",
+    "retailers": ["walmart"],
+    "msrp": null,
+    "enabled": true
+  },
+  {
+    "id": "prismatic-surprise-box",
+    "name": "Pokemon TCG Prismatic Evolutions Surprise Box",
+    "set": "Prismatic Evolutions",
+    "productType": "Surprise Box",
+    "searchTerm": "Pokemon Prismatic Evolutions Surprise Box",
+    "retailers": ["walmart"],
+    "msrp": null,
+    "enabled": true
+  },
+  {
+    "id": "prismatic-mini-tin",
+    "name": "Pokemon TCG Prismatic Evolutions Mini Tin",
+    "set": "Prismatic Evolutions",
+    "productType": "Mini Tin",
+    "searchTerm": "Pokemon Prismatic Evolutions Mini Tin",
+    "retailers": ["walmart"],
+    "msrp": null,
+    "enabled": true
+  },
+  {
+    "id": "prismatic-booster-bundle",
+    "name": "Pokemon TCG Prismatic Evolutions Booster Bundle",
+    "set": "Prismatic Evolutions",
+    "productType": "Booster Bundle",
+    "searchTerm": "Pokemon Prismatic Evolutions Booster Bundle",
+    "retailers": ["walmart"],
+    "msrp": null,
+    "enabled": true
+  },
+  {
+    "id": "prismatic-super-premium",
+    "name": "Pokemon TCG Prismatic Evolutions Super-Premium Collection",
+    "set": "Prismatic Evolutions",
+    "productType": "Super-Premium Collection",
+    "searchTerm": "Pokemon Prismatic Evolutions Super Premium Collection",
+    "retailers": ["walmart"],
+    "msrp": null,
+    "enabled": true
+  },
+  {
+    "id": "prismatic-premium-figure",
+    "name": "Pokemon TCG Prismatic Evolutions Premium Figure Collection",
+    "set": "Prismatic Evolutions",
+    "productType": "Premium Figure Collection",
+    "searchTerm": "Pokemon Prismatic Evolutions Premium Figure Collection",
+    "retailers": ["walmart"],
+    "msrp": null,
+    "enabled": true
+  },
+
+  {
+    "id": "destined-rivals-etb",
+    "name": "Pokemon TCG Destined Rivals Elite Trainer Box",
     "set": "Destined Rivals",
-    "retailers": [
-      "target",
-      "walmart"
-    ],
+    "productType": "Elite Trainer Box",
+    "searchTerm": "Pokemon Destined Rivals Elite Trainer Box",
+    "retailers": ["walmart"],
     "msrp": null,
-    "targetUrl": "",
-    "walmartUrl": "",
     "enabled": true
   },
   {
-    "id": "ascended-heroes-1",
-    "name": "Pok\u00e9mon Ascended Heroes Product",
-    "set": "Ascended Heroes",
-    "retailers": [
-      "target",
-      "walmart"
-    ],
+    "id": "destined-rivals-booster-bundle",
+    "name": "Pokemon TCG Destined Rivals Booster Bundle",
+    "set": "Destined Rivals",
+    "productType": "Booster Bundle",
+    "searchTerm": "Pokemon Destined Rivals Booster Bundle",
+    "retailers": ["walmart"],
     "msrp": null,
-    "targetUrl": "",
-    "walmartUrl": "",
+    "enabled": true
+  },
+
+  {
+    "id": "ascended-booster-bundle",
+    "name": "Pokemon TCG Ascended Heroes Booster Bundle",
+    "set": "Ascended Heroes",
+    "productType": "Booster Bundle",
+    "searchTerm": "Pokemon Ascended Heroes Booster Bundle",
+    "retailers": ["walmart"],
+    "msrp": null,
+    "enabled": true
+  },
+  {
+    "id": "ascended-first-partners-pin",
+    "name": "Pokemon TCG Ascended Heroes First Partners Deluxe Pin Collection",
+    "set": "Ascended Heroes",
+    "productType": "Deluxe Pin Collection",
+    "searchTerm": "Pokemon Ascended Heroes First Partners Deluxe Pin Collection",
+    "retailers": ["walmart"],
+    "msrp": null,
+    "enabled": true
+  },
+  {
+    "id": "ascended-erika",
+    "name": "Pokemon TCG Ascended Heroes Collection Erika",
+    "set": "Ascended Heroes",
+    "productType": "Collection",
+    "searchTerm": "Pokemon Ascended Heroes Erika Collection",
+    "retailers": ["walmart"],
+    "msrp": null,
+    "enabled": true
+  },
+  {
+    "id": "ascended-larry",
+    "name": "Pokemon TCG Ascended Heroes Collection Larry",
+    "set": "Ascended Heroes",
+    "productType": "Collection",
+    "searchTerm": "Pokemon Ascended Heroes Larry Collection",
+    "retailers": ["walmart"],
+    "msrp": null,
     "enabled": true
   }
 ]
