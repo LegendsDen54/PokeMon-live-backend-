@@ -5,6 +5,7 @@
     "set": "30th Celebration",
     "productType": "Booster Bundle",
     "searchTerm": "Pokemon 30th Celebration Booster Bundle",
+    "walmartItemId": null,
     "retailers": ["walmart"],
     "msrp": null,
     "enabled": true
@@ -15,6 +16,7 @@
     "set": "30th Celebration",
     "productType": "Mini Tin",
     "searchTerm": "Pokemon 30th Celebration Mini Tin",
+    "walmartItemId": null,
     "retailers": ["walmart"],
     "msrp": null,
     "enabled": true
@@ -25,6 +27,7 @@
     "set": "30th Celebration",
     "productType": "Tech Sticker Collection",
     "searchTerm": "Pokemon 30th Celebration Tech Sticker Collection",
+    "walmartItemId": null,
     "retailers": ["walmart"],
     "msrp": null,
     "enabled": true
@@ -46,6 +49,7 @@
     "set": "Prismatic Evolutions",
     "productType": "Binder Collection",
     "searchTerm": "Pokemon Prismatic Evolutions Binder Collection",
+    "walmartItemId": null,
     "retailers": ["walmart"],
     "msrp": null,
     "enabled": true
@@ -56,6 +60,7 @@
     "set": "Prismatic Evolutions",
     "productType": "Poster Collection",
     "searchTerm": "Pokemon Prismatic Evolutions Poster Collection",
+    "walmartItemId": null,
     "retailers": ["walmart"],
     "msrp": null,
     "enabled": true
@@ -66,6 +71,7 @@
     "set": "Prismatic Evolutions",
     "productType": "Tech Sticker Collection",
     "searchTerm": "Pokemon Prismatic Evolutions Tech Sticker Collection",
+    "walmartItemId": null,
     "retailers": ["walmart"],
     "msrp": null,
     "enabled": true
@@ -76,6 +82,7 @@
     "set": "Prismatic Evolutions",
     "productType": "Surprise Box",
     "searchTerm": "Pokemon Prismatic Evolutions Surprise Box",
+    "walmartItemId": null,
     "retailers": ["walmart"],
     "msrp": null,
     "enabled": true
@@ -86,6 +93,7 @@
     "set": "Prismatic Evolutions",
     "productType": "Mini Tin",
     "searchTerm": "Pokemon Prismatic Evolutions Mini Tin",
+    "walmartItemId": null,
     "retailers": ["walmart"],
     "msrp": null,
     "enabled": true
@@ -96,6 +104,7 @@
     "set": "Prismatic Evolutions",
     "productType": "Booster Bundle",
     "searchTerm": "Pokemon Prismatic Evolutions Booster Bundle",
+    "walmartItemId": null,
     "retailers": ["walmart"],
     "msrp": null,
     "enabled": true
@@ -106,6 +115,7 @@
     "set": "Prismatic Evolutions",
     "productType": "Super-Premium Collection",
     "searchTerm": "Pokemon Prismatic Evolutions Super Premium Collection",
+    "walmartItemId": null,
     "retailers": ["walmart"],
     "msrp": null,
     "enabled": true
@@ -116,6 +126,7 @@
     "set": "Prismatic Evolutions",
     "productType": "Premium Figure Collection",
     "searchTerm": "Pokemon Prismatic Evolutions Premium Figure Collection",
+    "walmartItemId": null,
     "retailers": ["walmart"],
     "msrp": null,
     "enabled": true
@@ -126,6 +137,7 @@
     "set": "Destined Rivals",
     "productType": "Elite Trainer Box",
     "searchTerm": "Pokemon Destined Rivals Elite Trainer Box",
+    "walmartItemId": null,
     "retailers": ["walmart"],
     "msrp": null,
     "enabled": true
@@ -136,6 +148,7 @@
     "set": "Destined Rivals",
     "productType": "Booster Bundle",
     "searchTerm": "Pokemon Destined Rivals Booster Bundle",
+    "walmartItemId": null,
     "retailers": ["walmart"],
     "msrp": null,
     "enabled": true
@@ -146,6 +159,7 @@
     "set": "Ascended Heroes",
     "productType": "Booster Bundle",
     "searchTerm": "Pokemon Ascended Heroes Booster Bundle",
+    "walmartItemId": null,
     "retailers": ["walmart"],
     "msrp": null,
     "enabled": true
@@ -156,6 +170,7 @@
     "set": "Ascended Heroes",
     "productType": "Deluxe Pin Collection",
     "searchTerm": "Pokemon Ascended Heroes First Partners Deluxe Pin Collection",
+    "walmartItemId": null,
     "retailers": ["walmart"],
     "msrp": null,
     "enabled": true
@@ -166,6 +181,7 @@
     "set": "Ascended Heroes",
     "productType": "Collection",
     "searchTerm": "Pokemon Ascended Heroes Erika Collection",
+    "walmartItemId": null,
     "retailers": ["walmart"],
     "msrp": null,
     "enabled": true
@@ -176,6 +192,7 @@
     "set": "Ascended Heroes",
     "productType": "Collection",
     "searchTerm": "Pokemon Ascended Heroes Larry Collection",
+    "walmartItemId": null,
     "retailers": ["walmart"],
     "msrp": null,
     "enabled": true
