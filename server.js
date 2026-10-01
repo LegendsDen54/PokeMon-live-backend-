@@ -6,7 +6,8 @@ const cors = require("cors");
 const {
   runCheck,
   getLatest,
-  saveResult
+  saveResult,
+  getScannerState
 } = require("./monitor");
 
 const walmart = require("./walmart");
@@ -52,7 +53,8 @@ app.get("/", (req, res) => {
 /*
   HEALTH CHECK
 
-  Does NOT call Walmart.
+  FREE.
+  Does NOT contact Walmart.
 */
 app.get("/health", (req, res) => {
   res.json({
@@ -63,52 +65,275 @@ app.get("/health", (req, res) => {
 });
 
 /*
+  SCANNER INFORMATION
+
+  FREE.
+  Does NOT contact Walmart.
+*/
+app.get(
+  "/api/scanner",
+  (req, res) => {
+    res.json(
+      getScannerState()
+    );
+  }
+);
+
+/*
   DASHBOARD DATA
 
-  Does NOT call Walmart.
+  FREE.
+  Does NOT contact Walmart.
 */
-app.get("/api/status", (req, res) => {
-  const data = getLatest();
+app.get(
+  "/api/status",
+  (req, res) => {
+    const data =
+      getLatest();
 
-  res.json({
-    lastRun: data.lastRun,
-    count: data.items.length,
-    items: data.items
-  });
-});
+    res.json({
+      lastRun:
+        data.lastRun,
+
+      running:
+        data.running,
+
+      count:
+        data.items.length,
+
+      items:
+        data.items
+    });
+  }
+);
 
 /*
-  WALMART-DIRECT PRODUCTS ONLY
+  DIRECT RETAILER PRODUCTS ONLY
 
-  Does NOT call Walmart.
+  FREE.
+  Does NOT contact Walmart.
 */
-app.get("/api/products", (req, res) => {
-  const data = getLatest();
+app.get(
+  "/api/products",
+  (req, res) => {
+    const data =
+      getLatest();
 
-  const filtered =
-    data.items.filter(
-      item =>
-        item.directSeller === true &&
-        item.withinPriceRule !== false
-    );
+    const filtered =
+      data.items.filter(
+        item =>
+          item.directSeller === true &&
+          item.withinPriceRule !== false
+      );
 
-  res.json({
-    lastRun: data.lastRun,
-    count: filtered.length,
-    items: filtered
-  });
-});
+    res.json({
+      lastRun:
+        data.lastRun,
+
+      count:
+        filtered.length,
+
+      items:
+        filtered
+    });
+  }
+);
 
 /*
-  CONTROLLED SINGLE-PRODUCT TEST
+  PRODUCT CATALOG
 
-  THIS endpoint DOES make a Walmart API request.
+  FREE.
+  Does NOT contact Walmart.
 
-  It checks ONLY the configured
-  Prismatic Evolutions ETB.
+  This lets us inspect which products
+  are configured without triggering
+  retailer requests.
+*/
+app.get(
+  "/api/catalog",
+  (req, res) => {
+    const safeProducts =
+      products.map(product => ({
+        id:
+          product.id,
 
-  The result is then saved into the
-  dashboard's in-memory state.
+        name:
+          product.name,
+
+        set:
+          product.set,
+
+        productType:
+          product.productType,
+
+        retailers:
+          product.retailers,
+
+        walmartItemId:
+          product.walmartItemId || null,
+
+        msrp:
+          product.msrp ?? null,
+
+        enabled:
+          product.enabled !== false
+      }));
+
+    res.json({
+      count:
+        safeProducts.length,
+
+      products:
+        safeProducts
+    });
+  }
+);
+
+/*
+  CONTROLLED SINGLE-PRODUCT CHECK
+
+  IMPORTANT:
+  THIS route contacts Walmart.
+
+  Example:
+
+  /api/test/product/prismatic-etb
+
+  It checks ONLY the product requested.
+
+  It does NOT run the complete catalog.
+
+  The result is saved into the current
+  dashboard state.
+*/
+app.get(
+  "/api/test/product/:productId",
+  async (req, res) => {
+    try {
+      const productId =
+        String(
+          req.params.productId || ""
+        ).trim();
+
+      const product =
+        products.find(
+          item =>
+            item.id === productId
+        );
+
+      if (!product) {
+        return res
+          .status(404)
+          .json({
+            ok: false,
+            test:
+              "single-product",
+            error:
+              "Product not found",
+            productId
+          });
+      }
+
+      if (
+        product.enabled === false
+      ) {
+        return res
+          .status(400)
+          .json({
+            ok: false,
+            test:
+              "single-product",
+            error:
+              "Product is disabled",
+            productId
+          });
+      }
+
+      if (
+        !Array.isArray(
+          product.retailers
+        ) ||
+        !product.retailers.includes(
+          "walmart"
+        )
+      ) {
+        return res
+          .status(400)
+          .json({
+            ok: false,
+            test:
+              "single-product",
+            error:
+              "Product is not configured for Walmart",
+            productId
+          });
+      }
+
+      const result =
+        await walmart.checkProduct(
+          product,
+          "walmart"
+        );
+
+      const savedResult =
+        saveResult(result);
+
+      return res.json({
+        ok: true,
+
+        test:
+          "single-product",
+
+        dashboardUpdated:
+          true,
+
+        productId:
+          product.id,
+
+        configuredItemId:
+          product.walmartItemId ||
+          null,
+
+        discoveredItemId:
+          savedResult.walmartItemId ||
+          null,
+
+        result:
+          savedResult
+      });
+
+    } catch (error) {
+      console.error(
+        "Controlled product test failed:",
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          ok: false,
+
+          test:
+            "single-product",
+
+          dashboardUpdated:
+            false,
+
+          error:
+            error.message
+        });
+    }
+  }
+);
+
+/*
+  KEEP OUR ORIGINAL ETB TEST LINK
+
+  This keeps the URL we've already
+  been using compatible.
+
+  IMPORTANT:
+  Opening it DOES contact Walmart.
 */
 app.get(
   "/api/test/prismatic-etb",
@@ -117,7 +342,8 @@ app.get(
       const product =
         products.find(
           item =>
-            item.id === "prismatic-etb"
+            item.id ===
+            "prismatic-etb"
         );
 
       if (!product) {
@@ -141,11 +367,19 @@ app.get(
 
       return res.json({
         ok: true,
-        test: "single-product",
-        dashboardUpdated: true,
+
+        test:
+          "single-product",
+
+        dashboardUpdated:
+          true,
+
         configuredItemId:
-          product.walmartItemId || null,
-        result: savedResult
+          product.walmartItemId ||
+          null,
+
+        result:
+          savedResult
       });
 
     } catch (error) {
@@ -157,58 +391,4 @@ app.get(
       return res
         .status(500)
         .json({
-          ok: false,
-          test: "single-product",
-          dashboardUpdated: false,
-          error: error.message
-        });
-    }
-  }
-);
-
-/*
-  START SERVER
-*/
-app.listen(
-  port,
-  async () => {
-    console.log(
-      `Pokemon monitor backend listening on ${port}`
-    );
-
-    /*
-      Startup scanning stays disabled unless
-      RUN_ON_STARTUP=true is explicitly set.
-
-      On our current configuration it is false.
-    */
-    if (runOnStartup) {
-      console.log(
-        "RUN_ON_STARTUP enabled."
-      );
-
-      await runCheck();
-    } else {
-      console.log(
-        "Startup scan disabled."
-      );
-    }
-
-    /*
-      IMPORTANT:
-
-      There is intentionally NO setInterval()
-      here right now.
-
-      That prevents an automatic full-catalog
-      Walmart scan from consuming API quota.
-
-      Later, when the larger API plan is active,
-      we can add the optimized scheduler.
-    */
-
-    console.log(
-      "Automatic catalog polling disabled."
-    );
-  }
-);
+         
