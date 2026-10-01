@@ -17,22 +17,12 @@ const app = express();
 const port =
   Number(process.env.PORT || 8080);
 
-const pollSeconds =
-  Math.max(
-    10,
-    Number(
-      process.env.POLL_SECONDS ||
-      86400
-    )
-  );
-
 const allowedOrigin =
   process.env.ALLOWED_ORIGIN || "*";
 
 const runOnStartup =
   String(
-    process.env.RUN_ON_STARTUP ||
-    "false"
+    process.env.RUN_ON_STARTUP || "false"
   ).toLowerCase() === "true";
 
 app.use(
@@ -46,80 +36,79 @@ app.use(
 
 app.use(express.json());
 
+/*
+  ROOT
+*/
 app.get("/", (req, res) => {
   res.json({
-    name:
-      "Pokemon Live Monitor Backend",
+    name: "Pokemon Live Monitor Backend",
     ok: true,
     provider:
-      process.env.DATA_PROVIDER ||
-      "mock"
+      process.env.DATA_PROVIDER || "mock",
+    automaticScanning: false
   });
 });
 
+/*
+  HEALTH CHECK
+
+  Does NOT call Walmart.
+*/
 app.get("/health", (req, res) => {
   res.json({
     ok: true,
-    time:
-      new Date().toISOString()
+    time: new Date().toISOString(),
+    automaticScanning: false
   });
 });
 
-app.get(
-  "/api/status",
-  (req, res) => {
-    const data =
-      getLatest();
+/*
+  DASHBOARD DATA
 
-    res.json({
-      lastRun:
-        data.lastRun,
+  Does NOT call Walmart.
+*/
+app.get("/api/status", (req, res) => {
+  const data = getLatest();
 
-      count:
-        data.items.length,
+  res.json({
+    lastRun: data.lastRun,
+    count: data.items.length,
+    items: data.items
+  });
+});
 
-      items:
-        data.items
-    });
-  }
-);
+/*
+  WALMART-DIRECT PRODUCTS ONLY
 
-app.get(
-  "/api/products",
-  (req, res) => {
-    const data =
-      getLatest();
+  Does NOT call Walmart.
+*/
+app.get("/api/products", (req, res) => {
+  const data = getLatest();
 
-    const filtered =
-      data.items.filter(
-        item =>
-          item.directSeller !== false &&
-          item.withinPriceRule !== false
-      );
+  const filtered =
+    data.items.filter(
+      item =>
+        item.directSeller === true &&
+        item.withinPriceRule !== false
+    );
 
-    res.json({
-      lastRun:
-        data.lastRun,
-
-      count:
-        filtered.length,
-
-      items:
-        filtered
-    });
-  }
-);
+  res.json({
+    lastRun: data.lastRun,
+    count: filtered.length,
+    items: filtered
+  });
+});
 
 /*
   CONTROLLED SINGLE-PRODUCT TEST
 
-  This checks ONLY the configured
+  THIS endpoint DOES make a Walmart API request.
+
+  It checks ONLY the configured
   Prismatic Evolutions ETB.
 
-  It also saves that one result into
-  the dashboard's current state.
-
-  It does NOT run the complete catalog.
+  The result is then saved into the
+  dashboard's in-memory state.
 */
 app.get(
   "/api/test/prismatic-etb",
@@ -128,8 +117,7 @@ app.get(
       const product =
         products.find(
           item =>
-            item.id ===
-            "prismatic-etb"
+            item.id === "prismatic-etb"
         );
 
       if (!product) {
@@ -148,51 +136,39 @@ app.get(
           "walmart"
         );
 
-      /*
-        Save ONLY this product into
-        the live dashboard state.
-      */
       const savedResult =
         saveResult(result);
 
-      res.json({
+      return res.json({
         ok: true,
-
-        test:
-          "single-product",
-
-        dashboardUpdated:
-          true,
-
+        test: "single-product",
+        dashboardUpdated: true,
         configuredItemId:
-          product.walmartItemId ||
-          null,
-
-        result:
-          savedResult
+          product.walmartItemId || null,
+        result: savedResult
       });
 
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Controlled Walmart test failed:",
+        error
+      );
 
-      res
+      return res
         .status(500)
         .json({
           ok: false,
-
-          test:
-            "single-product",
-
-          dashboardUpdated:
-            false,
-
-          error:
-            error.message
+          test: "single-product",
+          dashboardUpdated: false,
+          error: error.message
         });
     }
   }
 );
 
+/*
+  START SERVER
+*/
 app.listen(
   port,
   async () => {
@@ -200,7 +176,17 @@ app.listen(
       `Pokemon monitor backend listening on ${port}`
     );
 
+    /*
+      Startup scanning stays disabled unless
+      RUN_ON_STARTUP=true is explicitly set.
+
+      On our current configuration it is false.
+    */
     if (runOnStartup) {
+      console.log(
+        "RUN_ON_STARTUP enabled."
+      );
+
       await runCheck();
     } else {
       console.log(
@@ -209,16 +195,20 @@ app.listen(
     }
 
     /*
-      Full catalog polling remains on
-      the configured interval.
+      IMPORTANT:
 
-      Current POLL_SECONDS=86400 means
-      approximately once every 24 hours
-      while the process remains alive.
+      There is intentionally NO setInterval()
+      here right now.
+
+      That prevents an automatic full-catalog
+      Walmart scan from consuming API quota.
+
+      Later, when the larger API plan is active,
+      we can add the optimized scheduler.
     */
-    setInterval(
-      runCheck,
-      pollSeconds * 1000
+
+    console.log(
+      "Automatic catalog polling disabled."
     );
   }
 );
