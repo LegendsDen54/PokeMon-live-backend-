@@ -7,7 +7,11 @@ const API_KEY = process.env.WALMART_RAPIDAPI_KEY;
 const discoveredItems = new Map();
 
 function parsePrice(value) {
-  if (value === null || value === undefined || value === "") {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
     return null;
   }
 
@@ -15,7 +19,9 @@ function parsePrice(value) {
     String(value).replace(/[^0-9.]/g, "")
   );
 
-  return Number.isFinite(number) ? number : null;
+  return Number.isFinite(number)
+    ? number
+    : null;
 }
 
 function normalize(value) {
@@ -39,8 +45,7 @@ function productMatches(product, item) {
   const expected = normalize(product.name);
 
   const actual = normalize(
-    item.name ||
-    item.title
+    item.name || item.title
   );
 
   if (!expected || !actual) {
@@ -102,20 +107,34 @@ async function apiRequest(path) {
 }
 
 function getSellerName(item) {
-  return (
-    item.sellerName ||
-    item.sellerDisplayName ||
-    (
-      typeof item.seller === "string"
-        ? item.seller
-        : item.seller?.name
-    ) ||
-    null
-  );
+  if (item.sellerName) {
+    return item.sellerName;
+  }
+
+  if (item.sellerDisplayName) {
+    return item.sellerDisplayName;
+  }
+
+  if (typeof item.seller === "string") {
+    return item.seller;
+  }
+
+  if (
+    item.seller &&
+    typeof item.seller === "object"
+  ) {
+    return item.seller.name || null;
+  }
+
+  return null;
 }
 
 function makeResult(product, item, source) {
-  const sellerName = getSellerName(item);
+  const sellerName =
+    getSellerName(item);
+
+  const directSeller =
+    isWalmartSeller(sellerName);
 
   const price = parsePrice(
     item.price ??
@@ -128,9 +147,6 @@ function makeResult(product, item, source) {
     item.availabilityStatus ||
     item.stockStatus
   );
-
-  const directSeller =
-    isWalmartSeller(sellerName);
 
   const rawInStock =
     availability.includes("in stock") ||
@@ -155,48 +171,35 @@ function makeResult(product, item, source) {
         : null
     );
 
+  const image =
+    item.image ||
+    item.imageUrl ||
+    item.thumbnailUrl ||
+    null;
+
   return {
     productId: product.id,
-
     name:
       item.name ||
       item.title ||
       product.name,
-
     set: product.set,
-
     retailer: "walmart",
-
     inStock,
-
     directSeller,
-
     price,
-
     msrp: product.msrp ?? null,
-
     url,
-
     seller:
       directSeller
         ? "Walmart"
         : sellerName,
-
     checkedAt:
       new Date().toISOString(),
-
     source,
-
     walmartItemId: itemId,
-
-    image:
-      item.image ||
-      item.imageUrl ||
-      item.thumbnailUrl ||
-      null,
-
-    marketplaceOnly:
-      !directSeller
+    image,
+    marketplaceOnly: !directSeller
   };
 }
 
@@ -205,24 +208,14 @@ async function checkKnownItem(
   itemId
 ) {
   const data = await apiRequest(
-    `/product?itemId=${encodeURIComponent(itemId)}`
+    `/product?itemId=${encodeURIComponent(
+      itemId
+    )}`
   );
 
-  /*
-    TEMPORARY DIAGNOSTIC
-
-    This prints the complete Product Details
-    response to the Render server logs.
-
-    It lets us determine the exact locations of:
-    - Walmart seller information
-    - price
-    - availability
-    - image
-    - offer data
-
-    Remove this after mapping is complete.
-  */
+  // TEMPORARY:
+  // Shows the Product Details structure
+  // in Render logs during our controlled test.
   console.log(
     "WALMART PRODUCT DEBUG:",
     JSON.stringify(data, null, 2)
@@ -263,11 +256,12 @@ async function discoverProduct(product) {
     product.name ||
     "Pokemon";
 
-  const params = new URLSearchParams({
-    page: "1",
-    sort: "best_match",
-    keyword
-  });
+  const params =
+    new URLSearchParams({
+      page: "1",
+      sort: "best_match",
+      keyword
+    });
 
   const data = await apiRequest(
     `/search?${params.toString()}`
@@ -278,51 +272,31 @@ async function discoverProduct(product) {
       ? data.results
       : [];
 
-  const match = results.find(item => {
-    return (
+  const match = results.find(
+    item =>
       isWalmartSeller(
         getSellerName(item)
       ) &&
-      productMatches(
-        product,
-        item
-      )
-    );
-  });
+      productMatches(product, item)
+  );
 
   if (!match) {
     return {
       productId: product.id,
-
       name: product.name,
-
       set: product.set,
-
       retailer: "walmart",
-
       inStock: false,
-
       directSeller: false,
-
       price: null,
-
-      msrp:
-        product.msrp ?? null,
-
+      msrp: product.msrp ?? null,
       url: null,
-
       seller: null,
-
       checkedAt:
         new Date().toISOString(),
-
-      source:
-        "walmart-discovery",
-
+      source: "walmart-discovery",
       discoveryMode: true,
-
       marketplaceOnly: false,
-
       error:
         "No validated Walmart-direct result found"
     };
@@ -347,9 +321,7 @@ async function discoverProduct(product) {
       match,
       "walmart-discovery"
     ),
-
-    discoveryMode:
-      !itemId
+    discoveryMode: !itemId
   };
 }
 
@@ -360,32 +332,18 @@ async function checkProduct(
   if (retailer !== "walmart") {
     return {
       productId: product.id,
-
       name: product.name,
-
       set: product.set,
-
       retailer,
-
       inStock: false,
-
       directSeller: false,
-
       price: null,
-
-      msrp:
-        product.msrp ?? null,
-
+      msrp: product.msrp ?? null,
       url: null,
-
       seller: null,
-
       checkedAt:
         new Date().toISOString(),
-
-      source:
-        "walmart-rapidapi",
-
+      source: "walmart-rapidapi",
       error:
         "Retailer not supported by Walmart provider"
     };
@@ -393,9 +351,7 @@ async function checkProduct(
 
   const knownItemId =
     product.walmartItemId ||
-    discoveredItems.get(
-      product.id
-    );
+    discoveredItems.get(product.id);
 
   if (knownItemId) {
     try {
@@ -404,10 +360,20 @@ async function checkProduct(
         knownItemId
       );
     } catch (error) {
+      console.error(
+        `Known Walmart item failed for ${product.id}:`,
+        error.message
+      );
+
       discoveredItems.delete(
         product.id
       );
     }
   }
 
- 
+  return discoverProduct(product);
+}
+
+module.exports = {
+  checkProduct
+};
