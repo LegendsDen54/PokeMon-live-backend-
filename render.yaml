@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: pokemon-live-backend
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DATA_PROVIDER
+        value: mock
+      - key: POLL_SECONDS
+        value: "30"
+      - key: ALLOWED_ORIGIN
+        value: https://legendsden54.github.io

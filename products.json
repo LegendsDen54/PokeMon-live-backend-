@@ -1,0 +1,54 @@
+[
+  {
+    "id": "pokemon-30th-1",
+    "name": "Pok\u00e9mon 30th Anniversary Product",
+    "set": "30th Anniversary",
+    "retailers": [
+      "target",
+      "walmart"
+    ],
+    "msrp": null,
+    "targetUrl": "",
+    "walmartUrl": "",
+    "enabled": true
+  },
+  {
+    "id": "prismatic-1",
+    "name": "Pok\u00e9mon Prismatic Evolutions Product",
+    "set": "Prismatic Evolutions",
+    "retailers": [
+      "target",
+      "walmart"
+    ],
+    "msrp": null,
+    "targetUrl": "",
+    "walmartUrl": "",
+    "enabled": true
+  },
+  {
+    "id": "destined-rivals-1",
+    "name": "Pok\u00e9mon Destined Rivals Product",
+    "set": "Destined Rivals",
+    "retailers": [
+      "target",
+      "walmart"
+    ],
+    "msrp": null,
+    "targetUrl": "",
+    "walmartUrl": "",
+    "enabled": true
+  },
+  {
+    "id": "ascended-heroes-1",
+    "name": "Pok\u00e9mon Ascended Heroes Product",
+    "set": "Ascended Heroes",
+    "retailers": [
+      "target",
+      "walmart"
+    ],
+    "msrp": null,
+    "targetUrl": "",
+    "walmartUrl": "",
+    "enabled": true
+  }
+]
