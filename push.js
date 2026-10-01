@@ -14,6 +14,49 @@ const subscriptions = new Map();
 
 let pushConfigured = false;
 
+
+// ========================================
+// SAFE VAPID DIAGNOSTICS
+// Does NOT print either key
+// ========================================
+
+function inspectVapidKey(name, value, expectedLength) {
+  if (!value) {
+    console.log(`${name}: MISSING`);
+    return;
+  }
+
+  console.log(`${name} diagnostics:`, {
+    length: value.length,
+    expectedLength,
+    startsWithB:
+      name === "VAPID_PUBLIC_KEY"
+        ? value.startsWith("B")
+        : undefined,
+    containsEquals: value.includes("="),
+    containsWhitespace: /\s/.test(value),
+    urlSafeCharactersOnly:
+      /^[A-Za-z0-9_-]+$/.test(value)
+  });
+}
+
+inspectVapidKey(
+  "VAPID_PUBLIC_KEY",
+  publicKey,
+  87
+);
+
+inspectVapidKey(
+  "VAPID_PRIVATE_KEY",
+  privateKey,
+  43
+);
+
+
+// ========================================
+// WEB PUSH CONFIGURATION
+// ========================================
+
 function configurePush() {
   if (!publicKey || !privateKey) {
     console.log(
@@ -49,9 +92,19 @@ function configurePush() {
 pushConfigured =
   configurePush();
 
+
+// ========================================
+// PUBLIC KEY
+// ========================================
+
 function getPublicKey() {
   return publicKey || null;
 }
+
+
+// ========================================
+// SUBSCRIPTIONS
+// ========================================
 
 function addSubscription(
   subscription
@@ -81,6 +134,7 @@ function addSubscription(
   };
 }
 
+
 function removeSubscription(
   endpoint
 ) {
@@ -92,6 +146,11 @@ function removeSubscription(
     endpoint
   );
 }
+
+
+// ========================================
+// SEND PUSH
+// ========================================
 
 async function sendToSubscription(
   subscription,
@@ -108,6 +167,11 @@ async function sendToSubscription(
     JSON.stringify(payload)
   );
 }
+
+
+// ========================================
+// BROADCAST
+// ========================================
 
 async function broadcast(
   payload
@@ -180,6 +244,11 @@ async function broadcast(
   };
 }
 
+
+// ========================================
+// REAL WALMART RESTOCK ALERT
+// ========================================
+
 async function sendRestockAlert(
   item
 ) {
@@ -231,6 +300,11 @@ async function sendRestockAlert(
   );
 }
 
+
+// ========================================
+// TEST ALERT
+// ========================================
+
 async function sendTestAlert() {
   return broadcast({
     title:
@@ -246,6 +320,11 @@ async function sendTestAlert() {
   });
 }
 
+
+// ========================================
+// STATUS
+// ========================================
+
 function getPushStatus() {
   return {
     configured:
@@ -256,6 +335,7 @@ function getPushStatus() {
       Boolean(publicKey)
   };
 }
+
 
 module.exports = {
   getPublicKey,
