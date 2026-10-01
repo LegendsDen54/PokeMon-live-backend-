@@ -1,14 +1,8 @@
 const webpush = require("web-push");
 
-const keys =
-  webpush.generateVAPIDKeys();
+const keys = webpush.generateVAPIDKeys();
 
-console.log(
-  "VAPID_PUBLIC_KEY="
-  + keys.publicKey
-);
-
-console.log(
-  "VAPID_PRIVATE_KEY="
-  + keys.privateKey
-);
+console.log("NEW VAPID KEY PAIR GENERATED");
+console.log("PUBLIC=" + keys.publicKey);
+console.log("PRIVATE=" + keys.privateKey);
+console.log("IMPORTANT: Copy these directly into Render Environment. Do not share them.");
