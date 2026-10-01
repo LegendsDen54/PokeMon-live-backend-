@@ -24,6 +24,15 @@ app.get("/api/debug-products", async (req, res) => {
   res.json(getLatest());
 
 });
+app.get("/api/status", (req, res) => {
+  const data = getLatest();
+
+  res.json({
+    lastRun: data.lastRun,
+    count: data.items.length,
+    items: data.items
+  });
+});
 app.get("/api/products", async (req, res) => {
   let data = getLatest();
   if (!data.lastRun) {
