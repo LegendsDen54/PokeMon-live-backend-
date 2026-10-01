@@ -15,8 +15,9 @@ const products = require("./products.json");
 
 const app = express();
 
-const port =
-  Number(process.env.PORT || 8080);
+const port = Number(
+  process.env.PORT || 8080
+);
 
 const allowedOrigin =
   process.env.ALLOWED_ORIGIN || "*";
@@ -25,6 +26,10 @@ const runOnStartup =
   String(
     process.env.RUN_ON_STARTUP || "false"
   ).toLowerCase() === "true";
+
+/*
+  MIDDLEWARE
+*/
 
 app.use(
   cors({
@@ -40,6 +45,7 @@ app.use(express.json());
 /*
   ROOT
 */
+
 app.get("/", (req, res) => {
   res.json({
     name: "Pokemon Live Monitor Backend",
@@ -53,9 +59,9 @@ app.get("/", (req, res) => {
 /*
   HEALTH CHECK
 
-  FREE.
   Does NOT contact Walmart.
 */
+
 app.get("/health", (req, res) => {
   res.json({
     ok: true,
@@ -67,158 +73,75 @@ app.get("/health", (req, res) => {
 /*
   SCANNER INFORMATION
 
-  FREE.
   Does NOT contact Walmart.
 */
-app.get(
-  "/api/scanner",
-  (req, res) => {
-    res.json(
-      getScannerState()
+
+app.get("/api/scanner", (req, res) => {
+  res.json(
+    getScannerState()
+  );
+});
+
+/*
+  CURRENT DASHBOARD STATE
+
+  Does NOT contact Walmart.
+*/
+
+app.get("/api/status", (req, res) => {
+  const data = getLatest();
+
+  res.json({
+    lastRun: data.lastRun,
+    running: data.running,
+    count: data.items.length,
+    items: data.items
+  });
+});
+
+/*
+  WALMART-DIRECT RESULTS ONLY
+
+  Does NOT contact Walmart.
+*/
+
+app.get("/api/products", (req, res) => {
+  const data = getLatest();
+
+  const filtered =
+    data.items.filter(
+      item =>
+        item.directSeller === true &&
+        item.withinPriceRule !== false
     );
-  }
-);
+
+  res.json({
+    lastRun: data.lastRun,
+    count: filtered.length,
+    items: filtered
+  });
+});
 
 /*
-  DASHBOARD DATA
-
-  FREE.
-  Does NOT contact Walmart.
-*/
-app.get(
-  "/api/status",
-  (req, res) => {
-    const data =
-      getLatest();
-
-    res.json({
-      lastRun:
-        data.lastRun,
-
-      running:
-        data.running,
-
-      count:
-        data.items.length,
-
-      items:
-        data.items
-    });
-  }
-);
-
-/*
-  DIRECT RETAILER PRODUCTS ONLY
-
-  FREE.
-  Does NOT contact Walmart.
-*/
-app.get(
-  "/api/products",
-  (req, res) => {
-    const data =
-      getLatest();
-
-    const filtered =
-      data.items.filter(
-        item =>
-          item.directSeller === true &&
-          item.withinPriceRule !== false
-      );
-
-    res.json({
-      lastRun:
-        data.lastRun,
-
-      count:
-        filtered.length,
-
-      items:
-        filtered
-    });
-  }
-);
-
-/*
-  PRODUCT CATALOG
-
-  FREE.
-  Does NOT contact Walmart.
-
-  This lets us inspect which products
-  are configured without triggering
-  retailer requests.
-*/
-app.get(
-  "/api/catalog",
-  (req, res) => {
-    const safeProducts =
-      products.map(product => ({
-        id:
-          product.id,
-
-        name:
-          product.name,
-
-        set:
-          product.set,
-
-        productType:
-          product.productType,
-
-        retailers:
-          product.retailers,
-
-        walmartItemId:
-          product.walmartItemId || null,
-
-        msrp:
-          product.msrp ?? null,
-
-        enabled:
-          product.enabled !== false
-      }));
-
-    res.json({
-      count:
-        safeProducts.length,
-
-      products:
-        safeProducts
-    });
-  }
-);
-
-/*
-  CONTROLLED SINGLE-PRODUCT CHECK
-
-  IMPORTANT:
-  THIS route contacts Walmart.
+  CONTROLLED ONE-PRODUCT WALMART CHECK
 
   Example:
-
   /api/test/product/prismatic-etb
 
-  It checks ONLY the product requested.
+  THIS DOES CONTACT WALMART.
 
-  It does NOT run the complete catalog.
-
-  The result is saved into the current
-  dashboard state.
+  It checks only the requested product.
 */
+
 app.get(
   "/api/test/product/:productId",
   async (req, res) => {
     try {
-      const productId =
-        String(
-          req.params.productId || ""
-        ).trim();
-
       const product =
         products.find(
           item =>
-            item.id === productId
+            item.id ===
+            req.params.productId
         );
 
       if (!product) {
@@ -226,33 +149,14 @@ app.get(
           .status(404)
           .json({
             ok: false,
-            test:
-              "single-product",
-            error:
-              "Product not found",
-            productId
+            error: "Product not found",
+            productId:
+              req.params.productId
           });
       }
 
       if (
-        product.enabled === false
-      ) {
-        return res
-          .status(400)
-          .json({
-            ok: false,
-            test:
-              "single-product",
-            error:
-              "Product is disabled",
-            productId
-          });
-      }
-
-      if (
-        !Array.isArray(
-          product.retailers
-        ) ||
+        !Array.isArray(product.retailers) ||
         !product.retailers.includes(
           "walmart"
         )
@@ -261,11 +165,8 @@ app.get(
           .status(400)
           .json({
             ok: false,
-            test:
-              "single-product",
             error:
-              "Product is not configured for Walmart",
-            productId
+              "Product is not configured for Walmart"
           });
       }
 
@@ -280,31 +181,18 @@ app.get(
 
       return res.json({
         ok: true,
-
-        test:
-          "single-product",
-
-        dashboardUpdated:
-          true,
-
-        productId:
+        test: "single-product",
+        dashboardUpdated: true,
+        requestedProductId:
           product.id,
-
         configuredItemId:
-          product.walmartItemId ||
-          null,
-
-        discoveredItemId:
-          savedResult.walmartItemId ||
-          null,
-
-        result:
-          savedResult
+          product.walmartItemId || null,
+        result: savedResult
       });
 
     } catch (error) {
       console.error(
-        "Controlled product test failed:",
+        "Controlled Walmart test failed:",
         error
       );
 
@@ -312,29 +200,21 @@ app.get(
         .status(500)
         .json({
           ok: false,
-
-          test:
-            "single-product",
-
-          dashboardUpdated:
-            false,
-
-          error:
-            error.message
+          test: "single-product",
+          dashboardUpdated: false,
+          error: error.message
         });
     }
   }
 );
 
 /*
-  KEEP OUR ORIGINAL ETB TEST LINK
+  OLD PRISMATIC ETB TEST LINK
 
-  This keeps the URL we've already
-  been using compatible.
-
-  IMPORTANT:
-  Opening it DOES contact Walmart.
+  Keeping this so our original
+  test URL still works.
 */
+
 app.get(
   "/api/test/prismatic-etb",
   async (req, res) => {
@@ -367,19 +247,11 @@ app.get(
 
       return res.json({
         ok: true,
-
-        test:
-          "single-product",
-
-        dashboardUpdated:
-          true,
-
+        test: "single-product",
+        dashboardUpdated: true,
         configuredItemId:
-          product.walmartItemId ||
-          null,
-
-        result:
-          savedResult
+          product.walmartItemId || null,
+        result: savedResult
       });
 
     } catch (error) {
@@ -391,4 +263,43 @@ app.get(
       return res
         .status(500)
         .json({
-         
+          ok: false,
+          test: "single-product",
+          dashboardUpdated: false,
+          error: error.message
+        });
+    }
+  }
+);
+
+/*
+  START SERVER
+
+  AUTOMATIC CATALOG POLLING
+  IS INTENTIONALLY DISABLED.
+*/
+
+app.listen(
+  port,
+  async () => {
+    console.log(
+      `Pokemon monitor backend listening on ${port}`
+    );
+
+    if (runOnStartup) {
+      console.log(
+        "RUN_ON_STARTUP enabled."
+      );
+
+      await runCheck();
+    } else {
+      console.log(
+        "Startup scan disabled."
+      );
+    }
+
+    console.log(
+      "Automatic catalog polling disabled."
+    );
+  }
+);
