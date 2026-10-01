@@ -17,7 +17,13 @@ app.get("/", (req, res) => res.json({
   provider: process.env.DATA_PROVIDER || "mock"
 }));
 app.get("/health", (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+app.get("/api/debug-products", async (req, res) => {
 
+  await runCheck();
+
+  res.json(getLatest());
+
+});
 app.get("/api/products", async (req, res) => {
   let data = getLatest();
   if (!data.lastRun) {
