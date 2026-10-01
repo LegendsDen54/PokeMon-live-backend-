@@ -37,8 +37,10 @@ function isWalmartSeller(value) {
 
 function productMatches(product, item) {
   const expected = normalize(product.name);
+
   const actual = normalize(
-    item.name || item.title
+    item.name ||
+    item.title
   );
 
   if (!expected || !actual) {
@@ -134,8 +136,6 @@ function makeResult(product, item, source) {
     availability.includes("in stock") ||
     availability === "instock";
 
-  // We only consider something purchasable when
-  // Walmart itself is the seller.
   const inStock =
     directSeller && rawInStock;
 
@@ -157,36 +157,75 @@ function makeResult(product, item, source) {
 
   return {
     productId: product.id,
+
     name:
       item.name ||
       item.title ||
       product.name,
+
     set: product.set,
+
     retailer: "walmart",
+
     inStock,
+
     directSeller,
+
     price,
+
     msrp: product.msrp ?? null,
+
     url,
+
     seller:
       directSeller
         ? "Walmart"
         : sellerName,
-    checkedAt: new Date().toISOString(),
+
+    checkedAt:
+      new Date().toISOString(),
+
     source,
+
     walmartItemId: itemId,
+
     image:
       item.image ||
       item.imageUrl ||
       item.thumbnailUrl ||
       null,
-    marketplaceOnly: !directSeller
+
+    marketplaceOnly:
+      !directSeller
   };
 }
 
-async function checkKnownItem(product, itemId) {
+async function checkKnownItem(
+  product,
+  itemId
+) {
   const data = await apiRequest(
     `/product?itemId=${encodeURIComponent(itemId)}`
+  );
+
+  /*
+    TEMPORARY DIAGNOSTIC
+
+    This prints the complete Product Details
+    response to the Render server logs.
+
+    It lets us determine the exact locations of:
+    - Walmart seller information
+    - price
+    - availability
+    - image
+    - offer data
+
+    Remove this after mapping is complete.
+  */
+  console.log(
+    "WALMART PRODUCT DEBUG:",
+    JSON.stringify(data, null, 2)
   );
 
   const item =
@@ -211,14 +250,6 @@ async function checkKnownItem(product, itemId) {
     );
   }
 
-  /*
-    IMPORTANT:
-    A valid Walmart item ID does NOT mean Walmart
-    is currently the seller.
-
-    We keep monitoring the item ID even when a
-    marketplace seller currently owns the offer.
-  */
   return makeResult(
     product,
     item,
@@ -242,41 +273,56 @@ async function discoverProduct(product) {
     `/search?${params.toString()}`
   );
 
-  const results = Array.isArray(data.results)
-    ? data.results
-    : [];
+  const results =
+    Array.isArray(data.results)
+      ? data.results
+      : [];
 
-  /*
-    Discovery requires:
-    1. Correct product identity
-    2. Walmart-direct seller
-
-    This prevents marketplace products from being
-    trusted as Walmart inventory.
-  */
   const match = results.find(item => {
     return (
-      isWalmartSeller(getSellerName(item)) &&
-      productMatches(product, item)
+      isWalmartSeller(
+        getSellerName(item)
+      ) &&
+      productMatches(
+        product,
+        item
+      )
     );
   });
 
   if (!match) {
     return {
       productId: product.id,
+
       name: product.name,
+
       set: product.set,
+
       retailer: "walmart",
+
       inStock: false,
+
       directSeller: false,
+
       price: null,
-      msrp: product.msrp ?? null,
+
+      msrp:
+        product.msrp ?? null,
+
       url: null,
+
       seller: null,
-      checkedAt: new Date().toISOString(),
-      source: "walmart-discovery",
+
+      checkedAt:
+        new Date().toISOString(),
+
+      source:
+        "walmart-discovery",
+
       discoveryMode: true,
+
       marketplaceOnly: false,
+
       error:
         "No validated Walmart-direct result found"
     };
@@ -301,25 +347,45 @@ async function discoverProduct(product) {
       match,
       "walmart-discovery"
     ),
-    discoveryMode: !itemId
+
+    discoveryMode:
+      !itemId
   };
 }
 
-async function checkProduct(product, retailer) {
+async function checkProduct(
+  product,
+  retailer
+) {
   if (retailer !== "walmart") {
     return {
       productId: product.id,
+
       name: product.name,
+
       set: product.set,
+
       retailer,
+
       inStock: false,
+
       directSeller: false,
+
       price: null,
-      msrp: product.msrp ?? null,
+
+      msrp:
+        product.msrp ?? null,
+
       url: null,
+
       seller: null,
-      checkedAt: new Date().toISOString(),
-      source: "walmart-rapidapi",
+
+      checkedAt:
+        new Date().toISOString(),
+
+      source:
+        "walmart-rapidapi",
+
       error:
         "Retailer not supported by Walmart provider"
     };
@@ -327,7 +393,9 @@ async function checkProduct(product, retailer) {
 
   const knownItemId =
     product.walmartItemId ||
-    discoveredItems.get(product.id);
+    discoveredItems.get(
+      product.id
+    );
 
   if (knownItemId) {
     try {
@@ -336,13 +404,10 @@ async function checkProduct(product, retailer) {
         knownItemId
       );
     } catch (error) {
-      discoveredItems.delete(product.id);
+      discoveredItems.delete(
+        product.id
+      );
     }
   }
 
-  return discoverProduct(product);
-}
-
-module.exports = {
-  checkProduct
-};
+ 
