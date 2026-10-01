@@ -15,6 +15,10 @@ function parsePrice(value) {
     return null;
   }
 
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
   const number = Number(
     String(value).replace(/[^0-9.]/g, "")
   );
@@ -45,7 +49,8 @@ function productMatches(product, item) {
   const expected = normalize(product.name);
 
   const actual = normalize(
-    item.name || item.title
+    item.name ||
+    item.title
   );
 
   if (!expected || !actual) {
@@ -129,29 +134,80 @@ function getSellerName(item) {
   return null;
 }
 
-function makeResult(product, item, source) {
-  const sellerName =
-    getSellerName(item);
-
-  const directSeller =
-    isWalmartSeller(sellerName);
-
-  const price = parsePrice(
+function getPrice(item) {
+  return parsePrice(
+    item.priceDetails?.currentPrice?.price ??
+    item.priceDetails?.currentPrice?.priceString ??
     item.price ??
     item.currentPrice ??
     item.salePrice
   );
+}
 
-  const availability = normalize(
+function getImage(item) {
+  if (
+    Array.isArray(item.images) &&
+    item.images.length > 0
+  ) {
+    return item.images[0];
+  }
+
+  return (
+    item.image ||
+    item.imageUrl ||
+    item.thumbnailUrl ||
+    null
+  );
+}
+
+function getAvailability(item) {
+  return normalize(
+    item.otherDetails?.availabilityStatusV2?.value ||
+    item.otherDetails?.availabilityStatusV2?.display ||
+    item.otherDetails?.availabilityStatus ||
+    item.shippingOption?.availabilityStatus ||
     item.availability ||
     item.availabilityStatus ||
     item.stockStatus
   );
+}
+
+function getSellerType(item) {
+  return normalize(
+    item.otherDetails?.sellerType ||
+    item.sellerType
+  );
+}
+
+function makeResult(product, item, source) {
+  const sellerName =
+    getSellerName(item);
+
+  const sellerType =
+    getSellerType(item);
+
+  const directSeller =
+    isWalmartSeller(sellerName) &&
+    sellerType !== "external";
+
+  const price =
+    getPrice(item);
+
+  const availability =
+    getAvailability(item);
 
   const rawInStock =
-    availability.includes("in stock") ||
-    availability === "instock";
+    availability === "in stock" ||
+    availability === "instock" ||
+    availability === "available";
 
+  /*
+    IMPORTANT:
+    Marketplace inventory may be IN_STOCK too.
+
+    We only mark the product as in stock for
+    our monitor when Walmart itself is the seller.
+  */
   const inStock =
     directSeller && rawInStock;
 
@@ -172,34 +228,54 @@ function makeResult(product, item, source) {
     );
 
   const image =
-    item.image ||
-    item.imageUrl ||
-    item.thumbnailUrl ||
-    null;
+    getImage(item);
 
   return {
     productId: product.id,
+
     name:
       item.name ||
       item.title ||
       product.name,
+
     set: product.set,
+
     retailer: "walmart",
+
     inStock,
+
     directSeller,
+
     price,
-    msrp: product.msrp ?? null,
+
+    msrp:
+      product.msrp ?? null,
+
     url,
+
     seller:
       directSeller
         ? "Walmart"
         : sellerName,
+
+    sellerType:
+      sellerType || null,
+
     checkedAt:
       new Date().toISOString(),
+
     source,
-    walmartItemId: itemId,
+
+    walmartItemId:
+      itemId,
+
     image,
-    marketplaceOnly: !directSeller
+
+    marketplaceOnly:
+      !directSeller,
+
+    offerAvailable:
+      rawInStock
   };
 }
 
@@ -211,14 +287,6 @@ async function checkKnownItem(
     `/product?itemId=${encodeURIComponent(
       itemId
     )}`
-  );
-
-  // TEMPORARY:
-  // Shows the Product Details structure
-  // in Render logs during our controlled test.
-  console.log(
-    "WALMART PRODUCT DEBUG:",
-    JSON.stringify(data, null, 2)
   );
 
   const item =
@@ -272,31 +340,58 @@ async function discoverProduct(product) {
       ? data.results
       : [];
 
+  /*
+    Discovery only accepts a listing as
+    Walmart-direct when Walmart is the seller.
+  */
   const match = results.find(
     item =>
       isWalmartSeller(
         getSellerName(item)
       ) &&
-      productMatches(product, item)
+      productMatches(
+        product,
+        item
+      )
   );
 
   if (!match) {
     return {
       productId: product.id,
+
       name: product.name,
+
       set: product.set,
+
       retailer: "walmart",
+
       inStock: false,
+
       directSeller: false,
+
       price: null,
-      msrp: product.msrp ?? null,
+
+      msrp:
+        product.msrp ?? null,
+
       url: null,
+
       seller: null,
+
+      sellerType: null,
+
       checkedAt:
         new Date().toISOString(),
-      source: "walmart-discovery",
+
+      source:
+        "walmart-discovery",
+
       discoveryMode: true,
+
       marketplaceOnly: false,
+
+      offerAvailable: false,
+
       error:
         "No validated Walmart-direct result found"
     };
@@ -321,7 +416,9 @@ async function discoverProduct(product) {
       match,
       "walmart-discovery"
     ),
-    discoveryMode: !itemId
+
+    discoveryMode:
+      !itemId
   };
 }
 
@@ -332,18 +429,34 @@ async function checkProduct(
   if (retailer !== "walmart") {
     return {
       productId: product.id,
+
       name: product.name,
+
       set: product.set,
+
       retailer,
+
       inStock: false,
+
       directSeller: false,
+
       price: null,
-      msrp: product.msrp ?? null,
+
+      msrp:
+        product.msrp ?? null,
+
       url: null,
+
       seller: null,
+
+      sellerType: null,
+
       checkedAt:
         new Date().toISOString(),
-      source: "walmart-rapidapi",
+
+      source:
+        "walmart-rapidapi",
+
       error:
         "Retailer not supported by Walmart provider"
     };
@@ -351,7 +464,9 @@ async function checkProduct(
 
   const knownItemId =
     product.walmartItemId ||
-    discoveredItems.get(product.id);
+    discoveredItems.get(
+      product.id
+    );
 
   if (knownItemId) {
     try {
@@ -371,7 +486,9 @@ async function checkProduct(
     }
   }
 
-  return discoverProduct(product);
+  return discoverProduct(
+    product
+  );
 }
 
 module.exports = {
