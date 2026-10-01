@@ -29,13 +29,13 @@
     "msrp": null,
     "enabled": true
   },
-
   {
     "id": "prismatic-etb",
     "name": "Pokemon TCG Prismatic Evolutions Elite Trainer Box",
     "set": "Prismatic Evolutions",
     "productType": "Elite Trainer Box",
     "searchTerm": "Pokemon Prismatic Evolutions Elite Trainer Box",
+    "walmartItemId": "18170913799",
     "retailers": ["walmart"],
     "msrp": null,
     "enabled": true
@@ -120,7 +120,6 @@
     "msrp": null,
     "enabled": true
   },
-
   {
     "id": "destined-rivals-etb",
     "name": "Pokemon TCG Destined Rivals Elite Trainer Box",
@@ -141,7 +140,6 @@
     "msrp": null,
     "enabled": true
   },
-
   {
     "id": "ascended-booster-bundle",
     "name": "Pokemon TCG Ascended Heroes Booster Bundle",
