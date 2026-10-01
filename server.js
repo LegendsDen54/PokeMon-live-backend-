@@ -11,6 +11,7 @@ const {
 } = require("./monitor");
 
 const walmart = require("./walmart");
+const push = require("./push");
 const products = require("./products.json");
 
 const app = express();
@@ -66,7 +67,9 @@ app.get("/", (req, res) => {
     pollSeconds:
       enableFullPolling
         ? pollSeconds
-        : null
+        : null,
+    push:
+      push.getPushStatus()
   });
 });
 
@@ -85,9 +88,145 @@ app.get("/health", (req, res) => {
     pollSeconds:
       enableFullPolling
         ? pollSeconds
-        : null
+        : null,
+    pushConfigured:
+      push.getPushStatus().configured
   });
 });
+
+/*
+  WEB PUSH PUBLIC KEY
+
+  Safe for the frontend to request.
+  The private key is NEVER exposed.
+*/
+
+app.get(
+  "/api/push/public-key",
+  (req, res) => {
+    const publicKey =
+      push.getPublicKey();
+
+    if (!publicKey) {
+      return res
+        .status(503)
+        .json({
+          ok: false,
+          error:
+            "Web Push is not configured"
+        });
+    }
+
+    return res.json({
+      ok: true,
+      publicKey
+    });
+  }
+);
+
+/*
+  WEB PUSH STATUS
+
+  Does NOT expose subscriptions
+  or private keys.
+*/
+
+app.get(
+  "/api/push/status",
+  (req, res) => {
+    return res.json(
+      push.getPushStatus()
+    );
+  }
+);
+
+/*
+  SAVE PUSH SUBSCRIPTION
+
+  Called by the installed
+  iPhone Home Screen app.
+*/
+
+app.post(
+  "/api/push/subscribe",
+  (req, res) => {
+    try {
+      const result =
+        push.addSubscription(
+          req.body
+        );
+
+      return res.json({
+        ...result,
+        message:
+          "Push subscription saved"
+      });
+
+    } catch (error) {
+      console.error(
+        "Push subscription failed:",
+        error
+      );
+
+      return res
+        .status(400)
+        .json({
+          ok: false,
+          error:
+            error.message
+        });
+    }
+  }
+);
+
+/*
+  REMOVE PUSH SUBSCRIPTION
+*/
+
+app.post(
+  "/api/push/unsubscribe",
+  (req, res) => {
+    try {
+      const endpoint =
+        req.body &&
+        req.body.endpoint;
+
+      if (!endpoint) {
+        return res
+          .status(400)
+          .json({
+            ok: false,
+            error:
+              "Subscription endpoint required"
+          });
+      }
+
+      const removed =
+        push.removeSubscription(
+          endpoint
+        );
+
+      return res.json({
+        ok: true,
+        removed
+      });
+
+    } catch (error) {
+      console.error(
+        "Push unsubscribe failed:",
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          ok: false,
+          error:
+            error.message
+        });
+    }
+  }
+);
 
 /*
   SCANNER CONFIGURATION
@@ -312,91 +451,4 @@ app.get(
             false,
           error:
             error.message
-        });
-    }
-  }
-);
-
-/*
-  SCHEDULED FULL-CATALOG SCAN
-*/
-
-async function runScheduledScan() {
-  try {
-    console.log(
-      "Starting scheduled catalog scan..."
-    );
-
-    const result =
-      await runCheck();
-
-    console.log(
-      "Scheduled catalog scan finished:",
-      result
-    );
-
-  } catch (error) {
-    console.error(
-      "Scheduled catalog scan failed:",
-      error
-    );
-  }
-}
-
-/*
-  START SERVER
-*/
-
-app.listen(
-  port,
-  async () => {
-    console.log(
-      `Pokemon monitor backend listening on ${port}`
-    );
-
-    /*
-      STARTUP SCAN
-
-      Default OFF.
-    */
-
-    if (runOnStartup) {
-      console.log(
-        "RUN_ON_STARTUP enabled."
-      );
-
-      await runScheduledScan();
-
-    } else {
-      console.log(
-        "Startup scan disabled."
-      );
-    }
-
-    /*
-      24/7 AUTOMATIC SCANNER
-
-      This activates ONLY if:
-
-      ENABLE_FULL_POLLING=true
-
-      Default is FALSE.
-    */
-
-    if (enableFullPolling) {
-      console.log(
-        `Automatic catalog polling ENABLED every ${pollSeconds} seconds.`
-      );
-
-      setInterval(
-        runScheduledScan,
-        pollSeconds * 1000
-      );
-
-    } else {
-      console.log(
-        "Automatic catalog polling disabled."
-      );
-    }
-  }
-);
+       
