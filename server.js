@@ -51,6 +51,7 @@ app.use(
 
 app.use(express.json());
 
+
 /*
   ROOT
 */
@@ -73,8 +74,10 @@ app.get("/", (req, res) => {
   });
 });
 
+
 /*
   HEALTH
+
   No retailer API call.
 */
 
@@ -94,20 +97,25 @@ app.get("/health", (req, res) => {
   });
 });
 
+
 /*
   WEB PUSH PUBLIC KEY
 
   Safe for the frontend to request.
-  Private key is never exposed.
+
+  The private VAPID key is NEVER
+  exposed through this endpoint.
 */
 
 app.get(
   "/api/push/public-key",
   (req, res) => {
+
     const publicKey =
       push.getPublicKey();
 
     if (!publicKey) {
+
       return res
         .status(503)
         .json({
@@ -124,21 +132,81 @@ app.get(
   }
 );
 
+
 /*
   WEB PUSH STATUS
 
   Does not expose private keys
   or subscription endpoints.
+
+  NO Walmart API call.
 */
 
 app.get(
   "/api/push/status",
   (req, res) => {
+
     return res.json(
       push.getPushStatus()
     );
   }
 );
+
+
+/*
+  WEB PUSH TEST
+
+  Sends a test push notification
+  to currently registered devices.
+
+  IMPORTANT:
+
+  This does NOT contact Walmart.
+  This does NOT perform a scan.
+  This does NOT consume Walmart
+  RapidAPI quota.
+*/
+
+app.get(
+  "/api/push/test",
+  async (req, res) => {
+
+    try {
+
+      const result =
+        await push.sendTestAlert();
+
+      return res.json({
+        ok: true,
+        test:
+          "web-push",
+        walmartApiCalled:
+          false,
+        ...result
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Push test failed:",
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          ok: false,
+          test:
+            "web-push",
+          walmartApiCalled:
+            false,
+          error:
+            error.message
+        });
+    }
+  }
+);
+
 
 /*
   SAVE PUSH SUBSCRIPTION
@@ -147,7 +215,9 @@ app.get(
 app.post(
   "/api/push/subscribe",
   (req, res) => {
+
     try {
+
       const result =
         push.addSubscription(
           req.body
@@ -160,6 +230,7 @@ app.post(
       });
 
     } catch (error) {
+
       console.error(
         "Push subscription failed:",
         error
@@ -176,6 +247,7 @@ app.post(
   }
 );
 
+
 /*
   REMOVE PUSH SUBSCRIPTION
 */
@@ -183,12 +255,15 @@ app.post(
 app.post(
   "/api/push/unsubscribe",
   (req, res) => {
+
     try {
+
       const endpoint =
         req.body &&
         req.body.endpoint;
 
       if (!endpoint) {
+
         return res
           .status(400)
           .json({
@@ -209,6 +284,7 @@ app.post(
       });
 
     } catch (error) {
+
       console.error(
         "Push unsubscribe failed:",
         error
@@ -225,14 +301,17 @@ app.post(
   }
 );
 
+
 /*
   SCANNER CONFIGURATION
+
   No retailer API call.
 */
 
 app.get(
   "/api/scanner",
   (req, res) => {
+
     const state =
       getScannerState();
 
@@ -248,14 +327,17 @@ app.get(
   }
 );
 
+
 /*
   CURRENT DASHBOARD DATA
+
   No retailer API call.
 */
 
 app.get(
   "/api/status",
   (req, res) => {
+
     const data =
       getLatest();
 
@@ -272,14 +354,17 @@ app.get(
   }
 );
 
+
 /*
   DIRECT RETAILER RESULTS
+
   No retailer API call.
 */
 
 app.get(
   "/api/products",
   (req, res) => {
+
     const data =
       getLatest();
 
@@ -301,20 +386,27 @@ app.get(
   }
 );
 
+
 /*
   CONTROLLED WALMART TEST
 
   Example:
+
   /api/test/product/prismatic-etb
 
   Contacts Walmart for ONE
   configured product only.
+
+  This route is intentionally
+  separate from the push test.
 */
 
 app.get(
   "/api/test/product/:productId",
   async (req, res) => {
+
     try {
+
       const product =
         products.find(
           item =>
@@ -323,6 +415,7 @@ app.get(
         );
 
       if (!product) {
+
         return res
           .status(404)
           .json({
@@ -342,6 +435,7 @@ app.get(
           "walmart"
         )
       ) {
+
         return res
           .status(400)
           .json({
@@ -376,6 +470,7 @@ app.get(
       });
 
     } catch (error) {
+
       console.error(
         "Controlled Walmart test failed:",
         error
@@ -396,6 +491,7 @@ app.get(
   }
 );
 
+
 /*
   ORIGINAL PRISMATIC ETB TEST
 */
@@ -403,7 +499,9 @@ app.get(
 app.get(
   "/api/test/prismatic-etb",
   async (req, res) => {
+
     try {
+
       const product =
         products.find(
           item =>
@@ -412,6 +510,7 @@ app.get(
         );
 
       if (!product) {
+
         return res
           .status(404)
           .json({
@@ -444,6 +543,7 @@ app.get(
       });
 
     } catch (error) {
+
       console.error(
         "Controlled Walmart test failed:",
         error
@@ -464,12 +564,15 @@ app.get(
   }
 );
 
+
 /*
   SCHEDULED FULL-CATALOG SCAN
 */
 
 async function runScheduledScan() {
+
   try {
+
     console.log(
       "Starting scheduled catalog scan..."
     );
@@ -483,12 +586,14 @@ async function runScheduledScan() {
     );
 
   } catch (error) {
+
     console.error(
       "Scheduled catalog scan failed:",
       error
     );
   }
 }
+
 
 /*
   START SERVER
@@ -497,6 +602,7 @@ async function runScheduledScan() {
 app.listen(
   port,
   async () => {
+
     console.log(
       `Pokemon monitor backend listening on ${port}`
     );
@@ -506,13 +612,19 @@ app.listen(
       push.getPushStatus()
     );
 
+
     /*
       STARTUP SCAN
 
       Default OFF.
+
+      Prevents a deployment from
+      automatically consuming
+      Walmart API requests.
     */
 
     if (runOnStartup) {
+
       console.log(
         "RUN_ON_STARTUP enabled."
       );
@@ -520,21 +632,25 @@ app.listen(
       await runScheduledScan();
 
     } else {
+
       console.log(
         "Startup scan disabled."
       );
     }
 
+
     /*
       AUTOMATIC FULL-CATALOG SCANNER
 
       Activates ONLY when:
+
       ENABLE_FULL_POLLING=true
 
       Default is FALSE.
     */
 
     if (enableFullPolling) {
+
       console.log(
         `Automatic catalog polling ENABLED every ${pollSeconds} seconds.`
       );
@@ -545,6 +661,7 @@ app.listen(
       );
 
     } else {
+
       console.log(
         "Automatic catalog polling disabled."
       );
