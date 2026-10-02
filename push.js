@@ -8,115 +8,184 @@ const VAPID_PRIVATE_KEY =
   (process.env.VAPID_PRIVATE_KEY || "").trim();
 
 const VAPID_SUBJECT =
-  (process.env.VAPID_SUBJECT ||
-    "https://pokemon-live-monitor.onrender.com").trim();
+  (
+    process.env.VAPID_SUBJECT ||
+    "https://pokemon-live-monitor.onrender.com"
+  ).trim();
 
 const subscriptions = new Map();
 
-/*
- * SAFE DIAGNOSTICS
- * These never print the private key.
- */
+
+/* ========================================
+   SAFE VAPID HELPERS
+======================================== */
+
 function isBase64Url(value) {
   return /^[A-Za-z0-9_-]+$/.test(value);
 }
 
+
 function base64UrlToBuffer(value) {
+
   const padding =
-    "=".repeat((4 - (value.length % 4)) % 4);
+    "=".repeat(
+      (4 - (value.length % 4)) % 4
+    );
 
-  const base64 = value
-    .replace(/-/g, "+")
-    .replace(/_/g, "/") + padding;
+  const base64 =
+    value
+      .replace(/-/g, "+")
+      .replace(/_/g, "/") +
+    padding;
 
-  return Buffer.from(base64, "base64");
+  return Buffer.from(
+    base64,
+    "base64"
+  );
 }
 
-/*
- * Verify mathematically that the configured private key
- * produces the configured public key.
- *
- * VAPID uses the P-256 / prime256v1 curve.
- */
+
+/* ========================================
+   VERIFY VAPID KEY PAIR
+
+   Does NOT print or expose
+   the private key.
+======================================== */
+
 function verifyVapidKeyPair() {
+
   try {
-    if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+
+    if (
+      !VAPID_PUBLIC_KEY ||
+      !VAPID_PRIVATE_KEY
+    ) {
+
       return {
         checked: false,
         match: false,
-        reason: "Missing VAPID key"
+        reason:
+          "Missing VAPID key"
       };
     }
 
     const privateBytes =
-      base64UrlToBuffer(VAPID_PRIVATE_KEY);
+      base64UrlToBuffer(
+        VAPID_PRIVATE_KEY
+      );
 
     const expectedPublicBytes =
-      base64UrlToBuffer(VAPID_PUBLIC_KEY);
+      base64UrlToBuffer(
+        VAPID_PUBLIC_KEY
+      );
 
-    if (privateBytes.length !== 32) {
+    if (
+      privateBytes.length !== 32
+    ) {
+
       return {
         checked: true,
         match: false,
-        reason: `Private key decoded to ${privateBytes.length} bytes instead of 32`
+        reason:
+          `Private key decoded to ${privateBytes.length} bytes instead of 32`
       };
     }
 
-    if (expectedPublicBytes.length !== 65) {
+    if (
+      expectedPublicBytes.length !== 65
+    ) {
+
       return {
         checked: true,
         match: false,
-        reason: `Public key decoded to ${expectedPublicBytes.length} bytes instead of 65`
+        reason:
+          `Public key decoded to ${expectedPublicBytes.length} bytes instead of 65`
       };
     }
 
     const ecdh =
-      crypto.createECDH("prime256v1");
+      crypto.createECDH(
+        "prime256v1"
+      );
 
-    ecdh.setPrivateKey(privateBytes);
+    ecdh.setPrivateKey(
+      privateBytes
+    );
 
     const derivedPublicBytes =
-      ecdh.getPublicKey(null, "uncompressed");
+      ecdh.getPublicKey(
+        null,
+        "uncompressed"
+      );
 
     return {
       checked: true,
+
       match:
         derivedPublicBytes.equals(
           expectedPublicBytes
         ),
+
       privateBytes:
         privateBytes.length,
+
       publicBytes:
         expectedPublicBytes.length,
+
       derivedPublicBytes:
         derivedPublicBytes.length
     };
+
   } catch (error) {
+
     return {
       checked: true,
       match: false,
-      reason: error.message
+      reason:
+        error.message
     };
   }
 }
 
-const keyPairCheck = verifyVapidKeyPair();
 
-console.log("Web Push diagnostics:");
+const keyPairCheck =
+  verifyVapidKeyPair();
+
+
+/* ========================================
+   SAFE STARTUP DIAGNOSTICS
+======================================== */
+
+console.log(
+  "Web Push diagnostics:"
+);
+
 console.log({
-  publicKeyLength: VAPID_PUBLIC_KEY.length,
-  expectedPublicKeyLength: 87,
 
-  privateKeyLength: VAPID_PRIVATE_KEY.length,
-  expectedPrivateKeyLength: 43,
+  publicKeyLength:
+    VAPID_PUBLIC_KEY.length,
+
+  expectedPublicKeyLength:
+    87,
+
+  privateKeyLength:
+    VAPID_PRIVATE_KEY.length,
+
+  expectedPrivateKeyLength:
+    43,
 
   publicKeyUrlSafe:
-    isBase64Url(VAPID_PUBLIC_KEY),
+    isBase64Url(
+      VAPID_PUBLIC_KEY
+    ),
 
   privateKeyUrlSafe:
-    isBase64Url(VAPID_PRIVATE_KEY),
+    isBase64Url(
+      VAPID_PRIVATE_KEY
+    ),
 
-  subject: VAPID_SUBJECT,
+  subject:
+    VAPID_SUBJECT,
 
   keyPairMatch:
     keyPairCheck.match,
@@ -124,20 +193,28 @@ console.log({
   keyPairCheck
 });
 
+
+/* ========================================
+   CONFIGURE WEB PUSH
+======================================== */
+
 let configured = false;
 let configurationError = null;
 
 try {
+
   if (
     !VAPID_PUBLIC_KEY ||
     !VAPID_PRIVATE_KEY
   ) {
+
     throw new Error(
       "VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY is missing"
     );
   }
 
   if (!keyPairCheck.match) {
+
     throw new Error(
       "VAPID public/private keys do not form a matching cryptographic pair"
     );
@@ -154,8 +231,11 @@ try {
   console.log(
     "Web Push configured with verified matching VAPID key pair."
   );
+
 } catch (error) {
-  configurationError = error.message;
+
+  configurationError =
+    error.message;
 
   console.error(
     "Web Push configuration failed:",
@@ -163,11 +243,39 @@ try {
   );
 }
 
-function addSubscription(subscription) {
+
+/* ========================================
+   PUBLIC KEY
+
+   SAFE TO SEND TO FRONTEND.
+
+   This is the function server.js
+   expects at /api/push/public-key.
+======================================== */
+
+function getPublicKey() {
+
+  if (!configured) {
+    return null;
+  }
+
+  return VAPID_PUBLIC_KEY;
+}
+
+
+/* ========================================
+   ADD SUBSCRIPTION
+======================================== */
+
+function addSubscription(
+  subscription
+) {
+
   if (
     !subscription ||
     !subscription.endpoint
   ) {
+
     throw new Error(
       "Invalid push subscription"
     );
@@ -180,29 +288,52 @@ function addSubscription(subscription) {
 
   return {
     ok: true,
-    subscriptions: subscriptions.size
+    subscriptions:
+      subscriptions.size
   };
 }
 
-function removeSubscription(endpoint) {
+
+/* ========================================
+   REMOVE SUBSCRIPTION
+======================================== */
+
+function removeSubscription(
+  endpoint
+) {
+
   if (!endpoint) {
+
     return {
       ok: false,
-      subscriptions: subscriptions.size
+      subscriptions:
+        subscriptions.size
     };
   }
 
   const removed =
-    subscriptions.delete(endpoint);
+    subscriptions.delete(
+      endpoint
+    );
 
   return {
     ok: removed,
-    subscriptions: subscriptions.size
+    subscriptions:
+      subscriptions.size
   };
 }
 
-function getSafePushError(error) {
+
+/* ========================================
+   SAFE PUSH ERROR
+======================================== */
+
+function getSafePushError(
+  error
+) {
+
   return {
+
     message:
       error?.message ||
       "Unknown push error",
@@ -212,31 +343,54 @@ function getSafePushError(error) {
       null,
 
     body:
-      typeof error?.body === "string"
-        ? error.body.slice(0, 1000)
+      typeof error?.body ===
+      "string"
+        ? error.body.slice(
+            0,
+            1000
+          )
         : null
   };
 }
+
+
+/* ========================================
+   SEND TO ONE SUBSCRIPTION
+======================================== */
 
 async function sendToSubscription(
   subscription,
   payload
 ) {
+
   return webpush.sendNotification(
     subscription,
-    JSON.stringify(payload)
+    JSON.stringify(
+      payload
+    )
   );
 }
 
-async function broadcast(payload) {
+
+/* ========================================
+   BROADCAST
+======================================== */
+
+async function broadcast(
+  payload
+) {
+
   if (!configured) {
+
     return {
       ok: false,
       sent: 0,
       failed: 0,
       removed: 0,
+
       subscriptions:
         subscriptions.size,
+
       errors: [
         {
           message:
@@ -254,23 +408,34 @@ async function broadcast(payload) {
   const errors = [];
 
   for (
-    const [endpoint, subscription]
+    const [
+      endpoint,
+      subscription
+    ]
     of subscriptions.entries()
   ) {
+
     try {
+
       await sendToSubscription(
         subscription,
         payload
       );
 
       sent += 1;
+
     } catch (error) {
+
       failed += 1;
 
       const safeError =
-        getSafePushError(error);
+        getSafePushError(
+          error
+        );
 
-      errors.push(safeError);
+      errors.push(
+        safeError
+      );
 
       console.error(
         "Push delivery failed:",
@@ -281,30 +446,47 @@ async function broadcast(payload) {
         error?.statusCode === 404 ||
         error?.statusCode === 410
       ) {
-        subscriptions.delete(endpoint);
+
+        subscriptions.delete(
+          endpoint
+        );
+
         removed += 1;
       }
     }
   }
 
   return {
-    ok: failed === 0,
+    ok:
+      failed === 0,
+
     sent,
     failed,
     removed,
+
     subscriptions:
       subscriptions.size,
+
     errors
   };
 }
 
-async function sendRestockAlert(item) {
+
+/* ========================================
+   REAL RESTOCK ALERT
+======================================== */
+
+async function sendRestockAlert(
+  item
+) {
+
   if (
     !item ||
     item.retailer !== "walmart" ||
     item.directSeller !== true ||
     item.inStock !== true
   ) {
+
     return {
       ok: false,
       skipped: true,
@@ -314,6 +496,7 @@ async function sendRestockAlert(item) {
   }
 
   return broadcast({
+
     title:
       "🔥 Pokémon Restock Detected!",
 
@@ -331,12 +514,24 @@ async function sendRestockAlert(item) {
       "https://pokemon-live-monitor.onrender.com/restock_background.png",
 
     tag:
-      `restock-${item.productId || "pokemon"}`
+      `restock-${
+        item.productId ||
+        "pokemon"
+      }`
   });
 }
 
+
+/* ========================================
+   CONTROLLED PUSH TEST
+
+   ZERO WALMART API CALLS
+======================================== */
+
 async function sendTestAlert() {
+
   return broadcast({
+
     title:
       "⚡ Pokémon Restock Monitor",
 
@@ -357,16 +552,27 @@ async function sendTestAlert() {
   });
 }
 
+
+/* ========================================
+   SAFE STATUS
+======================================== */
+
 function getPushStatus() {
+
   return {
+
     configured,
+
     subscriptions:
       subscriptions.size,
 
     publicKeyAvailable:
-      Boolean(VAPID_PUBLIC_KEY),
+      Boolean(
+        VAPID_PUBLIC_KEY
+      ),
 
     diagnostics: {
+
       publicKeyLength:
         VAPID_PUBLIC_KEY.length,
 
@@ -397,11 +603,24 @@ function getPushStatus() {
   };
 }
 
+
+/* ========================================
+   EXPORTS
+======================================== */
+
 module.exports = {
+
+  getPublicKey,
+
   addSubscription,
+
   removeSubscription,
+
   broadcast,
+
   sendRestockAlert,
+
   sendTestAlert,
+
   getPushStatus
 };
