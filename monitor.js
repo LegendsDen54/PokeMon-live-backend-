@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const push = require("./push");
 
 const providerName =
   (process.env.DATA_PROVIDER || "mock")
@@ -18,12 +19,32 @@ const productFile =
   CURRENT DASHBOARD STATE
 
   This stays in memory for now.
-  A database/persistent cache can be
-  added later.
+  Persistent storage will be added
+  later.
 */
 let latest = [];
 let lastRun = null;
 let running = false;
+
+/*
+  STOCK BASELINE
+
+  IMPORTANT:
+
+  This is intentionally separate
+  from the dashboard state.
+
+  A product must first establish
+  a baseline during a REAL catalog
+  scan before it can generate a
+  restock notification.
+
+  This prevents a backend restart
+  from immediately producing a
+  false restock alert.
+*/
+const stockBaseline = new Map();
+
 
 /*
   LOAD PRODUCT CATALOG
@@ -36,6 +57,7 @@ function loadProducts() {
     )
   );
 }
+
 
 /*
   DETERMINE WHETHER THE OFFER
@@ -63,6 +85,7 @@ function directSellerOnly(item) {
   return false;
 }
 
+
 /*
   PRICE RULE
 
@@ -70,7 +93,7 @@ function directSellerOnly(item) {
   maximum allowed price = MSRP × 1.50
 
   When MSRP is not known yet,
-  we keep the result visible instead
+  keep the result visible instead
   of incorrectly rejecting it.
 */
 function withinPriceRule(item) {
@@ -87,6 +110,7 @@ function withinPriceRule(item) {
   );
 }
 
+
 /*
   NORMALIZE EVERY RETAILER RESULT
 */
@@ -102,14 +126,181 @@ function prepareItem(item) {
   };
 }
 
+
+/*
+  UNIQUE STOCK-STATE KEY
+*/
+function getStockKey(item) {
+  return [
+    item.retailer || "unknown",
+    item.productId || "unknown"
+  ].join(":");
+}
+
+
+/*
+  DOES THIS RESULT QUALIFY
+  AS A REAL RESTOCK?
+
+  For now production alerts are
+  Walmart-only.
+
+  Requirements:
+
+  - Walmart result
+  - Walmart/direct seller
+  - Actually in stock
+  - Passes configured price rule
+*/
+function qualifiesForRestock(item) {
+  return (
+    item.retailer === "walmart" &&
+    item.directSeller === true &&
+    item.inStock === true &&
+    item.withinPriceRule !== false
+  );
+}
+
+
+/*
+  PROCESS REAL SCANNER STOCK STATE
+
+  IMPORTANT:
+
+  This function is used ONLY by
+  the real catalog scanner.
+
+  saveResult(), which is used by
+  controlled test routes, does NOT
+  call this function.
+
+  Therefore controlled Walmart
+  tests cannot trigger real
+  restock notifications.
+*/
+async function processRestockState(item) {
+  const key =
+    getStockKey(item);
+
+  const currentQualifies =
+    qualifiesForRestock(item);
+
+  /*
+    FIRST REAL OBSERVATION
+
+    Establish baseline only.
+
+    No notification is sent.
+  */
+  if (!stockBaseline.has(key)) {
+
+    stockBaseline.set(
+      key,
+      currentQualifies
+    );
+
+    console.log(
+      `Stock baseline established for ${key}:`,
+      currentQualifies
+    );
+
+    return {
+      baselineEstablished: true,
+      alertSent: false
+    };
+  }
+
+  const previousQualifies =
+    stockBaseline.get(key);
+
+  /*
+    Update state before attempting
+    the push so repeated scans do
+    not spam the same transition.
+  */
+  stockBaseline.set(
+    key,
+    currentQualifies
+  );
+
+  /*
+    Alert ONLY when:
+
+    previous = false
+    current  = true
+  */
+  if (
+    previousQualifies === false &&
+    currentQualifies === true
+  ) {
+
+    console.log(
+      `RESTOCK transition detected for ${key}`
+    );
+
+    try {
+
+      const pushResult =
+        await push.sendRestockAlert(
+          item
+        );
+
+      console.log(
+        `Restock push processed for ${key}:`,
+        pushResult
+      );
+
+      return {
+        baselineEstablished: false,
+        alertSent: true,
+        pushResult
+      };
+
+    } catch (error) {
+
+      console.error(
+        `Restock push failed for ${key}:`,
+        error
+      );
+
+      /*
+        Scanner continues even if
+        push delivery fails.
+      */
+      return {
+        baselineEstablished: false,
+        alertSent: false,
+        pushError:
+          error.message
+      };
+    }
+  }
+
+  return {
+    baselineEstablished: false,
+    alertSent: false
+  };
+}
+
+
 /*
   SAVE OR UPDATE ONE RESULT
 
-  This is what our controlled
-  single-product Walmart test uses.
+  CONTROLLED TEST PATH.
 
-  Later Target and Best Buy can feed
-  results through this same function.
+  This intentionally DOES NOT call
+  processRestockState().
+
+  Therefore:
+
+  /api/test/product/:productId
+
+  and
+
+  /api/test/prismatic-etb
+
+  can update the dashboard without
+  sending real restock alerts.
 */
 function saveResult(item) {
   const prepared =
@@ -136,16 +327,22 @@ function saveResult(item) {
   return prepared;
 }
 
+
 /*
   FULL CATALOG SCAN ENGINE
 
-  IMPORTANT:
-  This function EXISTS, but our
-  server currently does NOT schedule
-  it automatically.
+  This is the REAL scanner path.
 
-  So merely deploying this file
-  will NOT burn Walmart API calls.
+  IMPORTANT:
+
+  Deploying this file alone does
+  NOT start Walmart polling.
+
+  Automatic polling still requires:
+
+  ENABLE_FULL_POLLING=true
+
+  in Render.
 */
 async function runCheck() {
   if (running) {
@@ -165,6 +362,7 @@ async function runCheck() {
   let attempted = 0;
   let completed = 0;
   let failed = 0;
+  let alertsTriggered = 0;
 
   try {
     const products =
@@ -191,16 +389,34 @@ async function runCheck() {
               retailer
             );
 
-          results.push(
-            prepareItem(item)
-          );
+          const prepared =
+            prepareItem(item);
+
+          results.push(prepared);
+
+          /*
+            ONLY the real catalog scan
+            enters restock transition
+            detection.
+          */
+          const restockResult =
+            await processRestockState(
+              prepared
+            );
+
+          if (
+            restockResult.alertSent ===
+            true
+          ) {
+            alertsTriggered += 1;
+          }
 
           completed += 1;
 
         } catch (error) {
           failed += 1;
 
-          results.push(
+          const failedItem =
             prepareItem({
               productId:
                 product.id,
@@ -238,8 +454,22 @@ async function runCheck() {
 
               error:
                 error.message
-            })
+            });
+
+          results.push(
+            failedItem
           );
+
+          /*
+            Scan errors intentionally
+            do NOT alter the stock
+            baseline.
+
+            A temporary API/network
+            failure should not turn an
+            in-stock item into a fake
+            out-of-stock transition.
+          */
         }
       }
     }
@@ -260,6 +490,7 @@ async function runCheck() {
       attempted,
       completed,
       failed,
+      alertsTriggered,
       count:
         results.length
     };
@@ -268,6 +499,7 @@ async function runCheck() {
     running = false;
   }
 }
+
 
 /*
   RETURN CURRENT DASHBOARD STATE
@@ -285,11 +517,9 @@ function getLatest() {
   };
 }
 
+
 /*
   BASIC SCANNER INFORMATION
-
-  Useful later when the frontend
-  displays each retailer engine.
 */
 function getScannerState() {
   const products =
@@ -321,9 +551,13 @@ function getScannerState() {
     retailerCounts,
 
     automaticPolling:
-      false
+      false,
+
+    restockBaselines:
+      stockBaseline.size
   };
 }
+
 
 module.exports = {
   runCheck,
