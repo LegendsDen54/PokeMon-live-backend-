@@ -1,133 +1,173 @@
 const webpush = require("web-push");
+const crypto = require("crypto");
 
-const publicKey =
-  process.env.VAPID_PUBLIC_KEY;
+const VAPID_PUBLIC_KEY =
+  (process.env.VAPID_PUBLIC_KEY || "").trim();
 
-const privateKey =
-  process.env.VAPID_PRIVATE_KEY;
+const VAPID_PRIVATE_KEY =
+  (process.env.VAPID_PRIVATE_KEY || "").trim();
 
-const subject =
-  process.env.VAPID_SUBJECT ||
-  "https://pokemon-live-monitor.onrender.com";
+const VAPID_SUBJECT =
+  (process.env.VAPID_SUBJECT ||
+    "https://pokemon-live-monitor.onrender.com").trim();
 
 const subscriptions = new Map();
 
-let pushConfigured = false;
+/*
+ * SAFE DIAGNOSTICS
+ * These never print the private key.
+ */
+function isBase64Url(value) {
+  return /^[A-Za-z0-9_-]+$/.test(value);
+}
 
+function base64UrlToBuffer(value) {
+  const padding =
+    "=".repeat((4 - (value.length % 4)) % 4);
 
-// ========================================
-// SAFE VAPID DIAGNOSTICS
-// NEVER prints either key
-// ========================================
+  const base64 = value
+    .replace(/-/g, "+")
+    .replace(/_/g, "/") + padding;
 
-function inspectVapidKey(
-  name,
-  value,
-  expectedLength
-) {
-  if (!value) {
-    console.log(`${name}: MISSING`);
-    return;
+  return Buffer.from(base64, "base64");
+}
+
+/*
+ * Verify mathematically that the configured private key
+ * produces the configured public key.
+ *
+ * VAPID uses the P-256 / prime256v1 curve.
+ */
+function verifyVapidKeyPair() {
+  try {
+    if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+      return {
+        checked: false,
+        match: false,
+        reason: "Missing VAPID key"
+      };
+    }
+
+    const privateBytes =
+      base64UrlToBuffer(VAPID_PRIVATE_KEY);
+
+    const expectedPublicBytes =
+      base64UrlToBuffer(VAPID_PUBLIC_KEY);
+
+    if (privateBytes.length !== 32) {
+      return {
+        checked: true,
+        match: false,
+        reason: `Private key decoded to ${privateBytes.length} bytes instead of 32`
+      };
+    }
+
+    if (expectedPublicBytes.length !== 65) {
+      return {
+        checked: true,
+        match: false,
+        reason: `Public key decoded to ${expectedPublicBytes.length} bytes instead of 65`
+      };
+    }
+
+    const ecdh =
+      crypto.createECDH("prime256v1");
+
+    ecdh.setPrivateKey(privateBytes);
+
+    const derivedPublicBytes =
+      ecdh.getPublicKey(null, "uncompressed");
+
+    return {
+      checked: true,
+      match:
+        derivedPublicBytes.equals(
+          expectedPublicBytes
+        ),
+      privateBytes:
+        privateBytes.length,
+      publicBytes:
+        expectedPublicBytes.length,
+      derivedPublicBytes:
+        derivedPublicBytes.length
+    };
+  } catch (error) {
+    return {
+      checked: true,
+      match: false,
+      reason: error.message
+    };
+  }
+}
+
+const keyPairCheck = verifyVapidKeyPair();
+
+console.log("Web Push diagnostics:");
+console.log({
+  publicKeyLength: VAPID_PUBLIC_KEY.length,
+  expectedPublicKeyLength: 87,
+
+  privateKeyLength: VAPID_PRIVATE_KEY.length,
+  expectedPrivateKeyLength: 43,
+
+  publicKeyUrlSafe:
+    isBase64Url(VAPID_PUBLIC_KEY),
+
+  privateKeyUrlSafe:
+    isBase64Url(VAPID_PRIVATE_KEY),
+
+  subject: VAPID_SUBJECT,
+
+  keyPairMatch:
+    keyPairCheck.match,
+
+  keyPairCheck
+});
+
+let configured = false;
+let configurationError = null;
+
+try {
+  if (
+    !VAPID_PUBLIC_KEY ||
+    !VAPID_PRIVATE_KEY
+  ) {
+    throw new Error(
+      "VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY is missing"
+    );
   }
 
+  if (!keyPairCheck.match) {
+    throw new Error(
+      "VAPID public/private keys do not form a matching cryptographic pair"
+    );
+  }
+
+  webpush.setVapidDetails(
+    VAPID_SUBJECT,
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
+  );
+
+  configured = true;
+
   console.log(
-    `${name} diagnostics:`,
-    {
-      length: value.length,
-      expectedLength,
-      startsWithB:
-        name === "VAPID_PUBLIC_KEY"
-          ? value.startsWith("B")
-          : undefined,
-      containsEquals:
-        value.includes("="),
-      containsWhitespace:
-        /\s/.test(value),
-      urlSafeCharactersOnly:
-        /^[A-Za-z0-9_-]+$/.test(value)
-    }
+    "Web Push configured with verified matching VAPID key pair."
+  );
+} catch (error) {
+  configurationError = error.message;
+
+  console.error(
+    "Web Push configuration failed:",
+    error.message
   );
 }
 
-inspectVapidKey(
-  "VAPID_PUBLIC_KEY",
-  publicKey,
-  87
-);
-
-inspectVapidKey(
-  "VAPID_PRIVATE_KEY",
-  privateKey,
-  43
-);
-
-
-// ========================================
-// WEB PUSH CONFIGURATION
-// ========================================
-
-function configurePush() {
-
-  if (!publicKey || !privateKey) {
-
-    console.log(
-      "Web Push disabled: VAPID keys not configured."
-    );
-
-    return false;
-  }
-
-  try {
-
-    webpush.setVapidDetails(
-      subject,
-      publicKey,
-      privateKey
-    );
-
-    console.log(
-      "Web Push configured."
-    );
-
-    return true;
-
-  } catch (error) {
-
-    console.error(
-      "Web Push configuration failed:",
-      error.message
-    );
-
-    return false;
-  }
-}
-
-pushConfigured =
-  configurePush();
-
-
-// ========================================
-// PUBLIC KEY
-// ========================================
-
-function getPublicKey() {
-  return publicKey || null;
-}
-
-
-// ========================================
-// SUBSCRIPTIONS
-// ========================================
-
-function addSubscription(
-  subscription
-) {
-
+function addSubscription(subscription) {
   if (
     !subscription ||
     !subscription.endpoint
   ) {
-
     throw new Error(
       "Invalid push subscription"
     );
@@ -138,105 +178,58 @@ function addSubscription(
     subscription
   );
 
-  console.log(
-    `Push subscription saved. Total: ${subscriptions.size}`
-  );
-
   return {
     ok: true,
-    subscriptions:
-      subscriptions.size
+    subscriptions: subscriptions.size
   };
 }
 
-
-function removeSubscription(
-  endpoint
-) {
-
+function removeSubscription(endpoint) {
   if (!endpoint) {
-    return false;
+    return {
+      ok: false,
+      subscriptions: subscriptions.size
+    };
   }
 
-  return subscriptions.delete(
-    endpoint
-  );
-}
-
-
-// ========================================
-// SAFE PUSH ERROR DIAGNOSTICS
-//
-// IMPORTANT:
-// - Never logs subscription endpoint
-// - Never logs VAPID keys
-// - Gives us Apple's actual status/body
-// ========================================
-
-function getSafePushError(
-  error
-) {
+  const removed =
+    subscriptions.delete(endpoint);
 
   return {
+    ok: removed,
+    subscriptions: subscriptions.size
+  };
+}
+
+function getSafePushError(error) {
+  return {
     message:
-      error &&
-      error.message
-        ? error.message
-        : "Unknown push error",
+      error?.message ||
+      "Unknown push error",
 
     statusCode:
-      error &&
-      error.statusCode
-        ? error.statusCode
-        : null,
+      error?.statusCode ||
+      null,
 
     body:
-      error &&
-      error.body
-        ? String(error.body)
-            .slice(0, 1000)
+      typeof error?.body === "string"
+        ? error.body.slice(0, 1000)
         : null
   };
 }
-
-
-// ========================================
-// SEND PUSH
-// ========================================
 
 async function sendToSubscription(
   subscription,
   payload
 ) {
-
-  if (!pushConfigured) {
-
-    throw new Error(
-      "Web Push is not configured"
-    );
-  }
-
   return webpush.sendNotification(
     subscription,
     JSON.stringify(payload)
   );
 }
 
-
-// ========================================
-// BROADCAST
-// ========================================
-
-async function broadcast(
-  payload
-) {
-
-  if (!pushConfigured) {
-
-    console.log(
-      "Push skipped: Web Push not configured."
-    );
-
+async function broadcast(payload) {
+  if (!configured) {
     return {
       ok: false,
       sent: 0,
@@ -244,8 +237,13 @@ async function broadcast(
       removed: 0,
       subscriptions:
         subscriptions.size,
-      reason:
-        "Web Push not configured"
+      errors: [
+        {
+          message:
+            configurationError ||
+            "Web Push is not configured"
+        }
+      ]
     };
   }
 
@@ -255,64 +253,42 @@ async function broadcast(
 
   const errors = [];
 
-  const entries =
-    Array.from(
-      subscriptions.entries()
-    );
-
   for (
-    const [
-      endpoint,
-      subscription
-    ] of entries
+    const [endpoint, subscription]
+    of subscriptions.entries()
   ) {
-
     try {
-
       await sendToSubscription(
         subscription,
         payload
       );
 
       sent += 1;
-
     } catch (error) {
+      failed += 1;
 
       const safeError =
-        getSafePushError(
-          error
-        );
+        getSafePushError(error);
+
+      errors.push(safeError);
 
       console.error(
         "Push delivery failed:",
         safeError
       );
 
-      errors.push(
-        safeError
-      );
-
       if (
-        error.statusCode === 404 ||
-        error.statusCode === 410
+        error?.statusCode === 404 ||
+        error?.statusCode === 410
       ) {
-
-        subscriptions.delete(
-          endpoint
-        );
-
+        subscriptions.delete(endpoint);
         removed += 1;
-
-      } else {
-
-        failed += 1;
       }
     }
   }
 
   return {
-    ok:
-      failed === 0,
+    ok: failed === 0,
     sent,
     failed,
     removed,
@@ -322,84 +298,45 @@ async function broadcast(
   };
 }
 
-
-// ========================================
-// REAL WALMART RESTOCK ALERT
-// ========================================
-
-async function sendRestockAlert(
-  item
-) {
-
+async function sendRestockAlert(item) {
   if (
     !item ||
     item.retailer !== "walmart" ||
     item.directSeller !== true ||
     item.inStock !== true
   ) {
-
     return {
       ok: false,
-      sent: 0,
+      skipped: true,
       reason:
-        "Not a Walmart-direct in-stock item"
+        "Product is not Walmart-direct and in stock"
     };
   }
 
-  const price =
-    item.price != null
-
-      ? `$${Number(
-          item.price
-        ).toFixed(2)}`
-
-      : "Price available";
-
-  const payload = {
-
+  return broadcast({
     title:
-      "🔥 Pokémon Walmart Restock!",
+      "🔥 Pokémon Restock Detected!",
 
     body:
-      `${item.name} • ${price}`,
-
-    icon:
-      item.image || undefined,
-
-    badge:
-      item.image || undefined,
+      `${item.name} is showing Walmart-direct availability.`,
 
     url:
       item.url ||
       "https://pokemon-live-monitor.onrender.com/",
 
-    productId:
-      item.productId,
+    icon:
+      "https://pokemon-live-monitor.onrender.com/restock_background.png",
 
-    retailer:
-      "walmart",
+    badge:
+      "https://pokemon-live-monitor.onrender.com/restock_background.png",
 
     tag:
-      `walmart-${item.productId}`,
-
-    timestamp:
-      Date.now()
-  };
-
-  return broadcast(
-    payload
-  );
+      `restock-${item.productId || "pokemon"}`
+  });
 }
 
-
-// ========================================
-// TEST ALERT
-// ========================================
-
 async function sendTestAlert() {
-
   return broadcast({
-
     title:
       "⚡ Pokémon Restock Monitor",
 
@@ -409,40 +346,58 @@ async function sendTestAlert() {
     url:
       "https://pokemon-live-monitor.onrender.com/",
 
-    tag:
-      "pokemon-monitor-test",
+    icon:
+      "https://pokemon-live-monitor.onrender.com/restock_background.png",
 
-    timestamp:
-      Date.now()
+    badge:
+      "https://pokemon-live-monitor.onrender.com/restock_background.png",
+
+    tag:
+      "pokemon-monitor-test"
   });
 }
 
-
-// ========================================
-// STATUS
-// ========================================
-
 function getPushStatus() {
-
   return {
-    configured:
-      pushConfigured,
-
+    configured,
     subscriptions:
       subscriptions.size,
 
     publicKeyAvailable:
-      Boolean(publicKey)
+      Boolean(VAPID_PUBLIC_KEY),
+
+    diagnostics: {
+      publicKeyLength:
+        VAPID_PUBLIC_KEY.length,
+
+      privateKeyLength:
+        VAPID_PRIVATE_KEY.length,
+
+      subject:
+        VAPID_SUBJECT,
+
+      publicKeyUrlSafe:
+        isBase64Url(
+          VAPID_PUBLIC_KEY
+        ),
+
+      privateKeyUrlSafe:
+        isBase64Url(
+          VAPID_PRIVATE_KEY
+        ),
+
+      keyPairMatch:
+        keyPairCheck.match,
+
+      keyPairChecked:
+        keyPairCheck.checked,
+
+      configurationError
+    }
   };
 }
 
-
-// ========================================
-// EXPORTS
-// ========================================
-
 module.exports = {
-  getPublicKey,
   addSubscription,
   removeSubscription,
   broadcast,
