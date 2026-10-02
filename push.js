@@ -17,27 +17,36 @@ let pushConfigured = false;
 
 // ========================================
 // SAFE VAPID DIAGNOSTICS
-// Does NOT print either key
+// NEVER prints either key
 // ========================================
 
-function inspectVapidKey(name, value, expectedLength) {
+function inspectVapidKey(
+  name,
+  value,
+  expectedLength
+) {
   if (!value) {
     console.log(`${name}: MISSING`);
     return;
   }
 
-  console.log(`${name} diagnostics:`, {
-    length: value.length,
-    expectedLength,
-    startsWithB:
-      name === "VAPID_PUBLIC_KEY"
-        ? value.startsWith("B")
-        : undefined,
-    containsEquals: value.includes("="),
-    containsWhitespace: /\s/.test(value),
-    urlSafeCharactersOnly:
-      /^[A-Za-z0-9_-]+$/.test(value)
-  });
+  console.log(
+    `${name} diagnostics:`,
+    {
+      length: value.length,
+      expectedLength,
+      startsWithB:
+        name === "VAPID_PUBLIC_KEY"
+          ? value.startsWith("B")
+          : undefined,
+      containsEquals:
+        value.includes("="),
+      containsWhitespace:
+        /\s/.test(value),
+      urlSafeCharactersOnly:
+        /^[A-Za-z0-9_-]+$/.test(value)
+    }
+  );
 }
 
 inspectVapidKey(
@@ -58,7 +67,9 @@ inspectVapidKey(
 // ========================================
 
 function configurePush() {
+
   if (!publicKey || !privateKey) {
+
     console.log(
       "Web Push disabled: VAPID keys not configured."
     );
@@ -67,6 +78,7 @@ function configurePush() {
   }
 
   try {
+
     webpush.setVapidDetails(
       subject,
       publicKey,
@@ -80,6 +92,7 @@ function configurePush() {
     return true;
 
   } catch (error) {
+
     console.error(
       "Web Push configuration failed:",
       error.message
@@ -109,10 +122,12 @@ function getPublicKey() {
 function addSubscription(
   subscription
 ) {
+
   if (
     !subscription ||
     !subscription.endpoint
   ) {
+
     throw new Error(
       "Invalid push subscription"
     );
@@ -138,6 +153,7 @@ function addSubscription(
 function removeSubscription(
   endpoint
 ) {
+
   if (!endpoint) {
     return false;
   }
@@ -149,6 +165,42 @@ function removeSubscription(
 
 
 // ========================================
+// SAFE PUSH ERROR DIAGNOSTICS
+//
+// IMPORTANT:
+// - Never logs subscription endpoint
+// - Never logs VAPID keys
+// - Gives us Apple's actual status/body
+// ========================================
+
+function getSafePushError(
+  error
+) {
+
+  return {
+    message:
+      error &&
+      error.message
+        ? error.message
+        : "Unknown push error",
+
+    statusCode:
+      error &&
+      error.statusCode
+        ? error.statusCode
+        : null,
+
+    body:
+      error &&
+      error.body
+        ? String(error.body)
+            .slice(0, 1000)
+        : null
+  };
+}
+
+
+// ========================================
 // SEND PUSH
 // ========================================
 
@@ -156,7 +208,9 @@ async function sendToSubscription(
   subscription,
   payload
 ) {
+
   if (!pushConfigured) {
+
     throw new Error(
       "Web Push is not configured"
     );
@@ -176,7 +230,9 @@ async function sendToSubscription(
 async function broadcast(
   payload
 ) {
+
   if (!pushConfigured) {
+
     console.log(
       "Push skipped: Web Push not configured."
     );
@@ -184,6 +240,10 @@ async function broadcast(
     return {
       ok: false,
       sent: 0,
+      failed: 0,
+      removed: 0,
+      subscriptions:
+        subscriptions.size,
       reason:
         "Web Push not configured"
     };
@@ -192,6 +252,8 @@ async function broadcast(
   let sent = 0;
   let failed = 0;
   let removed = 0;
+
+  const errors = [];
 
   const entries =
     Array.from(
@@ -204,7 +266,9 @@ async function broadcast(
       subscription
     ] of entries
   ) {
+
     try {
+
       await sendToSubscription(
         subscription,
         payload
@@ -213,10 +277,26 @@ async function broadcast(
       sent += 1;
 
     } catch (error) {
+
+      const safeError =
+        getSafePushError(
+          error
+        );
+
+      console.error(
+        "Push delivery failed:",
+        safeError
+      );
+
+      errors.push(
+        safeError
+      );
+
       if (
         error.statusCode === 404 ||
         error.statusCode === 410
       ) {
+
         subscriptions.delete(
           endpoint
         );
@@ -224,23 +304,21 @@ async function broadcast(
         removed += 1;
 
       } else {
-        failed += 1;
 
-        console.error(
-          "Push delivery failed:",
-          error.message
-        );
+        failed += 1;
       }
     }
   }
 
   return {
-    ok: true,
+    ok:
+      failed === 0,
     sent,
     failed,
     removed,
     subscriptions:
-      subscriptions.size
+      subscriptions.size,
+    errors
   };
 }
 
@@ -252,12 +330,14 @@ async function broadcast(
 async function sendRestockAlert(
   item
 ) {
+
   if (
     !item ||
     item.retailer !== "walmart" ||
     item.directSeller !== true ||
     item.inStock !== true
   ) {
+
     return {
       ok: false,
       sent: 0,
@@ -268,29 +348,40 @@ async function sendRestockAlert(
 
   const price =
     item.price != null
+
       ? `$${Number(
           item.price
         ).toFixed(2)}`
+
       : "Price available";
 
   const payload = {
+
     title:
       "🔥 Pokémon Walmart Restock!",
+
     body:
       `${item.name} • ${price}`,
+
     icon:
       item.image || undefined,
+
     badge:
       item.image || undefined,
+
     url:
       item.url ||
       "https://pokemon-live-monitor.onrender.com/",
+
     productId:
       item.productId,
+
     retailer:
       "walmart",
+
     tag:
       `walmart-${item.productId}`,
+
     timestamp:
       Date.now()
   };
@@ -306,15 +397,21 @@ async function sendRestockAlert(
 // ========================================
 
 async function sendTestAlert() {
+
   return broadcast({
+
     title:
       "⚡ Pokémon Restock Monitor",
+
     body:
       "Test successful! Background push notifications are working.",
+
     url:
       "https://pokemon-live-monitor.onrender.com/",
+
     tag:
       "pokemon-monitor-test",
+
     timestamp:
       Date.now()
   });
@@ -326,16 +423,23 @@ async function sendTestAlert() {
 // ========================================
 
 function getPushStatus() {
+
   return {
     configured:
       pushConfigured,
+
     subscriptions:
       subscriptions.size,
+
     publicKeyAvailable:
       Boolean(publicKey)
   };
 }
 
+
+// ========================================
+// EXPORTS
+// ========================================
 
 module.exports = {
   getPublicKey,
