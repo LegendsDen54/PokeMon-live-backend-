@@ -16,9 +16,7 @@ const products = require("./products.json");
 
 const app = express();
 
-const port = Number(
-  process.env.PORT || 8080
-);
+const port = Number(process.env.PORT || 8080);
 
 const allowedOrigin =
   process.env.ALLOWED_ORIGIN || "*";
@@ -35,9 +33,7 @@ const enableFullPolling =
 
 const pollSeconds = Math.max(
   60,
-  Number(
-    process.env.POLL_SECONDS || 300
-  )
+  Number(process.env.POLL_SECONDS || 300)
 );
 
 app.use(
@@ -58,8 +54,7 @@ app.use(express.json());
 
 app.get("/", (req, res) => {
   res.json({
-    name:
-      "Pokemon Live Monitor Backend",
+    name: "Pokemon Live Monitor Backend",
     ok: true,
     provider:
       process.env.DATA_PROVIDER || "mock",
@@ -77,15 +72,12 @@ app.get("/", (req, res) => {
 
 /*
   HEALTH
-
-  No retailer API call.
 */
 
 app.get("/health", (req, res) => {
   res.json({
     ok: true,
-    time:
-      new Date().toISOString(),
+    time: new Date().toISOString(),
     automaticScanning:
       enableFullPolling,
     pollSeconds:
@@ -100,22 +92,15 @@ app.get("/health", (req, res) => {
 
 /*
   WEB PUSH PUBLIC KEY
-
-  Safe for the frontend to request.
-
-  The private VAPID key is NEVER
-  exposed through this endpoint.
 */
 
 app.get(
   "/api/push/public-key",
   (req, res) => {
-
     const publicKey =
       push.getPublicKey();
 
     if (!publicKey) {
-
       return res
         .status(503)
         .json({
@@ -135,17 +120,11 @@ app.get(
 
 /*
   WEB PUSH STATUS
-
-  Does not expose private keys
-  or subscription endpoints.
-
-  NO Walmart API call.
 */
 
 app.get(
   "/api/push/status",
   (req, res) => {
-
     return res.json(
       push.getPushStatus()
     );
@@ -155,38 +134,23 @@ app.get(
 
 /*
   WEB PUSH TEST
-
-  Sends a test push notification
-  to currently registered devices.
-
-  IMPORTANT:
-
-  This does NOT contact Walmart.
-  This does NOT perform a scan.
-  This does NOT consume Walmart
-  RapidAPI quota.
 */
 
 app.get(
   "/api/push/test",
   async (req, res) => {
-
     try {
-
       const result =
         await push.sendTestAlert();
 
       return res.json({
         ok: true,
-        test:
-          "web-push",
-        walmartApiCalled:
-          false,
+        test: "web-push",
+        walmartApiCalled: false,
         ...result
       });
 
     } catch (error) {
-
       console.error(
         "Push test failed:",
         error
@@ -196,12 +160,9 @@ app.get(
         .status(500)
         .json({
           ok: false,
-          test:
-            "web-push",
-          walmartApiCalled:
-            false,
-          error:
-            error.message
+          test: "web-push",
+          walmartApiCalled: false,
+          error: error.message
         });
     }
   }
@@ -215,9 +176,7 @@ app.get(
 app.post(
   "/api/push/subscribe",
   (req, res) => {
-
     try {
-
       const result =
         push.addSubscription(
           req.body
@@ -230,7 +189,6 @@ app.post(
       });
 
     } catch (error) {
-
       console.error(
         "Push subscription failed:",
         error
@@ -240,8 +198,7 @@ app.post(
         .status(400)
         .json({
           ok: false,
-          error:
-            error.message
+          error: error.message
         });
     }
   }
@@ -255,15 +212,12 @@ app.post(
 app.post(
   "/api/push/unsubscribe",
   (req, res) => {
-
     try {
-
       const endpoint =
         req.body &&
         req.body.endpoint;
 
       if (!endpoint) {
-
         return res
           .status(400)
           .json({
@@ -284,7 +238,6 @@ app.post(
       });
 
     } catch (error) {
-
       console.error(
         "Push unsubscribe failed:",
         error
@@ -294,8 +247,7 @@ app.post(
         .status(500)
         .json({
           ok: false,
-          error:
-            error.message
+          error: error.message
         });
     }
   }
@@ -304,14 +256,11 @@ app.post(
 
 /*
   SCANNER CONFIGURATION
-
-  No retailer API call.
 */
 
 app.get(
   "/api/scanner",
   (req, res) => {
-
     const state =
       getScannerState();
 
@@ -330,26 +279,19 @@ app.get(
 
 /*
   CURRENT DASHBOARD DATA
-
-  No retailer API call.
 */
 
 app.get(
   "/api/status",
   (req, res) => {
-
     const data =
       getLatest();
 
     res.json({
-      lastRun:
-        data.lastRun,
-      running:
-        data.running,
-      count:
-        data.items.length,
-      items:
-        data.items
+      lastRun: data.lastRun,
+      running: data.running,
+      count: data.items.length,
+      items: data.items
     });
   }
 );
@@ -357,14 +299,11 @@ app.get(
 
 /*
   DIRECT RETAILER RESULTS
-
-  No retailer API call.
 */
 
 app.get(
   "/api/products",
   (req, res) => {
-
     const data =
       getLatest();
 
@@ -376,12 +315,9 @@ app.get(
       );
 
     res.json({
-      lastRun:
-        data.lastRun,
-      count:
-        filtered.length,
-      items:
-        filtered
+      lastRun: data.lastRun,
+      count: filtered.length,
+      items: filtered
     });
   }
 );
@@ -389,24 +325,12 @@ app.get(
 
 /*
   CONTROLLED WALMART TEST
-
-  Example:
-
-  /api/test/product/prismatic-etb
-
-  Contacts Walmart for ONE
-  configured product only.
-
-  This route is intentionally
-  separate from the push test.
 */
 
 app.get(
   "/api/test/product/:productId",
   async (req, res) => {
-
     try {
-
       const product =
         products.find(
           item =>
@@ -415,27 +339,22 @@ app.get(
         );
 
       if (!product) {
-
         return res
           .status(404)
           .json({
             ok: false,
-            error:
-              "Product not found",
+            error: "Product not found",
             productId:
               req.params.productId
           });
       }
 
       if (
-        !Array.isArray(
-          product.retailers
-        ) ||
+        !Array.isArray(product.retailers) ||
         !product.retailers.includes(
           "walmart"
         )
       ) {
-
         return res
           .status(400)
           .json({
@@ -456,21 +375,16 @@ app.get(
 
       return res.json({
         ok: true,
-        test:
-          "single-product",
-        dashboardUpdated:
-          true,
+        test: "single-product",
+        dashboardUpdated: true,
         requestedProductId:
           product.id,
         configuredItemId:
-          product.walmartItemId ||
-          null,
-        result:
-          savedResult
+          product.walmartItemId || null,
+        result: savedResult
       });
 
     } catch (error) {
-
       console.error(
         "Controlled Walmart test failed:",
         error
@@ -480,12 +394,9 @@ app.get(
         .status(500)
         .json({
           ok: false,
-          test:
-            "single-product",
-          dashboardUpdated:
-            false,
-          error:
-            error.message
+          test: "single-product",
+          dashboardUpdated: false,
+          error: error.message
         });
     }
   }
@@ -499,9 +410,7 @@ app.get(
 app.get(
   "/api/test/prismatic-etb",
   async (req, res) => {
-
     try {
-
       const product =
         products.find(
           item =>
@@ -510,7 +419,6 @@ app.get(
         );
 
       if (!product) {
-
         return res
           .status(404)
           .json({
@@ -531,19 +439,14 @@ app.get(
 
       return res.json({
         ok: true,
-        test:
-          "single-product",
-        dashboardUpdated:
-          true,
+        test: "single-product",
+        dashboardUpdated: true,
         configuredItemId:
-          product.walmartItemId ||
-          null,
-        result:
-          savedResult
+          product.walmartItemId || null,
+        result: savedResult
       });
 
     } catch (error) {
-
       console.error(
         "Controlled Walmart test failed:",
         error
@@ -553,12 +456,9 @@ app.get(
         .status(500)
         .json({
           ok: false,
-          test:
-            "single-product",
-          dashboardUpdated:
-            false,
-          error:
-            error.message
+          test: "single-product",
+          dashboardUpdated: false,
+          error: error.message
         });
     }
   }
@@ -570,9 +470,7 @@ app.get(
 */
 
 async function runScheduledScan() {
-
   try {
-
     console.log(
       "Starting scheduled catalog scan..."
     );
@@ -586,7 +484,6 @@ async function runScheduledScan() {
     );
 
   } catch (error) {
-
     console.error(
       "Scheduled catalog scan failed:",
       error
@@ -602,7 +499,6 @@ async function runScheduledScan() {
 app.listen(
   port,
   async () => {
-
     console.log(
       `Pokemon monitor backend listening on ${port}`
     );
@@ -612,45 +508,27 @@ app.listen(
       push.getPushStatus()
     );
 
-
     /*
-      STARTUP SCAN
-
-      Default OFF.
-
-      Prevents a deployment from
-      automatically consuming
-      Walmart API requests.
+      OPTIONAL STARTUP SCAN
     */
 
     if (runOnStartup) {
-
       console.log(
         "RUN_ON_STARTUP enabled."
       );
 
       await runScheduledScan();
-
     } else {
-
       console.log(
         "Startup scan disabled."
       );
     }
 
-
     /*
       AUTOMATIC FULL-CATALOG SCANNER
-
-      Activates ONLY when:
-
-      ENABLE_FULL_POLLING=true
-
-      Default is FALSE.
     */
 
     if (enableFullPolling) {
-
       console.log(
         `Automatic catalog polling ENABLED every ${pollSeconds} seconds.`
       );
@@ -659,9 +537,7 @@ app.listen(
         runScheduledScan,
         pollSeconds * 1000
       );
-
     } else {
-
       console.log(
         "Automatic catalog polling disabled."
       );
