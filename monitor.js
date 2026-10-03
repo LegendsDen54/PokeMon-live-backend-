@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const push = require("./push");
+const discovery = require("./discovery");
 
 const providerName =
   (process.env.DATA_PROVIDER || "mock")
@@ -17,10 +18,6 @@ const productFile =
 
 /*
   CURRENT DASHBOARD STATE
-
-  This stays in memory for now.
-  Persistent storage will be added
-  later.
 */
 let latest = [];
 let lastRun = null;
@@ -28,23 +25,8 @@ let running = false;
 
 /*
   STOCK BASELINE
-
-  IMPORTANT:
-
-  This is intentionally separate
-  from the dashboard state.
-
-  A product must first establish
-  a baseline during a REAL catalog
-  scan before it can generate a
-  restock notification.
-
-  This prevents a backend restart
-  from immediately producing a
-  false restock alert.
 */
 const stockBaseline = new Map();
-
 
 /*
   LOAD PRODUCT CATALOG
@@ -58,10 +40,8 @@ function loadProducts() {
   );
 }
 
-
 /*
-  DETERMINE WHETHER THE OFFER
-  IS SOLD DIRECTLY BY THE RETAILER
+  DIRECT SELLER CHECK
 */
 function directSellerOnly(item) {
   if (
@@ -85,16 +65,8 @@ function directSellerOnly(item) {
   return false;
 }
 
-
 /*
   PRICE RULE
-
-  When MSRP is known:
-  maximum allowed price = MSRP × 1.50
-
-  When MSRP is not known yet,
-  keep the result visible instead
-  of incorrectly rejecting it.
 */
 function withinPriceRule(item) {
   if (
@@ -110,9 +82,8 @@ function withinPriceRule(item) {
   );
 }
 
-
 /*
-  NORMALIZE EVERY RETAILER RESULT
+  NORMALIZE RESULT
 */
 function prepareItem(item) {
   return {
@@ -126,9 +97,8 @@ function prepareItem(item) {
   };
 }
 
-
 /*
-  UNIQUE STOCK-STATE KEY
+  STOCK KEY
 */
 function getStockKey(item) {
   return [
@@ -137,20 +107,8 @@ function getStockKey(item) {
   ].join(":");
 }
 
-
 /*
-  DOES THIS RESULT QUALIFY
-  AS A REAL RESTOCK?
-
-  For now production alerts are
-  Walmart-only.
-
-  Requirements:
-
-  - Walmart result
-  - Walmart/direct seller
-  - Actually in stock
-  - Passes configured price rule
+  RESTOCK QUALIFICATION
 */
 function qualifiesForRestock(item) {
   return (
@@ -161,22 +119,8 @@ function qualifiesForRestock(item) {
   );
 }
 
-
 /*
-  PROCESS REAL SCANNER STOCK STATE
-
-  IMPORTANT:
-
-  This function is used ONLY by
-  the real catalog scanner.
-
-  saveResult(), which is used by
-  controlled test routes, does NOT
-  call this function.
-
-  Therefore controlled Walmart
-  tests cannot trigger real
-  restock notifications.
+  PROCESS STOCK TRANSITION
 */
 async function processRestockState(item) {
   const key =
@@ -185,15 +129,7 @@ async function processRestockState(item) {
   const currentQualifies =
     qualifiesForRestock(item);
 
-  /*
-    FIRST REAL OBSERVATION
-
-    Establish baseline only.
-
-    No notification is sent.
-  */
   if (!stockBaseline.has(key)) {
-
     stockBaseline.set(
       key,
       currentQualifies
@@ -213,33 +149,20 @@ async function processRestockState(item) {
   const previousQualifies =
     stockBaseline.get(key);
 
-  /*
-    Update state before attempting
-    the push so repeated scans do
-    not spam the same transition.
-  */
   stockBaseline.set(
     key,
     currentQualifies
   );
 
-  /*
-    Alert ONLY when:
-
-    previous = false
-    current  = true
-  */
   if (
     previousQualifies === false &&
     currentQualifies === true
   ) {
-
     console.log(
       `RESTOCK transition detected for ${key}`
     );
 
     try {
-
       const pushResult =
         await push.sendRestockAlert(
           item
@@ -257,16 +180,11 @@ async function processRestockState(item) {
       };
 
     } catch (error) {
-
       console.error(
         `Restock push failed for ${key}:`,
         error
       );
 
-      /*
-        Scanner continues even if
-        push delivery fails.
-      */
       return {
         baselineEstablished: false,
         alertSent: false,
@@ -282,25 +200,8 @@ async function processRestockState(item) {
   };
 }
 
-
 /*
-  SAVE OR UPDATE ONE RESULT
-
-  CONTROLLED TEST PATH.
-
-  This intentionally DOES NOT call
-  processRestockState().
-
-  Therefore:
-
-  /api/test/product/:productId
-
-  and
-
-  /api/test/prismatic-etb
-
-  can update the dashboard without
-  sending real restock alerts.
+  CONTROLLED TEST SAVE
 */
 function saveResult(item) {
   const prepared =
@@ -327,22 +228,8 @@ function saveResult(item) {
   return prepared;
 }
 
-
 /*
-  FULL CATALOG SCAN ENGINE
-
-  This is the REAL scanner path.
-
-  IMPORTANT:
-
-  Deploying this file alone does
-  NOT start Walmart polling.
-
-  Automatic polling still requires:
-
-  ENABLE_FULL_POLLING=true
-
-  in Render.
+  FULL CATALOG SCAN
 */
 async function runCheck() {
   if (running) {
@@ -365,11 +252,28 @@ async function runCheck() {
   let alertsTriggered = 0;
 
   try {
-    const products =
+    const curatedProducts =
       loadProducts().filter(
         product =>
           product.enabled !== false
       );
+
+    let discoveredProducts = [];
+
+    try {
+      discoveredProducts =
+        await discovery.getDiscoveredProducts();
+    } catch (error) {
+      console.error(
+        "Could not load discovered products:",
+        error.message
+      );
+    }
+
+    const products = [
+      ...curatedProducts,
+      ...discoveredProducts
+    ];
 
     const results = [];
 
@@ -394,11 +298,6 @@ async function runCheck() {
 
           results.push(prepared);
 
-          /*
-            ONLY the real catalog scan
-            enters restock transition
-            detection.
-          */
           const restockResult =
             await processRestockState(
               prepared
@@ -459,25 +358,10 @@ async function runCheck() {
           results.push(
             failedItem
           );
-
-          /*
-            Scan errors intentionally
-            do NOT alter the stock
-            baseline.
-
-            A temporary API/network
-            failure should not turn an
-            in-stock item into a fake
-            out-of-stock transition.
-          */
         }
       }
     }
 
-    /*
-      Replace dashboard state only
-      after the catalog pass finishes.
-    */
     latest = results;
 
     lastRun =
@@ -492,7 +376,13 @@ async function runCheck() {
       failed,
       alertsTriggered,
       count:
-        results.length
+        results.length,
+
+      curatedProducts:
+        curatedProducts.length,
+
+      discoveredProducts:
+        discoveredProducts.length
     };
 
   } finally {
@@ -500,12 +390,8 @@ async function runCheck() {
   }
 }
 
-
 /*
-  RETURN CURRENT DASHBOARD STATE
-
-  Reading this does NOT contact
-  Walmart, Target, or Best Buy.
+  CURRENT DASHBOARD STATE
 */
 function getLatest() {
   return {
@@ -517,9 +403,8 @@ function getLatest() {
   };
 }
 
-
 /*
-  BASIC SCANNER INFORMATION
+  SCANNER STATE
 */
 function getScannerState() {
   const products =
@@ -557,7 +442,6 @@ function getScannerState() {
       stockBaseline.size
   };
 }
-
 
 module.exports = {
   runCheck,
