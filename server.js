@@ -46,18 +46,6 @@ const pollSeconds =
     )
   );
 
-/*
-  NEW PRODUCT DISCOVERY INTERVAL
-
-  Default = every 30 minutes.
-
-  Stock scanning remains every
-  60 seconds.
-
-  Discovery should not run every
-  minute because it uses broad
-  Walmart searches.
-*/
 const discoveryMinutes =
   Math.max(
     10,
@@ -65,6 +53,7 @@ const discoveryMinutes =
       process.env.DISCOVERY_MINUTES || 30
     )
   );
+
 
 app.use(
   cors({
@@ -143,14 +132,13 @@ app.get("/health", (req, res) => {
         : null,
 
     pushConfigured:
-      push.getPushStatus()
-        .configured
+      push.getPushStatus().configured
   });
 });
 
 
 /*
-  WEB PUSH PUBLIC KEY
+  PUSH PUBLIC KEY
 */
 
 app.get(
@@ -178,7 +166,7 @@ app.get(
 
 
 /*
-  WEB PUSH STATUS
+  PUSH STATUS
 */
 
 app.get(
@@ -192,7 +180,7 @@ app.get(
 
 
 /*
-  WEB PUSH TEST
+  PUSH TEST
 */
 
 app.get(
@@ -221,8 +209,7 @@ app.get(
           ok: false,
           test: "web-push",
           walmartApiCalled: false,
-          error:
-            error.message
+          error: error.message
         });
     }
   }
@@ -258,8 +245,7 @@ app.post(
         .status(400)
         .json({
           ok: false,
-          error:
-            error.message
+          error: error.message
         });
     }
   }
@@ -308,8 +294,7 @@ app.post(
         .status(500)
         .json({
           ok: false,
-          error:
-            error.message
+          error: error.message
         });
     }
   }
@@ -317,7 +302,7 @@ app.post(
 
 
 /*
-  SCANNER CONFIGURATION
+  SCANNER CONFIG
 */
 
 app.get(
@@ -350,7 +335,7 @@ app.get(
 
 
 /*
-  CURRENT DASHBOARD DATA
+  DASHBOARD STATUS
 */
 
 app.get(
@@ -377,7 +362,7 @@ app.get(
 
 
 /*
-  DIRECT RETAILER RESULTS
+  DIRECT RETAILER PRODUCTS
 */
 
 app.get(
@@ -408,7 +393,7 @@ app.get(
 
 
 /*
-  CONTROLLED WALMART TEST
+  CONTROLLED WALMART PRODUCT TEST
 */
 
 app.get(
@@ -429,7 +414,6 @@ app.get(
             ok: false,
             error:
               "Product not found",
-
             productId:
               req.params.productId
           });
@@ -491,13 +475,10 @@ app.get(
         .status(500)
         .json({
           ok: false,
-
           test:
             "single-product",
-
           dashboardUpdated:
             false,
-
           error:
             error.message
         });
@@ -507,7 +488,7 @@ app.get(
 
 
 /*
-  ORIGINAL PRISMATIC ETB TEST
+  PRISMATIC ETB TEST
 */
 
 app.get(
@@ -567,13 +548,10 @@ app.get(
         .status(500)
         .json({
           ok: false,
-
           test:
             "single-product",
-
           dashboardUpdated:
             false,
-
           error:
             error.message
         });
@@ -583,10 +561,7 @@ app.get(
 
 
 /*
-  MANUAL DISCOVERY TEST
-
-  Useful for verifying discovery
-  without waiting 30 minutes.
+  MANUAL DISCOVERY
 */
 
 app.get(
@@ -622,7 +597,7 @@ app.get(
 
 
 /*
-  LIST AUTO-DISCOVERED PRODUCTS
+  DISCOVERED PRODUCTS
 */
 
 app.get(
@@ -641,6 +616,11 @@ app.get(
       });
 
     } catch (error) {
+      console.error(
+        "Get discovered products failed:",
+        error
+      );
+
       return res
         .status(500)
         .json({
@@ -654,7 +634,50 @@ app.get(
 
 
 /*
-  SCHEDULED FULL-CATALOG SCAN
+  WALMART SEARCH DIAGNOSTIC
+
+  This does NOT expose the API key.
+*/
+
+app.get(
+  "/api/debug/walmart-search",
+  async (req, res) => {
+    try {
+      const keyword =
+        req.query.keyword ||
+        "Pokemon TCG";
+
+      const result =
+        await walmart
+          .inspectSearchResponse(
+            keyword
+          );
+
+      return res.json({
+        ok: true,
+        ...result
+      });
+
+    } catch (error) {
+      console.error(
+        "Walmart search diagnostic failed:",
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          ok: false,
+          error:
+            error.message
+        });
+    }
+  }
+);
+
+
+/*
+  SCHEDULED CATALOG SCAN
 */
 
 async function runScheduledScan() {
@@ -725,7 +748,7 @@ app.listen(
     );
 
     /*
-      INITIALIZE DATABASE
+      INITIALIZE DISCOVERY DATABASE
     */
 
     try {
@@ -742,6 +765,7 @@ app.listen(
         error
       );
     }
+
 
     /*
       OPTIONAL STARTUP SCAN
@@ -760,8 +784,9 @@ app.listen(
       );
     }
 
+
     /*
-      AUTOMATIC FULL-CATALOG SCANNER
+      AUTOMATIC STOCK SCANNER
     */
 
     if (enableFullPolling) {
@@ -780,8 +805,9 @@ app.listen(
       );
     }
 
+
     /*
-      AUTOMATIC PRODUCT DISCOVERY
+      AUTOMATIC NEW PRODUCT DISCOVERY
     */
 
     if (enableDiscovery) {
@@ -790,8 +816,8 @@ app.listen(
       );
 
       /*
-        Run once after startup so we
-        do not have to wait 30 minutes.
+        First discovery run 15 seconds
+        after backend starts.
       */
       setTimeout(
         runScheduledDiscovery,
