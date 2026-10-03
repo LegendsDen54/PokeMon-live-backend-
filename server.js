@@ -12,11 +12,13 @@ const {
 
 const walmart = require("./walmart");
 const push = require("./push");
+const discovery = require("./discovery");
 const products = require("./products.json");
 
 const app = express();
 
-const port = Number(process.env.PORT || 8080);
+const port =
+  Number(process.env.PORT || 8080);
 
 const allowedOrigin =
   process.env.ALLOWED_ORIGIN || "*";
@@ -31,10 +33,38 @@ const enableFullPolling =
     process.env.ENABLE_FULL_POLLING || "false"
   ).toLowerCase() === "true";
 
-const pollSeconds = Math.max(
-  60,
-  Number(process.env.POLL_SECONDS || 300)
-);
+const enableDiscovery =
+  String(
+    process.env.ENABLE_DISCOVERY || "true"
+  ).toLowerCase() === "true";
+
+const pollSeconds =
+  Math.max(
+    60,
+    Number(
+      process.env.POLL_SECONDS || 300
+    )
+  );
+
+/*
+  NEW PRODUCT DISCOVERY INTERVAL
+
+  Default = every 30 minutes.
+
+  Stock scanning remains every
+  60 seconds.
+
+  Discovery should not run every
+  minute because it uses broad
+  Walmart searches.
+*/
+const discoveryMinutes =
+  Math.max(
+    10,
+    Number(
+      process.env.DISCOVERY_MINUTES || 30
+    )
+  );
 
 app.use(
   cors({
@@ -54,16 +84,31 @@ app.use(express.json());
 
 app.get("/", (req, res) => {
   res.json({
-    name: "Pokemon Live Monitor Backend",
+    name:
+      "Pokemon Live Monitor Backend",
+
     ok: true,
+
     provider:
-      process.env.DATA_PROVIDER || "mock",
+      process.env.DATA_PROVIDER ||
+      "mock",
+
     automaticScanning:
       enableFullPolling,
+
     pollSeconds:
       enableFullPolling
         ? pollSeconds
         : null,
+
+    automaticDiscovery:
+      enableDiscovery,
+
+    discoveryMinutes:
+      enableDiscovery
+        ? discoveryMinutes
+        : null,
+
     push:
       push.getPushStatus()
   });
@@ -77,15 +122,29 @@ app.get("/", (req, res) => {
 app.get("/health", (req, res) => {
   res.json({
     ok: true,
-    time: new Date().toISOString(),
+
+    time:
+      new Date().toISOString(),
+
     automaticScanning:
       enableFullPolling,
+
     pollSeconds:
       enableFullPolling
         ? pollSeconds
         : null,
+
+    automaticDiscovery:
+      enableDiscovery,
+
+    discoveryMinutes:
+      enableDiscovery
+        ? discoveryMinutes
+        : null,
+
     pushConfigured:
-      push.getPushStatus().configured
+      push.getPushStatus()
+        .configured
   });
 });
 
@@ -162,7 +221,8 @@ app.get(
           ok: false,
           test: "web-push",
           walmartApiCalled: false,
-          error: error.message
+          error:
+            error.message
         });
     }
   }
@@ -198,7 +258,8 @@ app.post(
         .status(400)
         .json({
           ok: false,
-          error: error.message
+          error:
+            error.message
         });
     }
   }
@@ -247,7 +308,8 @@ app.post(
         .status(500)
         .json({
           ok: false,
-          error: error.message
+          error:
+            error.message
         });
     }
   }
@@ -266,11 +328,21 @@ app.get(
 
     res.json({
       ...state,
+
       automaticPolling:
         enableFullPolling,
+
       pollSeconds:
         enableFullPolling
           ? pollSeconds
+          : null,
+
+      automaticDiscovery:
+        enableDiscovery,
+
+      discoveryMinutes:
+        enableDiscovery
+          ? discoveryMinutes
           : null
     });
   }
@@ -288,10 +360,17 @@ app.get(
       getLatest();
 
     res.json({
-      lastRun: data.lastRun,
-      running: data.running,
-      count: data.items.length,
-      items: data.items
+      lastRun:
+        data.lastRun,
+
+      running:
+        data.running,
+
+      count:
+        data.items.length,
+
+      items:
+        data.items
     });
   }
 );
@@ -315,9 +394,14 @@ app.get(
       );
 
     res.json({
-      lastRun: data.lastRun,
-      count: filtered.length,
-      items: filtered
+      lastRun:
+        data.lastRun,
+
+      count:
+        filtered.length,
+
+      items:
+        filtered
     });
   }
 );
@@ -343,14 +427,18 @@ app.get(
           .status(404)
           .json({
             ok: false,
-            error: "Product not found",
+            error:
+              "Product not found",
+
             productId:
               req.params.productId
           });
       }
 
       if (
-        !Array.isArray(product.retailers) ||
+        !Array.isArray(
+          product.retailers
+        ) ||
         !product.retailers.includes(
           "walmart"
         )
@@ -375,13 +463,22 @@ app.get(
 
       return res.json({
         ok: true,
-        test: "single-product",
-        dashboardUpdated: true,
+
+        test:
+          "single-product",
+
+        dashboardUpdated:
+          true,
+
         requestedProductId:
           product.id,
+
         configuredItemId:
-          product.walmartItemId || null,
-        result: savedResult
+          product.walmartItemId ||
+          null,
+
+        result:
+          savedResult
       });
 
     } catch (error) {
@@ -394,9 +491,15 @@ app.get(
         .status(500)
         .json({
           ok: false,
-          test: "single-product",
-          dashboardUpdated: false,
-          error: error.message
+
+          test:
+            "single-product",
+
+          dashboardUpdated:
+            false,
+
+          error:
+            error.message
         });
     }
   }
@@ -439,11 +542,19 @@ app.get(
 
       return res.json({
         ok: true,
-        test: "single-product",
-        dashboardUpdated: true,
+
+        test:
+          "single-product",
+
+        dashboardUpdated:
+          true,
+
         configuredItemId:
-          product.walmartItemId || null,
-        result: savedResult
+          product.walmartItemId ||
+          null,
+
+        result:
+          savedResult
       });
 
     } catch (error) {
@@ -456,9 +567,86 @@ app.get(
         .status(500)
         .json({
           ok: false,
-          test: "single-product",
-          dashboardUpdated: false,
-          error: error.message
+
+          test:
+            "single-product",
+
+          dashboardUpdated:
+            false,
+
+          error:
+            error.message
+        });
+    }
+  }
+);
+
+
+/*
+  MANUAL DISCOVERY TEST
+
+  Useful for verifying discovery
+  without waiting 30 minutes.
+*/
+
+app.get(
+  "/api/discovery/run",
+  async (req, res) => {
+    try {
+      const result =
+        await discovery
+          .discoverWalmartProducts();
+
+      return res.json({
+        ok: true,
+        discovery:
+          result
+      });
+
+    } catch (error) {
+      console.error(
+        "Manual discovery failed:",
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          ok: false,
+          error:
+            error.message
+        });
+    }
+  }
+);
+
+
+/*
+  LIST AUTO-DISCOVERED PRODUCTS
+*/
+
+app.get(
+  "/api/discovery/products",
+  async (req, res) => {
+    try {
+      const items =
+        await discovery
+          .getDiscoveredProducts();
+
+      return res.json({
+        ok: true,
+        count:
+          items.length,
+        items
+      });
+
+    } catch (error) {
+      return res
+        .status(500)
+        .json({
+          ok: false,
+          error:
+            error.message
         });
     }
   }
@@ -493,6 +681,34 @@ async function runScheduledScan() {
 
 
 /*
+  SCHEDULED PRODUCT DISCOVERY
+*/
+
+async function runScheduledDiscovery() {
+  try {
+    console.log(
+      "Starting Walmart product discovery..."
+    );
+
+    const result =
+      await discovery
+        .discoverWalmartProducts();
+
+    console.log(
+      "Walmart product discovery finished:",
+      result
+    );
+
+  } catch (error) {
+    console.error(
+      "Walmart product discovery failed:",
+      error
+    );
+  }
+}
+
+
+/*
   START SERVER
 */
 
@@ -509,6 +725,25 @@ app.listen(
     );
 
     /*
+      INITIALIZE DATABASE
+    */
+
+    try {
+      await discovery
+        .initializeDiscoveryDatabase();
+
+      console.log(
+        "Discovery storage ready."
+      );
+
+    } catch (error) {
+      console.error(
+        "Discovery database initialization failed:",
+        error
+      );
+    }
+
+    /*
       OPTIONAL STARTUP SCAN
     */
 
@@ -518,6 +753,7 @@ app.listen(
       );
 
       await runScheduledScan();
+
     } else {
       console.log(
         "Startup scan disabled."
@@ -537,9 +773,41 @@ app.listen(
         runScheduledScan,
         pollSeconds * 1000
       );
+
     } else {
       console.log(
         "Automatic catalog polling disabled."
+      );
+    }
+
+    /*
+      AUTOMATIC PRODUCT DISCOVERY
+    */
+
+    if (enableDiscovery) {
+      console.log(
+        `Automatic Walmart discovery ENABLED every ${discoveryMinutes} minutes.`
+      );
+
+      /*
+        Run once after startup so we
+        do not have to wait 30 minutes.
+      */
+      setTimeout(
+        runScheduledDiscovery,
+        15000
+      );
+
+      setInterval(
+        runScheduledDiscovery,
+        discoveryMinutes *
+          60 *
+          1000
+      );
+
+    } else {
+      console.log(
+        "Automatic Walmart discovery disabled."
       );
     }
   }
