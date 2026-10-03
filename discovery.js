@@ -10,8 +10,7 @@ const API_KEY =
   process.env.WALMART_RAPIDAPI_KEY;
 
 const pool = new Pool({
-  connectionString:
-    process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
   }
@@ -84,12 +83,12 @@ function getItemId(item) {
 
 
 /*
-  ITEM IMAGE
+  IMAGE
 */
 function getImage(item) {
   if (
     Array.isArray(item.images) &&
-    item.images.length
+    item.images.length > 0
   ) {
     return item.images[0];
   }
@@ -144,39 +143,116 @@ async function apiRequest(path) {
     );
   }
 
-  const response = await fetch(
-    `https://${HOST}${path}`,
-    {
-      method: "GET",
-      headers: {
-        "x-rapidapi-key": API_KEY,
-        "x-rapidapi-host": HOST
-      }
-    }
-  );
+  const controller =
+    new AbortController();
 
-  if (!response.ok) {
-    throw new Error(
-      `Walmart API returned ${response.status}`
+  const timeout =
+    setTimeout(
+      () => controller.abort(),
+      15000
     );
-  }
 
-  return response.json();
+  try {
+    const response =
+      await fetch(
+        `https://${HOST}${path}`,
+        {
+          method: "GET",
+          headers: {
+            "x-rapidapi-key": API_KEY,
+            "x-rapidapi-host": HOST
+          },
+          signal: controller.signal
+        }
+      );
+
+    if (!response.ok) {
+      throw new Error(
+        `Walmart API returned ${response.status}`
+      );
+    }
+
+    return await response.json();
+
+  } catch (error) {
+    if (
+      error &&
+      error.name === "AbortError"
+    ) {
+      throw new Error(
+        "Walmart API request timed out"
+      );
+    }
+
+    throw error;
+
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 
 /*
-  ONLY ACCEPT POKEMON TCG PRODUCTS
+  EXTRACT WALMART SEARCH RESULTS
+
+  Diagnostic confirmed response shape:
+
+  {
+    status: ...,
+    data: {
+      results: [...]
+    }
+  }
+*/
+function extractSearchResults(data) {
+  if (
+    Array.isArray(
+      data?.data?.results
+    )
+  ) {
+    return data.data.results;
+  }
+
+  /*
+    Keep fallbacks in case the API
+    response changes later.
+  */
+  if (
+    Array.isArray(data?.results)
+  ) {
+    return data.results;
+  }
+
+  if (
+    Array.isArray(data?.items)
+  ) {
+    return data.items;
+  }
+
+  if (
+    Array.isArray(data?.products)
+  ) {
+    return data.products;
+  }
+
+  return [];
+}
+
+
+/*
+  POKEMON TCG FILTER
 */
 function looksLikePokemonTCG(item) {
-  const text = normalize(
-    [
-      item.name,
-      item.title,
-      item.description,
-      item.brand
-    ].join(" ")
-  );
+  const text =
+    normalize(
+      [
+        item.name,
+        item.title,
+        item.shortDescription,
+        item.description,
+        item.brand
+      ].join(" ")
+    );
 
   return (
     text.includes("pokemon") &&
@@ -186,18 +262,18 @@ function looksLikePokemonTCG(item) {
       text.includes("booster") ||
       text.includes("trainer box") ||
       text.includes("collection") ||
-      text.includes("tin")
+      text.includes("tin") ||
+      text.includes("elite trainer") ||
+      text.includes("etb")
     )
   );
 }
 
 
 /*
-  SAVE / UPDATE DISCOVERED PRODUCT
+  SAVE / UPDATE PRODUCT
 */
-async function saveDiscoveredProduct(
-  item
-) {
+async function saveDiscoveredProduct(item) {
   const itemId =
     getItemId(item);
 
@@ -298,14 +374,13 @@ async function saveDiscoveredProduct(
 
   return {
     saved: true,
-    product:
-      result.rows[0]
+    product: result.rows[0]
   };
 }
 
 
 /*
-  SEARCH WALMART FOR NEW PRODUCTS
+  SEARCH WALMART
 */
 async function discoverWalmartProducts() {
   const queries = [
@@ -318,6 +393,10 @@ async function discoverWalmartProducts() {
 
   let inspected = 0;
   let saved = 0;
+  let walmartDirect = 0;
+  let rejected = 0;
+  let searchesCompleted = 0;
+  let searchesFailed = 0;
 
   for (const keyword of queries) {
     const params =
@@ -334,9 +413,13 @@ async function discoverWalmartProducts() {
         );
 
       const results =
-        Array.isArray(data.results)
-          ? data.results
-          : [];
+        extractSearchResults(data);
+
+      console.log(
+        `Discovery "${keyword}" returned ${results.length} results.`
+      );
+
+      searchesCompleted += 1;
 
       for (const item of results) {
         inspected += 1;
@@ -348,10 +431,15 @@ async function discoverWalmartProducts() {
 
         if (result.saved) {
           saved += 1;
+          walmartDirect += 1;
+        } else {
+          rejected += 1;
         }
       }
 
     } catch (error) {
+      searchesFailed += 1;
+
       console.error(
         `Discovery search failed for "${keyword}":`,
         error.message
@@ -360,21 +448,24 @@ async function discoverWalmartProducts() {
   }
 
   console.log(
-    `Walmart discovery finished. Inspected=${inspected}, saved/updated=${saved}`
+    `Walmart discovery finished. Inspected=${inspected}, saved/updated=${saved}, rejected=${rejected}`
   );
 
   return {
     ok: true,
+    searchesCompleted,
+    searchesFailed,
     inspected,
-    saved
+    walmartDirect,
+    saved,
+    rejected
   };
 }
 
 
 /*
-  RETURN ENABLED DISCOVERED PRODUCTS
-  IN THE SAME GENERAL FORMAT AS
-  products.json
+  LOAD DISCOVERED PRODUCTS
+  INTO LIVE MONITOR FORMAT
 */
 async function getDiscoveredProducts() {
   const result =
