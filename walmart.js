@@ -2,9 +2,12 @@ const HOST =
   process.env.WALMART_RAPIDAPI_HOST ||
   "realtime-walmart-data.p.rapidapi.com";
 
-const API_KEY = process.env.WALMART_RAPIDAPI_KEY;
+const API_KEY =
+  process.env.WALMART_RAPIDAPI_KEY;
 
-const discoveredItems = new Map();
+const discoveredItems =
+  new Map();
+
 
 function parsePrice(value) {
   if (
@@ -15,29 +18,47 @@ function parsePrice(value) {
     return null;
   }
 
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
+  if (
+    typeof value === "number"
+  ) {
+    return Number.isFinite(value)
+      ? value
+      : null;
   }
 
-  const number = Number(
-    String(value).replace(/[^0-9.]/g, "")
-  );
+  const number =
+    Number(
+      String(value)
+        .replace(
+          /[^0-9.]/g,
+          ""
+        )
+    );
 
   return Number.isFinite(number)
     ? number
     : null;
 }
 
+
 function normalize(value) {
   return String(value || "")
     .toLowerCase()
-    .replace(/pok[eé]mon/g, "pokemon")
-    .replace(/[^a-z0-9]+/g, " ")
+    .replace(
+      /pok[eé]mon/g,
+      "pokemon"
+    )
+    .replace(
+      /[^a-z0-9]+/g,
+      " "
+    )
     .trim();
 }
 
+
 function isWalmartSeller(value) {
-  const seller = normalize(value);
+  const seller =
+    normalize(value);
 
   return (
     seller === "walmart" ||
@@ -45,44 +66,61 @@ function isWalmartSeller(value) {
   );
 }
 
-function productMatches(product, item) {
-  const expected = normalize(product.name);
 
-  const actual = normalize(
-    item.name ||
-    item.title
-  );
+function productMatches(
+  product,
+  item
+) {
+  const expected =
+    normalize(product.name);
 
-  if (!expected || !actual) {
+  const actual =
+    normalize(
+      item.name ||
+      item.title
+    );
+
+  if (
+    !expected ||
+    !actual
+  ) {
     return false;
   }
 
-  const ignored = new Set([
-    "pokemon",
-    "tcg",
-    "the",
-    "and",
-    "collection"
-  ]);
+  const ignored =
+    new Set([
+      "pokemon",
+      "tcg",
+      "the",
+      "and",
+      "collection"
+    ]);
 
-  const words = expected
-    .split(" ")
-    .filter(
-      word =>
-        word.length > 2 &&
-        !ignored.has(word)
-    );
+  const words =
+    expected
+      .split(" ")
+      .filter(
+        word =>
+          word.length > 2 &&
+          !ignored.has(word)
+      );
 
   if (!words.length) {
     return false;
   }
 
-  const matches = words.filter(
-    word => actual.includes(word)
-  ).length;
+  const matches =
+    words.filter(
+      word =>
+        actual.includes(word)
+    ).length;
 
-  return matches / words.length >= 0.65;
+  return (
+    matches /
+    words.length
+  ) >= 0.65;
 }
+
 
 async function apiRequest(path) {
   if (!API_KEY) {
@@ -91,62 +129,122 @@ async function apiRequest(path) {
     );
   }
 
-  const response = await fetch(
-    `https://${HOST}${path}`,
-    {
-      method: "GET",
-      headers: {
-        "x-rapidapi-key": API_KEY,
-        "x-rapidapi-host": HOST
-      }
-    }
-  );
+  const controller =
+    new AbortController();
 
-  if (!response.ok) {
-    throw new Error(
-      `Walmart API returned ${response.status}`
+  const timeout =
+    setTimeout(
+      () =>
+        controller.abort(),
+      15000
     );
-  }
 
-  return response.json();
+  try {
+    const response =
+      await fetch(
+        `https://${HOST}${path}`,
+        {
+          method: "GET",
+
+          headers: {
+            "x-rapidapi-key":
+              API_KEY,
+
+            "x-rapidapi-host":
+              HOST
+          },
+
+          signal:
+            controller.signal
+        }
+      );
+
+    if (!response.ok) {
+      throw new Error(
+        `Walmart API returned ${response.status}`
+      );
+    }
+
+    return await response.json();
+
+  } catch (error) {
+    if (
+      error &&
+      error.name ===
+        "AbortError"
+    ) {
+      throw new Error(
+        "Walmart API request timed out"
+      );
+    }
+
+    throw error;
+
+  } finally {
+    clearTimeout(timeout);
+  }
 }
+
 
 function getSellerName(item) {
   if (item.sellerName) {
     return item.sellerName;
   }
 
-  if (item.sellerDisplayName) {
-    return item.sellerDisplayName;
+  if (
+    item.sellerDisplayName
+  ) {
+    return (
+      item.sellerDisplayName
+    );
   }
 
-  if (typeof item.seller === "string") {
+  if (
+    typeof item.seller ===
+    "string"
+  ) {
     return item.seller;
   }
 
   if (
     item.seller &&
-    typeof item.seller === "object"
+    typeof item.seller ===
+      "object"
   ) {
-    return item.seller.name || null;
+    return (
+      item.seller.name ||
+      null
+    );
   }
 
   return null;
 }
 
+
 function getPrice(item) {
   return parsePrice(
-    item.priceDetails?.currentPrice?.price ??
-    item.priceDetails?.currentPrice?.priceString ??
+    item.priceDetails
+      ?.currentPrice
+      ?.price ??
+
+    item.priceDetails
+      ?.currentPrice
+      ?.priceString ??
+
     item.price ??
+
     item.currentPrice ??
+
     item.salePrice
   );
 }
 
+
 function getImage(item) {
   if (
-    Array.isArray(item.images) &&
+    Array.isArray(
+      item.images
+    ) &&
     item.images.length > 0
   ) {
     return item.images[0];
@@ -160,26 +258,47 @@ function getImage(item) {
   );
 }
 
+
 function getAvailability(item) {
   return normalize(
-    item.otherDetails?.availabilityStatusV2?.value ||
-    item.otherDetails?.availabilityStatusV2?.display ||
-    item.otherDetails?.availabilityStatus ||
-    item.shippingOption?.availabilityStatus ||
+    item.otherDetails
+      ?.availabilityStatusV2
+      ?.value ||
+
+    item.otherDetails
+      ?.availabilityStatusV2
+      ?.display ||
+
+    item.otherDetails
+      ?.availabilityStatus ||
+
+    item.shippingOption
+      ?.availabilityStatus ||
+
     item.availability ||
+
     item.availabilityStatus ||
+
     item.stockStatus
   );
 }
 
+
 function getSellerType(item) {
   return normalize(
-    item.otherDetails?.sellerType ||
+    item.otherDetails
+      ?.sellerType ||
+
     item.sellerType
   );
 }
 
-function makeResult(product, item, source) {
+
+function makeResult(
+  product,
+  item,
+  source
+) {
   const sellerName =
     getSellerName(item);
 
@@ -187,8 +306,11 @@ function makeResult(product, item, source) {
     getSellerType(item);
 
   const directSeller =
-    isWalmartSeller(sellerName) &&
-    sellerType !== "external";
+    isWalmartSeller(
+      sellerName
+    ) &&
+    sellerType !==
+      "external";
 
   const price =
     getPrice(item);
@@ -197,19 +319,16 @@ function makeResult(product, item, source) {
     getAvailability(item);
 
   const rawInStock =
-    availability === "in stock" ||
-    availability === "instock" ||
-    availability === "available";
+    availability ===
+      "in stock" ||
+    availability ===
+      "instock" ||
+    availability ===
+      "available";
 
-  /*
-    IMPORTANT:
-    Marketplace inventory may be IN_STOCK too.
-
-    We only mark the product as in stock for
-    our monitor when Walmart itself is the seller.
-  */
   const inStock =
-    directSeller && rawInStock;
+    directSeller &&
+    rawInStock;
 
   const itemId =
     item.usItemId ||
@@ -231,16 +350,19 @@ function makeResult(product, item, source) {
     getImage(item);
 
   return {
-    productId: product.id,
+    productId:
+      product.id,
 
     name:
       item.name ||
       item.title ||
       product.name,
 
-    set: product.set,
+    set:
+      product.set,
 
-    retailer: "walmart",
+    retailer:
+      "walmart",
 
     inStock,
 
@@ -249,7 +371,8 @@ function makeResult(product, item, source) {
     price,
 
     msrp:
-      product.msrp ?? null,
+      product.msrp ??
+      null,
 
     url,
 
@@ -259,10 +382,12 @@ function makeResult(product, item, source) {
         : sellerName,
 
     sellerType:
-      sellerType || null,
+      sellerType ||
+      null,
 
     checkedAt:
-      new Date().toISOString(),
+      new Date()
+        .toISOString(),
 
     source,
 
@@ -279,15 +404,83 @@ function makeResult(product, item, source) {
   };
 }
 
+
+function extractSearchResults(
+  data
+) {
+  if (
+    Array.isArray(
+      data?.results
+    )
+  ) {
+    return data.results;
+  }
+
+  if (
+    Array.isArray(
+      data?.items
+    )
+  ) {
+    return data.items;
+  }
+
+  if (
+    Array.isArray(
+      data?.products
+    )
+  ) {
+    return data.products;
+  }
+
+  if (
+    Array.isArray(
+      data?.data
+    )
+  ) {
+    return data.data;
+  }
+
+  if (
+    Array.isArray(
+      data?.data?.results
+    )
+  ) {
+    return data.data.results;
+  }
+
+  if (
+    Array.isArray(
+      data?.data?.items
+    )
+  ) {
+    return data.data.items;
+  }
+
+  if (
+    Array.isArray(
+      data?.searchResult
+        ?.items
+    )
+  ) {
+    return (
+      data.searchResult.items
+    );
+  }
+
+  return [];
+}
+
+
 async function checkKnownItem(
   product,
   itemId
 ) {
-  const data = await apiRequest(
-    `/product?itemId=${encodeURIComponent(
-      itemId
-    )}`
-  );
+  const data =
+    await apiRequest(
+      `/product?itemId=${encodeURIComponent(
+        itemId
+      )}`
+    );
 
   const item =
     data.product ||
@@ -297,7 +490,8 @@ async function checkKnownItem(
 
   if (
     !item ||
-    typeof item !== "object" ||
+    typeof item !==
+      "object" ||
     Array.isArray(item)
   ) {
     throw new Error(
@@ -305,7 +499,12 @@ async function checkKnownItem(
     );
   }
 
-  if (!productMatches(product, item)) {
+  if (
+    !productMatches(
+      product,
+      item
+    )
+  ) {
     throw new Error(
       "Saved Walmart itemId failed product validation"
     );
@@ -318,7 +517,10 @@ async function checkKnownItem(
   );
 }
 
-async function discoverProduct(product) {
+
+async function discoverProduct(
+  product
+) {
   const keyword =
     product.searchTerm ||
     product.name ||
@@ -327,70 +529,84 @@ async function discoverProduct(product) {
   const params =
     new URLSearchParams({
       page: "1",
-      sort: "best_match",
+      sort:
+        "best_match",
       keyword
     });
 
-  const data = await apiRequest(
-    `/search?${params.toString()}`
-  );
+  const data =
+    await apiRequest(
+      `/search?${params.toString()}`
+    );
 
   const results =
-    Array.isArray(data.results)
-      ? data.results
-      : [];
+    extractSearchResults(
+      data
+    );
 
-  /*
-    Discovery only accepts a listing as
-    Walmart-direct when Walmart is the seller.
-  */
-  const match = results.find(
-    item =>
-      isWalmartSeller(
-        getSellerName(item)
-      ) &&
-      productMatches(
-        product,
-        item
-      )
-  );
+  const match =
+    results.find(
+      item =>
+        isWalmartSeller(
+          getSellerName(item)
+        ) &&
+        productMatches(
+          product,
+          item
+        )
+    );
 
   if (!match) {
     return {
-      productId: product.id,
+      productId:
+        product.id,
 
-      name: product.name,
+      name:
+        product.name,
 
-      set: product.set,
+      set:
+        product.set,
 
-      retailer: "walmart",
+      retailer:
+        "walmart",
 
-      inStock: false,
+      inStock:
+        false,
 
-      directSeller: false,
+      directSeller:
+        false,
 
-      price: null,
+      price:
+        null,
 
       msrp:
-        product.msrp ?? null,
+        product.msrp ??
+        null,
 
-      url: null,
+      url:
+        null,
 
-      seller: null,
+      seller:
+        null,
 
-      sellerType: null,
+      sellerType:
+        null,
 
       checkedAt:
-        new Date().toISOString(),
+        new Date()
+          .toISOString(),
 
       source:
         "walmart-discovery",
 
-      discoveryMode: true,
+      discoveryMode:
+        true,
 
-      marketplaceOnly: false,
+      marketplaceOnly:
+        false,
 
-      offerAvailable: false,
+      offerAvailable:
+        false,
 
       error:
         "No validated Walmart-direct result found"
@@ -422,37 +638,52 @@ async function discoverProduct(product) {
   };
 }
 
+
 async function checkProduct(
   product,
   retailer
 ) {
-  if (retailer !== "walmart") {
+  if (
+    retailer !==
+    "walmart"
+  ) {
     return {
-      productId: product.id,
+      productId:
+        product.id,
 
-      name: product.name,
+      name:
+        product.name,
 
-      set: product.set,
+      set:
+        product.set,
 
       retailer,
 
-      inStock: false,
+      inStock:
+        false,
 
-      directSeller: false,
+      directSeller:
+        false,
 
-      price: null,
+      price:
+        null,
 
       msrp:
-        product.msrp ?? null,
+        product.msrp ??
+        null,
 
-      url: null,
+      url:
+        null,
 
-      seller: null,
+      seller:
+        null,
 
-      sellerType: null,
+      sellerType:
+        null,
 
       checkedAt:
-        new Date().toISOString(),
+        new Date()
+          .toISOString(),
 
       source:
         "walmart-rapidapi",
@@ -474,6 +705,7 @@ async function checkProduct(
         product,
         knownItemId
       );
+
     } catch (error) {
       console.error(
         `Known Walmart item failed for ${product.id}:`,
@@ -491,6 +723,87 @@ async function checkProduct(
   );
 }
 
+
+/*
+  SAFE SEARCH DIAGNOSTIC
+
+  Returns response structure only.
+  No API key or secrets are exposed.
+*/
+async function inspectSearchResponse(
+  keyword =
+    "Pokemon TCG"
+) {
+  const params =
+    new URLSearchParams({
+      page: "1",
+      sort:
+        "best_match",
+      keyword
+    });
+
+  const data =
+    await apiRequest(
+      `/search?${params.toString()}`
+    );
+
+  const topLevelKeys =
+    data &&
+    typeof data ===
+      "object"
+      ? Object.keys(data)
+      : [];
+
+  const nestedDataKeys =
+    data?.data &&
+    typeof data.data ===
+      "object" &&
+    !Array.isArray(
+      data.data
+    )
+      ? Object.keys(
+          data.data
+        )
+      : [];
+
+  const results =
+    extractSearchResults(
+      data
+    );
+
+  return {
+    keyword,
+
+    topLevelKeys,
+
+    nestedDataKeys,
+
+    extractedCount:
+      results.length,
+
+    sampleItemKeys:
+      results[0] &&
+      typeof results[0] ===
+        "object"
+        ? Object.keys(
+            results[0]
+          )
+        : [],
+
+    sampleName:
+      results[0]
+        ? (
+            results[0].name ||
+            results[0].title ||
+            null
+          )
+        : null
+  };
+}
+
+
 module.exports = {
-  checkProduct
+  checkProduct,
+  inspectSearchResponse,
+  extractSearchResults
 };
