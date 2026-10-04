@@ -1,5 +1,8 @@
+require("dotenv").config();
+
 const webpush = require("web-push");
 const crypto = require("crypto");
+const { Pool } = require("pg");
 
 const VAPID_PUBLIC_KEY =
   (process.env.VAPID_PUBLIC_KEY || "").trim();
@@ -13,7 +16,24 @@ const VAPID_SUBJECT =
     "https://pokemon-live-monitor.onrender.com"
   ).trim();
 
-const subscriptions = new Map();
+const pool = new Pool({
+  connectionString:
+    process.env.DATABASE_URL,
+
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+/*
+  FAST IN-MEMORY CACHE
+
+  PostgreSQL is the permanent source.
+*/
+const subscriptions =
+  new Map();
+
+let databaseReady = false;
 
 
 /* ========================================
@@ -21,12 +41,12 @@ const subscriptions = new Map();
 ======================================== */
 
 function isBase64Url(value) {
-  return /^[A-Za-z0-9_-]+$/.test(value);
+  return /^[A-Za-z0-9_-]+$/.test(
+    value
+  );
 }
 
-
 function base64UrlToBuffer(value) {
-
   const padding =
     "=".repeat(
       (4 - (value.length % 4)) % 4
@@ -47,20 +67,14 @@ function base64UrlToBuffer(value) {
 
 /* ========================================
    VERIFY VAPID KEY PAIR
-
-   Does NOT print or expose
-   the private key.
 ======================================== */
 
 function verifyVapidKeyPair() {
-
   try {
-
     if (
       !VAPID_PUBLIC_KEY ||
       !VAPID_PRIVATE_KEY
     ) {
-
       return {
         checked: false,
         match: false,
@@ -82,7 +96,6 @@ function verifyVapidKeyPair() {
     if (
       privateBytes.length !== 32
     ) {
-
       return {
         checked: true,
         match: false,
@@ -94,7 +107,6 @@ function verifyVapidKeyPair() {
     if (
       expectedPublicBytes.length !== 65
     ) {
-
       return {
         checked: true,
         match: false,
@@ -137,7 +149,6 @@ function verifyVapidKeyPair() {
     };
 
   } catch (error) {
-
     return {
       checked: true,
       match: false,
@@ -147,13 +158,12 @@ function verifyVapidKeyPair() {
   }
 }
 
-
 const keyPairCheck =
   verifyVapidKeyPair();
 
 
 /* ========================================
-   SAFE STARTUP DIAGNOSTICS
+   STARTUP DIAGNOSTICS
 ======================================== */
 
 console.log(
@@ -161,7 +171,6 @@ console.log(
 );
 
 console.log({
-
   publicKeyLength:
     VAPID_PUBLIC_KEY.length,
 
@@ -202,19 +211,16 @@ let configured = false;
 let configurationError = null;
 
 try {
-
   if (
     !VAPID_PUBLIC_KEY ||
     !VAPID_PRIVATE_KEY
   ) {
-
     throw new Error(
       "VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY is missing"
     );
   }
 
   if (!keyPairCheck.match) {
-
     throw new Error(
       "VAPID public/private keys do not form a matching cryptographic pair"
     );
@@ -233,7 +239,6 @@ try {
   );
 
 } catch (error) {
-
   configurationError =
     error.message;
 
@@ -245,16 +250,71 @@ try {
 
 
 /* ========================================
+   INITIALIZE PUSH DATABASE
+======================================== */
+
+async function initializePushDatabase() {
+  if (!process.env.DATABASE_URL) {
+    console.error(
+      "DATABASE_URL missing. Push persistence unavailable."
+    );
+
+    return {
+      ok: false,
+      loaded: 0
+    };
+  }
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      endpoint TEXT PRIMARY KEY,
+      subscription JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  const result =
+    await pool.query(`
+      SELECT
+        endpoint,
+        subscription
+      FROM push_subscriptions
+    `);
+
+  subscriptions.clear();
+
+  for (const row of result.rows) {
+    if (
+      row.endpoint &&
+      row.subscription
+    ) {
+      subscriptions.set(
+        row.endpoint,
+        row.subscription
+      );
+    }
+  }
+
+  databaseReady = true;
+
+  console.log(
+    `Push database initialized. Loaded ${subscriptions.size} subscription(s).`
+  );
+
+  return {
+    ok: true,
+    loaded:
+      subscriptions.size
+  };
+}
+
+
+/* ========================================
    PUBLIC KEY
-
-   SAFE TO SEND TO FRONTEND.
-
-   This is the function server.js
-   expects at /api/push/public-key.
 ======================================== */
 
 function getPublicKey() {
-
   if (!configured) {
     return null;
   }
@@ -265,17 +325,18 @@ function getPublicKey() {
 
 /* ========================================
    ADD SUBSCRIPTION
+
+   Save immediately to cache,
+   then persist to PostgreSQL.
 ======================================== */
 
-function addSubscription(
+async function addSubscription(
   subscription
 ) {
-
   if (
     !subscription ||
     !subscription.endpoint
   ) {
-
     throw new Error(
       "Invalid push subscription"
     );
@@ -286,8 +347,45 @@ function addSubscription(
     subscription
   );
 
+  await pool.query(
+    `
+    INSERT INTO push_subscriptions (
+      endpoint,
+      subscription,
+      created_at,
+      updated_at
+    )
+
+    VALUES (
+      $1,
+      $2::jsonb,
+      NOW(),
+      NOW()
+    )
+
+    ON CONFLICT (endpoint)
+
+    DO UPDATE SET
+      subscription =
+        EXCLUDED.subscription,
+      updated_at =
+        NOW()
+    `,
+    [
+      subscription.endpoint,
+      JSON.stringify(
+        subscription
+      )
+    ]
+  );
+
+  databaseReady = true;
+
   return {
     ok: true,
+
+    persisted: true,
+
     subscriptions:
       subscriptions.size
   };
@@ -298,26 +396,36 @@ function addSubscription(
    REMOVE SUBSCRIPTION
 ======================================== */
 
-function removeSubscription(
+async function removeSubscription(
   endpoint
 ) {
-
   if (!endpoint) {
-
     return {
       ok: false,
+
       subscriptions:
         subscriptions.size
     };
   }
 
-  const removed =
+  const existed =
     subscriptions.delete(
       endpoint
     );
 
+  await pool.query(
+    `
+    DELETE FROM push_subscriptions
+    WHERE endpoint = $1
+    `,
+    [endpoint]
+  );
+
   return {
-    ok: removed,
+    ok: existed,
+
+    persisted: true,
+
     subscriptions:
       subscriptions.size
   };
@@ -325,15 +433,40 @@ function removeSubscription(
 
 
 /* ========================================
+   REMOVE EXPIRED SUBSCRIPTION
+======================================== */
+
+async function removeExpiredSubscription(
+  endpoint
+) {
+  subscriptions.delete(
+    endpoint
+  );
+
+  try {
+    await pool.query(
+      `
+      DELETE FROM push_subscriptions
+      WHERE endpoint = $1
+      `,
+      [endpoint]
+    );
+
+  } catch (error) {
+    console.error(
+      "Could not remove expired push subscription from database:",
+      error.message
+    );
+  }
+}
+
+
+/* ========================================
    SAFE PUSH ERROR
 ======================================== */
 
-function getSafePushError(
-  error
-) {
-
+function getSafePushError(error) {
   return {
-
     message:
       error?.message ||
       "Unknown push error",
@@ -362,7 +495,6 @@ async function sendToSubscription(
   subscription,
   payload
 ) {
-
   return webpush.sendNotification(
     subscription,
     JSON.stringify(
@@ -376,12 +508,8 @@ async function sendToSubscription(
    BROADCAST
 ======================================== */
 
-async function broadcast(
-  payload
-) {
-
+async function broadcast(payload) {
   if (!configured) {
-
     return {
       ok: false,
       sent: 0,
@@ -414,9 +542,7 @@ async function broadcast(
     ]
     of subscriptions.entries()
   ) {
-
     try {
-
       await sendToSubscription(
         subscription,
         payload
@@ -425,7 +551,6 @@ async function broadcast(
       sent += 1;
 
     } catch (error) {
-
       failed += 1;
 
       const safeError =
@@ -446,8 +571,7 @@ async function broadcast(
         error?.statusCode === 404 ||
         error?.statusCode === 410
       ) {
-
-        subscriptions.delete(
+        await removeExpiredSubscription(
           endpoint
         );
 
@@ -479,24 +603,22 @@ async function broadcast(
 async function sendRestockAlert(
   item
 ) {
-
   if (
     !item ||
     item.retailer !== "walmart" ||
     item.directSeller !== true ||
     item.inStock !== true
   ) {
-
     return {
       ok: false,
       skipped: true,
+
       reason:
         "Product is not Walmart-direct and in stock"
     };
   }
 
   return broadcast({
-
     title:
       "🔥 Pokémon Restock Detected!",
 
@@ -524,14 +646,10 @@ async function sendRestockAlert(
 
 /* ========================================
    CONTROLLED PUSH TEST
-
-   ZERO WALMART API CALLS
 ======================================== */
 
 async function sendTestAlert() {
-
   return broadcast({
-
     title:
       "⚡ Pokémon Restock Monitor",
 
@@ -554,17 +672,18 @@ async function sendTestAlert() {
 
 
 /* ========================================
-   SAFE STATUS
+   STATUS
 ======================================== */
 
 function getPushStatus() {
-
   return {
-
     configured,
 
     subscriptions:
       subscriptions.size,
+
+    persistentStorage:
+      databaseReady,
 
     publicKeyAvailable:
       Boolean(
@@ -572,7 +691,6 @@ function getPushStatus() {
       ),
 
     diagnostics: {
-
       publicKeyLength:
         VAPID_PUBLIC_KEY.length,
 
@@ -609,6 +727,7 @@ function getPushStatus() {
 ======================================== */
 
 module.exports = {
+  initializePushDatabase,
 
   getPublicKey,
 
