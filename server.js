@@ -39,9 +39,8 @@ const enableDiscovery =
   ).toLowerCase() === "true";
 
 /*
-  EXISTING PRODUCT STOCK CHECK
-
-  Minimum = 60 seconds
+  KNOWN PRODUCT SCANNING
+  Minimum: 60 seconds
 */
 const pollSeconds =
   Math.max(
@@ -53,8 +52,7 @@ const pollSeconds =
 
 /*
   NEW PRODUCT DISCOVERY
-
-  Minimum = 5 minutes
+  Minimum: 5 minutes
 */
 const discoveryMinutes =
   Math.max(
@@ -63,7 +61,6 @@ const discoveryMinutes =
       process.env.DISCOVERY_MINUTES || 5
     )
   );
-
 
 app.use(
   cors({
@@ -77,9 +74,9 @@ app.use(
 app.use(express.json());
 
 
-/*
-  ROOT
-*/
+/* ========================================
+   ROOT
+======================================== */
 
 app.get("/", (req, res) => {
   res.json({
@@ -114,9 +111,9 @@ app.get("/", (req, res) => {
 });
 
 
-/*
-  HEALTH
-*/
+/* ========================================
+   HEALTH
+======================================== */
 
 app.get("/health", (req, res) => {
   res.json({
@@ -141,15 +138,15 @@ app.get("/health", (req, res) => {
         ? discoveryMinutes
         : null,
 
-    pushConfigured:
-      push.getPushStatus().configured
+    push:
+      push.getPushStatus()
   });
 });
 
 
-/*
-  PUSH PUBLIC KEY
-*/
+/* ========================================
+   PUSH PUBLIC KEY
+======================================== */
 
 app.get(
   "/api/push/public-key",
@@ -175,9 +172,9 @@ app.get(
 );
 
 
-/*
-  PUSH STATUS
-*/
+/* ========================================
+   PUSH STATUS
+======================================== */
 
 app.get(
   "/api/push/status",
@@ -189,9 +186,9 @@ app.get(
 );
 
 
-/*
-  PUSH TEST
-*/
+/* ========================================
+   PUSH TEST
+======================================== */
 
 app.get(
   "/api/push/test",
@@ -227,23 +224,24 @@ app.get(
 );
 
 
-/*
-  SAVE PUSH SUBSCRIPTION
-*/
+/* ========================================
+   SAVE PUSH SUBSCRIPTION
+======================================== */
 
 app.post(
   "/api/push/subscribe",
-  (req, res) => {
+  async (req, res) => {
     try {
       const result =
-        push.addSubscription(
+        await push.addSubscription(
           req.body
         );
 
       return res.json({
         ...result,
+
         message:
-          "Push subscription saved"
+          "Push subscription saved permanently"
       });
 
     } catch (error) {
@@ -264,13 +262,13 @@ app.post(
 );
 
 
-/*
-  REMOVE PUSH SUBSCRIPTION
-*/
+/* ========================================
+   REMOVE PUSH SUBSCRIPTION
+======================================== */
 
 app.post(
   "/api/push/unsubscribe",
-  (req, res) => {
+  async (req, res) => {
     try {
       const endpoint =
         req.body &&
@@ -286,15 +284,14 @@ app.post(
           });
       }
 
-      const removed =
-        push.removeSubscription(
+      const result =
+        await push.removeSubscription(
           endpoint
         );
 
-      return res.json({
-        ok: true,
-        removed
-      });
+      return res.json(
+        result
+      );
 
     } catch (error) {
       console.error(
@@ -314,9 +311,9 @@ app.post(
 );
 
 
-/*
-  SCANNER CONFIG
-*/
+/* ========================================
+   SCANNER CONFIG
+======================================== */
 
 app.get(
   "/api/scanner",
@@ -347,9 +344,9 @@ app.get(
 );
 
 
-/*
-  DASHBOARD STATUS
-*/
+/* ========================================
+   DASHBOARD STATUS
+======================================== */
 
 app.get(
   "/api/status",
@@ -374,9 +371,9 @@ app.get(
 );
 
 
-/*
-  DIRECT RETAILER PRODUCTS
-*/
+/* ========================================
+   PRODUCTS
+======================================== */
 
 app.get(
   "/api/products",
@@ -405,9 +402,9 @@ app.get(
 );
 
 
-/*
-  CONTROLLED WALMART PRODUCT TEST
-*/
+/* ========================================
+   CONTROLLED PRODUCT TEST
+======================================== */
 
 app.get(
   "/api/test/product/:productId",
@@ -427,6 +424,7 @@ app.get(
             ok: false,
             error:
               "Product not found",
+
             productId:
               req.params.productId
           });
@@ -488,10 +486,6 @@ app.get(
         .status(500)
         .json({
           ok: false,
-          test:
-            "single-product",
-          dashboardUpdated:
-            false,
           error:
             error.message
         });
@@ -500,9 +494,9 @@ app.get(
 );
 
 
-/*
-  PRISMATIC ETB TEST
-*/
+/* ========================================
+   PRISMATIC ETB TEST
+======================================== */
 
 app.get(
   "/api/test/prismatic-etb",
@@ -561,10 +555,6 @@ app.get(
         .status(500)
         .json({
           ok: false,
-          test:
-            "single-product",
-          dashboardUpdated:
-            false,
           error:
             error.message
         });
@@ -573,9 +563,9 @@ app.get(
 );
 
 
-/*
-  MANUAL DISCOVERY
-*/
+/* ========================================
+   MANUAL DISCOVERY
+======================================== */
 
 app.get(
   "/api/discovery/run",
@@ -609,9 +599,9 @@ app.get(
 );
 
 
-/*
-  DISCOVERED PRODUCTS
-*/
+/* ========================================
+   DISCOVERED PRODUCTS
+======================================== */
 
 app.get(
   "/api/discovery/products",
@@ -623,8 +613,10 @@ app.get(
 
       return res.json({
         ok: true,
+
         count:
           items.length,
+
         items
       });
 
@@ -646,9 +638,9 @@ app.get(
 );
 
 
-/*
-  WALMART SEARCH DIAGNOSTIC
-*/
+/* ========================================
+   WALMART SEARCH DIAGNOSTIC
+======================================== */
 
 app.get(
   "/api/debug/walmart-search",
@@ -687,9 +679,9 @@ app.get(
 );
 
 
-/*
-  SCHEDULED STOCK SCAN
-*/
+/* ========================================
+   SCHEDULED STOCK SCAN
+======================================== */
 
 async function runScheduledScan() {
   try {
@@ -714,9 +706,9 @@ async function runScheduledScan() {
 }
 
 
-/*
-  SCHEDULED PRODUCT DISCOVERY
-*/
+/* ========================================
+   SCHEDULED DISCOVERY
+======================================== */
 
 let discoveryRunning = false;
 
@@ -757,9 +749,9 @@ async function runScheduledDiscovery() {
 }
 
 
-/*
-  START SERVER
-*/
+/* ========================================
+   START SERVER
+======================================== */
 
 app.listen(
   port,
@@ -769,13 +761,13 @@ app.listen(
     );
 
     console.log(
-      "Web Push status:",
+      "Web Push configuration:",
       push.getPushStatus()
     );
 
 
     /*
-      INITIALIZE DATABASE
+      INITIALIZE DISCOVERY DATABASE
     */
 
     try {
@@ -789,6 +781,31 @@ app.listen(
     } catch (error) {
       console.error(
         "Discovery database initialization failed:",
+        error
+      );
+    }
+
+
+    /*
+      INITIALIZE PERSISTENT PUSH STORAGE
+
+      This reloads phone subscriptions
+      after every Render restart/deploy.
+    */
+
+    try {
+      const pushDatabase =
+        await push
+          .initializePushDatabase();
+
+      console.log(
+        "Persistent push storage ready:",
+        pushDatabase
+      );
+
+    } catch (error) {
+      console.error(
+        "Push database initialization failed:",
         error
       );
     }
@@ -834,7 +851,7 @@ app.listen(
 
 
     /*
-      AUTOMATIC NEW PRODUCT DISCOVERY
+      AUTOMATIC PRODUCT DISCOVERY
     */
 
     if (enableDiscovery) {
@@ -842,19 +859,11 @@ app.listen(
         `Automatic Walmart discovery ENABLED every ${discoveryMinutes} minutes.`
       );
 
-      /*
-        First discovery 15 seconds
-        after startup.
-      */
       setTimeout(
         runScheduledDiscovery,
         15000
       );
 
-      /*
-        Then repeat every 5 minutes
-        by default.
-      */
       setInterval(
         runScheduledDiscovery,
         discoveryMinutes *
