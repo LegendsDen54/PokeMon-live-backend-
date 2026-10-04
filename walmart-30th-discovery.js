@@ -14,31 +14,48 @@ const HASDATA_TIMEOUT_MS =
 
 /*
   ========================================
-  POKEMON DISCOVERY - CREDIT OPTIMIZED
+  POKEMON DISCOVERY - FINAL FAST VERSION
   ========================================
 
-  This filename stays the same because
-  server.js already imports it.
+  PURPOSE
 
-  DISCOVERY:
-  - Broad sealed Pokemon TCG discovery
+  - Discover sealed Pokemon TCG products
   - Walmart Direct
   - GT Collectibles and Toys
-  - English / U.S. sealed products only
+  - English / U.S. products only
 
-  ALERTS:
-  - GT Collectibles can alert regardless
-    of MSRP / price.
-  - Walmart Direct discovery stays
-    watch-only until MSRP eligibility
-    is separately verified.
+  SPEED
 
-  CREDIT PROTECTION:
-  - 6 discovery queries instead of 17
-  - 5 minute discovery cache
-  - Wednesday scans are 10 minutes apart,
-    so scheduled scans remain fresh.
+  - NO discovery cache
+  - Every requested discovery run is fresh
+  - 6 optimized searches instead of 17
+
+  ALERTS
+
+  GT Collectibles:
+  - Approved marketplace seller
+  - MSRP not required
+  - Price ceiling does not apply
+  - Explicit OUT -> IN STOCK can alert
+
+  Walmart Direct:
+  - Discovered and added to watchlist
+  - Separate MSRP eligibility rules control
+    Walmart Direct alerting
+
+  IMPORTANT
+
+  Missing from a search result does NOT mean
+  out of stock.
+
+  This prevents search-result movement from
+  generating false GT restock alerts.
 */
+
+
+/* ========================================
+   OPTIMIZED DISCOVERY QUERIES
+======================================== */
 
 const SEARCH_TERMS = [
   "Pokemon TCG",
@@ -49,34 +66,33 @@ const SEARCH_TERMS = [
   "Pokemon TCG 30th Anniversary"
 ];
 
-const DISCOVERY_CACHE_MS =
-  Math.max(
-    60000,
-    Number(
-      process.env
-        .WALMART_DISCOVERY_CACHE_MS ||
-      300000
-    )
-  );
+
+/* ========================================
+   STATE
+======================================== */
 
 let state = {
   running: false,
+
   lastRun: null,
+
   lastSuccess: null,
+
   lastError: null,
 
-  cacheHit: false,
-  cacheAgeMs: null,
-  cacheMs: DISCOVERY_CACHE_MS,
+  queryCount:
+    SEARCH_TERMS.length,
 
-  queryCount: SEARCH_TERMS.length,
   queries: [],
 
   count: 0,
+
   directCount: 0,
+
   approvedMarketplaceCount: 0,
 
   availableDirectCount: 0,
+
   availableApprovedMarketplaceCount: 0,
 
   alertsTriggered: 0,
@@ -84,47 +100,54 @@ let state = {
   items: []
 };
 
-let discoveryCache = {
-  savedAt: 0,
-  items: [],
-  queries: []
-};
 
 /*
-  GT restock baseline.
+  Restock baseline.
 
   First observation establishes state.
-  A later explicit false -> true transition
-  triggers the GT restock alert.
+
+  Explicit observed false -> true can alert.
+
+  A product merely disappearing from HasData
+  search results does NOT set it false.
 */
 const discoveryStockBaseline =
   new Map();
 
 
 /* ========================================
-   BASIC HELPERS
+   NORMALIZE
 ======================================== */
 
 function normalize(value) {
+
   return String(
     value || ""
   )
     .toLowerCase()
+
     .replace(
       /pok[eé]mon/g,
       "pokemon"
     )
+
     .replace(
       /[^a-z0-9]+/g,
       " "
     )
+
     .replace(
       /\s+/g,
       " "
     )
+
     .trim();
 }
 
+
+/* ========================================
+   PRICE
+======================================== */
 
 function parsePrice(value) {
 
@@ -137,16 +160,25 @@ function parsePrice(value) {
   }
 
   if (
-    typeof value === "number"
+    typeof value ===
+    "number"
   ) {
-    return Number.isFinite(value)
+
+    return Number.isFinite(
+      value
+    )
       ? value
       : null;
   }
 
   const cleaned =
     String(value)
-      .replace(/,/g, "")
+
+      .replace(
+        /,/g,
+        ""
+      )
+
       .replace(
         /[^0-9.]/g,
         ""
@@ -159,7 +191,9 @@ function parsePrice(value) {
   const number =
     Number(cleaned);
 
-  return Number.isFinite(number)
+  return Number.isFinite(
+    number
+  )
     ? number
     : null;
 }
@@ -176,7 +210,9 @@ function isWalmartSeller(value) {
 
   return (
     seller === "walmart" ||
+
     seller === "walmart com" ||
+
     seller === "walmartcom"
   );
 }
@@ -220,16 +256,21 @@ function getSellerName(item) {
     typeof item.seller ===
       "object"
   ) {
+
     return (
       item.seller.name ||
+
       item.seller.displayName ||
+
       null
     );
   }
 
   return (
     item.sellerName ||
+
     item.sellerDisplayName ||
+
     null
   );
 }
@@ -248,23 +289,31 @@ function getSellerType(item) {
 
 
 /* ========================================
-   PRODUCT DATA
+   PRODUCT ID
 ======================================== */
 
 function getItemId(item) {
 
   return (
     item?.itemId ||
+
     item?.id ||
+
     item?.usItemId ||
+
     null
   );
 }
 
 
+/* ========================================
+   PRICE FROM HASDATA
+======================================== */
+
 function getPrice(item) {
 
   return parsePrice(
+
     item
       ?.price
       ?.currentPrice ??
@@ -297,6 +346,10 @@ function getPrice(item) {
 }
 
 
+/* ========================================
+   IMAGE
+======================================== */
+
 function getImage(item) {
 
   if (!item) {
@@ -304,7 +357,9 @@ function getImage(item) {
   }
 
   if (
-    Array.isArray(item.images) &&
+    Array.isArray(
+      item.images
+    ) &&
     item.images.length
   ) {
 
@@ -312,19 +367,25 @@ function getImage(item) {
       item.images[0];
 
     if (
-      typeof first === "string"
+      typeof first ===
+      "string"
     ) {
       return first;
     }
 
     if (
       first &&
-      typeof first === "object"
+      typeof first ===
+        "object"
     ) {
+
       return (
         first.url ||
+
         first.imageUrl ||
+
         first.src ||
+
         null
       );
     }
@@ -332,17 +393,26 @@ function getImage(item) {
 
   return (
     item.image ||
+
     item.imageUrl ||
+
     item.thumbnailUrl ||
+
     item.primaryImage ||
+
     null
   );
 }
 
 
+/* ========================================
+   AVAILABILITY
+======================================== */
+
 function getAvailability(item) {
 
   return normalize(
+
     item?.availability ||
 
     item?.availabilityStatus ||
@@ -379,6 +449,9 @@ function normalizeStatus(value) {
   const text =
     normalize(value);
 
+  /*
+    Preorder first.
+  */
   if (
     /pre ?order|raffle|drawing|scheduled drop|coming soon/
       .test(text)
@@ -388,11 +461,12 @@ function normalizeStatus(value) {
 
   /*
     IMPORTANT:
-    Check negative availability BEFORE
-    checking "available".
 
-    Otherwise "unavailable" can contain
-    the word "available".
+    Negative availability MUST be checked
+    before "available".
+
+    Otherwise "unavailable" could be read as
+    containing "available".
   */
   if (
     /out of stock|unavailable|sold out|not available/
@@ -421,22 +495,31 @@ function getListingText(item) {
   return normalize(
     [
       item?.title,
+
       item?.name,
+
       item?.description,
+
       item?.shortDescription,
+
       item?.brand,
+
       item?.canonicalUrl,
+
       item?.productUrl,
+
       item?.url
     ]
+
       .filter(Boolean)
+
       .join(" ")
   );
 }
 
 
 /* ========================================
-   POKEMON FILTER
+   POKEMON CHECK
 ======================================== */
 
 function isPokemonListing(item) {
@@ -445,23 +528,49 @@ function isPokemonListing(item) {
     getListingText(item);
 
   return (
-    text.includes("pokemon") &&
+    text.includes(
+      "pokemon"
+    ) &&
+
     (
-      text.includes("tcg") ||
-      text.includes("trading card") ||
-      text.includes("elite trainer") ||
-      text.includes("booster") ||
-      text.includes("collection") ||
-      text.includes("tin") ||
-      text.includes("blister") ||
-      text.includes("etb")
+      text.includes(
+        "tcg"
+      ) ||
+
+      text.includes(
+        "trading card"
+      ) ||
+
+      text.includes(
+        "elite trainer"
+      ) ||
+
+      text.includes(
+        "booster"
+      ) ||
+
+      text.includes(
+        "collection"
+      ) ||
+
+      text.includes(
+        "tin"
+      ) ||
+
+      text.includes(
+        "blister"
+      ) ||
+
+      text.includes(
+        "etb"
+      )
     )
   );
 }
 
 
 /* ========================================
-   LANGUAGE FILTER
+   FOREIGN LANGUAGE FILTER
 ======================================== */
 
 function isForeignLanguageProduct(item) {
@@ -469,24 +578,37 @@ function isForeignLanguageProduct(item) {
   const text =
     getListingText(item);
 
-  const blocked = [
+  const blockedLanguages = [
     "simplified chinese",
+
     "traditional chinese",
+
     "chinese",
+
     "japanese",
+
     "korean",
+
     "spanish",
+
     "german",
+
     "french",
+
     "italian",
+
     "portuguese",
+
     "thai",
+
     "indonesian"
   ];
 
-  return blocked.some(
+  return blockedLanguages.some(
     language =>
-      text.includes(language)
+      text.includes(
+        language
+      )
   );
 }
 
@@ -508,8 +630,11 @@ function isSingleCardOrCollectible(
 
   const gradingPatterns = [
     /\bpsa\s*\d+\b/,
+
     /\bbgs\s*\d+\b/,
+
     /\bcgc\s*\d+\b/,
+
     /\bsgc\s*\d+\b/
   ];
 
@@ -531,25 +656,40 @@ function isSingleCardOrCollectible(
 
   const blockedPhrases = [
     "single card",
+
     "individual card",
+
     "trading card single",
+
     "pokemon card single",
+
     "graded card",
+
     "raw card",
+
     "near mint card",
+
     "near mint or better",
+
     "holo card",
+
     "reverse holo",
+
     "holographic card",
+
     "card only",
+
     "foil card",
+
     "promo card single"
   ];
 
   if (
     blockedPhrases.some(
       phrase =>
-        text.includes(phrase)
+        text.includes(
+          phrase
+        )
     )
   ) {
     return true;
@@ -557,36 +697,63 @@ function isSingleCardOrCollectible(
 
   const cardLanguage = [
     "holo",
+
     "holographic",
+
     "reverse holo",
+
     "near mint",
+
     "illustration rare",
+
     "special illustration rare",
+
     "secret rare",
+
     "ultra rare",
+
     "trainer card",
+
     "ex card"
   ];
 
   const sealedTerms = [
     "elite trainer box",
+
     "booster bundle",
+
     "booster box",
+
     "display box",
+
     "collection box",
+
     "poster collection",
+
     "tech sticker",
+
     "mini tin",
+
     "tin",
+
     "premium collection",
+
     "ultra premium collection",
+
     "super premium collection",
+
     "figure collection",
+
     "deluxe pin collection",
+
     "blister",
+
     "knock out collection",
+
     "knockout collection",
+
     "bundle",
+
     "box"
   ];
 
@@ -628,21 +795,37 @@ function isLooseBoosterPack(item) {
 
   const allowedMultiPackTerms = [
     "2 pack",
+
     "2-pack",
+
     "3 pack",
+
     "3-pack",
+
     "three pack",
+
     "4 pack",
+
     "4-pack",
+
     "four pack",
+
     "6 pack",
+
     "6-pack",
+
     "six pack",
+
     "booster bundle",
+
     "booster box",
+
     "display box",
+
     "blister",
+
     "collection",
+
     "box"
   ];
 
@@ -664,36 +847,61 @@ function looksLikeSealedRetailProduct(
   const text =
     getListingText(item);
 
-  const allowed = [
+  const allowedProductTerms = [
     "elite trainer box",
+
     "etb",
+
     "booster bundle",
+
     "booster box",
+
     "display box",
+
     "collection box",
+
     "collection",
+
     "poster collection",
+
     "tech sticker",
+
     "mini tin",
+
     "tin",
+
     "premium collection",
+
     "ultra premium collection",
+
     "super premium",
+
     "figure collection",
+
     "deluxe pin collection",
+
     "blister",
+
     "knock out collection",
+
     "knockout collection",
+
     "2 pack",
+
     "2-pack",
+
     "3 pack",
+
     "3-pack",
+
     "4 pack",
+
     "4-pack",
+
     "bundle"
   ];
 
-  return allowed.some(
+  return allowedProductTerms.some(
     term =>
       text.includes(term)
   );
@@ -701,7 +909,7 @@ function looksLikeSealedRetailProduct(
 
 
 /* ========================================
-   CLASSIFICATION
+   SET CLASSIFICATION
 ======================================== */
 
 function classifySet(value) {
@@ -713,6 +921,7 @@ function classifySet(value) {
     text.includes(
       "30th anniversary"
     ) ||
+
     text.includes(
       "30th celebration"
     )
@@ -756,6 +965,10 @@ function classifySet(value) {
 }
 
 
+/* ========================================
+   PRODUCT TYPE
+======================================== */
+
 function classifyProductType(value) {
 
   const text =
@@ -765,6 +978,7 @@ function classifyProductType(value) {
     text.includes(
       "elite trainer box"
     ) ||
+
     /\betb\b/.test(text)
   ) {
     return "Elite Trainer Box";
@@ -782,6 +996,7 @@ function classifyProductType(value) {
     text.includes(
       "booster box"
     ) ||
+
     text.includes(
       "display box"
     )
@@ -817,6 +1032,7 @@ function classifyProductType(value) {
     text.includes(
       "knock out"
     ) ||
+
     text.includes(
       "knockout"
     )
@@ -825,19 +1041,25 @@ function classifyProductType(value) {
   }
 
   if (
-    text.includes("blister")
+    text.includes(
+      "blister"
+    )
   ) {
     return "Blister";
   }
 
   if (
-    text.includes("tin")
+    text.includes(
+      "tin"
+    )
   ) {
     return "Tin";
   }
 
   if (
-    text.includes("collection")
+    text.includes(
+      "collection"
+    )
   ) {
     return "Collection";
   }
@@ -847,7 +1069,7 @@ function classifyProductType(value) {
 
 
 /* ========================================
-   HTTP
+   FETCH JSON
 ======================================== */
 
 async function fetchJson(
@@ -873,6 +1095,7 @@ async function fetchJson(
         url,
         {
           ...options,
+
           signal:
             controller.signal
         }
@@ -881,6 +1104,7 @@ async function fetchJson(
     if (
       !response.ok
     ) {
+
       throw new Error(
         `HasData returned HTTP ${response.status}`
       );
@@ -894,6 +1118,7 @@ async function fetchJson(
       error?.name ===
       "AbortError"
     ) {
+
       throw new Error(
         `HasData Pokemon discovery timed out after ${timeoutMs}ms`
       );
@@ -914,7 +1139,10 @@ async function fetchJson(
 
 async function searchHasData(query) {
 
-  if (!HASDATA_API_KEY) {
+  if (
+    !HASDATA_API_KEY
+  ) {
+
     throw new Error(
       "HASDATA_API_KEY is missing"
     );
@@ -922,19 +1150,33 @@ async function searchHasData(query) {
 
   const params =
     new URLSearchParams({
-      q: query,
-      domain: "walmart.com",
-      language: "en",
-      sort: "bestMatch",
-      page: "1",
-      deliveryType: "shipping"
+      q:
+        query,
+
+      domain:
+        "walmart.com",
+
+      language:
+        "en",
+
+      sort:
+        "bestMatch",
+
+      page:
+        "1",
+
+      deliveryType:
+        "shipping"
     });
 
   const data =
     await fetchJson(
       `https://api.hasdata.com/scrape/walmart/search?${params.toString()}`,
+
       {
-        method: "GET",
+        method:
+          "GET",
+
         headers: {
           "x-api-key":
             HASDATA_API_KEY,
@@ -943,6 +1185,7 @@ async function searchHasData(query) {
             "application/json"
         }
       },
+
       HASDATA_TIMEOUT_MS
     );
 
@@ -955,7 +1198,7 @@ async function searchHasData(query) {
 
 
 /* ========================================
-   NORMALIZE DISCOVERED PRODUCT
+   NORMALIZE PRODUCT
 ======================================== */
 
 function normalizeCandidate(item) {
@@ -967,11 +1210,16 @@ function normalizeCandidate(item) {
     getSellerType(item);
 
   const directSeller =
-    isWalmartSeller(seller) &&
-    sellerType !== "external";
+    isWalmartSeller(
+      seller
+    ) &&
+
+    sellerType !==
+      "external";
 
   const approvedMarketplace =
     !directSeller &&
+
     isApprovedMarketplaceSeller(
       seller
     );
@@ -980,7 +1228,9 @@ function normalizeCandidate(item) {
     getAvailability(item);
 
   const status =
-    normalizeStatus(rawStatus);
+    normalizeStatus(
+      rawStatus
+    );
 
   const itemId =
     getItemId(item);
@@ -990,12 +1240,13 @@ function normalizeCandidate(item) {
 
   const name =
     item?.title ||
+
     item?.name ||
+
     "Pokemon TCG product";
 
   /*
-    GT exception:
-    approved regardless of MSRP / price.
+    GT is approved regardless of MSRP.
   */
   const alertEligible =
     approvedMarketplace === true;
@@ -1030,9 +1281,12 @@ function normalizeCandidate(item) {
     inStock:
       (
         directSeller ||
+
         approvedMarketplace
       ) &&
-      status === "instock",
+
+      status ===
+        "instock",
 
     directSeller,
 
@@ -1056,8 +1310,11 @@ function normalizeCandidate(item) {
 
     url:
       item?.canonicalUrl ||
+
       item?.productUrl ||
+
       item?.url ||
+
       (
         itemId
           ? `https://www.walmart.com/ip/${itemId}`
@@ -1074,6 +1331,12 @@ function normalizeCandidate(item) {
     discoveryOnly:
       true,
 
+    /*
+      Walmart Direct waits for separate
+      MSRP eligibility.
+
+      GT is immediately alert eligible.
+    */
     watchOnly:
       !approvedMarketplace,
 
@@ -1083,20 +1346,30 @@ function normalizeCandidate(item) {
 
 
 /* ========================================
-   RESTOCK BASELINE
+   DISCOVERY KEY
 ======================================== */
 
 function getDiscoveryKey(item) {
 
   return String(
     item?.walmartItemId ||
+
     item?.productId ||
+
     item?.url ||
-    normalize(item?.name) ||
+
+    normalize(
+      item?.name
+    ) ||
+
     ""
   );
 }
 
+
+/* ========================================
+   GT RESTOCK ALERTS
+======================================== */
 
 async function processDiscoveryAlerts(
   items
@@ -1117,19 +1390,45 @@ async function processDiscoveryAlerts(
       continue;
     }
 
-    const qualifies =
-      item.approvedMarketplace ===
+    /*
+      Only GT discovery items are allowed
+      through this alert path.
+    */
+    const isGT =
+      item
+        .approvedMarketplace ===
         true &&
 
-      item.alertEligible ===
-        true &&
-
-      item.inStock ===
+      item
+        .alertEligible ===
         true;
 
+    if (!isGT) {
+      continue;
+    }
+
     /*
-      First observation only establishes
-      the baseline.
+      IMPORTANT:
+
+      Explicit status determines baseline.
+
+      UNKNOWN status does not change the
+      baseline because unknown does not prove
+      that the item is out of stock.
+    */
+    if (
+      item.status ===
+      "unknown"
+    ) {
+      continue;
+    }
+
+    const currentInStock =
+      item.inStock === true;
+
+    /*
+      First observation establishes baseline.
+      No push is sent.
     */
     if (
       !discoveryStockBaseline
@@ -1138,7 +1437,7 @@ async function processDiscoveryAlerts(
 
       discoveryStockBaseline.set(
         key,
-        qualifies
+        currentInStock
       );
 
       continue;
@@ -1149,23 +1448,22 @@ async function processDiscoveryAlerts(
         key
       );
 
+    /*
+      Update baseline only because we have an
+      explicit observed status for this item.
+    */
     discoveryStockBaseline.set(
       key,
-      qualifies
+      currentInStock
     );
 
     /*
-      Alert ONLY on an explicitly observed
-      false -> true transition.
-
-      Missing search results are NOT treated
-      as out of stock. This avoids false
-      restock alerts caused by search-result
-      ordering changing between scans.
+      Genuine explicit:
+      OUT -> IN STOCK
     */
     if (
       previous === false &&
-      qualifies === true
+      currentInStock === true
     ) {
 
       console.log(
@@ -1187,10 +1485,13 @@ async function processDiscoveryAlerts(
         if (
           pushResult?.skipped !==
             true &&
+
           pushResult?.ok ===
             true
         ) {
-          alertsTriggered += 1;
+
+          alertsTriggered +=
+            1;
         }
 
       } catch (error) {
@@ -1202,6 +1503,17 @@ async function processDiscoveryAlerts(
       }
     }
   }
+
+  /*
+    IMPORTANT:
+
+    We deliberately DO NOT mark unseen
+    products as out of stock.
+
+    HasData search-result ordering can change.
+    Missing from one search is not proof that
+    Walmart inventory disappeared.
+  */
 
   return alertsTriggered;
 }
@@ -1223,8 +1535,14 @@ function dedupeItems(items) {
 
     const key =
       item.walmartItemId ||
-      normalize(item.url) ||
-      normalize(item.name);
+
+      normalize(
+        item.url
+      ) ||
+
+      normalize(
+        item.name
+      );
 
     if (!key) {
       continue;
@@ -1263,11 +1581,13 @@ function dedupeItems(items) {
     }
 
     /*
-      Then approved GT.
+      Then prefer approved GT.
     */
     if (
       item.approvedMarketplace &&
+
       !existing.directSeller &&
+
       !existing.approvedMarketplace
     ) {
 
@@ -1280,8 +1600,8 @@ function dedupeItems(items) {
     }
 
     /*
-      Prefer available result within the
-      same seller class.
+      Same seller class:
+      prefer available.
     */
     if (
       item.directSeller ===
@@ -1290,8 +1610,11 @@ function dedupeItems(items) {
       item.approvedMarketplace ===
         existing.approvedMarketplace &&
 
-      item.inStock === true &&
-      existing.inStock !== true
+      item.inStock ===
+        true &&
+
+      existing.inStock !==
+        true
     ) {
 
       unique.set(
@@ -1303,7 +1626,7 @@ function dedupeItems(items) {
     }
 
     /*
-      Same class / status:
+      Same seller class/status:
       prefer lower valid price.
     */
     if (
@@ -1313,12 +1636,19 @@ function dedupeItems(items) {
       item.approvedMarketplace ===
         existing.approvedMarketplace &&
 
-      item.price !== null &&
+      item.price !==
+        null &&
 
       (
-        existing.price === null ||
-        Number(item.price) <
-          Number(existing.price)
+        existing.price ===
+          null ||
+
+        Number(
+          item.price
+        ) <
+        Number(
+          existing.price
+        )
       )
     ) {
 
@@ -1342,40 +1672,59 @@ function dedupeItems(items) {
 function sortItems(items) {
 
   return items.sort(
-    (a, b) => {
+    (
+      a,
+      b
+    ) => {
 
+      /*
+        Walmart Direct first.
+      */
       if (
         a.directSeller !==
         b.directSeller
       ) {
+
         return a.directSeller
           ? -1
           : 1;
       }
 
+      /*
+        GT second.
+      */
       if (
         a.approvedMarketplace !==
         b.approvedMarketplace
       ) {
+
         return a.approvedMarketplace
           ? -1
           : 1;
       }
 
+      /*
+        Available first.
+      */
       if (
         a.inStock !==
         b.inStock
       ) {
+
         return a.inStock
           ? -1
           : 1;
       }
 
+      /*
+        Lower price first.
+      */
       return (
         Number(
           a.price ??
           Infinity
         ) -
+
         Number(
           b.price ??
           Infinity
@@ -1387,154 +1736,24 @@ function sortItems(items) {
 
 
 /* ========================================
-   STATE BUILDER
-======================================== */
-
-function buildState({
-  items,
-  queries,
-  alertsTriggered,
-  cacheHit,
-  cacheAgeMs
-}) {
-
-  const now =
-    new Date()
-      .toISOString();
-
-  return {
-    running:
-      false,
-
-    lastRun:
-      now,
-
-    lastSuccess:
-      now,
-
-    lastError:
-      null,
-
-    cacheHit:
-      Boolean(cacheHit),
-
-    cacheAgeMs:
-      cacheAgeMs ?? 0,
-
-    cacheMs:
-      DISCOVERY_CACHE_MS,
-
-    queryCount:
-      SEARCH_TERMS.length,
-
-    queries,
-
-    count:
-      items.length,
-
-    directCount:
-      items.filter(
-        item =>
-          item.directSeller ===
-          true
-      ).length,
-
-    approvedMarketplaceCount:
-      items.filter(
-        item =>
-          item.approvedMarketplace ===
-          true
-      ).length,
-
-    availableDirectCount:
-      items.filter(
-        item =>
-          item.directSeller ===
-            true &&
-          item.inStock ===
-            true
-      ).length,
-
-    availableApprovedMarketplaceCount:
-      items.filter(
-        item =>
-          item.approvedMarketplace ===
-            true &&
-          item.inStock ===
-            true
-      ).length,
-
-    alertsTriggered,
-
-    items
-  };
-}
-
-
-/* ========================================
    DISCOVERY RUN
 ======================================== */
 
 async function runDiscovery() {
 
-  if (state.running) {
-
-    return {
-      ok: false,
-      skipped: true,
-      reason:
-        "Pokemon discovery already running"
-    };
-  }
-
-  const nowMs =
-    Date.now();
-
-  const cacheAge =
-    discoveryCache.savedAt
-      ? nowMs -
-        discoveryCache.savedAt
-      : Infinity;
-
-  /*
-    CREDIT-SAVING CACHE
-
-    If discovery ran less than 5 minutes ago,
-    reuse it rather than spending six more
-    HasData searches.
-
-    We do NOT run alert transitions against
-    cached data because it is not a fresh
-    stock observation.
-  */
   if (
-    discoveryCache.savedAt &&
-    cacheAge <
-      DISCOVERY_CACHE_MS
+    state.running
   ) {
 
-    state =
-      buildState({
-        items:
-          discoveryCache.items,
-
-        queries:
-          discoveryCache.queries,
-
-        alertsTriggered:
-          0,
-
-        cacheHit:
-          true,
-
-        cacheAgeMs:
-          cacheAge
-      });
-
     return {
-      ok: true,
-      cached: true,
-      ...state
+      ok:
+        false,
+
+      skipped:
+        true,
+
+      reason:
+        "Pokemon discovery already running"
     };
   }
 
@@ -1552,6 +1771,12 @@ async function runDiscovery() {
 
   try {
 
+    /*
+      NO CACHE.
+
+      Every call to runDiscovery() performs
+      fresh HasData searches.
+    */
     for (
       const query
       of SEARCH_TERMS
@@ -1572,12 +1797,20 @@ async function runDiscovery() {
           of results
         ) {
 
+          /*
+            Pokemon only.
+          */
           if (
-            !isPokemonListing(item)
+            !isPokemonListing(
+              item
+            )
           ) {
             continue;
           }
 
+          /*
+            English / U.S. products.
+          */
           if (
             isForeignLanguageProduct(
               item
@@ -1586,6 +1819,9 @@ async function runDiscovery() {
             continue;
           }
 
+          /*
+            No singles / graded / raw cards.
+          */
           if (
             isSingleCardOrCollectible(
               item
@@ -1594,12 +1830,20 @@ async function runDiscovery() {
             continue;
           }
 
+          /*
+            No loose individual boosters.
+          */
           if (
-            isLooseBoosterPack(item)
+            isLooseBoosterPack(
+              item
+            )
           ) {
             continue;
           }
 
+          /*
+            Must look like sealed retail.
+          */
           if (
             !looksLikeSealedRetailProduct(
               item
@@ -1609,20 +1853,23 @@ async function runDiscovery() {
           }
 
           const candidate =
-            normalizeCandidate(item);
+            normalizeCandidate(
+              item
+            );
 
           /*
             SELLER WHITELIST
 
-            ALLOW:
+            KEEP:
             - Walmart Direct
             - GT Collectibles
 
-            IGNORE:
+            DROP:
             - all other marketplace sellers
           */
           if (
             !candidate.directSeller &&
+
             !candidate
               .approvedMarketplace
           ) {
@@ -1633,28 +1880,44 @@ async function runDiscovery() {
             candidate
           );
 
-          accepted += 1;
+          accepted +=
+            1;
         }
 
         queryResults.push({
           query,
+
           results:
             results.length,
+
           accepted
         });
 
       } catch (error) {
 
+        /*
+          One query failing does not kill
+          the entire discovery cycle.
+        */
         queryResults.push({
           query,
-          results: 0,
-          accepted: 0,
+
+          results:
+            0,
+
+          accepted:
+            0,
+
           error:
             error.message
         });
       }
     }
 
+
+    /* ========================================
+       DEDUPE + SORT
+    ======================================== */
 
     const items =
       sortItems(
@@ -1664,43 +1927,91 @@ async function runDiscovery() {
       );
 
 
+    /* ========================================
+       GT ALERT PROCESSING
+    ======================================== */
+
     const alertsTriggered =
       await processDiscoveryAlerts(
         items
       );
 
 
-    /*
-      Save only successful fresh discovery
-      output to the cache.
-    */
-    discoveryCache = {
-      savedAt:
-        Date.now(),
+    /* ========================================
+       SAVE STATE
+    ======================================== */
 
-      items,
+    const now =
+      new Date()
+        .toISOString();
+
+    state = {
+
+      running:
+        false,
+
+      lastRun:
+        now,
+
+      lastSuccess:
+        now,
+
+      lastError:
+        null,
+
+      queryCount:
+        SEARCH_TERMS.length,
 
       queries:
-        queryResults
+        queryResults,
+
+      count:
+        items.length,
+
+      directCount:
+        items.filter(
+          item =>
+            item.directSeller ===
+            true
+        ).length,
+
+      approvedMarketplaceCount:
+        items.filter(
+          item =>
+            item.approvedMarketplace ===
+            true
+        ).length,
+
+      availableDirectCount:
+        items.filter(
+          item =>
+            item.directSeller ===
+              true &&
+
+            item.inStock ===
+              true
+        ).length,
+
+      availableApprovedMarketplaceCount:
+        items.filter(
+          item =>
+            item.approvedMarketplace ===
+              true &&
+
+            item.inStock ===
+              true
+        ).length,
+
+      alertsTriggered,
+
+      items
     };
 
 
-    state =
-      buildState({
-        items,
-        queries:
-          queryResults,
-        alertsTriggered,
-        cacheHit:
-          false,
-        cacheAgeMs:
-          0
-      });
-
-
     return {
-      ok: true,
-      cached: false,
+      ok:
+        true,
+
       ...state
     };
 
@@ -1735,7 +2046,9 @@ async function runDiscovery() {
 function getState() {
 
   return JSON.parse(
-    JSON.stringify(state)
+    JSON.stringify(
+      state
+    )
   );
 }
 
@@ -1746,6 +2059,8 @@ function getState() {
 
 module.exports = {
   runDiscovery,
+
   getState,
+
   isApprovedMarketplaceSeller
 };
