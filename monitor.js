@@ -352,11 +352,9 @@ async function runCheck() {
   const startedAt = new Date().toISOString();
 
   let attempted = 0;
-  let completed = 0;
-  let failed = 0;
   let alertsTriggered = 0;
-  let staleResults = 0;
   let batchMode = false;
+  let rapidApiFallbacks = 0;
 
   try {
     const curatedProducts = loadProducts().filter(product => product.enabled !== false);
@@ -371,7 +369,13 @@ async function runCheck() {
       }
     }
 
-    const results = [];
+    const resultMap = new Map();
+    const failedBatchProductIds = new Set();
+
+    function publish(item) {
+      resultMap.set(getItemKey(item), item);
+      latest = Array.from(resultMap.values());
+    }
 
     const walmartCurated = curatedProducts.filter(product =>
       Array.isArray(product.retailers) && product.retailers.includes("walmart")
@@ -384,15 +388,17 @@ async function runCheck() {
       attempted += walmartCurated.length;
 
       for (const result of batchResults) {
-        results.push(result.item);
-        if (result.ok) completed += 1;
-        else failed += 1;
+        publish(result.item);
         if (result.alertSent) alertsTriggered += 1;
-        if (result.item?.stale === true) staleResults += 1;
+        if (!result.ok || isSoftFailure(result.item)) {
+          failedBatchProductIds.add(result.item.productId);
+        }
       }
 
-      latest = [...results];
-      console.log(`Walmart batch scan published ${results.length}/${walmartCurated.length} curated products`);
+      console.log(
+        `Walmart HasData batch published ${batchResults.length}/${walmartCurated.length}; ` +
+        `${failedBatchProductIds.size} item(s) queued for RapidAPI fallback`
+      );
     }
 
     const fallbackJobs = [];
@@ -401,17 +407,26 @@ async function runCheck() {
       const retailers = Array.isArray(product.retailers) ? product.retailers : [];
 
       for (const retailer of retailers) {
-        if (batchMode && retailer === "walmart") continue;
-        fallbackJobs.push({ product, retailer });
+        if (retailer === "walmart" && batchMode) {
+          if (failedBatchProductIds.has(product.id)) {
+            fallbackJobs.push({ product, retailer, fallback: true });
+          }
+          continue;
+        }
+
+        fallbackJobs.push({ product, retailer, fallback: false });
       }
     }
 
     for (const product of discoveredProducts) {
       const retailers = Array.isArray(product.retailers) ? product.retailers : [];
-      for (const retailer of retailers) fallbackJobs.push({ product, retailer });
+      for (const retailer of retailers) {
+        fallbackJobs.push({ product, retailer, fallback: false });
+      }
     }
 
     attempted += fallbackJobs.length;
+    rapidApiFallbacks = fallbackJobs.filter(job => job.fallback).length;
 
     const batches = chunkArray(fallbackJobs, SCAN_CONCURRENCY);
 
@@ -420,20 +435,37 @@ async function runCheck() {
         batch.map(job => scanJob(job.product, job.retailer))
       );
 
-      for (const result of settled) {
-        results.push(result.item);
-        if (result.ok) completed += 1;
-        else failed += 1;
+      for (let index = 0; index < settled.length; index += 1) {
+        const result = settled[index];
+        const job = batch[index];
+        const key = getItemKey(result.item);
+        const existing = resultMap.get(key);
+
+        // When HasData had a soft failure, prefer a usable RapidAPI fallback.
+        // If both providers fail, keep the safe stale-cache result with the
+        // most useful display metadata available.
+        if (
+          !existing ||
+          !job?.fallback ||
+          !isSoftFailure(result.item) ||
+          isSoftFailure(existing)
+        ) {
+          publish(result.item);
+        }
+
         if (result.alertSent) alertsTriggered += 1;
-        if (result.item?.stale === true) staleResults += 1;
       }
 
-      latest = [...results];
-      console.log(`Catalog scan progress: ${results.length}/${attempted}`);
+      console.log(`Catalog scan progress: ${resultMap.size} product result(s) published`);
     }
 
+    const results = Array.from(resultMap.values());
     latest = results;
     lastRun = new Date().toISOString();
+
+    const failed = results.filter(item => isSoftFailure(item)).length;
+    const staleResults = results.filter(item => item.stale === true).length;
+    const completed = results.length - failed;
 
     const summary = {
       ok: true,
@@ -447,6 +479,7 @@ async function runCheck() {
       count: results.length,
       concurrency: SCAN_CONCURRENCY,
       batchMode,
+      rapidApiFallbacks,
       curatedProducts: curatedProducts.length,
       discoveredProducts: discoveredProducts.length,
       scanDiscoveredProducts: SCAN_DISCOVERED_PRODUCTS
