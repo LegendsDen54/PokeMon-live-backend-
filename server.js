@@ -1,233 +1,180 @@
-/* ========================================
-   WALMART MARKETPLACE / AVAILABLE OFFERS
-   Shows Walmart + third-party listings.
-   Sorted lowest price -> highest price.
+require("dotenv").config();
 
-   IMPORTANT:
-   This endpoint is DISPLAY ONLY.
-   It does NOT trigger push alerts.
+const express = require("express");
+const cors = require("cors");
+
+const {
+  runCheck,
+  getLatest,
+  saveResult,
+  getScannerState
+} = require("./monitor");
+
+const walmart = require("./walmart");
+const push = require("./push");
+const discovery = require("./discovery");
+const products = require("./products.json");
+
+const app = express();
+
+const port =
+  Number(process.env.PORT || 8080);
+
+const allowedOrigin =
+  process.env.ALLOWED_ORIGIN || "*";
+
+const runOnStartup =
+  String(
+    process.env.RUN_ON_STARTUP || "false"
+  ).toLowerCase() === "true";
+
+const enableFullPolling =
+  String(
+    process.env.ENABLE_FULL_POLLING || "false"
+  ).toLowerCase() === "true";
+
+const enableDiscovery =
+  String(
+    process.env.ENABLE_DISCOVERY || "true"
+  ).toLowerCase() === "true";
+
+
+/* ========================================
+   SCANNER TIMING
+======================================== */
+
+const pollSeconds =
+  Math.max(
+    60,
+    Number(
+      process.env.POLL_SECONDS || 60
+    )
+  );
+
+const discoveryMinutes =
+  Math.max(
+    5,
+    Number(
+      process.env.DISCOVERY_MINUTES || 5
+    )
+  );
+
+
+/* ========================================
+   MIDDLEWARE
+======================================== */
+
+app.use(
+  cors({
+    origin:
+      allowedOrigin === "*"
+        ? true
+        : allowedOrigin
+  })
+);
+
+app.use(express.json());
+
+
+/* ========================================
+   ROOT
+======================================== */
+
+app.get("/", (req, res) => {
+  res.json({
+    name:
+      "Pokemon Live Monitor Backend",
+
+    ok: true,
+
+    provider:
+      process.env.DATA_PROVIDER ||
+      "mock",
+
+    automaticScanning:
+      enableFullPolling,
+
+    pollSeconds:
+      enableFullPolling
+        ? pollSeconds
+        : null,
+
+    automaticDiscovery:
+      enableDiscovery,
+
+    discoveryMinutes:
+      enableDiscovery
+        ? discoveryMinutes
+        : null,
+
+    marketplaceEndpoint:
+      "/api/marketplace",
+
+    push:
+      push.getPushStatus()
+  });
+});
+
+
+/* ========================================
+   HEALTH
+======================================== */
+
+app.get("/health", (req, res) => {
+  res.json({
+    ok: true,
+
+    time:
+      new Date().toISOString(),
+
+    automaticScanning:
+      enableFullPolling,
+
+    pollSeconds:
+      enableFullPolling
+        ? pollSeconds
+        : null,
+
+    automaticDiscovery:
+      enableDiscovery,
+
+    discoveryMinutes:
+      enableDiscovery
+        ? discoveryMinutes
+        : null,
+
+    push:
+      push.getPushStatus()
+  });
+});
+
+
+/* ========================================
+   PUSH PUBLIC KEY
 ======================================== */
 
 app.get(
-  "/api/marketplace",
-  async (req, res) => {
-    try {
-      const requestedProductId =
-        req.query.productId || null;
+  "/api/push/public-key",
+  (req, res) => {
+    const publicKey =
+      push.getPublicKey();
 
-      /*
-        If productId is supplied, search only
-        that product. Otherwise search the
-        entire curated Walmart catalog.
-      */
-      let catalog =
-        products.filter(
-          product =>
-            product.enabled !== false &&
-            Array.isArray(
-              product.retailers
-            ) &&
-            product.retailers.includes(
-              "walmart"
-            )
-        );
-
-      if (requestedProductId) {
-        catalog =
-          catalog.filter(
-            product =>
-              product.id ===
-              requestedProductId
-          );
-
-        if (!catalog.length) {
-          return res
-            .status(404)
-            .json({
-              ok: false,
-              error:
-                "Product not found",
-              productId:
-                requestedProductId
-            });
-        }
-      }
-
-      const offers = [];
-
-      const errors = [];
-
-      /*
-        Search sequentially so we don't hammer
-        the Walmart/RapidAPI endpoint with
-        every product simultaneously.
-      */
-      for (const product of catalog) {
-        try {
-          const productOffers =
-            await walmart
-              .searchMarketplaceOffers(
-                product
-              );
-
-          for (
-            const offer
-            of productOffers
-          ) {
-            offers.push({
-              ...offer,
-
-              /*
-                Marketplace listings are NEVER
-                made alert-eligible here.
-                This is dashboard data only.
-              */
-              alertEligible:
-                false
-            });
-          }
-
-        } catch (error) {
-          console.error(
-            `Marketplace search failed for ${product.id}:`,
-            error.message
-          );
-
-          errors.push({
-            productId:
-              product.id,
-
-            error:
-              error.message
-          });
-        }
-      }
-
-      /*
-        Remove duplicate offers.
-
-        Walmart searches can return the same
-        item for multiple related keywords.
-      */
-      const uniqueOffers =
-        new Map();
-
-      for (const offer of offers) {
-        const key =
-          offer.walmartItemId
-            ? String(
-                offer.walmartItemId
-              )
-            : [
-                offer.name,
-                offer.seller,
-                offer.price
-              ].join("|");
-
-        const existing =
-          uniqueOffers.get(key);
-
-        /*
-          If we somehow see the same Walmart
-          item more than once, keep the
-          cheapest version.
-        */
-        if (
-          !existing ||
-          Number(offer.price) <
-            Number(existing.price)
-        ) {
-          uniqueOffers.set(
-            key,
-            offer
-          );
-        }
-      }
-
-      const sorted =
-        Array.from(
-          uniqueOffers.values()
-        )
-          .filter(
-            offer =>
-              offer.price !== null
-          )
-          .sort(
-            (a, b) =>
-              Number(a.price) -
-              Number(b.price)
-          );
-
-      const available =
-        sorted.filter(
-          offer =>
-            offer.offerAvailable === true
-        );
-
-      const walmartDirect =
-        available.filter(
-          offer =>
-            offer.directSeller === true
-        );
-
-      const marketplace =
-        available.filter(
-          offer =>
-            offer.directSeller !== true
-        );
-
-      return res.json({
-        ok: true,
-
-        generatedAt:
-          new Date().toISOString(),
-
-        sort:
-          "price-low-to-high",
-
-        searchedProducts:
-          catalog.length,
-
-        availableCount:
-          available.length,
-
-        walmartDirectCount:
-          walmartDirect.length,
-
-        marketplaceCount:
-          marketplace.length,
-
-        failedSearches:
-          errors.length,
-
-        /*
-          Main dashboard list.
-          Cheapest available product first.
-        */
-        items:
-          available,
-
-        groups: {
-          walmartDirect,
-          marketplace
-        },
-
-        errors
-      });
-
-    } catch (error) {
-      console.error(
-        "Marketplace endpoint failed:",
-        error
-      );
-
+    if (!publicKey) {
       return res
-        .status(500)
+        .status(503)
         .json({
           ok: false,
           error:
-            error.message
+            "Web Push is not configured"
         });
     }
+
+    return res.json({
+      ok: true,
+      publicKey
+    });
   }
 );
+
+
+/* ========================================
