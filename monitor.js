@@ -16,21 +16,12 @@ const productFile =
     "products.json"
   );
 
-/*
-  CURRENT DASHBOARD STATE
-*/
 let latest = [];
 let lastRun = null;
 let running = false;
 
-/*
-  STOCK BASELINE
-*/
 const stockBaseline = new Map();
 
-/*
-  LOAD PRODUCT CATALOG
-*/
 function loadProducts() {
   return JSON.parse(
     fs.readFileSync(
@@ -40,9 +31,6 @@ function loadProducts() {
   );
 }
 
-/*
-  DIRECT SELLER CHECK
-*/
 function directSellerOnly(item) {
   if (
     typeof item.directSeller === "boolean"
@@ -65,26 +53,47 @@ function directSellerOnly(item) {
   return false;
 }
 
-/*
-  PRICE RULE
-*/
 function withinPriceRule(item) {
-  if (
-    item.price == null ||
-    item.msrp == null
-  ) {
+  if (item.price == null) {
     return true;
   }
 
-  return (
-    Number(item.price) <=
-    Number(item.msrp) * 1.5
-  );
+  /*
+    Auto-discovered products must have
+    verified MSRP before qualifying.
+  */
+  if (
+    item.autoDiscovered === true &&
+    item.msrp == null
+  ) {
+    return false;
+  }
+
+  /*
+    Preserve existing behavior for
+    curated products without MSRP.
+  */
+  if (item.msrp == null) {
+    return true;
+  }
+
+  const price =
+    Number(item.price);
+
+  const msrp =
+    Number(item.msrp);
+
+  if (
+    !Number.isFinite(price) ||
+    !Number.isFinite(msrp) ||
+    msrp <= 0
+  ) {
+    return false;
+  }
+
+  return price <= msrp * 1.5;
 }
 
-/*
-  NORMALIZE RESULT
-*/
 function prepareItem(item) {
   return {
     ...item,
@@ -97,9 +106,6 @@ function prepareItem(item) {
   };
 }
 
-/*
-  STOCK KEY
-*/
 function getStockKey(item) {
   return [
     item.retailer || "unknown",
@@ -107,21 +113,15 @@ function getStockKey(item) {
   ].join(":");
 }
 
-/*
-  RESTOCK QUALIFICATION
-*/
 function qualifiesForRestock(item) {
   return (
     item.retailer === "walmart" &&
     item.directSeller === true &&
     item.inStock === true &&
-    item.withinPriceRule !== false
+    item.withinPriceRule === true
   );
 }
 
-/*
-  PROCESS STOCK TRANSITION
-*/
 async function processRestockState(item) {
   const key =
     getStockKey(item);
@@ -200,9 +200,6 @@ async function processRestockState(item) {
   };
 }
 
-/*
-  CONTROLLED TEST SAVE
-*/
 function saveResult(item) {
   const prepared =
     prepareItem(item);
@@ -228,9 +225,6 @@ function saveResult(item) {
   return prepared;
 }
 
-/*
-  FULL CATALOG SCAN
-*/
 async function runCheck() {
   if (running) {
     return {
@@ -262,7 +256,9 @@ async function runCheck() {
 
     try {
       discoveredProducts =
-        await discovery.getDiscoveredProducts();
+        await discovery
+          .getDiscoveredProducts();
+
     } catch (error) {
       console.error(
         "Could not load discovered products:",
@@ -293,8 +289,26 @@ async function runCheck() {
               retailer
             );
 
+          /*
+            Carry catalog metadata through
+            the provider response.
+          */
+          const enrichedItem = {
+            ...item,
+
+            msrp:
+              item.msrp ??
+              product.msrp ??
+              null,
+
+            autoDiscovered:
+              product.autoDiscovered === true
+          };
+
           const prepared =
-            prepareItem(item);
+            prepareItem(
+              enrichedItem
+            );
 
           results.push(prepared);
 
@@ -339,6 +353,9 @@ async function runCheck() {
 
               msrp:
                 product.msrp ?? null,
+
+              autoDiscovered:
+                product.autoDiscovered === true,
 
               url: null,
 
@@ -390,9 +407,6 @@ async function runCheck() {
   }
 }
 
-/*
-  CURRENT DASHBOARD STATE
-*/
 function getLatest() {
   return {
     lastRun,
@@ -403,9 +417,6 @@ function getLatest() {
   };
 }
 
-/*
-  SCANNER STATE
-*/
 function getScannerState() {
   const products =
     loadProducts().filter(
