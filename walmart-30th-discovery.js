@@ -7,7 +7,12 @@ const HASDATA_TIMEOUT_MS = Math.max(
 
 const SEARCH_TERMS = [
   "Pokemon TCG 30th Anniversary",
-  "Pokemon TCG 30th Celebration"
+  "Pokemon TCG 30th Celebration",
+  "Pokemon 30th Anniversary booster bundle",
+  "Pokemon 30th Anniversary elite trainer box",
+  "Pokemon 30th Anniversary collection",
+  "Pokemon 30th Anniversary tin",
+  "Pokemon 30th Anniversary box"
 ];
 
 let state = {
@@ -32,17 +37,27 @@ function normalize(value) {
 }
 
 function parsePrice(value) {
-  if (value === null || value === undefined || value === "") return null;
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return null;
+  }
 
   if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
+    return Number.isFinite(value)
+      ? value
+      : null;
   }
 
   const cleaned = String(value)
     .replace(/,/g, "")
     .replace(/[^0-9.]/g, "");
 
-  if (!cleaned) return null;
+  if (!cleaned) {
+    return null;
+  }
 
   const number = Number(cleaned);
 
@@ -62,7 +77,9 @@ function isWalmartSeller(value) {
 }
 
 function getSellerName(item) {
-  if (!item) return null;
+  if (!item) {
+    return null;
+  }
 
   if (typeof item.seller === "string") {
     return item.seller;
@@ -119,14 +136,15 @@ function getPrice(item) {
 }
 
 function getImage(item) {
-  if (!item) return null;
+  if (!item) {
+    return null;
+  }
 
   if (
     Array.isArray(item.images) &&
     item.images.length
   ) {
-    const first =
-      item.images[0];
+    const first = item.images[0];
 
     if (typeof first === "string") {
       return first;
@@ -197,6 +215,18 @@ function normalizeStatus(value) {
   return "unknown";
 }
 
+function getListingText(item) {
+  return normalize(
+    [
+      item?.title,
+      item?.name,
+      item?.description
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+}
+
 function isThirtyAnniversary(item) {
   const text =
     normalize(
@@ -222,20 +252,165 @@ function isThirtyAnniversary(item) {
   );
 }
 
-function isGradedOrSingleCard(item) {
+/*
+  Reject individual cards, graded cards,
+  singles and raw collectible card listings.
+*/
+function isSingleCardOrCollectible(item) {
   const text =
-    normalize(
-      item?.title ||
-      item?.name
+    getListingText(item);
+
+  if (!text) {
+    return false;
+  }
+
+  const gradingPatterns = [
+    /\bpsa\s*\d+\b/,
+    /\bbgs\s*\d+\b/,
+    /\bcgc\s*\d+\b/,
+    /\bsgc\s*\d+\b/
+  ];
+
+  if (
+    gradingPatterns.some(
+      pattern => pattern.test(text)
+    )
+  ) {
+    return true;
+  }
+
+  const blockedPhrases = [
+    "single card",
+    "individual card",
+    "trading card single",
+    "pokemon card single",
+    "graded card",
+    "raw card",
+    "near mint card",
+    "near mint or better",
+    "holo card",
+    "reverse holo",
+    "holographic card",
+    "collectible card",
+    "collectible pokemon",
+    "card only",
+    "foil card",
+    "promo card single"
+  ];
+
+  if (
+    blockedPhrases.some(
+      phrase => text.includes(phrase)
+    )
+  ) {
+    return true;
+  }
+
+  /*
+    Card-number patterns such as:
+    22/128
+    088/128
+    4/128
+    203/182
+  */
+  if (
+    /\b\d{1,4}\s*\/\s*\d{1,4}\b/.test(text)
+  ) {
+    return true;
+  }
+
+  /*
+    Most genuine sealed products contain
+    one of the terms below.
+  */
+  const sealedProductTerms = [
+    "booster bundle",
+    "booster box",
+    "booster pack",
+    "elite trainer box",
+    "etb",
+    "collection box",
+    "collection",
+    "poster collection",
+    "tech sticker",
+    "tin",
+    "mini tin",
+    "premium collection",
+    "super premium",
+    "figure collection",
+    "blister",
+    "3 pack",
+    "three pack",
+    "display",
+    "bundle",
+    "box",
+    "pack"
+  ];
+
+  const looksLikeSealedProduct =
+    sealedProductTerms.some(
+      term => text.includes(term)
     );
 
-  return (
-    /\bpsa\s*[0-9]+\b/.test(text) ||
-    /\bbgs\s*[0-9]+\b/.test(text) ||
-    /\bcgc\s*[0-9]+\b/.test(text) ||
-    text.includes("graded card") ||
-    text.includes("single card") ||
-    text.includes("individual card")
+  /*
+    If it contains obvious card-specific language
+    but no sealed-product wording, reject it.
+  */
+  const cardLanguage = [
+    "holo",
+    "holographic",
+    "reverse",
+    "near mint",
+    "rare",
+    "illustration rare",
+    "special illustration",
+    "secret rare",
+    "ultra rare",
+    "ex card",
+    "trainer card"
+  ];
+
+  const looksLikeCard =
+    cardLanguage.some(
+      term => text.includes(term)
+    );
+
+  if (
+    looksLikeCard &&
+    !looksLikeSealedProduct
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function looksLikePokemonSealedProduct(item) {
+  const text =
+    getListingText(item);
+
+  const productTerms = [
+    "booster bundle",
+    "booster box",
+    "booster pack",
+    "elite trainer box",
+    "etb",
+    "collection",
+    "poster collection",
+    "tech sticker",
+    "tin",
+    "mini tin",
+    "premium collection",
+    "super premium",
+    "figure collection",
+    "blister",
+    "bundle",
+    "box",
+    "pack"
+  ];
+
+  return productTerms.some(
+    term => text.includes(term)
   );
 }
 
@@ -352,7 +527,9 @@ function normalizeCandidate(item) {
 
   return {
     retailer: "walmart",
-    retailerLabel: "Walmart",
+
+    retailerLabel:
+      "Walmart",
 
     productId:
       itemId
@@ -374,6 +551,7 @@ function normalizeCandidate(item) {
       null,
 
     status,
+
     rawStatus,
 
     inStock:
@@ -421,6 +599,10 @@ function normalizeCandidate(item) {
     watchOnly:
       false,
 
+    /*
+      MSRP has not been verified yet,
+      so discovered products cannot push.
+    */
     alertEligible:
       false
   };
@@ -449,11 +631,7 @@ async function runDiscovery() {
       const results =
         await searchHasData(query);
 
-      queryResults.push({
-        query,
-        results:
-          results.length
-      });
+      let accepted = 0;
 
       for (
         const item of results
@@ -465,7 +643,13 @@ async function runDiscovery() {
         }
 
         if (
-          isGradedOrSingleCard(item)
+          isSingleCardOrCollectible(item)
+        ) {
+          continue;
+        }
+
+        if (
+          !looksLikePokemonSealedProduct(item)
         ) {
           continue;
         }
@@ -473,7 +657,16 @@ async function runDiscovery() {
         allItems.push(
           normalizeCandidate(item)
         );
+
+        accepted += 1;
       }
+
+      queryResults.push({
+        query,
+        results:
+          results.length,
+        accepted
+      });
     }
 
     const unique =
@@ -487,7 +680,9 @@ async function runDiscovery() {
         normalize(item.url) ||
         normalize(item.name);
 
-      if (!key) continue;
+      if (!key) {
+        continue;
+      }
 
       const existing =
         unique.get(
