@@ -331,9 +331,8 @@ function isPokemonListing(value) {
   const text =
     normalize(value);
 
-  return (
-    text.includes("pokemon") ||
-    text.includes("pok mon")
+  return text.includes(
+    "pokemon"
   );
 }
 
@@ -410,10 +409,10 @@ function productMatches(
 
 
 /* ========================================
-   STRICT MARKETPLACE MATCHING
+   STRICT DISPLAY MATCHING
 ======================================== */
 
-function marketplaceProductMatches(
+function displayProductMatches(
   product,
   item
 ) {
@@ -433,42 +432,9 @@ function marketplaceProductMatches(
     return false;
   }
 
-
-  /*
-    Block graded singles/cards from sealed
-    product searches.
-  */
-
   if (isGradedListing(actual)) {
     return false;
   }
-
-
-  /*
-    PRICE VALIDATION
-
-    $0 is not treated as a real offer.
-  */
-
-  const price =
-    getPrice(item);
-
-  if (
-    price === null ||
-    !Number.isFinite(price) ||
-    price <= 0
-  ) {
-    return false;
-  }
-
-
-  /*
-    SET VALIDATION
-
-    If the configured product belongs to a
-    recognized set, the returned listing must
-    belong to that same set.
-  */
 
   const expectedSet =
     detectSet(
@@ -486,19 +452,11 @@ function marketplaceProductMatches(
 
   if (
     expectedSet &&
+    actualSet &&
     actualSet !== expectedSet
   ) {
     return false;
   }
-
-
-  /*
-    PRODUCT TYPE VALIDATION
-
-    ETB searches should return ETBs,
-    booster bundle searches should return
-    booster bundles, etc.
-  */
 
   const expectedType =
     detectProductType(
@@ -516,20 +474,11 @@ function marketplaceProductMatches(
 
   if (
     expectedType &&
+    actualType &&
     actualType !== expectedType
   ) {
     return false;
   }
-
-
-  /*
-    Reject obvious multi-product bundle
-    listings when we're searching for a
-    single sealed product.
-
-    Example:
-    ETB + Booster Bundle
-  */
 
   if (
     expectedType === "etb" &&
@@ -551,16 +500,42 @@ function marketplaceProductMatches(
     return false;
   }
 
-
-  /*
-    Finally require the normal keyword
-    similarity check too.
-  */
-
   return productMatches(
     product,
     item
   );
+}
+
+
+/* ========================================
+   STRICT MARKETPLACE MATCHING
+======================================== */
+
+function marketplaceProductMatches(
+  product,
+  item
+) {
+  if (
+    !displayProductMatches(
+      product,
+      item
+    )
+  ) {
+    return false;
+  }
+
+  const price =
+    getPrice(item);
+
+  if (
+    price === null ||
+    !Number.isFinite(price) ||
+    price <= 0
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 
@@ -667,15 +642,6 @@ function makeResult(
       "instock" ||
     availability ===
       "available";
-
-  /*
-    IMPORTANT:
-
-    inStock remains Walmart-direct only.
-
-    Third-party availability is represented
-    separately by offerAvailable.
-  */
 
   const inStock =
     directSeller &&
@@ -863,11 +829,6 @@ function buildMarketplaceOffers(
           Number(item.price) > 0
       );
 
-
-  /*
-    Deduplicate Walmart item IDs.
-  */
-
   const unique =
     new Map();
 
@@ -897,11 +858,6 @@ function buildMarketplaceOffers(
       );
     }
   }
-
-
-  /*
-    Lowest price first.
-  */
 
   return Array.from(
     unique.values()
@@ -1029,14 +985,16 @@ async function discoverProduct(
       data
     );
 
-  /*
-    This path remains Walmart-direct.
 
-    It is the path used by the stock monitor,
-    so Marketplace sellers are not selected.
+  /*
+    FIRST:
+    Find a Walmart-direct result.
+
+    Only this result can count as
+    direct Walmart stock.
   */
 
-  const match =
+  const directMatch =
     results.find(
       item =>
         isWalmartSeller(
@@ -1048,19 +1006,77 @@ async function discoverProduct(
         )
     );
 
-  if (!match) {
-    return {
-      productId:
+
+  if (directMatch) {
+    const itemId =
+      getItemId(
+        directMatch
+      );
+
+    if (itemId) {
+      discoveredItems.set(
         product.id,
+        String(itemId)
+      );
+    }
 
-      name:
-        product.name,
+    return {
+      ...makeResult(
+        product,
+        directMatch,
+        "walmart-discovery"
+      ),
 
-      set:
-        product.set,
+      discoveryMode:
+        !itemId
+    };
+  }
 
-      retailer:
-        "walmart",
+
+  /*
+    SECOND:
+    If Walmart Direct is unavailable,
+    find the best safe matching result
+    ONLY for display information.
+
+    This gives the dashboard:
+    - product image
+    - product name
+    - Walmart URL
+    - visible price when available
+
+    It does NOT make the product
+    Walmart Direct and does NOT allow
+    a stock notification.
+  */
+
+  const displayMatch =
+    results.find(
+      item =>
+        displayProductMatches(
+          product,
+          item
+        )
+    );
+
+
+  if (displayMatch) {
+    const preview =
+      makeResult(
+        product,
+        displayMatch,
+        "walmart-display-preview"
+      );
+
+    return {
+      ...preview,
+
+      /*
+        CRITICAL SAFETY VALUES
+
+        Never treat this preview as a
+        Walmart-direct stock result.
+      */
 
       inStock:
         false,
@@ -1068,62 +1084,95 @@ async function discoverProduct(
       directSeller:
         false,
 
-      price:
-        null,
+      marketplaceOnly:
+        false,
 
-      msrp:
-        product.msrp ??
-        null,
-
-      url:
-        null,
-
-      seller:
-        null,
-
-      sellerType:
-        null,
-
-      checkedAt:
-        new Date()
-          .toISOString(),
-
-      source:
-        "walmart-discovery",
+      alertEligible:
+        false,
 
       discoveryMode:
         true,
 
-      marketplaceOnly:
-        false,
+      previewOnly:
+        true,
 
-      offerAvailable:
-        false,
+      previewSeller:
+        preview.seller,
 
       error:
         "No validated Walmart-direct result found"
     };
   }
 
-  const itemId =
-    getItemId(match);
 
-  if (itemId) {
-    discoveredItems.set(
-      product.id,
-      String(itemId)
-    );
-  }
+  /*
+    Nothing safe enough was found.
+
+    Keep the normal empty scanner card.
+  */
 
   return {
-    ...makeResult(
-      product,
-      match,
-      "walmart-discovery"
-    ),
+    productId:
+      product.id,
+
+    name:
+      product.name,
+
+    set:
+      product.set,
+
+    retailer:
+      "walmart",
+
+    inStock:
+      false,
+
+    directSeller:
+      false,
+
+    price:
+      null,
+
+    msrp:
+      product.msrp ??
+      null,
+
+    url:
+      null,
+
+    seller:
+      null,
+
+    sellerType:
+      null,
+
+    checkedAt:
+      new Date()
+        .toISOString(),
+
+    source:
+      "walmart-discovery",
 
     discoveryMode:
-      !itemId
+      true,
+
+    previewOnly:
+      false,
+
+    marketplaceOnly:
+      false,
+
+    offerAvailable:
+      false,
+
+    alertEligible:
+      false,
+
+    image:
+      null,
+
+    error:
+      "No validated Walmart-direct result found"
   };
 }
 
