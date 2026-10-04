@@ -4,123 +4,52 @@ const push = require("./push");
 const discovery = require("./discovery");
 
 const providerName =
-  (
-    process.env.DATA_PROVIDER ||
-    "mock"
-  ).toLowerCase();
+  (process.env.DATA_PROVIDER || "mock").toLowerCase();
 
-const provider =
-  require(`./${providerName}.js`);
+const provider = require(`./${providerName}.js`);
 
-const productFile =
-  path.join(
-    __dirname,
-    "products.json"
-  );
+const productFile = path.join(__dirname, "products.json");
 
+const SCAN_CONCURRENCY = Math.min(
+  6,
+  Math.max(1, Number(process.env.SCAN_CONCURRENCY || 2))
+);
 
-/* ========================================
-   SCANNER SETTINGS
-======================================== */
-
-const SCAN_CONCURRENCY =
-  Math.min(
-    6,
-    Math.max(
-      1,
-      Number(
-        process.env.SCAN_CONCURRENCY ||
-        4
-      )
-    )
-  );
-
-
-/* ========================================
-   LIVE STATE
-======================================== */
+const SCAN_DISCOVERED_PRODUCTS =
+  String(process.env.SCAN_DISCOVERED_PRODUCTS || "false").toLowerCase() === "true";
 
 let latest = [];
 let lastRun = null;
 let running = false;
 
-const stockBaseline =
-  new Map();
-
-/*
-  Stores last usable product data.
-
-  Temporary Walmart API timeouts can
-  reuse display information from this
-  cache, but cached data can NEVER
-  trigger a restock alert.
-*/
-const lastGoodResults =
-  new Map();
-
-
-/* ========================================
-   PRODUCT LOADING
-======================================== */
+const stockBaseline = new Map();
+const lastGoodResults = new Map();
 
 function loadProducts() {
-  return JSON.parse(
-    fs.readFileSync(
-      productFile,
-      "utf8"
-    )
-  );
+  return JSON.parse(fs.readFileSync(productFile, "utf8"));
 }
-
-
-/* ========================================
-   BASIC HELPERS
-======================================== */
 
 function getItemKey(item) {
-  return [
-    item.retailer ||
-      "unknown",
-
-    item.productId ||
-      "unknown"
-  ].join(":");
+  return [item.retailer || "unknown", item.productId || "unknown"].join(":");
 }
 
-
 function isTimeoutItem(item) {
-  if (!item) {
-    return false;
-  }
+  if (!item) return false;
+  const message = String(item.error || "").toLowerCase();
+  return item.source === "walmart-timeout" || message.includes("timed out");
+}
 
-  const message =
-    String(
-      item.error ||
-      ""
-    ).toLowerCase();
-
+function isSoftFailure(item) {
+  if (!item) return false;
   return (
-    item.source ===
-      "walmart-timeout" ||
-
-    message.includes(
-      "timed out"
-    )
+    isTimeoutItem(item) ||
+    item.source === "hasdata-scan-error" ||
+    item.source === "hasdata-no-match"
   );
 }
 
-
 function isUsableResult(item) {
-  if (!item) {
-    return false;
-  }
-
-  if (
-    isTimeoutItem(item)
-  ) {
-    return false;
-  }
-
+  if (!item || isSoftFailure(item)) return false;
   return Boolean(
     item.image ||
     item.url ||
@@ -130,1148 +59,440 @@ function isUsableResult(item) {
   );
 }
 
-
-/* ========================================
-   DIRECT SELLER RULE
-======================================== */
-
 function directSellerOnly(item) {
-  if (
-    typeof item.directSeller ===
-      "boolean"
-  ) {
-    return item.directSeller;
-  }
-
-  if (
-    item.retailer ===
-    "target"
-  ) {
-    return (
-      item.seller ===
-      "Target"
-    );
-  }
-
-  if (
-    item.retailer ===
-    "walmart"
-  ) {
-    return (
-      item.seller ===
-      "Walmart"
-    );
-  }
-
-  if (
-    item.retailer ===
-    "bestbuy"
-  ) {
-    return (
-      item.seller ===
-      "Best Buy"
-    );
-  }
-
+  if (typeof item.directSeller === "boolean") return item.directSeller;
+  if (item.retailer === "target") return item.seller === "Target";
+  if (item.retailer === "walmart") return item.seller === "Walmart";
+  if (item.retailer === "bestbuy") return item.seller === "Best Buy";
   return false;
 }
 
-
-/* ========================================
-   PRICE RULE
-======================================== */
-
 function withinPriceRule(item) {
+  if (item.autoDiscovered === true && item.msrp == null) return false;
+  if (item.price == null) return true;
+  if (item.msrp == null) return true;
 
-  /*
-    Auto-discovered products NEVER qualify
-    for alerts until verified MSRP exists.
-  */
-  if (
-    item.autoDiscovered ===
-      true &&
-    item.msrp == null
-  ) {
+  const price = Number(item.price);
+  const msrp = Number(item.msrp);
+
+  if (!Number.isFinite(price) || !Number.isFinite(msrp) || msrp <= 0) {
     return false;
   }
 
-  /*
-    Preserve existing behavior when
-    live price is temporarily missing.
-  */
-  if (
-    item.price == null
-  ) {
-    return true;
-  }
-
-  /*
-    Preserve current behavior for
-    curated products without MSRP.
-  */
-  if (
-    item.msrp == null
-  ) {
-    return true;
-  }
-
-  const price =
-    Number(
-      item.price
-    );
-
-  const msrp =
-    Number(
-      item.msrp
-    );
-
-  if (
-    !Number.isFinite(price) ||
-    !Number.isFinite(msrp) ||
-    msrp <= 0
-  ) {
-    return false;
-  }
-
-  /*
-    Price rule:
-    maximum = 150% of MSRP.
-
-    Example:
-    $50 MSRP -> $75 maximum.
-  */
-  return (
-    price <=
-    msrp * 1.5
-  );
+  return price <= msrp * 1.5;
 }
 
-
-/* ========================================
-   ITEM PREPARATION
-======================================== */
-
 function prepareItem(item) {
-  const onlineOnly =
-    item.retailer ===
-      "walmart" ||
-    item.retailer ===
-      "target";
+  const onlineOnly = item.retailer === "walmart" || item.retailer === "target";
 
   return {
     ...item,
-
-    /*
-      Walmart + Target are online-only.
-    */
-    channel:
-      onlineOnly
-        ? "online"
-        : (
-            item.channel ||
-            "online"
-          ),
-
-    storeId:
-      onlineOnly
-        ? null
-        : (
-            item.storeId ??
-            null
-          ),
-
-    storeName:
-      onlineOnly
-        ? null
-        : (
-            item.storeName ??
-            null
-          ),
-
-    directSeller:
-      directSellerOnly(
-        item
-      ),
-
-    withinPriceRule:
-      withinPriceRule(
-        item
-      )
+    channel: onlineOnly ? "online" : (item.channel || "online"),
+    storeId: onlineOnly ? null : (item.storeId ?? null),
+    storeName: onlineOnly ? null : (item.storeName ?? null),
+    directSeller: directSellerOnly(item),
+    withinPriceRule: withinPriceRule(item)
   };
 }
 
-
-/* ========================================
-   SAFE STALE CACHE
-======================================== */
-
 function cacheGoodResult(item) {
-  if (
-    !isUsableResult(item)
-  ) {
-    return;
-  }
-
-  const key =
-    getItemKey(
-      item
-    );
-
-  lastGoodResults.set(
-    key,
-    {
-      ...item
-    }
-  );
+  if (!isUsableResult(item)) return;
+  lastGoodResults.set(getItemKey(item), { ...item });
 }
 
-
 function applySafeCache(item) {
-  if (
-    !isTimeoutItem(item)
-  ) {
-    return item;
-  }
+  if (!isSoftFailure(item)) return item;
 
-  const key =
-    getItemKey(
-      item
-    );
+  const cached = lastGoodResults.get(getItemKey(item));
 
-  const cached =
-    lastGoodResults.get(
-      key
-    );
-
-  /*
-    No cached result yet.
-
-    Keep timeout result, but make
-    absolutely sure it cannot alert.
-  */
   if (!cached) {
     return {
       ...item,
-
-      inStock:
-        false,
-
-      offerAvailable:
-        false,
-
-      alertEligible:
-        false,
-
-      stale:
-        false
+      inStock: false,
+      offerAvailable: false,
+      alertEligible: false,
+      stale: false
     };
   }
 
-  /*
-    Preserve useful display data from
-    the previous successful result.
-
-    CRITICAL:
-    Cached information is NEVER allowed
-    to represent current stock.
-  */
   return {
     ...cached,
-
-    productId:
-      item.productId,
-
-    retailer:
-      item.retailer,
-
-    channel:
-      "online",
-
-    storeId:
-      null,
-
-    storeName:
-      null,
-
-    inStock:
-      false,
-
-    offerAvailable:
-      false,
-
-    alertEligible:
-      false,
-
-    checkedAt:
-      item.checkedAt ||
-      new Date()
-        .toISOString(),
-
-    source:
-      "walmart-stale-cache",
-
-    stale:
-      true,
-
-    staleReason:
-      item.error ||
-      "Temporary Walmart API timeout",
-
-    error:
-      item.error ||
-      "Temporary Walmart API timeout",
-
-    /*
-      Keep last useful display data.
-    */
-    image:
-      cached.image ||
-      null,
-
-    url:
-      cached.url ||
-      null,
-
-    price:
-      cached.price ??
-      null,
-
-    seller:
-      cached.seller ||
-      null,
-
-    sellerType:
-      cached.sellerType ||
-      null,
-
-    walmartItemId:
-      cached.walmartItemId ||
-      null,
-
-    /*
-      Keep seller identity for display,
-      but stale data cannot be considered
-      alert-eligible stock.
-    */
-    directSeller:
-      cached.directSeller ===
-      true,
-
-    marketplaceOnly:
-      cached.marketplaceOnly ===
-      true,
-
+    productId: item.productId,
+    retailer: item.retailer,
+    channel: "online",
+    storeId: null,
+    storeName: null,
+    inStock: false,
+    offerAvailable: false,
+    alertEligible: false,
+    checkedAt: item.checkedAt || new Date().toISOString(),
+    source: "walmart-stale-cache",
+    stale: true,
+    staleReason: item.error || "Temporary Walmart source failure",
+    error: item.error || "Temporary Walmart source failure",
+    image: cached.image || null,
+    url: cached.url || null,
+    price: cached.price ?? null,
+    seller: cached.seller || null,
+    sellerType: cached.sellerType || null,
+    walmartItemId: cached.walmartItemId || null,
+    directSeller: cached.directSeller === true,
+    marketplaceOnly: cached.marketplaceOnly === true,
     autoDiscovered:
-      item.autoDiscovered ===
-        true ||
-      cached.autoDiscovered ===
-        true
+      item.autoDiscovered === true || cached.autoDiscovered === true
   };
 }
 
-
-/* ========================================
-   STOCK / PUSH STATE
-======================================== */
-
-function getStockKey(item) {
-  return getItemKey(
-    item
-  );
-}
-
-
 function qualifiesForRestock(item) {
-  /*
-    Stale cached data can NEVER qualify.
-  */
-  if (
-    item.stale === true
-  ) {
-    return false;
-  }
+  if (item.stale === true || isSoftFailure(item)) return false;
 
   return (
-    item.retailer ===
-      "walmart" &&
-
-    item.directSeller ===
-      true &&
-
-    item.inStock ===
-      true &&
-
-    item.withinPriceRule ===
-      true
+    item.retailer === "walmart" &&
+    item.directSeller === true &&
+    item.inStock === true &&
+    item.withinPriceRule === true
   );
 }
 
-
 async function processRestockState(item) {
-  const key =
-    getStockKey(
-      item
-    );
+  const key = getItemKey(item);
 
-  const currentQualifies =
-    qualifiesForRestock(
-      item
-    );
-
-  /*
-    IMPORTANT:
-    Do not let a temporary timeout change
-    the stock baseline.
-
-    Otherwise:
-    in-stock -> timeout -> in-stock
-
-    could incorrectly look like a new
-    restock transition.
-  */
-  if (
-    item.stale === true ||
-    isTimeoutItem(item)
-  ) {
+  if (item.stale === true || isSoftFailure(item)) {
     return {
-      baselineEstablished:
-        false,
-
-      alertSent:
-        false,
-
-      baselineUnchanged:
-        true
+      baselineEstablished: false,
+      alertSent: false,
+      baselineUnchanged: true
     };
   }
 
-  if (
-    !stockBaseline.has(
-      key
-    )
-  ) {
-    stockBaseline.set(
-      key,
-      currentQualifies
-    );
+  const currentQualifies = qualifiesForRestock(item);
 
-    console.log(
-      `Stock baseline established for ${key}:`,
-      currentQualifies
-    );
-
-    return {
-      baselineEstablished:
-        true,
-
-      alertSent:
-        false
-    };
+  if (!stockBaseline.has(key)) {
+    stockBaseline.set(key, currentQualifies);
+    console.log(`Stock baseline established for ${key}:`, currentQualifies);
+    return { baselineEstablished: true, alertSent: false };
   }
 
-  const previousQualifies =
-    stockBaseline.get(
-      key
-    );
+  const previousQualifies = stockBaseline.get(key);
+  stockBaseline.set(key, currentQualifies);
 
-  stockBaseline.set(
-    key,
-    currentQualifies
-  );
-
-  if (
-    previousQualifies ===
-      false &&
-
-    currentQualifies ===
-      true
-  ) {
-    console.log(
-      `RESTOCK transition detected for ${key}`
-    );
+  if (previousQualifies === false && currentQualifies === true) {
+    console.log(`RESTOCK transition detected for ${key}`);
 
     try {
-      const pushResult =
-        await push
-          .sendRestockAlert(
-            item
-          );
-
-      console.log(
-        `Restock push processed for ${key}:`,
-        pushResult
-      );
-
+      const pushResult = await push.sendRestockAlert(item);
+      console.log(`Restock push processed for ${key}:`, pushResult);
       return {
-        baselineEstablished:
-          false,
-
-        alertSent:
-          true,
-
+        baselineEstablished: false,
+        alertSent: true,
         pushResult
       };
-
     } catch (error) {
-      console.error(
-        `Restock push failed for ${key}:`,
-        error
-      );
-
+      console.error(`Restock push failed for ${key}:`, error);
       return {
-        baselineEstablished:
-          false,
-
-        alertSent:
-          false,
-
-        pushError:
-          error.message
+        baselineEstablished: false,
+        alertSent: false,
+        pushError: error.message
       };
     }
   }
 
-  return {
-    baselineEstablished:
-      false,
-
-    alertSent:
-      false
-  };
+  return { baselineEstablished: false, alertSent: false };
 }
 
-
-/* ========================================
-   SAVE SINGLE RESULT
-======================================== */
-
 function saveResult(item) {
-  let prepared =
-    prepareItem(
-      item
-    );
+  let prepared = prepareItem(item);
+  prepared = applySafeCache(prepared);
+  prepared = prepareItem(prepared);
 
-  prepared =
-    applySafeCache(
-      prepared
-    );
-
-  prepared =
-    prepareItem(
-      prepared
-    );
-
-  if (
-    !isTimeoutItem(prepared) &&
-    prepared.stale !== true
-  ) {
-    cacheGoodResult(
-      prepared
-    );
+  if (!isSoftFailure(prepared) && prepared.stale !== true) {
+    cacheGoodResult(prepared);
   }
 
-  const index =
-    latest.findIndex(
-      existing =>
-        existing.productId ===
-          prepared.productId &&
+  const index = latest.findIndex(
+    existing =>
+      existing.productId === prepared.productId &&
+      existing.retailer === prepared.retailer
+  );
 
-        existing.retailer ===
-          prepared.retailer
-    );
+  if (index >= 0) latest[index] = prepared;
+  else latest.push(prepared);
 
-  if (
-    index >= 0
-  ) {
-    latest[index] =
-      prepared;
-
-  } else {
-    latest.push(
-      prepared
-    );
-  }
-
-  lastRun =
-    new Date()
-      .toISOString();
-
+  lastRun = new Date().toISOString();
   return prepared;
 }
 
+async function finalizeScannedItem(item, product) {
+  const enriched = {
+    ...item,
+    msrp: item.msrp ?? product.msrp ?? null,
+    autoDiscovered: product.autoDiscovered === true
+  };
 
-/* ========================================
-   SCAN ONE PRODUCT
-======================================== */
+  let prepared = prepareItem(enriched);
+  prepared = applySafeCache(prepared);
+  prepared = prepareItem(prepared);
 
-async function scanJob(
-  product,
-  retailer
-) {
+  if (!isSoftFailure(prepared) && prepared.stale !== true) {
+    cacheGoodResult(prepared);
+  }
+
+  const restockResult = await processRestockState(prepared);
+
+  return {
+    item: prepared,
+    alertSent: restockResult.alertSent === true
+  };
+}
+
+async function scanJob(product, retailer) {
   try {
-    const item =
-      await provider
-        .checkProduct(
-          product,
-          retailer
-        );
-
-    const enrichedItem = {
-      ...item,
-
-      msrp:
-        item.msrp ??
-        product.msrp ??
-        null,
-
-      autoDiscovered:
-        product.autoDiscovered ===
-          true
-    };
-
-    let prepared =
-      prepareItem(
-        enrichedItem
-      );
-
-    /*
-      If current response timed out,
-      attempt to preserve old card data.
-    */
-    prepared =
-      applySafeCache(
-        prepared
-      );
-
-    /*
-      Re-run preparation because cached
-      data may include price/MSRP fields.
-    */
-    prepared =
-      prepareItem(
-        prepared
-      );
-
-    /*
-      Only fresh usable responses update
-      the display cache.
-    */
-    if (
-      !isTimeoutItem(prepared) &&
-      prepared.stale !== true
-    ) {
-      cacheGoodResult(
-        prepared
-      );
-    }
-
-    const restockResult =
-      await processRestockState(
-        prepared
-      );
+    const item = await provider.checkProduct(product, retailer);
+    const finalized = await finalizeScannedItem(item, product);
 
     return {
-      ok:
-        true,
-
-      item:
-        prepared,
-
-      alertSent:
-        restockResult
-          .alertSent ===
-        true
+      ok: !isSoftFailure(finalized.item),
+      item: finalized.item,
+      alertSent: finalized.alertSent
     };
-
   } catch (error) {
-    let failedItem =
-      prepareItem({
-        productId:
-          product.id,
+    let failedItem = prepareItem({
+      productId: product.id,
+      name: product.name,
+      set: product.set,
+      productType: product.productType,
+      retailer,
+      channel: "online",
+      inStock: false,
+      directSeller: false,
+      price: null,
+      msrp: product.msrp ?? null,
+      autoDiscovered: product.autoDiscovered === true,
+      url: null,
+      seller: null,
+      checkedAt: new Date().toISOString(),
+      source: `${retailer}-scan-error`,
+      error: error.message
+    });
 
-        name:
-          product.name,
-
-        set:
-          product.set,
-
-        productType:
-          product.productType,
-
-        retailer,
-
-        channel:
-          "online",
-
-        inStock:
-          false,
-
-        directSeller:
-          false,
-
-        price:
-          null,
-
-        msrp:
-          product.msrp ??
-          null,
-
-        autoDiscovered:
-          product.autoDiscovered ===
-            true,
-
-        url:
-          null,
-
-        seller:
-          null,
-
-        checkedAt:
-          new Date()
-            .toISOString(),
-
-        source:
-          `${retailer}-scan-error`,
-
-        error:
-          error.message
-      });
-
-    /*
-      A thrown timeout can also reuse
-      cached display information safely.
-    */
-    if (
-      String(
-        error.message ||
-        ""
-      )
-        .toLowerCase()
-        .includes(
-          "timed out"
-        )
-    ) {
+    if (String(error.message || "").toLowerCase().includes("timed out")) {
       failedItem = {
         ...failedItem,
-
-        source:
-          "walmart-timeout"
+        source: "walmart-timeout"
       };
-
-      failedItem =
-        applySafeCache(
-          failedItem
-        );
-
-      failedItem =
-        prepareItem(
-          failedItem
-        );
     }
 
+    failedItem = applySafeCache(failedItem);
+    failedItem = prepareItem(failedItem);
+
     return {
-      ok:
-        false,
-
-      item:
-        failedItem,
-
-      alertSent:
-        false,
-
-      error:
-        error.message
+      ok: false,
+      item: failedItem,
+      alertSent: false,
+      error: error.message
     };
   }
 }
 
-
-/* ========================================
-   BATCH HELPER
-======================================== */
-
-function chunkArray(
-  items,
-  size
-) {
-  const chunks =
-    [];
-
-  for (
-    let index = 0;
-    index < items.length;
-    index += size
-  ) {
-    chunks.push(
-      items.slice(
-        index,
-        index + size
-      )
-    );
+function chunkArray(items, size) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
   }
-
   return chunks;
 }
 
+async function scanWalmartBatch(curatedProducts) {
+  if (providerName !== "walmart" || typeof provider.checkProductsBatch !== "function") {
+    return null;
+  }
 
-/* ========================================
-   MAIN CATALOG SCAN
-======================================== */
+  let batchResults;
+
+  try {
+    batchResults = await provider.checkProductsBatch(curatedProducts);
+  } catch (error) {
+    console.error("Walmart batch provider failed:", error.message);
+    return null;
+  }
+
+  if (!Array.isArray(batchResults)) return null;
+
+  const byProductId = new Map(
+    curatedProducts.map(product => [product.id, product])
+  );
+
+  const results = [];
+
+  for (const rawItem of batchResults) {
+    const product = byProductId.get(rawItem.productId);
+    if (!product) continue;
+
+    const finalized = await finalizeScannedItem(rawItem, product);
+    results.push({
+      ok: !isSoftFailure(finalized.item),
+      item: finalized.item,
+      alertSent: finalized.alertSent
+    });
+  }
+
+  return results;
+}
 
 async function runCheck() {
   if (running) {
     return {
-      ok:
-        false,
-
-      skipped:
-        true,
-
-      reason:
-        "Catalog scan already running"
+      ok: false,
+      skipped: true,
+      reason: "Catalog scan already running"
     };
   }
 
-  running =
-    true;
+  running = true;
+  const startedAt = new Date().toISOString();
 
-  const startedAt =
-    new Date()
-      .toISOString();
-
-  let attempted =
-    0;
-
-  let completed =
-    0;
-
-  let failed =
-    0;
-
-  let alertsTriggered =
-    0;
-
-  let staleResults =
-    0;
+  let attempted = 0;
+  let completed = 0;
+  let failed = 0;
+  let alertsTriggered = 0;
+  let staleResults = 0;
+  let batchMode = false;
 
   try {
-    const curatedProducts =
-      loadProducts()
-        .filter(
-          product =>
-            product.enabled !==
-              false
-        );
+    const curatedProducts = loadProducts().filter(product => product.enabled !== false);
 
-    let discoveredProducts =
-      [];
+    let discoveredProducts = [];
 
-    try {
-      discoveredProducts =
-        await discovery
-          .getDiscoveredProducts();
-
-    } catch (error) {
-      console.error(
-        "Could not load discovered products:",
-        error.message
-      );
-    }
-
-    const products = [
-      ...curatedProducts,
-      ...discoveredProducts
-    ];
-
-
-    /* ====================================
-       BUILD SCAN JOBS
-    ==================================== */
-
-    const jobs =
-      [];
-
-    for (
-      const product
-      of products
-    ) {
-      const retailers =
-        Array.isArray(
-          product.retailers
-        )
-          ? product.retailers
-          : [];
-
-      for (
-        const retailer
-        of retailers
-      ) {
-        jobs.push({
-          product,
-          retailer
-        });
+    if (SCAN_DISCOVERED_PRODUCTS) {
+      try {
+        discoveredProducts = await discovery.getDiscoveredProducts();
+      } catch (error) {
+        console.error("Could not load discovered products:", error.message);
       }
     }
 
-    attempted =
-      jobs.length;
+    const results = [];
 
-    console.log(
-      "Starting catalog scan:",
-      {
-        jobs:
-          jobs.length,
-
-        concurrency:
-          SCAN_CONCURRENCY,
-
-        curatedProducts:
-          curatedProducts.length,
-
-        discoveredProducts:
-          discoveredProducts.length
-      }
+    const walmartCurated = curatedProducts.filter(product =>
+      Array.isArray(product.retailers) && product.retailers.includes("walmart")
     );
 
+    const batchResults = await scanWalmartBatch(walmartCurated);
 
-    /* ====================================
-       PROCESS IN CONCURRENT BATCHES
-    ==================================== */
+    if (Array.isArray(batchResults)) {
+      batchMode = true;
+      attempted += walmartCurated.length;
 
-    const results =
-      [];
-
-    const batches =
-      chunkArray(
-        jobs,
-        SCAN_CONCURRENCY
-      );
-
-    for (
-      let batchIndex = 0;
-      batchIndex <
-        batches.length;
-      batchIndex += 1
-    ) {
-      const batch =
-        batches[
-          batchIndex
-        ];
-
-      const settled =
-        await Promise.all(
-          batch.map(
-            job =>
-              scanJob(
-                job.product,
-                job.retailer
-              )
-          )
-        );
-
-      for (
-        const result
-        of settled
-      ) {
-        results.push(
-          result.item
-        );
-
-        if (
-          result.ok
-        ) {
-          completed +=
-            1;
-
-        } else {
-          failed +=
-            1;
-        }
-
-        if (
-          result.alertSent
-        ) {
-          alertsTriggered +=
-            1;
-        }
-
-        if (
-          result.item
-            ?.stale ===
-          true
-        ) {
-          staleResults +=
-            1;
-        }
+      for (const result of batchResults) {
+        results.push(result.item);
+        if (result.ok) completed += 1;
+        else failed += 1;
+        if (result.alertSent) alertsTriggered += 1;
+        if (result.item?.stale === true) staleResults += 1;
       }
 
-      /*
-        Publish partial results after
-        each batch so the dashboard starts
-        filling before the whole scan ends.
-      */
-      latest = [
-        ...results
-      ];
-
-      console.log(
-        `Catalog scan progress: ${results.length}/${jobs.length}`
-      );
+      latest = [...results];
+      console.log(`Walmart batch scan published ${results.length}/${walmartCurated.length} curated products`);
     }
 
+    const fallbackJobs = [];
 
-    /* ====================================
-       FINISH SCAN
-    ==================================== */
+    for (const product of curatedProducts) {
+      const retailers = Array.isArray(product.retailers) ? product.retailers : [];
 
-    latest =
-      results;
+      for (const retailer of retailers) {
+        if (batchMode && retailer === "walmart") continue;
+        fallbackJobs.push({ product, retailer });
+      }
+    }
 
-    lastRun =
-      new Date()
-        .toISOString();
+    for (const product of discoveredProducts) {
+      const retailers = Array.isArray(product.retailers) ? product.retailers : [];
+      for (const retailer of retailers) fallbackJobs.push({ product, retailer });
+    }
+
+    attempted += fallbackJobs.length;
+
+    const batches = chunkArray(fallbackJobs, SCAN_CONCURRENCY);
+
+    for (const batch of batches) {
+      const settled = await Promise.all(
+        batch.map(job => scanJob(job.product, job.retailer))
+      );
+
+      for (const result of settled) {
+        results.push(result.item);
+        if (result.ok) completed += 1;
+        else failed += 1;
+        if (result.alertSent) alertsTriggered += 1;
+        if (result.item?.stale === true) staleResults += 1;
+      }
+
+      latest = [...results];
+      console.log(`Catalog scan progress: ${results.length}/${attempted}`);
+    }
+
+    latest = results;
+    lastRun = new Date().toISOString();
 
     const summary = {
-      ok:
-        true,
-
+      ok: true,
       startedAt,
-
-      finishedAt:
-        lastRun,
-
+      finishedAt: lastRun,
       attempted,
-
       completed,
-
       failed,
-
       alertsTriggered,
-
       staleResults,
-
-      count:
-        results.length,
-
-      concurrency:
-        SCAN_CONCURRENCY,
-
-      curatedProducts:
-        curatedProducts.length,
-
-      discoveredProducts:
-        discoveredProducts.length
+      count: results.length,
+      concurrency: SCAN_CONCURRENCY,
+      batchMode,
+      curatedProducts: curatedProducts.length,
+      discoveredProducts: discoveredProducts.length,
+      scanDiscoveredProducts: SCAN_DISCOVERED_PRODUCTS
     };
 
-    console.log(
-      "Catalog scan completed:",
-      summary
-    );
-
+    console.log("Catalog scan completed:", summary);
     return summary;
-
   } finally {
-    running =
-      false;
+    running = false;
   }
 }
-
-
-/* ========================================
-   CURRENT RESULTS
-======================================== */
 
 function getLatest() {
   return {
     lastRun,
-
     running,
-
-    count:
-      latest.length,
-
-    items:
-      latest
+    count: latest.length,
+    items: latest
   };
 }
 
-
-/* ========================================
-   SCANNER STATE
-======================================== */
-
 function getScannerState() {
-  const products =
-    loadProducts()
-      .filter(
-        product =>
-          product.enabled !==
-            false
-      );
+  const products = loadProducts().filter(product => product.enabled !== false);
+  const retailerCounts = {};
 
-  const retailerCounts =
-    {};
-
-  for (
-    const product
-    of products
-  ) {
-    for (
-      const retailer
-      of product.retailers ||
-      []
-    ) {
-      retailerCounts[
-        retailer
-      ] =
-        (
-          retailerCounts[
-            retailer
-          ] ||
-          0
-        ) +
-        1;
+  for (const product of products) {
+    for (const retailer of product.retailers || []) {
+      retailerCounts[retailer] = (retailerCounts[retailer] || 0) + 1;
     }
   }
 
   return {
     running,
-
     lastRun,
-
-    catalogProducts:
-      products.length,
-
+    catalogProducts: products.length,
     retailerCounts,
-
-    automaticPolling:
-      false,
-
-    restockBaselines:
-      stockBaseline.size,
-
-    scanConcurrency:
-      SCAN_CONCURRENCY,
-
-    currentResultCount:
-      latest.length,
-
-    cachedProductCount:
-      lastGoodResults.size,
-
-    staleResultCount:
-      latest.filter(
-        item =>
-          item.stale ===
-          true
-      ).length
+    automaticPolling: false,
+    restockBaselines: stockBaseline.size,
+    scanConcurrency: SCAN_CONCURRENCY,
+    currentResultCount: latest.length,
+    cachedProductCount: lastGoodResults.size,
+    staleResultCount: latest.filter(item => item.stale === true).length,
+    scanDiscoveredProducts: SCAN_DISCOVERED_PRODUCTS,
+    batchProviderAvailable: typeof provider.checkProductsBatch === "function"
   };
 }
-
-
-/* ========================================
-   EXPORTS
-======================================== */
 
 module.exports = {
   runCheck,
