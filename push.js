@@ -325,9 +325,6 @@ function getPublicKey() {
 
 /* ========================================
    ADD SUBSCRIPTION
-
-   Save immediately to cache,
-   then persist to PostgreSQL.
 ======================================== */
 
 async function addSubscription(
@@ -383,9 +380,7 @@ async function addSubscription(
 
   return {
     ok: true,
-
     persisted: true,
-
     subscriptions:
       subscriptions.size
   };
@@ -402,7 +397,6 @@ async function removeSubscription(
   if (!endpoint) {
     return {
       ok: false,
-
       subscriptions:
         subscriptions.size
     };
@@ -423,9 +417,7 @@ async function removeSubscription(
 
   return {
     ok: existed,
-
     persisted: true,
-
     subscriptions:
       subscriptions.size
   };
@@ -598,32 +590,51 @@ async function broadcast(payload) {
 
 /* ========================================
    REAL RESTOCK ALERT
+
+   ALLOWED:
+   - Walmart Direct
+   - Approved GT Collectibles offer
+
+   GT is allowed regardless of MSRP when
+   discovery explicitly marks it eligible.
 ======================================== */
 
 async function sendRestockAlert(
   item
 ) {
+  const walmartDirect =
+    item?.directSeller === true;
+
+  const approvedGT =
+    item?.approvedMarketplace === true &&
+    item?.alertEligible === true;
+
   if (
     !item ||
     item.retailer !== "walmart" ||
-    item.directSeller !== true ||
-    item.inStock !== true
+    item.inStock !== true ||
+    (!walmartDirect && !approvedGT)
   ) {
     return {
       ok: false,
       skipped: true,
 
       reason:
-        "Product is not Walmart-direct and in stock"
+        "Product is not an eligible Walmart-direct or approved GT Collectibles in-stock offer"
     };
   }
+
+  const sellerLabel =
+    approvedGT
+      ? "GT Collectibles"
+      : "Walmart-direct";
 
   return broadcast({
     title:
       "🔥 Pokémon Restock Detected!",
 
     body:
-      `${item.name} is showing Walmart-direct availability.`,
+      `${item.name} is showing ${sellerLabel} availability.`,
 
     url:
       item.url ||
