@@ -18,6 +18,26 @@ const HASDATA_TIMEOUT_MS = Math.max(
 const discoveredItems = new Map();
 let lastUpcoming = [];
 
+const providerHealth = {
+  hasdata: { requests: 0, successes: 0, failures: 0, lastSuccess: null, lastError: null },
+  rapidapi: { requests: 0, successes: 0, failures: 0, lastSuccess: null, lastError: null }
+};
+
+function markProviderStart(name) {
+  providerHealth[name].requests += 1;
+}
+
+function markProviderSuccess(name) {
+  providerHealth[name].successes += 1;
+  providerHealth[name].lastSuccess = new Date().toISOString();
+  providerHealth[name].lastError = null;
+}
+
+function markProviderFailure(name, error) {
+  providerHealth[name].failures += 1;
+  providerHealth[name].lastError = error?.message || String(error);
+}
+
 function parsePrice(value) {
   if (value === null || value === undefined || value === "") return null;
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
@@ -30,7 +50,7 @@ function parsePrice(value) {
 function normalize(value) {
   return String(value || "")
     .toLowerCase()
-    .replace(/pok[eé]mon/g, "pokemon")
+    .replace(/pok[eÃ©]mon/g, "pokemon")
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -248,19 +268,29 @@ async function rapidApiRequest(path) {
     throw new Error("WALMART_RAPIDAPI_KEY is missing");
   }
 
-  return fetchJson(
-    `https://${RAPIDAPI_HOST}${path}`,
-    {
-      method: "GET",
-      headers: {
-        "x-rapidapi-key": RAPIDAPI_KEY,
-        "x-rapidapi-host": RAPIDAPI_HOST
-      }
-    },
-    RAPIDAPI_TIMEOUT_MS,
-    "WALMART_TIMEOUT",
-    "Walmart API"
-  );
+  markProviderStart("rapidapi");
+
+  try {
+    const data = await fetchJson(
+      `https://${RAPIDAPI_HOST}${path}`,
+      {
+        method: "GET",
+        headers: {
+          "x-rapidapi-key": RAPIDAPI_KEY,
+          "x-rapidapi-host": RAPIDAPI_HOST
+        }
+      },
+      RAPIDAPI_TIMEOUT_MS,
+      "WALMART_TIMEOUT",
+      "Walmart API"
+    );
+
+    markProviderSuccess("rapidapi");
+    return data;
+  } catch (error) {
+    markProviderFailure("rapidapi", error);
+    throw error;
+  }
 }
 
 async function hasDataSearch(query) {
@@ -277,25 +307,34 @@ async function hasDataSearch(query) {
     deliveryType: "shipping"
   });
 
-  const data = await fetchJson(
-    `https://api.hasdata.com/scrape/walmart/search?${params.toString()}`,
-    {
-      method: "GET",
-      headers: {
-        "x-api-key": HASDATA_API_KEY,
-        "Content-Type": "application/json"
-      }
-    },
-    HASDATA_TIMEOUT_MS,
-    "HASDATA_TIMEOUT",
-    "HasData Walmart"
-  );
+  markProviderStart("hasdata");
 
-  if (!Array.isArray(data?.productResults)) {
-    return [];
+  try {
+    const data = await fetchJson(
+      `https://api.hasdata.com/scrape/walmart/search?${params.toString()}`,
+      {
+        method: "GET",
+        headers: {
+          "x-api-key": HASDATA_API_KEY,
+          "Content-Type": "application/json"
+        }
+      },
+      HASDATA_TIMEOUT_MS,
+      "HASDATA_TIMEOUT",
+      "HasData Walmart"
+    );
+
+    markProviderSuccess("hasdata");
+
+    if (!Array.isArray(data?.productResults)) {
+      return [];
+    }
+
+    return data.productResults;
+  } catch (error) {
+    markProviderFailure("hasdata", error);
+    throw error;
   }
-
-  return data.productResults;
 }
 
 function makeResult(product, item, source) {
@@ -535,7 +574,7 @@ function collectUpcoming(results) {
     candidates.push({
       retailer: "walmart",
       retailerLabel: "Walmart",
-      name: item?.title || item?.name || "Upcoming Walmart Pokémon item",
+      name: item?.title || item?.name || "Upcoming Walmart PokÃ©mon item",
       productId: itemId ? `walmart-upcoming-${itemId}` : null,
       walmartItemId: itemId,
       status: "preorder",
@@ -680,11 +719,14 @@ function getUpcoming() {
 function getProviderInfo() {
   return {
     primary: HASDATA_API_KEY ? "hasdata" : "rapidapi",
+    fallback: HASDATA_API_KEY && RAPIDAPI_KEY ? "rapidapi" : null,
+    fallbackEnabled: Boolean(HASDATA_API_KEY && RAPIDAPI_KEY),
     hasDataConfigured: Boolean(HASDATA_API_KEY),
     rapidApiConfigured: Boolean(RAPIDAPI_KEY),
     hasDataTimeoutMs: HASDATA_TIMEOUT_MS,
     rapidApiTimeoutMs: RAPIDAPI_TIMEOUT_MS,
-    upcomingCount: lastUpcoming.length
+    upcomingCount: lastUpcoming.length,
+    health: JSON.parse(JSON.stringify(providerHealth))
   };
 }
 
