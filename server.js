@@ -17,6 +17,7 @@ const discovery = require("./discovery");
 const products = require("./products.json");
 const multiStore = require("./multi-store");
 const { createWalmartScheduler } = require("./walmart-scheduler");
+const walmartWatchlist = require("./walmart-watchlist");
 
 const app = express();
 
@@ -35,6 +36,7 @@ const enableDiscovery =
 const pollSeconds = Math.max(60, Number(process.env.POLL_SECONDS || 60));
 const discoveryMinutes = Math.max(5, Number(process.env.DISCOVERY_MINUTES || 5));
 const manualScanToken = process.env.MANUAL_SCAN_TOKEN || "";
+const walmartWakeToken = process.env.WALMART_WAKE_TOKEN || "";
 
 app.use(
   cors({
@@ -69,6 +71,23 @@ function hasValidManualToken(req) {
     "";
 
   return supplied === manualScanToken;
+}
+
+function hasValidWakeToken(req) {
+  if (!walmartWakeToken) return false;
+
+  const auth = String(req.get("authorization") || "");
+  const bearer = auth.toLowerCase().startsWith("bearer ")
+    ? auth.slice(7).trim()
+    : "";
+
+  const supplied =
+    req.get("x-wake-token") ||
+    bearer ||
+    req.query?.token ||
+    "";
+
+  return supplied === walmartWakeToken;
 }
 
 app.get("/", (req, res) =>
@@ -208,6 +227,9 @@ app.get("/api/status", (req, res) => {
     walmartSchedule: walmartScheduler.getStatus(),
     walmartProvider: walmart.getProviderInfo?.() || null,
     upcoming: walmart.getUpcoming?.() || [],
+    walmartWatchlist: walmartWatchlist.mergeUpcomingWithWatchlist(
+      walmart.getUpcoming?.() || []
+    ),
     push: push.getPushStatus()
   });
 });
@@ -268,6 +290,57 @@ app.get("/api/walmart/provider", (req, res) => {
 app.get("/api/walmart/upcoming", (req, res) => {
   const items = walmart.getUpcoming?.() || [];
   res.json({ ok: true, count: items.length, items });
+});
+
+app.get("/api/walmart/watchlist", (req, res) => {
+  const merged = walmartWatchlist.mergeUpcomingWithWatchlist(
+    walmart.getUpcoming?.() || []
+  );
+
+  res.json({
+    ok: true,
+    detectedCount: merged.detected.length,
+    watchingCount: merged.watching.length,
+    count: merged.all.length,
+    detected: merged.detected,
+    watching: merged.watching,
+    items: merged.all
+  });
+});
+
+app.get("/api/walmart/health", (req, res) => {
+  res.json({
+    ok: true,
+    provider: walmart.getProviderInfo?.() || null,
+    scanner: getScannerState(),
+    schedule: walmartScheduler.getStatus(),
+    watchlistCount: walmartWatchlist.getConfiguredWatchlist().length
+  });
+});
+
+app.all("/api/walmart/wake", async (req, res) => {
+  if (!walmartWakeToken) {
+    return res.status(503).json({
+      ok: false,
+      error: "Wake protection is disabled until WALMART_WAKE_TOKEN is configured"
+    });
+  }
+
+  if (!hasValidWakeToken(req)) {
+    return res.status(401).json({ ok: false, error: "Invalid wake token" });
+  }
+
+  try {
+    const result = await walmartScheduler.wakeScan();
+    res.json({
+      ok: true,
+      result,
+      schedule: walmartScheduler.getStatus()
+    });
+  } catch (error) {
+    console.error("Walmart wake scan failed:", error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
 });
 
 app.post("/api/walmart/scan", async (req, res) => {
