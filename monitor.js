@@ -54,19 +54,29 @@ function directSellerOnly(item) {
 }
 
 function withinPriceRule(item) {
-  if (item.price == null) {
-    return true;
-  }
 
   /*
-    Auto-discovered products must have
-    verified MSRP before qualifying.
+    IMPORTANT:
+    Auto-discovered products NEVER qualify
+    until a verified MSRP is available.
+
+    This check must happen before the
+    missing-price check.
   */
   if (
     item.autoDiscovered === true &&
     item.msrp == null
   ) {
     return false;
+  }
+
+  /*
+    Preserve existing behavior for
+    manually curated products when
+    live price is temporarily unavailable.
+  */
+  if (item.price == null) {
+    return true;
   }
 
   /*
@@ -91,6 +101,14 @@ function withinPriceRule(item) {
     return false;
   }
 
+  /*
+    PRICE RULE:
+    Maximum allowed price =
+    150% of MSRP.
+
+    Example:
+    $50 MSRP -> maximum $75.
+  */
   return price <= msrp * 1.5;
 }
 
@@ -318,8 +336,7 @@ async function runCheck() {
             );
 
           if (
-            restockResult.alertSent ===
-            true
+            restockResult.alertSent === true
           ) {
             alertsTriggered += 1;
           }
