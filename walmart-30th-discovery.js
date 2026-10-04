@@ -1,3 +1,5 @@
+const push = require("./push");
+
 const HASDATA_API_KEY =
   process.env.HASDATA_API_KEY;
 
@@ -13,10 +15,43 @@ const HASDATA_TIMEOUT_MS =
 /*
   BROAD SEALED POKEMON DISCOVERY
 
-  The filename is kept for compatibility with
-  the existing server.js. It now searches ALL
-  qualifying sealed Pokemon TCG products.
+  This filename remains unchanged because
+  server.js already imports it.
+
+  SELLER RULES
+
+  ALLOW:
+  - Walmart Direct
+  - GT Collectibles and Toys
+
+  IGNORE:
+  - Every other Walmart marketplace seller
+
+  ALERT RULES
+
+  Walmart Direct:
+  - Discovery remains watch-only until
+    separate verified MSRP rules approve it.
+
+  GT Collectibles:
+  - Approved seller
+  - MSRP is NOT required
+  - Price ceiling does NOT apply
+  - In-stock transition can trigger push
+
+  PRODUCT RULES
+
+  INCLUDE:
+  - Sealed English Pokemon TCG products
+
+  EXCLUDE:
+  - Singles
+  - Graded cards
+  - Raw cards
+  - Loose individual booster packs
+  - Foreign-language products
 */
+
 const SEARCH_TERMS = [
   "Pokemon TCG",
   "Pokemon TCG Elite Trainer Box",
@@ -39,10 +74,18 @@ const SEARCH_TERMS = [
   "Pokemon TCG 30th Celebration"
 ];
 
+
+/* ========================================
+   STATE
+======================================== */
+
 let state = {
   running: false,
+
   lastRun: null,
+
   lastSuccess: null,
+
   lastError: null,
 
   queries: [],
@@ -57,8 +100,24 @@ let state = {
 
   availableApprovedMarketplaceCount: 0,
 
+  alertsTriggered: 0,
+
   items: []
 };
+
+
+/*
+  In-memory restock baseline.
+
+  This prevents the monitor from sending a
+  GT alert simply because Render restarted.
+
+  First observation = establish baseline.
+
+  false -> true = actual restock transition.
+*/
+const discoveryStockBaseline =
+  new Map();
 
 
 /* ========================================
@@ -71,18 +130,22 @@ function normalize(value) {
     ""
   )
     .toLowerCase()
+
     .replace(
       /pok[eé]mon/g,
       "pokemon"
     )
+
     .replace(
       /[^a-z0-9]+/g,
       " "
     )
+
     .replace(
       /\s+/g,
       " "
     )
+
     .trim();
 }
 
@@ -114,10 +177,12 @@ function parsePrice(value) {
 
   const cleaned =
     String(value)
+
       .replace(
         /,/g,
         ""
       )
+
       .replace(
         /[^0-9.]/g,
         ""
@@ -144,9 +209,7 @@ function parsePrice(value) {
    SELLERS
 ======================================== */
 
-function isWalmartSeller(
-  value
-) {
+function isWalmartSeller(value) {
 
   const seller =
     normalize(
@@ -154,14 +217,11 @@ function isWalmartSeller(
     );
 
   return (
-    seller ===
-      "walmart" ||
+    seller === "walmart" ||
 
-    seller ===
-      "walmart com" ||
+    seller === "walmart com" ||
 
-    seller ===
-      "walmartcom"
+    seller === "walmartcom"
   );
 }
 
@@ -176,7 +236,8 @@ function isApprovedMarketplaceSeller(
     );
 
   /*
-    Approved marketplace seller:
+    USER-APPROVED SELLER
+
     GT Collectibles and Toys
   */
   return (
@@ -192,9 +253,7 @@ function isApprovedMarketplaceSeller(
 }
 
 
-function getSellerName(
-  item
-) {
+function getSellerName(item) {
 
   if (!item) {
     return null;
@@ -214,22 +273,24 @@ function getSellerName(
   ) {
     return (
       item.seller.name ||
+
       item.seller.displayName ||
+
       null
     );
   }
 
   return (
     item.sellerName ||
+
     item.sellerDisplayName ||
+
     null
   );
 }
 
 
-function getSellerType(
-  item
-) {
+function getSellerType(item) {
 
   return normalize(
     item
@@ -242,25 +303,28 @@ function getSellerType(
 
 
 /* ========================================
-   BASIC ITEM HELPERS
+   ITEM ID
 ======================================== */
 
-function getItemId(
-  item
-) {
+function getItemId(item) {
 
   return (
     item?.itemId ||
+
     item?.id ||
+
     item?.usItemId ||
+
     null
   );
 }
 
 
-function getPrice(
-  item
-) {
+/* ========================================
+   PRICE FROM HASDATA RESULT
+======================================== */
+
+function getPrice(item) {
 
   return parsePrice(
 
@@ -296,9 +360,11 @@ function getPrice(
 }
 
 
-function getImage(
-  item
-) {
+/* ========================================
+   IMAGE
+======================================== */
+
+function getImage(item) {
 
   if (!item) {
     return null;
@@ -329,8 +395,11 @@ function getImage(
 
       return (
         first.url ||
+
         first.imageUrl ||
+
         first.src ||
+
         null
       );
     }
@@ -338,27 +407,31 @@ function getImage(
 
   return (
     item.image ||
+
     item.imageUrl ||
+
     item.thumbnailUrl ||
+
     item.primaryImage ||
+
     null
   );
 }
 
 
-function getAvailability(
-  item
-) {
+/* ========================================
+   AVAILABILITY
+======================================== */
+
+function getAvailability(item) {
 
   return normalize(
 
     item?.availability ||
 
-    item
-      ?.availabilityStatus ||
+    item?.availabilityStatus ||
 
-    item
-      ?.stockStatus ||
+    item?.stockStatus ||
 
     item
       ?.otherDetails
@@ -385,9 +458,7 @@ function getAvailability(
    STATUS
 ======================================== */
 
-function normalizeStatus(
-  value
-) {
+function normalizeStatus(value) {
 
   const text =
     normalize(
@@ -429,24 +500,31 @@ function normalizeStatus(
    LISTING TEXT
 ======================================== */
 
-function getListingText(
-  item
-) {
+function getListingText(item) {
 
   return normalize(
     [
       item?.title,
+
       item?.name,
+
       item?.description,
+
       item?.shortDescription,
+
       item?.brand,
+
       item?.canonicalUrl,
+
       item?.productUrl,
+
       item?.url
     ]
+
       .filter(
         Boolean
       )
+
       .join(
         " "
       )
@@ -458,9 +536,7 @@ function getListingText(
    POKEMON CHECK
 ======================================== */
 
-function isPokemonListing(
-  item
-) {
+function isPokemonListing(item) {
 
   const text =
     getListingText(
@@ -471,6 +547,7 @@ function isPokemonListing(
     text.includes(
       "pokemon"
     ) &&
+
     (
       text.includes(
         "tcg"
@@ -512,9 +589,7 @@ function isPokemonListing(
    FOREIGN LANGUAGE FILTER
 ======================================== */
 
-function isForeignLanguageProduct(
-  item
-) {
+function isForeignLanguageProduct(item) {
 
   const text =
     getListingText(
@@ -523,16 +598,27 @@ function isForeignLanguageProduct(
 
   const blockedLanguages = [
     "simplified chinese",
+
     "traditional chinese",
+
     "chinese",
+
     "japanese",
+
     "korean",
+
     "spanish",
+
     "german",
+
     "french",
+
     "italian",
+
     "portuguese",
+
     "thai",
+
     "indonesian"
   ];
 
@@ -564,8 +650,11 @@ function isSingleCardOrCollectible(
 
   const gradingPatterns = [
     /\bpsa\s*\d+\b/,
+
     /\bbgs\s*\d+\b/,
+
     /\bcgc\s*\d+\b/,
+
     /\bsgc\s*\d+\b/
   ];
 
@@ -591,18 +680,31 @@ function isSingleCardOrCollectible(
 
   const blockedPhrases = [
     "single card",
+
     "individual card",
+
     "trading card single",
+
     "pokemon card single",
+
     "graded card",
+
     "raw card",
+
     "near mint card",
+
     "near mint or better",
+
     "holo card",
+
     "reverse holo",
+
     "holographic card",
+
     "card only",
+
     "foil card",
+
     "promo card single"
   ];
 
@@ -619,36 +721,63 @@ function isSingleCardOrCollectible(
 
   const cardLanguage = [
     "holo",
+
     "holographic",
+
     "reverse holo",
+
     "near mint",
+
     "illustration rare",
+
     "special illustration rare",
+
     "secret rare",
+
     "ultra rare",
+
     "trainer card",
+
     "ex card"
   ];
 
   const sealedTerms = [
     "elite trainer box",
+
     "booster bundle",
+
     "booster box",
+
     "display box",
+
     "collection box",
+
     "poster collection",
+
     "tech sticker",
+
     "mini tin",
+
     "tin",
+
     "premium collection",
+
     "ultra premium collection",
+
     "super premium collection",
+
     "figure collection",
+
     "deluxe pin collection",
+
     "blister",
+
     "knock out collection",
+
     "knockout collection",
+
     "bundle",
+
     "box"
   ];
 
@@ -679,9 +808,7 @@ function isSingleCardOrCollectible(
    LOOSE BOOSTER FILTER
 ======================================== */
 
-function isLooseBoosterPack(
-  item
-) {
+function isLooseBoosterPack(item) {
 
   const text =
     getListingText(
@@ -698,21 +825,37 @@ function isLooseBoosterPack(
 
   const allowedMultiPackTerms = [
     "2 pack",
+
     "2-pack",
+
     "3 pack",
+
     "3-pack",
+
     "three pack",
+
     "4 pack",
+
     "4-pack",
+
     "four pack",
+
     "6 pack",
+
     "6-pack",
+
     "six pack",
+
     "booster bundle",
+
     "booster box",
+
     "display box",
+
     "blister",
+
     "collection",
+
     "box"
   ];
 
@@ -740,30 +883,55 @@ function looksLikeSealedRetailProduct(
 
   const allowedProductTerms = [
     "elite trainer box",
+
     "etb",
+
     "booster bundle",
+
     "booster box",
+
     "display box",
+
     "collection box",
+
     "collection",
+
     "poster collection",
+
     "tech sticker",
+
     "mini tin",
+
     "tin",
+
     "premium collection",
+
     "ultra premium collection",
+
     "super premium",
+
     "figure collection",
+
     "deluxe pin collection",
+
     "blister",
+
     "knock out collection",
+
     "knockout collection",
+
     "2 pack",
+
     "2-pack",
+
     "3 pack",
+
     "3-pack",
+
     "4 pack",
+
     "4-pack",
+
     "bundle"
   ];
 
@@ -780,9 +948,7 @@ function looksLikeSealedRetailProduct(
    SET CLASSIFICATION
 ======================================== */
 
-function classifySet(
-  value
-) {
+function classifySet(value) {
 
   const text =
     normalize(
@@ -793,6 +959,7 @@ function classifySet(
     text.includes(
       "30th anniversary"
     ) ||
+
     text.includes(
       "30th celebration"
     )
@@ -840,9 +1007,7 @@ function classifySet(
    PRODUCT TYPE
 ======================================== */
 
-function classifyProductType(
-  value
-) {
+function classifyProductType(value) {
 
   const text =
     normalize(
@@ -853,6 +1018,7 @@ function classifyProductType(
     text.includes(
       "elite trainer box"
     ) ||
+
     /\betb\b/.test(
       text
     )
@@ -872,6 +1038,7 @@ function classifyProductType(
     text.includes(
       "booster box"
     ) ||
+
     text.includes(
       "display box"
     )
@@ -907,6 +1074,7 @@ function classifyProductType(
     text.includes(
       "knock out"
     ) ||
+
     text.includes(
       "knockout"
     )
@@ -943,7 +1111,7 @@ function classifyProductType(
 
 
 /* ========================================
-   HASDATA FETCH
+   FETCH JSON WITH TIMEOUT
 ======================================== */
 
 async function fetchJson(
@@ -969,6 +1137,7 @@ async function fetchJson(
         url,
         {
           ...options,
+
           signal:
             controller.signal
         }
@@ -984,8 +1153,7 @@ async function fetchJson(
 
     return await response.json();
 
-  }
-  catch(error) {
+  } catch (error) {
 
     if (
       error?.name ===
@@ -998,20 +1166,20 @@ async function fetchJson(
 
     throw error;
 
-  }
-  finally {
+  } finally {
 
     clearTimeout(
       timeout
     );
-
   }
 }
 
 
-async function searchHasData(
-  query
-) {
+/* ========================================
+   HASDATA SEARCH
+======================================== */
+
+async function searchHasData(query) {
 
   if (
     !HASDATA_API_KEY
@@ -1045,6 +1213,7 @@ async function searchHasData(
   const data =
     await fetchJson(
       `https://api.hasdata.com/scrape/walmart/search?${params.toString()}`,
+
       {
         method:
           "GET",
@@ -1057,6 +1226,7 @@ async function searchHasData(
             "application/json"
         }
       },
+
       HASDATA_TIMEOUT_MS
     );
 
@@ -1069,12 +1239,10 @@ async function searchHasData(
 
 
 /* ========================================
-   NORMALIZE RESULT
+   NORMALIZE DISCOVERED PRODUCT
 ======================================== */
 
-function normalizeCandidate(
-  item
-) {
+function normalizeCandidate(item) {
 
   const seller =
     getSellerName(
@@ -1090,11 +1258,13 @@ function normalizeCandidate(
     isWalmartSeller(
       seller
     ) &&
+
     sellerType !==
       "external";
 
   const approvedMarketplace =
     !directSeller &&
+
     isApprovedMarketplaceSeller(
       seller
     );
@@ -1121,8 +1291,23 @@ function normalizeCandidate(
 
   const name =
     item?.title ||
+
     item?.name ||
+
     "Pokemon TCG product";
+
+  /*
+    GT exception:
+
+    GT is explicitly approved regardless
+    of MSRP or price.
+
+    Walmart Direct discovery remains
+    watch-only until verified MSRP logic
+    separately approves it.
+  */
+  const alertEligible =
+    approvedMarketplace === true;
 
   return {
     retailer:
@@ -1155,16 +1340,13 @@ function normalizeCandidate(
 
     rawStatus,
 
-    /*
-      Walmart direct OR our approved
-      GT marketplace seller can show
-      offer availability.
-    */
     inStock:
       (
         directSeller ||
+
         approvedMarketplace
       ) &&
+
       status ===
         "instock",
 
@@ -1175,9 +1357,8 @@ function normalizeCandidate(
     price,
 
     /*
-      Auto-discovered MSRP remains unknown
-      until verified. This prevents unsafe
-      over-price alerts.
+      MSRP remains unknown for automatic
+      discovery. GT does not require MSRP.
     */
     msrp:
       null,
@@ -1197,8 +1378,11 @@ function normalizeCandidate(
 
     url:
       item?.canonicalUrl ||
+
       item?.productUrl ||
+
       item?.url ||
+
       (
         itemId
           ? `https://www.walmart.com/ip/${itemId}`
@@ -1216,19 +1400,422 @@ function normalizeCandidate(
       true,
 
     /*
-      These automatically flow into the
-      watchlist through walmart-watchlist.js.
+      Walmart Direct discovery is still
+      watched safely.
+
+      GT can alert independently of MSRP.
     */
     watchOnly:
-      true,
+      !approvedMarketplace,
+
+    alertEligible
+  };
+}
+
+
+/* ========================================
+   DISCOVERY KEY
+======================================== */
+
+function getDiscoveryKey(item) {
+
+  return String(
+    item?.walmartItemId ||
+
+    item?.productId ||
+
+    item?.url ||
+
+    normalize(
+      item?.name
+    ) ||
+
+    ""
+  );
+}
+
+
+/* ========================================
+   GT RESTOCK TRANSITIONS
+======================================== */
+
+async function processDiscoveryAlerts(
+  items
+) {
+
+  let alertsTriggered =
+    0;
+
+  const seen =
+    new Set();
+
+  for (
+    const item
+    of items
+  ) {
+
+    const key =
+      getDiscoveryKey(
+        item
+      );
+
+    if (!key) {
+      continue;
+    }
+
+    seen.add(
+      key
+    );
 
     /*
-      MSRP is not known yet, so do not
-      trigger a push from discovery alone.
+      Discovery push is deliberately limited
+      to the approved GT marketplace seller.
+
+      Walmart-direct discovery will receive
+      its own verified MSRP eligibility path.
     */
-    alertEligible:
-      false
-  };
+    const qualifies =
+      item
+        .approvedMarketplace ===
+        true &&
+
+      item
+        .alertEligible ===
+        true &&
+
+      item.inStock ===
+        true;
+
+    /*
+      First time seen:
+      establish baseline only.
+
+      This avoids notification spam after a
+      Render restart or deployment.
+    */
+    if (
+      !discoveryStockBaseline
+        .has(
+          key
+        )
+    ) {
+
+      discoveryStockBaseline.set(
+        key,
+        qualifies
+      );
+
+      continue;
+    }
+
+    const previous =
+      discoveryStockBaseline.get(
+        key
+      );
+
+    discoveryStockBaseline.set(
+      key,
+      qualifies
+    );
+
+    /*
+      Actual restock:
+      unavailable -> available
+    */
+    if (
+      previous === false &&
+      qualifies === true
+    ) {
+
+      console.log(
+        `GT RESTOCK transition detected for ${key}`
+      );
+
+      try {
+
+        const pushResult =
+          await push.sendRestockAlert(
+            item
+          );
+
+        console.log(
+          `GT restock push processed for ${key}:`,
+          pushResult
+        );
+
+        if (
+          pushResult?.skipped !==
+            true &&
+
+          pushResult?.ok ===
+            true
+        ) {
+          alertsTriggered +=
+            1;
+        }
+
+      } catch (error) {
+
+        console.error(
+          `GT discovery push failed for ${key}:`,
+          error.message
+        );
+      }
+    }
+  }
+
+
+  /*
+    If an item disappears from the current
+    discovery results, mark the baseline
+    unavailable.
+
+    If it later returns in stock, the monitor
+    can recognize the new transition.
+  */
+  for (
+    const key
+    of discoveryStockBaseline.keys()
+  ) {
+
+    if (
+      !seen.has(
+        key
+      )
+    ) {
+      discoveryStockBaseline.set(
+        key,
+        false
+      );
+    }
+  }
+
+  return alertsTriggered;
+}
+
+
+/* ========================================
+   DEDUPE
+======================================== */
+
+function dedupeItems(items) {
+
+  const unique =
+    new Map();
+
+  for (
+    const item
+    of items
+  ) {
+
+    const key =
+      item.walmartItemId ||
+
+      normalize(
+        item.url
+      ) ||
+
+      normalize(
+        item.name
+      );
+
+    if (!key) {
+      continue;
+    }
+
+    const mapKey =
+      String(
+        key
+      );
+
+    const existing =
+      unique.get(
+        mapKey
+      );
+
+    if (!existing) {
+
+      unique.set(
+        mapKey,
+        item
+      );
+
+      continue;
+    }
+
+
+    /*
+      Prefer Walmart Direct over marketplace.
+    */
+    if (
+      item.directSeller &&
+      !existing.directSeller
+    ) {
+
+      unique.set(
+        mapKey,
+        item
+      );
+
+      continue;
+    }
+
+
+    /*
+      Prefer approved GT over any non-direct,
+      non-approved offer.
+    */
+    if (
+      item.approvedMarketplace &&
+
+      !existing.directSeller &&
+
+      !existing.approvedMarketplace
+    ) {
+
+      unique.set(
+        mapKey,
+        item
+      );
+
+      continue;
+    }
+
+
+    /*
+      Same seller class:
+      prefer available listing.
+    */
+    if (
+      item.directSeller ===
+        existing.directSeller &&
+
+      item.approvedMarketplace ===
+        existing.approvedMarketplace &&
+
+      item.inStock ===
+        true &&
+
+      existing.inStock !==
+        true
+    ) {
+
+      unique.set(
+        mapKey,
+        item
+      );
+
+      continue;
+    }
+
+
+    /*
+      Same seller class/status:
+      prefer lower valid price.
+    */
+    if (
+      item.directSeller ===
+        existing.directSeller &&
+
+      item.approvedMarketplace ===
+        existing.approvedMarketplace &&
+
+      item.price !==
+        null &&
+
+      (
+        existing.price ===
+          null ||
+
+        Number(
+          item.price
+        ) <
+        Number(
+          existing.price
+        )
+      )
+    ) {
+
+      unique.set(
+        mapKey,
+        item
+      );
+    }
+  }
+
+  return Array.from(
+    unique.values()
+  );
+}
+
+
+/* ========================================
+   SORT
+======================================== */
+
+function sortItems(items) {
+
+  return items.sort(
+    (
+      a,
+      b
+    ) => {
+
+      /*
+        Walmart Direct first.
+      */
+      if (
+        a.directSeller !==
+        b.directSeller
+      ) {
+        return a.directSeller
+          ? -1
+          : 1;
+      }
+
+
+      /*
+        Approved GT next.
+      */
+      if (
+        a.approvedMarketplace !==
+        b.approvedMarketplace
+      ) {
+        return a.approvedMarketplace
+          ? -1
+          : 1;
+      }
+
+
+      /*
+        Available before unavailable.
+      */
+      if (
+        a.inStock !==
+        b.inStock
+      ) {
+        return a.inStock
+          ? -1
+          : 1;
+      }
+
+
+      /*
+        Lower price first.
+      */
+      return (
+        Number(
+          a.price ??
+          Infinity
+        ) -
+
+        Number(
+          b.price ??
+          Infinity
+        )
+      );
+    }
+  );
 }
 
 
@@ -1288,6 +1875,9 @@ async function runDiscovery() {
           of results
         ) {
 
+          /*
+            Pokemon only.
+          */
           if (
             !isPokemonListing(
               item
@@ -1296,6 +1886,10 @@ async function runDiscovery() {
             continue;
           }
 
+
+          /*
+            English / U.S. product filter.
+          */
           if (
             isForeignLanguageProduct(
               item
@@ -1304,6 +1898,11 @@ async function runDiscovery() {
             continue;
           }
 
+
+          /*
+            No singles, raw cards,
+            graded cards, etc.
+          */
           if (
             isSingleCardOrCollectible(
               item
@@ -1312,6 +1911,10 @@ async function runDiscovery() {
             continue;
           }
 
+
+          /*
+            No individual loose boosters.
+          */
           if (
             isLooseBoosterPack(
               item
@@ -1320,6 +1923,11 @@ async function runDiscovery() {
             continue;
           }
 
+
+          /*
+            Must resemble a sealed retail
+            Pokemon TCG product.
+          */
           if (
             !looksLikeSealedRetailProduct(
               item
@@ -1328,29 +1936,31 @@ async function runDiscovery() {
             continue;
           }
 
+
           const candidate =
             normalizeCandidate(
               item
             );
 
-          /*
-            IMPORTANT SELLER RULE:
 
-            Keep:
-            - Walmart direct
+          /*
+            SELLER WHITELIST
+
+            KEEP:
+            - Walmart Direct
             - GT Collectibles and Toys
 
-            Ignore every other marketplace
-            seller from the dynamic watchlist.
+            DROP:
+            - every other marketplace seller
           */
           if (
-            !candidate
-              .directSeller &&
-            !candidate
-              .approvedMarketplace
+            !candidate.directSeller &&
+
+            !candidate.approvedMarketplace
           ) {
             continue;
           }
+
 
           allItems.push(
             candidate
@@ -1358,8 +1968,8 @@ async function runDiscovery() {
 
           accepted +=
             1;
-
         }
+
 
         queryResults.push({
           query,
@@ -1370,12 +1980,11 @@ async function runDiscovery() {
           accepted
         });
 
-      }
-      catch(error) {
+      } catch (error) {
 
         /*
-          One failed query does not kill
-          the entire discovery scan.
+          One HasData query failing does not
+          kill the whole discovery run.
         */
         queryResults.push({
           query,
@@ -1389,168 +1998,30 @@ async function runDiscovery() {
           error:
             error.message
         });
-
       }
-
     }
 
 
     /* ========================================
-       DEDUPE
-    ======================================== */
-
-    const unique =
-      new Map();
-
-    for (
-      const item
-      of allItems
-    ) {
-
-      const key =
-        item.walmartItemId ||
-        normalize(
-          item.url
-        ) ||
-        normalize(
-          item.name
-        );
-
-      if (!key) {
-        continue;
-      }
-
-      const existing =
-        unique.get(
-          String(
-            key
-          )
-        );
-
-      if (
-        !existing ||
-
-        (
-          item.directSeller &&
-          !existing
-            .directSeller
-        ) ||
-
-        (
-          item
-            .approvedMarketplace &&
-          !existing
-            .directSeller &&
-          !existing
-            .approvedMarketplace
-        ) ||
-
-        (
-          item.directSeller ===
-            existing.directSeller &&
-
-          item.approvedMarketplace ===
-            existing.approvedMarketplace &&
-
-          item.price !==
-            null &&
-
-          (
-            existing.price ===
-              null ||
-
-            Number(
-              item.price
-            ) <
-            Number(
-              existing.price
-            )
-          )
-        )
-      ) {
-
-        unique.set(
-          String(
-            key
-          ),
-          item
-        );
-
-      }
-
-    }
-
-
-    /* ========================================
-       SORT
+       DEDUPE + SORT
     ======================================== */
 
     const items =
-      Array.from(
-        unique.values()
-      )
-        .sort(
-          (
-            a,
-            b
-          ) => {
+      sortItems(
+        dedupeItems(
+          allItems
+        )
+      );
 
-            /*
-              Walmart direct first.
-            */
-            if (
-              a.directSeller !==
-              b.directSeller
-            ) {
-              return a.directSeller
-                ? -1
-                : 1;
-            }
 
-            /*
-              GT Collectibles next.
-            */
-            if (
-              a
-                .approvedMarketplace !==
-              b
-                .approvedMarketplace
-            ) {
-              return a
-                .approvedMarketplace
-                ? -1
-                : 1;
-            }
+    /* ========================================
+       GT ALERT PROCESSING
+    ======================================== */
 
-            /*
-              Available offers before
-              unavailable ones.
-            */
-            if (
-              a.inStock !==
-              b.inStock
-            ) {
-              return a.inStock
-                ? -1
-                : 1;
-            }
-
-            /*
-              Lower price first.
-            */
-            return (
-              Number(
-                a.price ??
-                Infinity
-              ) -
-              Number(
-                b.price ??
-                Infinity
-              )
-            );
-
-          }
-        );
+    const alertsTriggered =
+      await processDiscoveryAlerts(
+        items
+      );
 
 
     /* ========================================
@@ -1591,8 +2062,7 @@ async function runDiscovery() {
       approvedMarketplaceCount:
         items.filter(
           item =>
-            item
-              .approvedMarketplace ===
+            item.approvedMarketplace ===
             true
         ).length,
 
@@ -1601,6 +2071,7 @@ async function runDiscovery() {
           item =>
             item.directSeller ===
               true &&
+
             item.inStock ===
               true
         ).length,
@@ -1608,15 +2079,18 @@ async function runDiscovery() {
       availableApprovedMarketplaceCount:
         items.filter(
           item =>
-            item
-              .approvedMarketplace ===
+            item.approvedMarketplace ===
               true &&
+
             item.inStock ===
               true
         ).length,
 
+      alertsTriggered,
+
       items
     };
+
 
     return {
       ok:
@@ -1625,8 +2099,7 @@ async function runDiscovery() {
       ...state
     };
 
-  }
-  catch(error) {
+  } catch (error) {
 
     state = {
       ...state,
@@ -1670,6 +2143,8 @@ function getState() {
 
 module.exports = {
   runDiscovery,
+
   getState,
+
   isApprovedMarketplaceSeller
 };
