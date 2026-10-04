@@ -10,9 +10,12 @@ const SEARCH_TERMS = [
   "Pokemon TCG 30th Celebration",
   "Pokemon 30th Anniversary booster bundle",
   "Pokemon 30th Anniversary elite trainer box",
-  "Pokemon 30th Anniversary collection",
+  "Pokemon 30th Anniversary collection box",
+  "Pokemon 30th Anniversary mini tin",
   "Pokemon 30th Anniversary tin",
-  "Pokemon 30th Anniversary box"
+  "Pokemon 30th Anniversary poster collection",
+  "Pokemon 30th Anniversary tech sticker collection",
+  "Pokemon 30th Anniversary premium collection"
 ];
 
 let state = {
@@ -177,22 +180,15 @@ function getAvailability(item) {
     item?.availability ||
     item?.availabilityStatus ||
     item?.stockStatus ||
-    item?.otherDetails
-      ?.availabilityStatusV2
-      ?.value ||
-    item?.otherDetails
-      ?.availabilityStatusV2
-      ?.display ||
-    item?.otherDetails
-      ?.availabilityStatus ||
-    item?.shippingOption
-      ?.availabilityStatus
+    item?.otherDetails?.availabilityStatusV2?.value ||
+    item?.otherDetails?.availabilityStatusV2?.display ||
+    item?.otherDetails?.availabilityStatus ||
+    item?.shippingOption?.availabilityStatus
   );
 }
 
 function normalizeStatus(value) {
-  const text =
-    normalize(value);
+  const text = normalize(value);
 
   if (
     /pre ?order|raffle|drawing|scheduled drop/.test(text)
@@ -228,19 +224,18 @@ function getListingText(item) {
 }
 
 function isThirtyAnniversary(item) {
-  const text =
-    normalize(
-      [
-        item?.title,
-        item?.name,
-        item?.description,
-        item?.canonicalUrl,
-        item?.productUrl,
-        item?.url
-      ]
-        .filter(Boolean)
-        .join(" ")
-    );
+  const text = normalize(
+    [
+      item?.title,
+      item?.name,
+      item?.description,
+      item?.canonicalUrl,
+      item?.productUrl,
+      item?.url
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
 
   return (
     text.includes("pokemon") &&
@@ -252,13 +247,31 @@ function isThirtyAnniversary(item) {
   );
 }
 
-/*
-  Reject individual cards, graded cards,
-  singles and raw collectible card listings.
-*/
+function isForeignLanguageProduct(item) {
+  const text = getListingText(item);
+
+  const blockedLanguages = [
+    "chinese",
+    "simplified chinese",
+    "traditional chinese",
+    "japanese",
+    "korean",
+    "spanish",
+    "german",
+    "french",
+    "italian",
+    "portuguese",
+    "thai",
+    "indonesian"
+  ];
+
+  return blockedLanguages.some(
+    language => text.includes(language)
+  );
+}
+
 function isSingleCardOrCollectible(item) {
-  const text =
-    getListingText(item);
+  const text = getListingText(item);
 
   if (!text) {
     return false;
@@ -306,68 +319,43 @@ function isSingleCardOrCollectible(item) {
     return true;
   }
 
-  /*
-    Card-number patterns such as:
-    22/128
-    088/128
-    4/128
-    203/182
-  */
   if (
     /\b\d{1,4}\s*\/\s*\d{1,4}\b/.test(text)
   ) {
     return true;
   }
 
-  /*
-    Most genuine sealed products contain
-    one of the terms below.
-  */
-  const sealedProductTerms = [
-    "booster bundle",
-    "booster box",
-    "booster pack",
-    "elite trainer box",
-    "etb",
-    "collection box",
-    "collection",
-    "poster collection",
-    "tech sticker",
-    "tin",
-    "mini tin",
-    "premium collection",
-    "super premium",
-    "figure collection",
-    "blister",
-    "3 pack",
-    "three pack",
-    "display",
-    "bundle",
-    "box",
-    "pack"
-  ];
-
-  const looksLikeSealedProduct =
-    sealedProductTerms.some(
-      term => text.includes(term)
-    );
-
-  /*
-    If it contains obvious card-specific language
-    but no sealed-product wording, reject it.
-  */
   const cardLanguage = [
     "holo",
     "holographic",
-    "reverse",
+    "reverse holo",
     "near mint",
-    "rare",
     "illustration rare",
-    "special illustration",
+    "special illustration rare",
     "secret rare",
     "ultra rare",
-    "ex card",
-    "trainer card"
+    "trainer card",
+    "ex card"
+  ];
+
+  const sealedTerms = [
+    "elite trainer box",
+    "etb",
+    "booster bundle",
+    "collection box",
+    "poster collection",
+    "tech sticker",
+    "mini tin",
+    "tin",
+    "premium collection",
+    "super premium collection",
+    "figure collection",
+    "deluxe pin collection",
+    "blister",
+    "3 pack",
+    "three pack",
+    "bundle",
+    "box"
   ];
 
   const looksLikeCard =
@@ -375,41 +363,67 @@ function isSingleCardOrCollectible(item) {
       term => text.includes(term)
     );
 
-  if (
-    looksLikeCard &&
-    !looksLikeSealedProduct
-  ) {
-    return true;
-  }
+  const looksSealed =
+    sealedTerms.some(
+      term => text.includes(term)
+    );
 
-  return false;
+  return looksLikeCard && !looksSealed;
 }
 
-function looksLikePokemonSealedProduct(item) {
-  const text =
-    getListingText(item);
+function isLooseBoosterPack(item) {
+  const text = getListingText(item);
 
-  const productTerms = [
+  const isBoosterPack =
+    text.includes("booster pack");
+
+  if (!isBoosterPack) {
+    return false;
+  }
+
+  const allowedMultiPackTerms = [
+    "3 pack",
+    "three pack",
+    "4 pack",
+    "four pack",
+    "6 pack",
+    "six pack",
     "booster bundle",
-    "booster box",
-    "booster pack",
+    "blister",
+    "collection",
+    "box"
+  ];
+
+  return !allowedMultiPackTerms.some(
+    term => text.includes(term)
+  );
+}
+
+function looksLikeSealedRetailProduct(item) {
+  const text = getListingText(item);
+
+  const allowedProductTerms = [
     "elite trainer box",
     "etb",
+    "booster bundle",
+    "collection box",
     "collection",
     "poster collection",
     "tech sticker",
-    "tin",
     "mini tin",
+    "tin",
     "premium collection",
     "super premium",
     "figure collection",
+    "deluxe pin collection",
     "blister",
+    "3 pack",
+    "three pack",
     "bundle",
-    "box",
-    "pack"
+    "box"
   ];
 
-  return productTerms.some(
+  return allowedProductTerms.some(
     term => text.includes(term)
   );
 }
@@ -527,9 +541,7 @@ function normalizeCandidate(item) {
 
   return {
     retailer: "walmart",
-
-    retailerLabel:
-      "Walmart",
+    retailerLabel: "Walmart",
 
     productId:
       itemId
@@ -551,7 +563,6 @@ function normalizeCandidate(item) {
       null,
 
     status,
-
     rawStatus,
 
     inStock:
@@ -559,7 +570,6 @@ function normalizeCandidate(item) {
       status === "instock",
 
     directSeller,
-
     price,
 
     msrp:
@@ -587,8 +597,7 @@ function normalizeCandidate(item) {
       ),
 
     checkedAt:
-      new Date()
-        .toISOString(),
+      new Date().toISOString(),
 
     source:
       "hasdata-30th-discovery",
@@ -599,10 +608,6 @@ function normalizeCandidate(item) {
     watchOnly:
       false,
 
-    /*
-      MSRP has not been verified yet,
-      so discovered products cannot push.
-    */
     alertEligible:
       false
   };
@@ -643,13 +648,25 @@ async function runDiscovery() {
         }
 
         if (
+          isForeignLanguageProduct(item)
+        ) {
+          continue;
+        }
+
+        if (
           isSingleCardOrCollectible(item)
         ) {
           continue;
         }
 
         if (
-          !looksLikePokemonSealedProduct(item)
+          isLooseBoosterPack(item)
+        ) {
+          continue;
+        }
+
+        if (
+          !looksLikeSealedRetailProduct(item)
         ) {
           continue;
         }
@@ -759,12 +776,10 @@ async function runDiscovery() {
       running: false,
 
       lastRun:
-        new Date()
-          .toISOString(),
+        new Date().toISOString(),
 
       lastSuccess:
-        new Date()
-          .toISOString(),
+        new Date().toISOString(),
 
       lastError:
         null,
@@ -804,8 +819,7 @@ async function runDiscovery() {
         false,
 
       lastRun:
-        new Date()
-          .toISOString(),
+        new Date().toISOString(),
 
       lastError:
         error.message,
