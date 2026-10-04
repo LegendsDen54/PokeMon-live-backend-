@@ -67,15 +67,49 @@ function directSellerOnly(item) {
   return false;
 }
 
+/*
+  STRICT WALMART DIRECT PRICE RULE
+
+  Walmart Direct only qualifies when:
+  - live price exists
+  - verified MSRP exists
+  - both values are valid
+  - live price <= MSRP x 1.50
+
+  Missing/invalid pricing fails closed.
+
+  GT Collectibles uses its separate approved
+  marketplace alert path and is not governed
+  by this function.
+*/
 function withinPriceRule(item) {
-  if (item.autoDiscovered === true && item.msrp == null) return false;
-  if (item.price == null) return true;
-  if (item.msrp == null) return true;
+  if (!item) return false;
+
+  if (
+    item.price === null ||
+    item.price === undefined ||
+    item.price === ""
+  ) {
+    return false;
+  }
+
+  if (
+    item.msrp === null ||
+    item.msrp === undefined ||
+    item.msrp === ""
+  ) {
+    return false;
+  }
 
   const price = Number(item.price);
   const msrp = Number(item.msrp);
 
-  if (!Number.isFinite(price) || !Number.isFinite(msrp) || msrp <= 0) {
+  if (
+    !Number.isFinite(price) ||
+    !Number.isFinite(msrp) ||
+    price < 0 ||
+    msrp <= 0
+  ) {
     return false;
   }
 
@@ -303,7 +337,10 @@ function chunkArray(items, size) {
 }
 
 async function scanWalmartBatch(curatedProducts) {
-  if (providerName !== "walmart" || typeof provider.checkProductsBatch !== "function") {
+  if (
+    providerName !== "walmart" ||
+    typeof provider.checkProductsBatch !== "function"
+  ) {
     return null;
   }
 
@@ -329,6 +366,7 @@ async function scanWalmartBatch(curatedProducts) {
     if (!product) continue;
 
     const finalized = await finalizeScannedItem(rawItem, product);
+
     results.push({
       ok: !isSoftFailure(finalized.item),
       item: finalized.item,
@@ -357,7 +395,9 @@ async function runCheck() {
   let rapidApiFallbacks = 0;
 
   try {
-    const curatedProducts = loadProducts().filter(product => product.enabled !== false);
+    const curatedProducts = loadProducts().filter(
+      product => product.enabled !== false
+    );
 
     let discoveredProducts = [];
 
@@ -377,8 +417,10 @@ async function runCheck() {
       latest = Array.from(resultMap.values());
     }
 
-    const walmartCurated = curatedProducts.filter(product =>
-      Array.isArray(product.retailers) && product.retailers.includes("walmart")
+    const walmartCurated = curatedProducts.filter(
+      product =>
+        Array.isArray(product.retailers) &&
+        product.retailers.includes("walmart")
     );
 
     const batchResults = await scanWalmartBatch(walmartCurated);
@@ -389,7 +431,11 @@ async function runCheck() {
 
       for (const result of batchResults) {
         publish(result.item);
-        if (result.alertSent) alertsTriggered += 1;
+
+        if (result.alertSent) {
+          alertsTriggered += 1;
+        }
+
         if (!result.ok || isSoftFailure(result.item)) {
           failedBatchProductIds.add(result.item.productId);
         }
@@ -404,46 +450,70 @@ async function runCheck() {
     const fallbackJobs = [];
 
     for (const product of curatedProducts) {
-      const retailers = Array.isArray(product.retailers) ? product.retailers : [];
+      const retailers = Array.isArray(product.retailers)
+        ? product.retailers
+        : [];
 
       for (const retailer of retailers) {
         if (retailer === "walmart" && batchMode) {
           if (failedBatchProductIds.has(product.id)) {
-            fallbackJobs.push({ product, retailer, fallback: true });
+            fallbackJobs.push({
+              product,
+              retailer,
+              fallback: true
+            });
           }
+
           continue;
         }
 
-        fallbackJobs.push({ product, retailer, fallback: false });
+        fallbackJobs.push({
+          product,
+          retailer,
+          fallback: false
+        });
       }
     }
 
     for (const product of discoveredProducts) {
-      const retailers = Array.isArray(product.retailers) ? product.retailers : [];
+      const retailers = Array.isArray(product.retailers)
+        ? product.retailers
+        : [];
+
       for (const retailer of retailers) {
-        fallbackJobs.push({ product, retailer, fallback: false });
+        fallbackJobs.push({
+          product,
+          retailer,
+          fallback: false
+        });
       }
     }
 
     attempted += fallbackJobs.length;
-    rapidApiFallbacks = fallbackJobs.filter(job => job.fallback).length;
 
-    const batches = chunkArray(fallbackJobs, SCAN_CONCURRENCY);
+    rapidApiFallbacks =
+      fallbackJobs.filter(job => job.fallback).length;
+
+    const batches =
+      chunkArray(fallbackJobs, SCAN_CONCURRENCY);
 
     for (const batch of batches) {
       const settled = await Promise.all(
-        batch.map(job => scanJob(job.product, job.retailer))
+        batch.map(job =>
+          scanJob(job.product, job.retailer)
+        )
       );
 
-      for (let index = 0; index < settled.length; index += 1) {
+      for (
+        let index = 0;
+        index < settled.length;
+        index += 1
+      ) {
         const result = settled[index];
         const job = batch[index];
         const key = getItemKey(result.item);
         const existing = resultMap.get(key);
 
-        // When HasData had a soft failure, prefer a usable RapidAPI fallback.
-        // If both providers fail, keep the safe stale-cache result with the
-        // most useful display metadata available.
         if (
           !existing ||
           !job?.fallback ||
@@ -453,19 +523,32 @@ async function runCheck() {
           publish(result.item);
         }
 
-        if (result.alertSent) alertsTriggered += 1;
+        if (result.alertSent) {
+          alertsTriggered += 1;
+        }
       }
 
-      console.log(`Catalog scan progress: ${resultMap.size} product result(s) published`);
+      console.log(
+        `Catalog scan progress: ${resultMap.size} product result(s) published`
+      );
     }
 
-    const results = Array.from(resultMap.values());
-    latest = results;
-    lastRun = new Date().toISOString();
+    const results =
+      Array.from(resultMap.values());
 
-    const failed = results.filter(item => isSoftFailure(item)).length;
-    const staleResults = results.filter(item => item.stale === true).length;
-    const completed = results.length - failed;
+    latest = results;
+
+    lastRun =
+      new Date().toISOString();
+
+    const failed =
+      results.filter(item => isSoftFailure(item)).length;
+
+    const staleResults =
+      results.filter(item => item.stale === true).length;
+
+    const completed =
+      results.length - failed;
 
     const summary = {
       ok: true,
@@ -485,7 +568,11 @@ async function runCheck() {
       scanDiscoveredProducts: SCAN_DISCOVERED_PRODUCTS
     };
 
-    console.log("Catalog scan completed:", summary);
+    console.log(
+      "Catalog scan completed:",
+      summary
+    );
+
     return summary;
   } finally {
     running = false;
@@ -502,12 +589,17 @@ function getLatest() {
 }
 
 function getScannerState() {
-  const products = loadProducts().filter(product => product.enabled !== false);
+  const products =
+    loadProducts().filter(
+      product => product.enabled !== false
+    );
+
   const retailerCounts = {};
 
   for (const product of products) {
     for (const retailer of product.retailers || []) {
-      retailerCounts[retailer] = (retailerCounts[retailer] || 0) + 1;
+      retailerCounts[retailer] =
+        (retailerCounts[retailer] || 0) + 1;
     }
   }
 
@@ -521,9 +613,12 @@ function getScannerState() {
     scanConcurrency: SCAN_CONCURRENCY,
     currentResultCount: latest.length,
     cachedProductCount: lastGoodResults.size,
-    staleResultCount: latest.filter(item => item.stale === true).length,
-    scanDiscoveredProducts: SCAN_DISCOVERED_PRODUCTS,
-    batchProviderAvailable: typeof provider.checkProductsBatch === "function"
+    staleResultCount:
+      latest.filter(item => item.stale === true).length,
+    scanDiscoveredProducts:
+      SCAN_DISCOVERED_PRODUCTS,
+    batchProviderAvailable:
+      typeof provider.checkProductsBatch === "function"
   };
 }
 
