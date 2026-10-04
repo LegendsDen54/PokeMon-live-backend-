@@ -5,6 +5,15 @@ const HOST =
 const API_KEY =
   process.env.WALMART_RAPIDAPI_KEY;
 
+const REQUEST_TIMEOUT_MS =
+  Math.max(
+    3000,
+    Number(
+      process.env.WALMART_REQUEST_TIMEOUT_MS ||
+      7000
+    )
+  );
+
 const discoveredItems =
   new Map();
 
@@ -63,6 +72,25 @@ function isWalmartSeller(value) {
   return (
     seller === "walmart" ||
     seller === "walmart com"
+  );
+}
+
+
+function isTimeoutError(error) {
+  return Boolean(
+    error &&
+    (
+      error.code ===
+        "WALMART_TIMEOUT" ||
+
+      String(
+        error.message ||
+        ""
+      ).toLowerCase()
+        .includes(
+          "timed out"
+        )
+    )
   );
 }
 
@@ -557,7 +585,7 @@ async function apiRequest(path) {
     setTimeout(
       () =>
         controller.abort(),
-      15000
+      REQUEST_TIMEOUT_MS
     );
 
   try {
@@ -565,7 +593,8 @@ async function apiRequest(path) {
       await fetch(
         `https://${HOST}${path}`,
         {
-          method: "GET",
+          method:
+            "GET",
 
           headers: {
             "x-rapidapi-key":
@@ -594,9 +623,15 @@ async function apiRequest(path) {
       error.name ===
         "AbortError"
     ) {
-      throw new Error(
-        "Walmart API request timed out"
-      );
+      const timeoutError =
+        new Error(
+          `Walmart API request timed out after ${REQUEST_TIMEOUT_MS}ms`
+        );
+
+      timeoutError.code =
+        "WALMART_TIMEOUT";
+
+      throw timeoutError;
     }
 
     throw error;
@@ -674,6 +709,9 @@ function makeResult(
 
     retailer:
       "walmart",
+
+    channel:
+      "online",
 
     inStock,
 
@@ -883,8 +921,12 @@ async function searchMarketplaceOffers(
 
   const params =
     new URLSearchParams({
-      page: "1",
-      sort: "price_low",
+      page:
+        "1",
+
+      sort:
+        "price_low",
+
       keyword
     });
 
@@ -970,8 +1012,12 @@ async function discoverProduct(
 
   const params =
     new URLSearchParams({
-      page: "1",
-      sort: "best_match",
+      page:
+        "1",
+
+      sort:
+        "best_match",
+
       keyword
     });
 
@@ -1036,18 +1082,11 @@ async function discoverProduct(
   /*
     SECOND:
     If Walmart Direct is unavailable,
-    find the best safe matching result
-    ONLY for display information.
+    find a safe display result.
 
-    This gives the dashboard:
-    - product image
-    - product name
-    - Walmart URL
-    - visible price when available
-
-    It does NOT make the product
-    Walmart Direct and does NOT allow
-    a stock notification.
+    This may provide image/name/link,
+    but can never trigger a Walmart
+    direct stock alert.
   */
 
   const displayMatch =
@@ -1071,12 +1110,8 @@ async function discoverProduct(
     return {
       ...preview,
 
-      /*
-        CRITICAL SAFETY VALUES
-
-        Never treat this preview as a
-        Walmart-direct stock result.
-      */
+      channel:
+        "online",
 
       inStock:
         false,
@@ -1107,8 +1142,6 @@ async function discoverProduct(
 
   /*
     Nothing safe enough was found.
-
-    Keep the normal empty scanner card.
   */
 
   return {
@@ -1123,6 +1156,9 @@ async function discoverProduct(
 
     retailer:
       "walmart",
+
+    channel:
+      "online",
 
     inStock:
       false,
@@ -1178,6 +1214,80 @@ async function discoverProduct(
 
 
 /* ========================================
+   TIMEOUT RESULT
+======================================== */
+
+function makeTimeoutResult(
+  product,
+  message
+) {
+  return {
+    productId:
+      product.id,
+
+    name:
+      product.name,
+
+    set:
+      product.set,
+
+    retailer:
+      "walmart",
+
+    channel:
+      "online",
+
+    inStock:
+      false,
+
+    directSeller:
+      false,
+
+    price:
+      null,
+
+    msrp:
+      product.msrp ??
+      null,
+
+    url:
+      product.walmartItemId
+        ? `https://www.walmart.com/ip/${product.walmartItemId}`
+        : null,
+
+    seller:
+      null,
+
+    sellerType:
+      null,
+
+    checkedAt:
+      new Date()
+        .toISOString(),
+
+    source:
+      "walmart-timeout",
+
+    marketplaceOnly:
+      false,
+
+    offerAvailable:
+      false,
+
+    alertEligible:
+      false,
+
+    image:
+      null,
+
+    error:
+      message ||
+      "Walmart API request timed out"
+  };
+}
+
+
+/* ========================================
    MAIN STOCK CHECK
 ======================================== */
 
@@ -1200,6 +1310,9 @@ async function checkProduct(
         product.set,
 
       retailer,
+
+      channel:
+        "online",
 
       inStock:
         false,
@@ -1254,15 +1367,52 @@ async function checkProduct(
         error.message
       );
 
+      /*
+        IMPORTANT:
+        If Walmart itself timed out,
+        do NOT immediately make a second
+        search request for the same item.
+
+        That was causing a single timeout
+        to become two slow requests.
+      */
+      if (
+        isTimeoutError(error)
+      ) {
+        return makeTimeoutResult(
+          product,
+          error.message
+        );
+      }
+
+      /*
+        The saved ID is invalid or no
+        longer matches. Remove it and
+        allow discovery to find another.
+      */
       discoveredItems.delete(
         product.id
       );
     }
   }
 
-  return discoverProduct(
-    product
-  );
+  try {
+    return await discoverProduct(
+      product
+    );
+
+  } catch (error) {
+    if (
+      isTimeoutError(error)
+    ) {
+      return makeTimeoutResult(
+        product,
+        error.message
+      );
+    }
+
+    throw error;
+  }
 }
 
 
@@ -1276,9 +1426,12 @@ async function inspectSearchResponse(
 ) {
   const params =
     new URLSearchParams({
-      page: "1",
+      page:
+        "1",
+
       sort:
         "best_match",
+
       keyword
     });
 
@@ -1313,6 +1466,9 @@ async function inspectSearchResponse(
 
   return {
     keyword,
+
+    requestTimeoutMs:
+      REQUEST_TIMEOUT_MS,
 
     topLevelKeys,
 
