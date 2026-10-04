@@ -24,6 +24,9 @@ function getDayNumber(value) {
 function zonedParts(date, timeZone) {
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
     weekday: "short",
     hour: "2-digit",
     minute: "2-digit",
@@ -36,6 +39,10 @@ function zonedParts(date, timeZone) {
   );
 
   return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    dateKey: `${parts.year}-${parts.month}-${parts.day}`,
     weekday: getDayNumber(parts.weekday),
     weekdayLabel: parts.weekday,
     hour: Number(parts.hour),
@@ -52,6 +59,17 @@ function formatClock(totalMinutes) {
   return `${hour12}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
+function minutesUntilNextWindow(local, targetDay, startMinutes) {
+  const currentMinutes = local.hour * 60 + local.minute;
+  let daysAhead = (targetDay - local.weekday + 7) % 7;
+
+  if (daysAhead === 0 && currentMinutes >= startMinutes) {
+    daysAhead = 7;
+  }
+
+  return daysAhead * 24 * 60 + (startMinutes - currentMinutes);
+}
+
 function createWalmartScheduler({ runScan }) {
   if (typeof runScan !== "function") {
     throw new Error("Walmart scheduler requires runScan()");
@@ -60,12 +78,8 @@ function createWalmartScheduler({ runScan }) {
   const enabled =
     String(process.env.WALMART_SCHEDULE_ENABLED || "true").toLowerCase() === "true";
 
-  const timeZone =
-    process.env.WALMART_TIMEZONE || "America/Chicago";
-
-  const dayText =
-    String(process.env.WALMART_DROP_DAY || "WED").trim().toUpperCase();
-
+  const timeZone = process.env.WALMART_TIMEZONE || "America/Chicago";
+  const dayText = String(process.env.WALMART_DROP_DAY || "WED").trim().toUpperCase();
   const dayNumber = getDayNumber(dayText);
   const start = parseTime(process.env.WALMART_DROP_START, "19:50");
   const end = parseTime(process.env.WALMART_DROP_END, "20:20");
@@ -85,10 +99,11 @@ function createWalmartScheduler({ runScan }) {
   let lastScheduledSlot = null;
   let lastScheduledRun = null;
   let lastManualRun = null;
+  let lastWakeRun = null;
   let lastResult = null;
   let lastError = null;
 
-  function getStatus() {
+  function computeStatus() {
     const now = new Date();
     const local = zonedParts(now, timeZone);
     const minuteOfDay = local.hour * 60 + local.minute;
@@ -97,6 +112,26 @@ function createWalmartScheduler({ runScan }) {
       local.weekday === dayNumber &&
       minuteOfDay >= start.total &&
       minuteOfDay <= end.total;
+
+    let nextScanLabel = null;
+
+    if (enabled) {
+      if (activeWindow) {
+        const elapsed = minuteOfDay - start.total;
+        const nextSlot = Math.ceil(elapsed / everyMinutes);
+        const nextMinutes = start.total + nextSlot * everyMinutes;
+        nextScanLabel = nextMinutes <= end.total
+          ? `Today ${formatClock(nextMinutes)} ${timeZone}`
+          : `Next ${dayText} ${formatClock(start.total)} ${timeZone}`;
+      } else {
+        const mins = minutesUntilNextWindow(local, dayNumber, start.total);
+        if (mins >= 0 && mins < 24 * 60) {
+          nextScanLabel = `Today ${formatClock(start.total)} ${timeZone}`;
+        } else {
+          nextScanLabel = `Next ${dayText} ${formatClock(start.total)} ${timeZone}`;
+        }
+      }
+    }
 
     return {
       enabled,
@@ -108,9 +143,11 @@ function createWalmartScheduler({ runScan }) {
       activeWindow,
       running: schedulerRunning,
       localNow: `${local.weekdayLabel} ${String(local.hour).padStart(2, "0")}:${String(local.minute).padStart(2, "0")}:${String(local.second).padStart(2, "0")}`,
-      scheduleLabel: `${dayText} ${formatClock(start.total)}â${formatClock(end.total)} ${timeZone}`,
+      scheduleLabel: `${dayText} ${formatClock(start.total)}-${formatClock(end.total)} ${timeZone}`,
+      nextScanLabel,
       lastScheduledRun,
       lastManualRun,
+      lastWakeRun,
       lastResult,
       lastError
     };
@@ -132,11 +169,9 @@ function createWalmartScheduler({ runScan }) {
       const result = await runScan();
       lastResult = result;
 
-      if (kind === "scheduled") {
-        lastScheduledRun = new Date().toISOString();
-      } else {
-        lastManualRun = new Date().toISOString();
-      }
+      if (kind === "scheduled") lastScheduledRun = new Date().toISOString();
+      if (kind === "manual") lastManualRun = new Date().toISOString();
+      if (kind === "wake") lastWakeRun = new Date().toISOString();
 
       return result;
     } catch (error) {
@@ -147,8 +182,10 @@ function createWalmartScheduler({ runScan }) {
     }
   }
 
-  async function tick() {
-    if (!enabled) return;
+  async function tick(kind = "scheduled") {
+    if (!enabled) {
+      return { ok: false, skipped: true, reason: "Walmart schedule disabled" };
+    }
 
     const now = new Date();
     const local = zonedParts(now, timeZone);
@@ -159,26 +196,34 @@ function createWalmartScheduler({ runScan }) {
       minuteOfDay < start.total ||
       minuteOfDay > end.total
     ) {
-      return;
+      return { ok: false, skipped: true, reason: "Outside Walmart drop window" };
     }
 
     const slot = Math.floor((minuteOfDay - start.total) / everyMinutes);
-    const slotKey = `${now.toISOString().slice(0, 10)}:${local.weekday}:${slot}`;
+    const slotKey = `${local.dateKey}:${slot}`;
 
-    if (slotKey === lastScheduledSlot) return;
+    if (slotKey === lastScheduledSlot) {
+      return { ok: false, skipped: true, reason: "Scheduled slot already scanned" };
+    }
+
+    if (schedulerRunning) {
+      return { ok: false, skipped: true, reason: "Walmart scan already running" };
+    }
 
     lastScheduledSlot = slotKey;
 
-    console.log("Walmart scheduled drop-window scan triggered:", {
+    console.log("Walmart drop-window scan triggered:", {
+      trigger: kind,
       timeZone,
       localTime: `${local.hour}:${String(local.minute).padStart(2, "0")}`,
       slot
     });
 
     try {
-      await execute("scheduled");
+      return await execute(kind === "wake" ? "wake" : "scheduled");
     } catch (error) {
-      console.error("Scheduled Walmart drop-window scan failed:", error);
+      console.error("Walmart drop-window scan failed:", error);
+      return { ok: false, error: error.message };
     }
   }
 
@@ -200,29 +245,34 @@ function createWalmartScheduler({ runScan }) {
     return execute("manual");
   }
 
+  async function wakeScan() {
+    return tick("wake");
+  }
+
   function startScheduler() {
-    if (timer || !enabled) return getStatus();
+    if (timer || !enabled) return computeStatus();
 
     timer = setInterval(() => {
-      tick().catch(error => {
+      tick("scheduled").catch(error => {
         console.error("Walmart scheduler tick failed:", error);
       });
     }, 20000);
 
     setTimeout(() => {
-      tick().catch(error => {
+      tick("scheduled").catch(error => {
         console.error("Initial Walmart scheduler tick failed:", error);
       });
     }, 3000);
 
-    return getStatus();
+    return computeStatus();
   }
 
   return {
     start: startScheduler,
     tick,
+    wakeScan,
     manualScan,
-    getStatus
+    getStatus: computeStatus
   };
 }
 
