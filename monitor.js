@@ -10,9 +10,7 @@ const providerName =
   ).toLowerCase();
 
 const provider =
-  require(
-    `./${providerName}.js`
-  );
+  require(`./${providerName}.js`);
 
 const productFile =
   path.join(
@@ -20,15 +18,11 @@ const productFile =
     "products.json"
   );
 
-/*
-  Small amount of concurrency keeps the
-  scanner fast without hammering the API.
 
-  Default: 4 products at once.
+/* ========================================
+   SCANNER SETTINGS
+======================================== */
 
-  You can change this later through:
-  SCAN_CONCURRENCY
-*/
 const SCAN_CONCURRENCY =
   Math.min(
     6,
@@ -41,11 +35,27 @@ const SCAN_CONCURRENCY =
     )
   );
 
+
+/* ========================================
+   LIVE STATE
+======================================== */
+
 let latest = [];
 let lastRun = null;
 let running = false;
 
 const stockBaseline =
+  new Map();
+
+/*
+  Stores last usable product data.
+
+  Temporary Walmart API timeouts can
+  reuse display information from this
+  cache, but cached data can NEVER
+  trigger a restock alert.
+*/
+const lastGoodResults =
   new Map();
 
 
@@ -59,6 +69,64 @@ function loadProducts() {
       productFile,
       "utf8"
     )
+  );
+}
+
+
+/* ========================================
+   BASIC HELPERS
+======================================== */
+
+function getItemKey(item) {
+  return [
+    item.retailer ||
+      "unknown",
+
+    item.productId ||
+      "unknown"
+  ].join(":");
+}
+
+
+function isTimeoutItem(item) {
+  if (!item) {
+    return false;
+  }
+
+  const message =
+    String(
+      item.error ||
+      ""
+    ).toLowerCase();
+
+  return (
+    item.source ===
+      "walmart-timeout" ||
+
+    message.includes(
+      "timed out"
+    )
+  );
+}
+
+
+function isUsableResult(item) {
+  if (!item) {
+    return false;
+  }
+
+  if (
+    isTimeoutItem(item)
+  ) {
+    return false;
+  }
+
+  return Boolean(
+    item.image ||
+    item.url ||
+    item.price != null ||
+    item.seller ||
+    item.directSeller === true
   );
 }
 
@@ -117,7 +185,7 @@ function withinPriceRule(item) {
 
   /*
     Auto-discovered products NEVER qualify
-    until a verified MSRP is available.
+    for alerts until verified MSRP exists.
   */
   if (
     item.autoDiscovered ===
@@ -129,7 +197,7 @@ function withinPriceRule(item) {
 
   /*
     Preserve existing behavior when
-    live price is temporarily unavailable.
+    live price is temporarily missing.
   */
   if (
     item.price == null
@@ -138,7 +206,7 @@ function withinPriceRule(item) {
   }
 
   /*
-    Preserve existing behavior for
+    Preserve current behavior for
     curated products without MSRP.
   */
   if (
@@ -166,11 +234,11 @@ function withinPriceRule(item) {
   }
 
   /*
-    Maximum allowed price:
-    150% of MSRP.
+    Price rule:
+    maximum = 150% of MSRP.
 
     Example:
-    $50 MSRP -> $75 max.
+    $50 MSRP -> $75 maximum.
   */
   return (
     price <=
@@ -184,21 +252,20 @@ function withinPriceRule(item) {
 ======================================== */
 
 function prepareItem(item) {
+  const onlineOnly =
+    item.retailer ===
+      "walmart" ||
+    item.retailer ===
+      "target";
+
   return {
     ...item,
 
     /*
-      Walmart and Target are ONLINE ONLY.
-
-      This makes sure Walmart results
-      cannot accidentally appear as
-      store-level inventory.
+      Walmart + Target are online-only.
     */
     channel:
-      item.retailer ===
-        "walmart" ||
-      item.retailer ===
-        "target"
+      onlineOnly
         ? "online"
         : (
             item.channel ||
@@ -206,10 +273,7 @@ function prepareItem(item) {
           ),
 
     storeId:
-      item.retailer ===
-        "walmart" ||
-      item.retailer ===
-        "target"
+      onlineOnly
         ? null
         : (
             item.storeId ??
@@ -217,10 +281,7 @@ function prepareItem(item) {
           ),
 
     storeName:
-      item.retailer ===
-        "walmart" ||
-      item.retailer ===
-        "target"
+      onlineOnly
         ? null
         : (
             item.storeName ??
@@ -241,21 +302,195 @@ function prepareItem(item) {
 
 
 /* ========================================
-   RESTOCK STATE
+   SAFE STALE CACHE
+======================================== */
+
+function cacheGoodResult(item) {
+  if (
+    !isUsableResult(item)
+  ) {
+    return;
+  }
+
+  const key =
+    getItemKey(
+      item
+    );
+
+  lastGoodResults.set(
+    key,
+    {
+      ...item
+    }
+  );
+}
+
+
+function applySafeCache(item) {
+  if (
+    !isTimeoutItem(item)
+  ) {
+    return item;
+  }
+
+  const key =
+    getItemKey(
+      item
+    );
+
+  const cached =
+    lastGoodResults.get(
+      key
+    );
+
+  /*
+    No cached result yet.
+
+    Keep timeout result, but make
+    absolutely sure it cannot alert.
+  */
+  if (!cached) {
+    return {
+      ...item,
+
+      inStock:
+        false,
+
+      offerAvailable:
+        false,
+
+      alertEligible:
+        false,
+
+      stale:
+        false
+    };
+  }
+
+  /*
+    Preserve useful display data from
+    the previous successful result.
+
+    CRITICAL:
+    Cached information is NEVER allowed
+    to represent current stock.
+  */
+  return {
+    ...cached,
+
+    productId:
+      item.productId,
+
+    retailer:
+      item.retailer,
+
+    channel:
+      "online",
+
+    storeId:
+      null,
+
+    storeName:
+      null,
+
+    inStock:
+      false,
+
+    offerAvailable:
+      false,
+
+    alertEligible:
+      false,
+
+    checkedAt:
+      item.checkedAt ||
+      new Date()
+        .toISOString(),
+
+    source:
+      "walmart-stale-cache",
+
+    stale:
+      true,
+
+    staleReason:
+      item.error ||
+      "Temporary Walmart API timeout",
+
+    error:
+      item.error ||
+      "Temporary Walmart API timeout",
+
+    /*
+      Keep last useful display data.
+    */
+    image:
+      cached.image ||
+      null,
+
+    url:
+      cached.url ||
+      null,
+
+    price:
+      cached.price ??
+      null,
+
+    seller:
+      cached.seller ||
+      null,
+
+    sellerType:
+      cached.sellerType ||
+      null,
+
+    walmartItemId:
+      cached.walmartItemId ||
+      null,
+
+    /*
+      Keep seller identity for display,
+      but stale data cannot be considered
+      alert-eligible stock.
+    */
+    directSeller:
+      cached.directSeller ===
+      true,
+
+    marketplaceOnly:
+      cached.marketplaceOnly ===
+      true,
+
+    autoDiscovered:
+      item.autoDiscovered ===
+        true ||
+      cached.autoDiscovered ===
+        true
+  };
+}
+
+
+/* ========================================
+   STOCK / PUSH STATE
 ======================================== */
 
 function getStockKey(item) {
-  return [
-    item.retailer ||
-      "unknown",
-
-    item.productId ||
-      "unknown"
-  ].join(":");
+  return getItemKey(
+    item
+  );
 }
 
 
 function qualifiesForRestock(item) {
+  /*
+    Stale cached data can NEVER qualify.
+  */
+  if (
+    item.stale === true
+  ) {
+    return false;
+  }
+
   return (
     item.retailer ===
       "walmart" &&
@@ -282,6 +517,33 @@ async function processRestockState(item) {
     qualifiesForRestock(
       item
     );
+
+  /*
+    IMPORTANT:
+    Do not let a temporary timeout change
+    the stock baseline.
+
+    Otherwise:
+    in-stock -> timeout -> in-stock
+
+    could incorrectly look like a new
+    restock transition.
+  */
+  if (
+    item.stale === true ||
+    isTimeoutItem(item)
+  ) {
+    return {
+      baselineEstablished:
+        false,
+
+      alertSent:
+        false,
+
+      baselineUnchanged:
+        true
+    };
+  }
 
   if (
     !stockBaseline.has(
@@ -384,10 +646,29 @@ async function processRestockState(item) {
 ======================================== */
 
 function saveResult(item) {
-  const prepared =
+  let prepared =
     prepareItem(
       item
     );
+
+  prepared =
+    applySafeCache(
+      prepared
+    );
+
+  prepared =
+    prepareItem(
+      prepared
+    );
+
+  if (
+    !isTimeoutItem(prepared) &&
+    prepared.stale !== true
+  ) {
+    cacheGoodResult(
+      prepared
+    );
+  }
 
   const index =
     latest.findIndex(
@@ -435,10 +716,6 @@ async function scanJob(
           retailer
         );
 
-    /*
-      Carry catalog metadata through
-      the provider response.
-    */
     const enrichedItem = {
       ...item,
 
@@ -452,10 +729,41 @@ async function scanJob(
           true
     };
 
-    const prepared =
+    let prepared =
       prepareItem(
         enrichedItem
       );
+
+    /*
+      If current response timed out,
+      attempt to preserve old card data.
+    */
+    prepared =
+      applySafeCache(
+        prepared
+      );
+
+    /*
+      Re-run preparation because cached
+      data may include price/MSRP fields.
+    */
+    prepared =
+      prepareItem(
+        prepared
+      );
+
+    /*
+      Only fresh usable responses update
+      the display cache.
+    */
+    if (
+      !isTimeoutItem(prepared) &&
+      prepared.stale !== true
+    ) {
+      cacheGoodResult(
+        prepared
+      );
+    }
 
     const restockResult =
       await processRestockState(
@@ -471,11 +779,12 @@ async function scanJob(
 
       alertSent:
         restockResult
-          .alertSent === true
+          .alertSent ===
+        true
     };
 
   } catch (error) {
-    const failedItem =
+    let failedItem =
       prepareItem({
         productId:
           product.id,
@@ -527,6 +836,38 @@ async function scanJob(
         error:
           error.message
       });
+
+    /*
+      A thrown timeout can also reuse
+      cached display information safely.
+    */
+    if (
+      String(
+        error.message ||
+        ""
+      )
+        .toLowerCase()
+        .includes(
+          "timed out"
+        )
+    ) {
+      failedItem = {
+        ...failedItem,
+
+        source:
+          "walmart-timeout"
+      };
+
+      failedItem =
+        applySafeCache(
+          failedItem
+        );
+
+      failedItem =
+        prepareItem(
+          failedItem
+        );
+    }
 
     return {
       ok:
@@ -610,6 +951,9 @@ async function runCheck() {
   let alertsTriggered =
     0;
 
+  let staleResults =
+    0;
+
   try {
     const curatedProducts =
       loadProducts()
@@ -639,12 +983,11 @@ async function runCheck() {
       ...discoveredProducts
     ];
 
-    /*
-      Build a flat work queue.
 
-      Each product/retailer combination
-      becomes one independent job.
-    */
+    /* ====================================
+       BUILD SCAN JOBS
+    ==================================== */
+
     const jobs =
       [];
 
@@ -690,6 +1033,11 @@ async function runCheck() {
       }
     );
 
+
+    /* ====================================
+       PROCESS IN CONCURRENT BATCHES
+    ==================================== */
+
     const results =
       [];
 
@@ -710,14 +1058,6 @@ async function runCheck() {
           batchIndex
         ];
 
-      /*
-        Products inside each batch run
-        concurrently.
-
-        A slow or timed-out product no
-        longer blocks every product
-        behind it.
-      */
       const settled =
         await Promise.all(
           batch.map(
@@ -754,16 +1094,21 @@ async function runCheck() {
           alertsTriggered +=
             1;
         }
+
+        if (
+          result.item
+            ?.stale ===
+          true
+        ) {
+          staleResults +=
+            1;
+        }
       }
 
       /*
-        IMPORTANT:
         Publish partial results after
-        every batch.
-
-        The dashboard can start showing
-        Walmart cards while the rest of
-        the scan is still finishing.
+        each batch so the dashboard starts
+        filling before the whole scan ends.
       */
       latest = [
         ...results
@@ -773,6 +1118,11 @@ async function runCheck() {
         `Catalog scan progress: ${results.length}/${jobs.length}`
       );
     }
+
+
+    /* ====================================
+       FINISH SCAN
+    ==================================== */
 
     latest =
       results;
@@ -797,6 +1147,8 @@ async function runCheck() {
       failed,
 
       alertsTriggered,
+
+      staleResults,
 
       count:
         results.length,
@@ -902,7 +1254,17 @@ function getScannerState() {
       SCAN_CONCURRENCY,
 
     currentResultCount:
-      latest.length
+      latest.length,
+
+    cachedProductCount:
+      lastGoodResults.size,
+
+    staleResultCount:
+      latest.filter(
+        item =>
+          item.stale ===
+          true
+      ).length
   };
 }
 
