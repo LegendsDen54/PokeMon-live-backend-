@@ -10,16 +10,19 @@ const API_KEY =
   process.env.WALMART_RAPIDAPI_KEY;
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString:
+    process.env.DATABASE_URL,
+
   ssl: {
     rejectUnauthorized: false
   }
 });
 
 
-/*
-  NORMALIZE TEXT
-*/
+/* ========================================
+   NORMALIZE
+======================================== */
+
 function normalize(value) {
   return String(value || "")
     .toLowerCase()
@@ -29,11 +32,13 @@ function normalize(value) {
 }
 
 
-/*
-  WALMART SELLER CHECK
-*/
+/* ========================================
+   WALMART SELLER
+======================================== */
+
 function isWalmartSeller(value) {
-  const seller = normalize(value);
+  const seller =
+    normalize(value);
 
   return (
     seller === "walmart" ||
@@ -42,9 +47,6 @@ function isWalmartSeller(value) {
 }
 
 
-/*
-  SELLER NAME
-*/
 function getSellerName(item) {
   if (item.sellerName) {
     return item.sellerName;
@@ -54,7 +56,9 @@ function getSellerName(item) {
     return item.sellerDisplayName;
   }
 
-  if (typeof item.seller === "string") {
+  if (
+    typeof item.seller === "string"
+  ) {
     return item.seller;
   }
 
@@ -62,16 +66,20 @@ function getSellerName(item) {
     item.seller &&
     typeof item.seller === "object"
   ) {
-    return item.seller.name || null;
+    return (
+      item.seller.name ||
+      null
+    );
   }
 
   return null;
 }
 
 
-/*
-  ITEM ID
-*/
+/* ========================================
+   ITEM HELPERS
+======================================== */
+
 function getItemId(item) {
   return (
     item.usItemId ||
@@ -82,15 +90,26 @@ function getItemId(item) {
 }
 
 
-/*
-  IMAGE
-*/
 function getImage(item) {
   if (
     Array.isArray(item.images) &&
     item.images.length > 0
   ) {
-    return item.images[0];
+    const first =
+      item.images[0];
+
+    if (
+      first &&
+      typeof first === "object"
+    ) {
+      return (
+        first.url ||
+        first.imageUrl ||
+        null
+      );
+    }
+
+    return first;
   }
 
   return (
@@ -102,146 +121,183 @@ function getImage(item) {
 }
 
 
-/*
-  CREATE DATABASE TABLE
-*/
-async function initializeDiscoveryDatabase() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS discovered_products (
-      id SERIAL PRIMARY KEY,
-      retailer TEXT NOT NULL,
-      retailer_item_id TEXT NOT NULL,
-      name TEXT NOT NULL,
-      search_term TEXT,
-      product_type TEXT,
-      set_name TEXT,
-      msrp NUMERIC,
-      url TEXT,
-      image TEXT,
-      seller TEXT,
-      enabled BOOLEAN NOT NULL DEFAULT TRUE,
-      first_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      last_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+function getPrice(item) {
+  const candidates = [
+    item.price,
+    item.currentPrice,
+    item.salePrice,
+    item?.priceDetails
+      ?.currentPrice
+      ?.price
+  ];
 
-      UNIQUE(retailer, retailer_item_id)
-    )
-  `);
-
-  console.log(
-    "Discovery database initialized."
-  );
-}
-
-
-/*
-  WALMART API REQUEST
-*/
-async function apiRequest(path) {
-  if (!API_KEY) {
-    throw new Error(
-      "WALMART_RAPIDAPI_KEY is missing"
-    );
-  }
-
-  const controller =
-    new AbortController();
-
-  const timeout =
-    setTimeout(
-      () => controller.abort(),
-      15000
-    );
-
-  try {
-    const response =
-      await fetch(
-        `https://${HOST}${path}`,
-        {
-          method: "GET",
-          headers: {
-            "x-rapidapi-key": API_KEY,
-            "x-rapidapi-host": HOST
-          },
-          signal: controller.signal
-        }
-      );
-
-    if (!response.ok) {
-      throw new Error(
-        `Walmart API returned ${response.status}`
-      );
-    }
-
-    return await response.json();
-
-  } catch (error) {
+  for (
+    const candidate
+    of candidates
+  ) {
     if (
-      error &&
-      error.name === "AbortError"
+      candidate !== null &&
+      candidate !== undefined &&
+      candidate !== ""
     ) {
-      throw new Error(
-        "Walmart API request timed out"
-      );
+      const value =
+        Number(candidate);
+
+      if (
+        Number.isFinite(value) &&
+        value >= 0
+      ) {
+        return value;
+      }
     }
-
-    throw error;
-
-  } finally {
-    clearTimeout(timeout);
   }
+
+  return null;
 }
 
 
-/*
-  EXTRACT WALMART SEARCH RESULTS
+/* ========================================
+   CLASSIFY SET
+======================================== */
 
-  Diagnostic confirmed response shape:
+function classifySet(name) {
+  const text =
+    normalize(name);
 
-  {
-    status: ...,
-    data: {
-      results: [...]
-    }
-  }
-*/
-function extractSearchResults(data) {
   if (
-    Array.isArray(
-      data?.data?.results
+    text.includes(
+      "30th anniversary"
+    ) ||
+    text.includes(
+      "30th"
     )
   ) {
-    return data.data.results;
-  }
-
-  /*
-    Keep fallbacks in case the API
-    response changes later.
-  */
-  if (
-    Array.isArray(data?.results)
-  ) {
-    return data.results;
+    return "Pokemon 30th Anniversary";
   }
 
   if (
-    Array.isArray(data?.items)
+    text.includes(
+      "prismatic evolutions"
+    )
   ) {
-    return data.items;
+    return "Prismatic Evolutions";
   }
 
   if (
-    Array.isArray(data?.products)
+    text.includes(
+      "destined rivals"
+    )
   ) {
-    return data.products;
+    return "Destined Rivals";
   }
 
-  return [];
+  if (
+    text.includes(
+      "ascended heroes"
+    )
+  ) {
+    return "Ascended Heroes";
+  }
+
+  if (
+    text.includes(
+      "delta reign"
+    )
+  ) {
+    return "Delta Reign";
+  }
+
+  return "Other Pokemon TCG";
 }
 
 
-/*
-  POKEMON TCG FILTER
-*/
+/* ========================================
+   CLASSIFY PRODUCT TYPE
+======================================== */
+
+function classifyProductType(name) {
+  const text =
+    normalize(name);
+
+  if (
+    text.includes(
+      "elite trainer box"
+    ) ||
+    /\betb\b/.test(text)
+  ) {
+    return "Elite Trainer Box";
+  }
+
+  if (
+    text.includes(
+      "booster bundle"
+    )
+  ) {
+    return "Booster Bundle";
+  }
+
+  if (
+    text.includes(
+      "booster box"
+    )
+  ) {
+    return "Booster Box";
+  }
+
+  if (
+    text.includes(
+      "poster collection"
+    )
+  ) {
+    return "Poster Collection";
+  }
+
+  if (
+    text.includes(
+      "tech sticker"
+    )
+  ) {
+    return "Tech Sticker Collection";
+  }
+
+  if (
+    text.includes(
+      "mini tin"
+    )
+  ) {
+    return "Mini Tin";
+  }
+
+  if (
+    text.includes("tin")
+  ) {
+    return "Tin";
+  }
+
+  if (
+    text.includes(
+      "collection"
+    )
+  ) {
+    return "Collection";
+  }
+
+  if (
+    text.includes(
+      "booster"
+    )
+  ) {
+    return "Booster Product";
+  }
+
+  return "Pokemon TCG";
+}
+
+
+/* ========================================
+   POKEMON TCG FILTER
+======================================== */
+
 function looksLikePokemonTCG(item) {
   const text =
     normalize(
@@ -258,46 +314,220 @@ function looksLikePokemonTCG(item) {
     text.includes("pokemon") &&
     (
       text.includes("tcg") ||
-      text.includes("trading card") ||
-      text.includes("booster") ||
-      text.includes("trainer box") ||
-      text.includes("collection") ||
+      text.includes(
+        "trading card"
+      ) ||
+      text.includes(
+        "booster"
+      ) ||
+      text.includes(
+        "trainer box"
+      ) ||
+      text.includes(
+        "collection"
+      ) ||
       text.includes("tin") ||
-      text.includes("elite trainer") ||
+      text.includes(
+        "elite trainer"
+      ) ||
       text.includes("etb")
     )
   );
 }
 
 
-/*
-  SAVE / UPDATE PRODUCT
-*/
-async function saveDiscoveredProduct(item) {
+/* ========================================
+   DATABASE
+======================================== */
+
+async function initializeDiscoveryDatabase() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS discovered_products (
+      id SERIAL PRIMARY KEY,
+      retailer TEXT NOT NULL,
+      retailer_item_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      search_term TEXT,
+      product_type TEXT,
+      set_name TEXT,
+      msrp NUMERIC,
+      live_price NUMERIC,
+      url TEXT,
+      image TEXT,
+      seller TEXT,
+      enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      first_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+      UNIQUE(
+        retailer,
+        retailer_item_id
+      )
+    )
+  `);
+
+  /*
+    Upgrade existing database safely.
+  */
+  await pool.query(`
+    ALTER TABLE discovered_products
+    ADD COLUMN IF NOT EXISTS
+    live_price NUMERIC
+  `);
+
+  console.log(
+    "Discovery database initialized."
+  );
+}
+
+
+/* ========================================
+   WALMART API REQUEST
+======================================== */
+
+async function apiRequest(path) {
+  if (!API_KEY) {
+    throw new Error(
+      "WALMART_RAPIDAPI_KEY is missing"
+    );
+  }
+
+  const controller =
+    new AbortController();
+
+  const timeout =
+    setTimeout(
+      () =>
+        controller.abort(),
+      15000
+    );
+
+  try {
+    const response =
+      await fetch(
+        `https://${HOST}${path}`,
+        {
+          method: "GET",
+
+          headers: {
+            "x-rapidapi-key":
+              API_KEY,
+
+            "x-rapidapi-host":
+              HOST
+          },
+
+          signal:
+            controller.signal
+        }
+      );
+
+    if (!response.ok) {
+      throw new Error(
+        `Walmart API returned ${response.status}`
+      );
+    }
+
+    return await response.json();
+
+  } catch (error) {
+    if (
+      error &&
+      error.name ===
+        "AbortError"
+    ) {
+      throw new Error(
+        "Walmart API request timed out"
+      );
+    }
+
+    throw error;
+
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+
+/* ========================================
+   EXTRACT SEARCH RESULTS
+======================================== */
+
+function extractSearchResults(data) {
+  if (
+    Array.isArray(
+      data?.data?.results
+    )
+  ) {
+    return data.data.results;
+  }
+
+  if (
+    Array.isArray(
+      data?.results
+    )
+  ) {
+    return data.results;
+  }
+
+  if (
+    Array.isArray(
+      data?.items
+    )
+  ) {
+    return data.items;
+  }
+
+  if (
+    Array.isArray(
+      data?.products
+    )
+  ) {
+    return data.products;
+  }
+
+  return [];
+}
+
+
+/* ========================================
+   SAVE / UPDATE DISCOVERED PRODUCT
+======================================== */
+
+async function saveDiscoveredProduct(
+  item
+) {
   const itemId =
     getItemId(item);
 
   if (!itemId) {
     return {
       saved: false,
-      reason: "missing-item-id"
+      reason:
+        "missing-item-id"
     };
   }
 
   const seller =
     getSellerName(item);
 
-  if (!isWalmartSeller(seller)) {
+  if (
+    !isWalmartSeller(seller)
+  ) {
     return {
       saved: false,
-      reason: "not-walmart-direct"
+      reason:
+        "not-walmart-direct"
     };
   }
 
-  if (!looksLikePokemonTCG(item)) {
+  if (
+    !looksLikePokemonTCG(item)
+  ) {
     return {
       saved: false,
-      reason: "not-pokemon-tcg"
+      reason:
+        "not-pokemon-tcg"
     };
   }
 
@@ -315,6 +545,15 @@ async function saveDiscoveredProduct(item) {
   const image =
     getImage(item);
 
+  const livePrice =
+    getPrice(item);
+
+  const setName =
+    classifySet(name);
+
+  const productType =
+    classifyProductType(name);
+
   const result =
     await pool.query(
       `
@@ -326,6 +565,7 @@ async function saveDiscoveredProduct(item) {
         product_type,
         set_name,
         msrp,
+        live_price,
         url,
         image,
         seller,
@@ -333,16 +573,18 @@ async function saveDiscoveredProduct(item) {
         first_seen,
         last_seen
       )
+
       VALUES (
         'walmart',
         $1,
         $2,
         $3,
-        NULL,
-        NULL,
-        NULL,
         $4,
         $5,
+        NULL,
+        $6,
+        $7,
+        $8,
         'Walmart',
         TRUE,
         NOW(),
@@ -355,11 +597,32 @@ async function saveDiscoveredProduct(item) {
       )
 
       DO UPDATE SET
-        name = EXCLUDED.name,
-        url = EXCLUDED.url,
-        image = EXCLUDED.image,
-        seller = EXCLUDED.seller,
-        last_seen = NOW()
+        name =
+          EXCLUDED.name,
+
+        search_term =
+          EXCLUDED.search_term,
+
+        product_type =
+          EXCLUDED.product_type,
+
+        set_name =
+          EXCLUDED.set_name,
+
+        live_price =
+          EXCLUDED.live_price,
+
+        url =
+          EXCLUDED.url,
+
+        image =
+          EXCLUDED.image,
+
+        seller =
+          EXCLUDED.seller,
+
+        last_seen =
+          NOW()
 
       RETURNING *
       `,
@@ -367,6 +630,9 @@ async function saveDiscoveredProduct(item) {
         String(itemId),
         name,
         name,
+        productType,
+        setName,
+        livePrice,
         url,
         image
       ]
@@ -374,19 +640,35 @@ async function saveDiscoveredProduct(item) {
 
   return {
     saved: true,
-    product: result.rows[0]
+    product:
+      result.rows[0]
   };
 }
 
 
-/*
-  SEARCH WALMART
-*/
+/* ========================================
+   WALMART DISCOVERY
+======================================== */
+
 async function discoverWalmartProducts() {
+
+  /*
+    Focus discovery on the product
+    families this monitor is targeting.
+
+    Generic product-type searches remain
+    at the bottom to help catch Walmart
+    listings whose titles omit the set.
+  */
+
   const queries = [
-    "Pokemon TCG",
-    "Pokemon booster",
+    "Pokemon 30th Anniversary",
+    "Pokemon Prismatic Evolutions",
+    "Pokemon Destined Rivals",
+    "Pokemon Ascended Heroes",
+    "Pokemon Delta Reign",
     "Pokemon Elite Trainer Box",
+    "Pokemon booster bundle",
     "Pokemon collection",
     "Pokemon tin"
   ];
@@ -398,7 +680,13 @@ async function discoverWalmartProducts() {
   let searchesCompleted = 0;
   let searchesFailed = 0;
 
-  for (const keyword of queries) {
+  const seenItemIds =
+    new Set();
+
+  for (
+    const keyword
+    of queries
+  ) {
     const params =
       new URLSearchParams({
         page: "1",
@@ -413,7 +701,9 @@ async function discoverWalmartProducts() {
         );
 
       const results =
-        extractSearchResults(data);
+        extractSearchResults(
+          data
+        );
 
       console.log(
         `Discovery "${keyword}" returned ${results.length} results.`
@@ -421,7 +711,28 @@ async function discoverWalmartProducts() {
 
       searchesCompleted += 1;
 
-      for (const item of results) {
+      for (
+        const item
+        of results
+      ) {
+        const itemId =
+          getItemId(item);
+
+        if (
+          itemId &&
+          seenItemIds.has(
+            String(itemId)
+          )
+        ) {
+          continue;
+        }
+
+        if (itemId) {
+          seenItemIds.add(
+            String(itemId)
+          );
+        }
+
         inspected += 1;
 
         const result =
@@ -463,10 +774,10 @@ async function discoverWalmartProducts() {
 }
 
 
-/*
-  LOAD DISCOVERED PRODUCTS
-  INTO LIVE MONITOR FORMAT
-*/
+/* ========================================
+   LOAD DISCOVERED PRODUCTS
+======================================== */
+
 async function getDiscoveredProducts() {
   const result =
     await pool.query(`
@@ -507,7 +818,24 @@ async function getDiscoveredProducts() {
       msrp:
         row.msrp == null
           ? null
-          : Number(row.msrp),
+          : Number(
+              row.msrp
+            ),
+
+      discoveredPrice:
+        row.live_price == null
+          ? null
+          : Number(
+              row.live_price
+            ),
+
+      /*
+        CRITICAL:
+        monitor.js uses this to prevent
+        unknown-MSRP discovered products
+        from generating alerts.
+      */
+      autoDiscovered: true,
 
       enabled:
         row.enabled
