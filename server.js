@@ -38,19 +38,29 @@ const enableDiscovery =
     process.env.ENABLE_DISCOVERY || "true"
   ).toLowerCase() === "true";
 
+/*
+  EXISTING PRODUCT STOCK CHECK
+
+  Minimum = 60 seconds
+*/
 const pollSeconds =
   Math.max(
     60,
     Number(
-      process.env.POLL_SECONDS || 300
+      process.env.POLL_SECONDS || 60
     )
   );
 
+/*
+  NEW PRODUCT DISCOVERY
+
+  Minimum = 5 minutes
+*/
 const discoveryMinutes =
   Math.max(
-    10,
+    5,
     Number(
-      process.env.DISCOVERY_MINUTES || 30
+      process.env.DISCOVERY_MINUTES || 5
     )
   );
 
@@ -209,7 +219,8 @@ app.get(
           ok: false,
           test: "web-push",
           walmartApiCalled: false,
-          error: error.message
+          error:
+            error.message
         });
     }
   }
@@ -245,7 +256,8 @@ app.post(
         .status(400)
         .json({
           ok: false,
-          error: error.message
+          error:
+            error.message
         });
     }
   }
@@ -294,7 +306,8 @@ app.post(
         .status(500)
         .json({
           ok: false,
-          error: error.message
+          error:
+            error.message
         });
     }
   }
@@ -635,8 +648,6 @@ app.get(
 
 /*
   WALMART SEARCH DIAGNOSTIC
-
-  This does NOT expose the API key.
 */
 
 app.get(
@@ -677,7 +688,7 @@ app.get(
 
 
 /*
-  SCHEDULED CATALOG SCAN
+  SCHEDULED STOCK SCAN
 */
 
 async function runScheduledScan() {
@@ -707,7 +718,19 @@ async function runScheduledScan() {
   SCHEDULED PRODUCT DISCOVERY
 */
 
+let discoveryRunning = false;
+
 async function runScheduledDiscovery() {
+  if (discoveryRunning) {
+    console.log(
+      "Discovery already running. Skipping duplicate run."
+    );
+
+    return;
+  }
+
+  discoveryRunning = true;
+
   try {
     console.log(
       "Starting Walmart product discovery..."
@@ -727,6 +750,9 @@ async function runScheduledDiscovery() {
       "Walmart product discovery failed:",
       error
     );
+
+  } finally {
+    discoveryRunning = false;
   }
 }
 
@@ -747,8 +773,9 @@ app.listen(
       push.getPushStatus()
     );
 
+
     /*
-      INITIALIZE DISCOVERY DATABASE
+      INITIALIZE DATABASE
     */
 
     try {
@@ -768,7 +795,7 @@ app.listen(
 
 
     /*
-      OPTIONAL STARTUP SCAN
+      OPTIONAL STARTUP STOCK SCAN
     */
 
     if (runOnStartup) {
@@ -816,14 +843,18 @@ app.listen(
       );
 
       /*
-        First discovery run 15 seconds
-        after backend starts.
+        First discovery 15 seconds
+        after startup.
       */
       setTimeout(
         runScheduledDiscovery,
         15000
       );
 
+      /*
+        Then repeat every 5 minutes
+        by default.
+      */
       setInterval(
         runScheduledDiscovery,
         discoveryMinutes *
