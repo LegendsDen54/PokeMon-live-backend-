@@ -18,6 +18,7 @@ const products = require("./products.json");
 const multiStore = require("./multi-store");
 const { createWalmartScheduler } = require("./walmart-scheduler");
 const walmartWatchlist = require("./walmart-watchlist");
+const walmart30thDiscovery = require("./walmart-30th-discovery");
 
 const app = express();
 
@@ -49,7 +50,33 @@ app.use(express.json());
 async function runScheduledScan() {
   try {
     console.log("Starting Walmart catalog scan...");
-    const result = await runCheck();
+
+    const catalogResult = await runCheck();
+
+    let discovery30th = null;
+
+    try {
+      discovery30th = await walmart30thDiscovery.runDiscovery();
+
+      console.log("Walmart 30th discovery finished:", {
+        count: discovery30th?.count || 0,
+        directCount: discovery30th?.directCount || 0,
+        availableDirectCount: discovery30th?.availableDirectCount || 0
+      });
+    } catch (error) {
+      console.error("Walmart 30th discovery failed:", error.message);
+
+      discovery30th = {
+        ok: false,
+        error: error.message
+      };
+    }
+
+    const result = {
+      ...catalogResult,
+      discovery30th
+    };
+
     console.log("Walmart catalog scan finished:", result);
     return result;
   } catch (error) {
@@ -109,6 +136,7 @@ app.get("/api/backend", (req, res) => {
     discoveryMinutes: enableDiscovery ? discoveryMinutes : null,
     scheduledWalmartScanning: walmartScheduler.getStatus(),
     walmartProvider: walmart.getProviderInfo?.() || null,
+    walmart30thDiscovery: walmart30thDiscovery.getState(),
     marketplaceEndpoint: "/api/marketplace",
     providers: multiStore.getProviderStates(),
     push: push.getPushStatus()
@@ -125,6 +153,7 @@ app.get("/health", (req, res) => {
     discoveryMinutes: enableDiscovery ? discoveryMinutes : null,
     walmartSchedule: walmartScheduler.getStatus(),
     walmartProvider: walmart.getProviderInfo?.() || null,
+    walmart30thDiscovery: walmart30thDiscovery.getState(),
     providers: multiStore.getProviderStates(),
     push: push.getPushStatus()
   });
@@ -150,6 +179,7 @@ app.get("/api/push/status", (req, res) =>
 app.get("/api/push/test", async (req, res) => {
   try {
     const result = await push.sendTestAlert();
+
     res.json({
       ok: true,
       test: "web-push",
@@ -158,6 +188,7 @@ app.get("/api/push/test", async (req, res) => {
     });
   } catch (error) {
     console.error("Push test failed:", error);
+
     res.status(500).json({
       ok: false,
       test: "web-push",
@@ -170,13 +201,18 @@ app.get("/api/push/test", async (req, res) => {
 app.post("/api/push/subscribe", async (req, res) => {
   try {
     const result = await push.addSubscription(req.body);
+
     res.json({
       ...result,
       message: "Push subscription saved permanently"
     });
   } catch (error) {
     console.error("Push subscription failed:", error);
-    res.status(400).json({ ok: false, error: error.message });
+
+    res.status(400).json({
+      ok: false,
+      error: error.message
+    });
   }
 });
 
@@ -194,7 +230,11 @@ app.post("/api/push/unsubscribe", async (req, res) => {
     res.json(await push.removeSubscription(endpoint));
   } catch (error) {
     console.error("Push unsubscribe failed:", error);
-    res.status(500).json({ ok: false, error: error.message });
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
   }
 });
 
@@ -230,13 +270,19 @@ app.get("/api/status", (req, res) => {
     walmartWatchlist: walmartWatchlist.mergeUpcomingWithWatchlist(
       walmart.getUpcoming?.() || []
     ),
+    walmart30thDiscovery: walmart30thDiscovery.getState(),
     push: push.getPushStatus()
   });
 });
 
 app.get("/api/providers", (req, res) => {
   const providers = multiStore.getProviderStates();
-  res.json({ ok: true, count: providers.length, providers });
+
+  res.json({
+    ok: true,
+    count: providers.length,
+    providers
+  });
 });
 
 app.get("/api/products", (req, res) => {
@@ -253,11 +299,20 @@ app.get("/api/products", (req, res) => {
   ]);
 
   if (retailer && !allowed.has(retailer)) {
-    return res.status(400).json({ ok: false, error: "Unsupported retailer" });
+    return res.status(400).json({
+      ok: false,
+      error: "Unsupported retailer"
+    });
   }
 
   const items = multiStore.getProducts(retailer);
-  res.json({ ok: true, retailer, count: items.length, items });
+
+  res.json({
+    ok: true,
+    retailer,
+    count: items.length,
+    items
+  });
 });
 
 app.get("/api/stores", (req, res) => {
@@ -266,12 +321,14 @@ app.get("/api/stores", (req, res) => {
     : null;
 
   const items = multiStore.getStoreInventory(retailer);
-  res.json({ ok: true, retailer, count: items.length, items });
-});
 
-/* ========================================
-   WALMART SCHEDULE / MANUAL SCAN
-======================================== */
+  res.json({
+    ok: true,
+    retailer,
+    count: items.length,
+    items
+  });
+});
 
 app.get("/api/walmart/schedule", (req, res) => {
   res.json({
@@ -289,7 +346,12 @@ app.get("/api/walmart/provider", (req, res) => {
 
 app.get("/api/walmart/upcoming", (req, res) => {
   const items = walmart.getUpcoming?.() || [];
-  res.json({ ok: true, count: items.length, items });
+
+  res.json({
+    ok: true,
+    count: items.length,
+    items
+  });
 });
 
 app.get("/api/walmart/watchlist", (req, res) => {
@@ -308,13 +370,21 @@ app.get("/api/walmart/watchlist", (req, res) => {
   });
 });
 
+app.get("/api/walmart/30th", (req, res) => {
+  res.json({
+    ok: true,
+    ...walmart30thDiscovery.getState()
+  });
+});
+
 app.get("/api/walmart/health", (req, res) => {
   res.json({
     ok: true,
     provider: walmart.getProviderInfo?.() || null,
     scanner: getScannerState(),
     schedule: walmartScheduler.getStatus(),
-    watchlistCount: walmartWatchlist.getConfiguredWatchlist().length
+    watchlistCount: walmartWatchlist.getConfiguredWatchlist().length,
+    discovery30th: walmart30thDiscovery.getState()
   });
 });
 
@@ -327,11 +397,15 @@ app.all("/api/walmart/wake", async (req, res) => {
   }
 
   if (!hasValidWakeToken(req)) {
-    return res.status(401).json({ ok: false, error: "Invalid wake token" });
+    return res.status(401).json({
+      ok: false,
+      error: "Invalid wake token"
+    });
   }
 
   try {
     const result = await walmartScheduler.wakeScan();
+
     res.json({
       ok: true,
       result,
@@ -339,7 +413,11 @@ app.all("/api/walmart/wake", async (req, res) => {
     });
   } catch (error) {
     console.error("Walmart wake scan failed:", error);
-    res.status(500).json({ ok: false, error: error.message });
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
   }
 });
 
@@ -360,16 +438,20 @@ app.post("/api/walmart/scan", async (req, res) => {
 
   try {
     const result = await walmartScheduler.manualScan();
-    res.json({ ok: result?.ok !== false, result });
+
+    res.json({
+      ok: result?.ok !== false,
+      result
+    });
   } catch (error) {
     console.error("Manual Walmart scan failed:", error);
-    res.status(500).json({ ok: false, error: error.message });
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
   }
 });
-
-/* ========================================
-   MARKETPLACE ENDPOINT
-======================================== */
 
 app.get("/api/marketplace", async (req, res) => {
   try {
@@ -383,7 +465,9 @@ app.get("/api/marketplace", async (req, res) => {
     );
 
     if (requestedProductId) {
-      catalog = catalog.filter(product => product.id === requestedProductId);
+      catalog = catalog.filter(
+        product => product.id === requestedProductId
+      );
 
       if (!catalog.length) {
         return res.status(404).json({
@@ -399,13 +483,25 @@ app.get("/api/marketplace", async (req, res) => {
 
     for (const product of catalog) {
       try {
-        const productOffers = await walmart.searchMarketplaceOffers(product);
+        const productOffers =
+          await walmart.searchMarketplaceOffers(product);
+
         for (const offer of productOffers) {
-          offers.push({ ...offer, alertEligible: false });
+          offers.push({
+            ...offer,
+            alertEligible: false
+          });
         }
       } catch (error) {
-        console.error(`Marketplace search failed for ${product.id}:`, error.message);
-        errors.push({ productId: product.id, error: error.message });
+        console.error(
+          `Marketplace search failed for ${product.id}:`,
+          error.message
+        );
+
+        errors.push({
+          productId: product.id,
+          error: error.message
+        });
       }
     }
 
@@ -417,18 +513,33 @@ app.get("/api/marketplace", async (req, res) => {
         : [offer.name, offer.seller, offer.price].join("|");
 
       const existing = uniqueOffers.get(key);
-      if (!existing || Number(offer.price) < Number(existing.price)) {
+
+      if (
+        !existing ||
+        Number(offer.price) < Number(existing.price)
+      ) {
         uniqueOffers.set(key, offer);
       }
     }
 
     const sorted = Array.from(uniqueOffers.values())
       .filter(offer => offer.price !== null)
-      .sort((a, b) => Number(a.price) - Number(b.price));
+      .sort(
+        (a, b) =>
+          Number(a.price) - Number(b.price)
+      );
 
-    const available = sorted.filter(offer => offer.offerAvailable === true);
-    const walmartDirect = available.filter(offer => offer.directSeller === true);
-    const marketplace = available.filter(offer => offer.directSeller !== true);
+    const available = sorted.filter(
+      offer => offer.offerAvailable === true
+    );
+
+    const walmartDirect = available.filter(
+      offer => offer.directSeller === true
+    );
+
+    const marketplace = available.filter(
+      offer => offer.directSeller !== true
+    );
 
     res.json({
       ok: true,
@@ -441,18 +552,27 @@ app.get("/api/marketplace", async (req, res) => {
       marketplaceCount: marketplace.length,
       failedSearches: errors.length,
       items: available,
-      groups: { walmartDirect, marketplace },
+      groups: {
+        walmartDirect,
+        marketplace
+      },
       errors
     });
   } catch (error) {
     console.error("Marketplace endpoint failed:", error);
-    res.status(500).json({ ok: false, error: error.message });
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
   }
 });
 
 app.get("/api/test/product/:productId", async (req, res) => {
   try {
-    const product = products.find(item => item.id === req.params.productId);
+    const product = products.find(
+      item => item.id === req.params.productId
+    );
 
     if (!product) {
       return res.status(404).json({
@@ -462,14 +582,19 @@ app.get("/api/test/product/:productId", async (req, res) => {
       });
     }
 
-    if (!Array.isArray(product.retailers) || !product.retailers.includes("walmart")) {
+    if (
+      !Array.isArray(product.retailers) ||
+      !product.retailers.includes("walmart")
+    ) {
       return res.status(400).json({
         ok: false,
         error: "Product is not configured for Walmart"
       });
     }
 
-    const result = await walmart.checkProduct(product, "walmart");
+    const result =
+      await walmart.checkProduct(product, "walmart");
+
     const savedResult = saveResult(result);
 
     res.json({
@@ -477,36 +602,59 @@ app.get("/api/test/product/:productId", async (req, res) => {
       test: "single-product",
       dashboardUpdated: true,
       requestedProductId: product.id,
-      configuredItemId: product.walmartItemId || null,
+      configuredItemId:
+        product.walmartItemId || null,
       result: savedResult
     });
   } catch (error) {
-    console.error("Controlled Walmart test failed:", error);
-    res.status(500).json({ ok: false, error: error.message });
+    console.error(
+      "Controlled Walmart test failed:",
+      error
+    );
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
   }
 });
 
 app.get("/api/test/prismatic-etb", async (req, res) => {
   try {
-    const product = products.find(item => item.id === "prismatic-etb");
+    const product = products.find(
+      item => item.id === "prismatic-etb"
+    );
 
     if (!product) {
-      return res.status(404).json({ ok: false, error: "prismatic-etb not found" });
+      return res.status(404).json({
+        ok: false,
+        error: "prismatic-etb not found"
+      });
     }
 
-    const result = await walmart.checkProduct(product, "walmart");
+    const result =
+      await walmart.checkProduct(product, "walmart");
+
     const savedResult = saveResult(result);
 
     res.json({
       ok: true,
       test: "single-product",
       dashboardUpdated: true,
-      configuredItemId: product.walmartItemId || null,
+      configuredItemId:
+        product.walmartItemId || null,
       result: savedResult
     });
   } catch (error) {
-    console.error("Controlled Walmart test failed:", error);
-    res.status(500).json({ ok: false, error: error.message });
+    console.error(
+      "Controlled Walmart test failed:",
+      error
+    );
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
   }
 });
 
@@ -514,33 +662,66 @@ app.get("/api/discovery/run", async (req, res) => {
   try {
     res.json({
       ok: true,
-      discovery: await discovery.discoverWalmartProducts()
+      discovery:
+        await discovery.discoverWalmartProducts()
     });
   } catch (error) {
-    console.error("Manual discovery failed:", error);
-    res.status(500).json({ ok: false, error: error.message });
+    console.error(
+      "Manual discovery failed:",
+      error
+    );
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
   }
 });
 
 app.get("/api/discovery/products", async (req, res) => {
   try {
-    const items = await discovery.getDiscoveredProducts();
-    res.json({ ok: true, count: items.length, items });
+    const items =
+      await discovery.getDiscoveredProducts();
+
+    res.json({
+      ok: true,
+      count: items.length,
+      items
+    });
   } catch (error) {
-    console.error("Get discovered products failed:", error);
-    res.status(500).json({ ok: false, error: error.message });
+    console.error(
+      "Get discovered products failed:",
+      error
+    );
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
   }
 });
 
 app.get("/api/debug/walmart-search", async (req, res) => {
   try {
-    const result = await walmart.inspectSearchResponse(
-      req.query.keyword || "Pokemon TCG"
-    );
-    res.json({ ok: true, ...result });
+    const result =
+      await walmart.inspectSearchResponse(
+        req.query.keyword || "Pokemon TCG"
+      );
+
+    res.json({
+      ok: true,
+      ...result
+    });
   } catch (error) {
-    console.error("Walmart search diagnostic failed:", error);
-    res.status(500).json({ ok: false, error: error.message });
+    console.error(
+      "Walmart search diagnostic failed:",
+      error
+    );
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
   }
 });
 
@@ -548,52 +729,94 @@ let discoveryRunning = false;
 
 async function runScheduledDiscovery() {
   if (discoveryRunning) {
-    console.log("Discovery already running. Skipping duplicate run.");
+    console.log(
+      "Discovery already running. Skipping duplicate run."
+    );
     return;
   }
 
   discoveryRunning = true;
 
   try {
-    console.log("Starting Walmart product discovery...");
-    const result = await discovery.discoverWalmartProducts();
-    console.log("Walmart product discovery finished:", result);
+    console.log(
+      "Starting Walmart product discovery..."
+    );
+
+    const result =
+      await discovery.discoverWalmartProducts();
+
+    console.log(
+      "Walmart product discovery finished:",
+      result
+    );
   } catch (error) {
-    console.error("Walmart product discovery failed:", error);
+    console.error(
+      "Walmart product discovery failed:",
+      error
+    );
   } finally {
     discoveryRunning = false;
   }
 }
 
 app.listen(port, async () => {
-  console.log(`Pokemon monitor backend listening on ${port}`);
-  console.log("Web Push configuration:", push.getPushStatus());
+  console.log(
+    `Pokemon monitor backend listening on ${port}`
+  );
+
+  console.log(
+    "Web Push configuration:",
+    push.getPushStatus()
+  );
 
   try {
     await discovery.initializeDiscoveryDatabase();
     console.log("Discovery storage ready.");
   } catch (error) {
-    console.error("Discovery database initialization failed:", error);
+    console.error(
+      "Discovery database initialization failed:",
+      error
+    );
   }
 
   try {
-    const pushDatabase = await push.initializePushDatabase();
-    console.log("Persistent push storage ready:", pushDatabase);
+    const pushDatabase =
+      await push.initializePushDatabase();
+
+    console.log(
+      "Persistent push storage ready:",
+      pushDatabase
+    );
   } catch (error) {
-    console.error("Push database initialization failed:", error);
+    console.error(
+      "Push database initialization failed:",
+      error
+    );
   }
 
   try {
     const results = await multiStore.start({
       getWalmartState: getLatest
     });
-    console.log("Multi-store provider engine started:", results);
+
+    console.log(
+      "Multi-store provider engine started:",
+      results
+    );
   } catch (error) {
-    console.error("Multi-store provider engine startup failed:", error);
+    console.error(
+      "Multi-store provider engine startup failed:",
+      error
+    );
   }
 
-  const scheduleState = walmartScheduler.start();
-  console.log("Walmart scheduled scanning:", scheduleState);
+  const scheduleState =
+    walmartScheduler.start();
+
+  console.log(
+    "Walmart scheduled scanning:",
+    scheduleState
+  );
 
   if (runOnStartup) {
     console.log("RUN_ON_STARTUP enabled.");
@@ -603,21 +826,41 @@ app.listen(port, async () => {
   }
 
   if (enableFullPolling) {
-    console.log(`Automatic catalog polling ENABLED every ${pollSeconds} seconds.`);
+    console.log(
+      `Automatic catalog polling ENABLED every ${pollSeconds} seconds.`
+    );
+
     setInterval(() => {
       runScheduledScan().catch(error => {
-        console.error("Automatic catalog polling failed:", error);
+        console.error(
+          "Automatic catalog polling failed:",
+          error
+        );
       });
     }, pollSeconds * 1000);
   } else {
-    console.log("Continuous catalog polling disabled; Walmart scheduler controls drop-window scans.");
+    console.log(
+      "Continuous catalog polling disabled; Walmart scheduler controls drop-window scans."
+    );
   }
 
   if (enableDiscovery) {
-    console.log(`Automatic Walmart discovery ENABLED every ${discoveryMinutes} minutes.`);
-    setTimeout(runScheduledDiscovery, 15000);
-    setInterval(runScheduledDiscovery, discoveryMinutes * 60 * 1000);
+    console.log(
+      `Automatic Walmart discovery ENABLED every ${discoveryMinutes} minutes.`
+    );
+
+    setTimeout(
+      runScheduledDiscovery,
+      15000
+    );
+
+    setInterval(
+      runScheduledDiscovery,
+      discoveryMinutes * 60 * 1000
+    );
   } else {
-    console.log("Continuous Walmart discovery disabled.");
+    console.log(
+      "Continuous Walmart discovery disabled."
+    );
   }
 });
