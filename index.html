@@ -1,26 +1,29 @@
 <!doctype html>
+
 <html lang="en">
+
 <head>
+
 <meta charset="utf-8">
 
 <meta
+
   name="viewport"
+
   content="width=device-width,initial-scale=1,viewport-fit=cover"
+
 >
 
-<meta
-  name="theme-color"
-  content="#020711"
->
+<meta name="theme-color" content="#020711">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
 
 <meta
-  name="apple-mobile-web-app-capable"
-  content="yes"
->
 
-<meta
   name="apple-mobile-web-app-status-bar-style"
+
   content="black-translucent"
+
 >
 
 <title>Pokémon Restock Monitor</title>
@@ -28,328 +31,372 @@
 <style>
 
 :root{
+
   --bg:#020711;
+
   --panel:#071326;
+
   --panel2:#0a1b31;
+
   --text:#f7fbff;
+
   --muted:#96a8bf;
+
   --green:#54f3a6;
+
   --blue:#62c7ff;
+
   --gold:#ffc76b;
+
   --red:#ff758b;
+
 }
 
 *{
+
   box-sizing:border-box;
+
 }
 
 html,
+
 body{
+
   margin:0;
+
   background:var(--bg);
+
   color:var(--text);
+
   font-family:
+
     -apple-system,
+
     BlinkMacSystemFont,
+
     "Segoe UI",
+
     Roboto,
+
     Arial,
+
     sans-serif;
+
 }
 
 body{
+
   min-height:100vh;
-  padding-bottom:
-    max(
-      24px,
-      env(safe-area-inset-bottom)
-    );
+
+  padding-bottom:max(24px,env(safe-area-inset-bottom));
+
 }
 
 button,
+
 input{
+
   font:inherit;
+
 }
 
 button{
+
   cursor:pointer;
+
 }
 
 a{
+
   color:inherit;
+
   text-decoration:none;
+
 }
 
 .app{
+
   max-width:980px;
+
   margin:auto;
+
   overflow:hidden;
+
 }
 
 .hero{
+
   height:360px;
 
   background:
+
     linear-gradient(
+
       to bottom,
+
       rgba(2,7,17,0) 58%,
+
       rgba(2,7,17,.35) 76%,
+
       var(--bg) 100%
+
     ),
+
     url("hero.jpg")
+
     center top /
+
     cover
+
     no-repeat;
+
 }
 
 .status-wrap{
+
   display:grid;
-  grid-template-columns:
-    1fr
-    1fr;
+
+  grid-template-columns:1fr 1fr;
 
   gap:9px;
 
-  padding:
-    0
-    14px;
+  padding:0 14px;
 
   margin-top:-28px;
 
   position:relative;
+
   z-index:2;
+
 }
 
 .status-pill{
+
   min-height:46px;
 
-  border:
-    1px solid
-    rgba(84,243,166,.55);
+  border:1px solid rgba(84,243,166,.55);
 
   border-radius:12px;
 
-  background:
-    rgba(8,44,37,.96);
+  background:rgba(8,44,37,.96);
 
   display:flex;
+
   align-items:center;
+
   justify-content:center;
 
   gap:7px;
 
   font-size:12px;
+
   font-weight:900;
+
 }
 
 .status-pill.offline{
-  border-color:
-    rgba(255,117,139,.55);
 
-  background:
-    rgba(57,19,29,.96);
+  border-color:rgba(255,117,139,.55);
+
+  background:rgba(57,19,29,.96);
+
 }
 
 .dot{
+
   width:8px;
+
   height:8px;
 
   border-radius:50%;
 
-  background:
-    var(--green);
+  background:var(--green);
 
-  box-shadow:
-    0 0 8px
-    var(--green);
+  box-shadow:0 0 8px var(--green);
+
 }
 
 .offline .dot{
-  background:
-    var(--red);
 
-  box-shadow:
-    0 0 8px
-    var(--red);
+  background:var(--red);
+
+  box-shadow:0 0 8px var(--red);
+
 }
 
 .section{
-  padding:
-    12px
-    14px;
+
+  padding:12px 14px;
+
 }
 
 .tabs{
+
   display:grid;
 
-  grid-template-columns:
-    repeat(
-      5,
-      minmax(0,1fr)
-    );
+  grid-template-columns:repeat(5,minmax(0,1fr));
 
   gap:7px;
+
 }
 
 .tab{
-  border:
-    1px solid
-    rgba(98,199,255,.25);
+
+  border:1px solid rgba(98,199,255,.25);
 
   border-radius:10px;
 
-  background:
-    var(--panel);
+  background:var(--panel);
 
   color:#dcecff;
 
-  padding:
-    11px
-    6px;
+  padding:11px 6px;
 
   font-size:11px;
+
   font-weight:900;
+
 }
 
 .tab.active{
-  border-color:
-    var(--green);
 
-  background:
-    #0d2f2a;
+  border-color:var(--green);
+
+  background:#0d2f2a;
 
   color:white;
+
 }
 
 .monitor-panel{
-  border:
-    1px solid
-    rgba(98,199,255,.24);
+
+  border:1px solid rgba(98,199,255,.24);
 
   border-radius:14px;
 
-  background:
-    linear-gradient(
-      180deg,
-      #0b1d34,
-      #071326
-    );
+  background:linear-gradient(180deg,#0b1d34,#071326);
 
   padding:14px;
+
 }
 
 .panel-head{
+
   display:flex;
+
   align-items:center;
-  justify-content:
-    space-between;
+
+  justify-content:space-between;
 
   gap:10px;
+
 }
 
 .panel-title{
+
   font-size:15px;
+
   font-weight:900;
+
 }
 
 .panel-status{
+
   font-size:10px;
+
   font-weight:900;
 
-  padding:
-    5px
-    8px;
+  padding:5px 8px;
 
-  border-radius:
-    999px;
+  border-radius:999px;
 
-  border:
-    1px solid
-    rgba(84,243,166,.35);
+  border:1px solid rgba(84,243,166,.35);
 
-  color:
-    var(--green);
+  color:var(--green);
+
 }
 
 .panel-status.warn{
-  border-color:
-    rgba(255,199,107,.45);
 
-  color:
-    var(--gold);
+  border-color:rgba(255,199,107,.45);
+
+  color:var(--gold);
+
 }
 
 .panel-status.off{
-  border-color:
-    rgba(255,117,139,.4);
 
-  color:
-    var(--red);
+  border-color:rgba(255,117,139,.4);
+
+  color:var(--red);
+
 }
 
 .schedule-grid{
+
   display:grid;
 
-  grid-template-columns:
-    repeat(4,1fr);
+  grid-template-columns:repeat(4,1fr);
 
   gap:8px;
 
   margin-top:10px;
+
 }
 
 .schedule-box{
-  background:
-    #06111f;
 
-  border:
-    1px solid
-    rgba(255,255,255,.08);
+  background:#06111f;
+
+  border:1px solid rgba(255,255,255,.08);
 
   border-radius:10px;
 
   padding:10px;
+
 }
 
 .schedule-box span{
+
   display:block;
 
-  color:
-    var(--muted);
+  color:var(--muted);
 
   font-size:9px;
 
-  text-transform:
-    uppercase;
+  text-transform:uppercase;
 
   font-weight:800;
+
 }
 
 .schedule-box strong{
+
   display:block;
 
   margin-top:4px;
 
   font-size:12px;
+
 }
 
 .panel-actions{
+
   display:flex;
 
   gap:8px;
 
   margin-top:10px;
+
 }
 
 .action-btn{
+
   flex:1;
 
-  border:
-    1px solid
-    rgba(84,243,166,.45);
+  border:1px solid rgba(84,243,166,.45);
 
-  background:
-    #0b2b25;
+  background:#0b2b25;
 
   color:white;
 
@@ -358,28 +405,31 @@ a{
   padding:11px;
 
   font-weight:900;
+
 }
 
 .action-btn.secondary{
-  border-color:
-    rgba(98,199,255,.35);
 
-  background:
-    #0a1b31;
+  border-color:rgba(98,199,255,.35);
+
+  background:#0a1b31;
+
 }
 
 .healthline{
+
   margin-top:9px;
 
-  color:
-    var(--muted);
+  color:var(--muted);
 
   font-size:10px;
 
   line-height:1.5;
+
 }
 
 .section-title{
+
   margin-top:16px;
 
   font-size:11px;
@@ -389,379 +439,383 @@ a{
   color:#dcecff;
 
   letter-spacing:.3px;
+
 }
 
 .discovery-list{
+
   display:grid;
 
   gap:7px;
 
   margin-top:7px;
+
 }
 
 .discovery-item{
-  border:
-    1px solid
-    rgba(255,199,107,.28);
+
+  border:1px solid rgba(255,199,107,.28);
 
   border-radius:9px;
 
   padding:10px;
 
   background:#17140c;
+
 }
 
 .discovery-item.marketplace{
-  border-color:
-    rgba(98,199,255,.25);
+
+  border-color:rgba(98,199,255,.25);
 
   background:#081522;
+
 }
 
 .discovery-item.approved{
-  border-color:
-    rgba(84,243,166,.42);
+
+  border-color:rgba(84,243,166,.42);
 
   background:#0a201b;
+
 }
 
 .discovery-item strong{
+
   font-size:11px;
+
 }
 
 .discovery-item small{
+
   display:block;
 
   margin-top:4px;
 
-  color:
-    var(--muted);
+  color:var(--muted);
 
   line-height:1.45;
+
 }
 
 .accordion{
+
   margin-top:10px;
 
-  border:
-    1px solid
-    rgba(98,199,255,.2);
+  border:1px solid rgba(98,199,255,.2);
 
   border-radius:11px;
 
   overflow:hidden;
 
   background:#071524;
+
 }
 
 .accordion-button{
+
   width:100%;
 
   border:0;
 
-  background:
-    #091a2d;
+  background:#091a2d;
 
   color:white;
 
-  padding:
-    13px
-    12px;
+  padding:13px 12px;
 
   display:flex;
 
   align-items:center;
 
-  justify-content:
-    space-between;
+  justify-content:space-between;
 
   font-size:11px;
 
   font-weight:900;
 
   text-align:left;
+
 }
 
 .accordion-button span:last-child{
-  color:
-    var(--blue);
+
+  color:var(--blue);
 
   font-size:15px;
+
 }
 
 .accordion-content{
+
   display:none;
 
-  padding:
-    9px;
+  padding:9px;
+
 }
 
-.accordion.open
-.accordion-content{
+.accordion.open .accordion-content{
+
   display:grid;
 
   gap:7px;
+
 }
 
-.accordion.open
-.accordion-button
-span:last-child{
-  transform:
-    rotate(180deg);
+.accordion.open .accordion-button span:last-child{
+
+  transform:rotate(180deg);
+
 }
 
 .accordion-item{
-  border:
-    1px solid
-    rgba(255,255,255,.08);
+
+  border:1px solid rgba(255,255,255,.08);
 
   border-radius:9px;
 
   padding:9px;
 
   background:#06111f;
+
 }
 
 .accordion-item strong{
+
   display:block;
 
   font-size:11px;
 
   line-height:1.4;
+
 }
 
 .accordion-item small{
+
   display:block;
 
   margin-top:3px;
 
-  color:
-    var(--muted);
+  color:var(--muted);
 
   font-size:10px;
 
   line-height:1.4;
+
 }
 
 .retailer-message{
+
   margin-top:12px;
 
-  border:
-    1px dashed
-    rgba(98,199,255,.25);
+  border:1px dashed rgba(98,199,255,.25);
 
   border-radius:12px;
 
   padding:20px;
 
-  color:
-    var(--muted);
+  color:var(--muted);
 
   text-align:center;
 
   line-height:1.5;
 
   font-size:12px;
+
 }
 
 .toolbar{
+
   display:flex;
 
   gap:8px;
 
   align-items:center;
+
 }
 
 .toolbar input{
+
   flex:1;
+
   min-width:0;
 
-  background:
-    var(--panel);
+  background:var(--panel);
 
-  border:
-    1px solid
-    rgba(98,199,255,.25);
+  border:1px solid rgba(98,199,255,.25);
 
   color:white;
 
   border-radius:10px;
 
   padding:12px;
+
 }
 
 .toolbar button{
-  border:
-    1px solid
-    rgba(84,243,166,.45);
 
-  background:
-    #0b2b25;
+  border:1px solid rgba(84,243,166,.45);
+
+  background:#0b2b25;
 
   color:#e9fff5;
 
   border-radius:10px;
 
-  padding:
-    12px
-    16px;
+  padding:12px 16px;
 
   font-weight:900;
+
 }
 
 .meta{
+
   display:flex;
 
-  justify-content:
-    space-between;
+  justify-content:space-between;
 
   gap:10px;
 
   margin-top:8px;
 
-  color:
-    var(--muted);
+  color:var(--muted);
 
   font-size:11px;
+
 }
 
 .products{
+
   display:grid;
 
-  grid-template-columns:
-    repeat(
-      2,
-      minmax(0,1fr)
-    );
+  grid-template-columns:repeat(2,minmax(0,1fr));
 
   gap:12px;
 
-  padding:
-    4px
-    14px
-    20px;
+  padding:4px 14px 20px;
+
 }
 
 .card{
-  border:
-    1px solid
-    rgba(98,199,255,.18);
+
+  border:1px solid rgba(98,199,255,.18);
 
   border-radius:14px;
 
-  background:
-    linear-gradient(
-      180deg,
-      #09192d,
-      #06111f
-    );
+  background:linear-gradient(180deg,#09192d,#06111f);
 
   overflow:hidden;
+
 }
 
 .image-wrap{
-  aspect-ratio:
-    1.35 / 1;
 
-  background:
-    #08111e;
+  aspect-ratio:1.35 / 1;
+
+  background:#08111e;
 
   display:flex;
 
   align-items:center;
+
   justify-content:center;
 
   position:relative;
+
 }
 
 .image-wrap img{
+
   width:100%;
+
   height:100%;
 
   object-fit:contain;
+
 }
 
 .image-note{
+
   position:absolute;
 
   bottom:7px;
+
   left:7px;
 
-  background:
-    rgba(2,7,17,.8);
+  background:rgba(2,7,17,.8);
 
-  border:
-    1px solid
-    rgba(255,255,255,.14);
+  border:1px solid rgba(255,255,255,.14);
 
   border-radius:6px;
 
-  padding:
-    4px
-    6px;
+  padding:4px 6px;
 
   font-size:9px;
+
   font-weight:900;
+
 }
 
 .body{
+
   padding:12px;
+
 }
 
 .badges{
+
   display:flex;
 
   flex-wrap:wrap;
 
   gap:6px;
+
 }
 
 .badge{
+
   display:inline-flex;
 
   border-radius:999px;
 
-  border:
-    1px solid
-    rgba(255,255,255,.18);
+  border:1px solid rgba(255,255,255,.18);
 
-  padding:
-    4px
-    7px;
+  padding:4px 7px;
 
   font-size:9px;
 
   font-weight:900;
 
-  text-transform:
-    uppercase;
+  text-transform:uppercase;
+
 }
 
 .badge.good{
-  border-color:
-    rgba(84,243,166,.5);
 
-  color:
-    var(--green);
+  border-color:rgba(84,243,166,.5);
+
+  color:var(--green);
+
 }
 
 .badge.warn{
-  border-color:
-    rgba(255,199,107,.5);
 
-  color:
-    var(--gold);
+  border-color:rgba(255,199,107,.5);
+
+  color:var(--gold);
+
 }
 
 .badge.out{
-  border-color:
-    rgba(255,117,139,.5);
 
-  color:
-    var(--red);
+  border-color:rgba(255,117,139,.5);
+
+  color:var(--red);
+
 }
 
 .name{
+
   margin-top:9px;
 
   font-size:15px;
@@ -769,72 +823,76 @@ span:last-child{
   font-weight:900;
 
   line-height:1.3;
+
 }
 
 .sub{
+
   margin-top:4px;
 
-  color:
-    var(--muted);
+  color:var(--muted);
 
   font-size:11px;
+
 }
 
 .price{
+
   margin-top:10px;
 
   font-size:21px;
 
   font-weight:900;
+
 }
 
 .price small{
+
   font-size:11px;
 
-  color:
-    var(--muted);
+  color:var(--muted);
 
   font-weight:700;
+
 }
 
 .storeline{
+
   margin-top:8px;
 
   color:#dcecff;
 
   font-size:11px;
+
 }
 
 .buy{
+
   display:block;
 
   margin-top:11px;
 
   text-align:center;
 
-  border:
-    1px solid
-    rgba(84,243,166,.5);
+  border:1px solid rgba(84,243,166,.5);
 
   border-radius:9px;
 
-  background:
-    #0c3128;
+  background:#0c3128;
 
   padding:10px;
 
   font-size:11px;
 
   font-weight:900;
+
 }
 
 .empty{
-  grid-column:
-    1 / -1;
 
-  border:
-    1px dashed
-    rgba(98,199,255,.25);
+  grid-column:1 / -1;
+
+  border:1px dashed rgba(98,199,255,.25);
 
   border-radius:12px;
 
@@ -842,44 +900,52 @@ span:last-child{
 
   text-align:center;
 
-  color:
-    var(--muted);
+  color:var(--muted);
+
 }
 
 .hidden{
+
   display:none!important;
+
 }
 
 @media(max-width:760px){
 
   .tabs{
-    grid-template-columns:
-      repeat(2,1fr);
+
+    grid-template-columns:repeat(2,1fr);
+
   }
 
-  .tabs
-  .tab:last-child{
-    grid-column:
-      1 / -1;
+  .tabs .tab:last-child{
+
+    grid-column:1 / -1;
+
   }
 
   .schedule-grid{
-    grid-template-columns:
-      1fr;
+
+    grid-template-columns:1fr;
+
   }
 
   .products{
-    grid-template-columns:
-      1fr;
+
+    grid-template-columns:1fr;
+
   }
 
   .hero{
+
     height:320px;
+
   }
 
 }
 
 </style>
+
 </head>
 
 <body>
@@ -890,26 +956,20 @@ span:last-child{
 
   <div class="status-wrap">
 
-    <div
-      id="backendStatus"
-      class="status-pill"
-    >
+    <div id="backendStatus" class="status-pill">
+
       <span class="dot"></span>
 
-      <span>
-        LIVE MONITOR CONNECTED
-      </span>
+      <span>LIVE MONITOR CONNECTED</span>
+
     </div>
 
-    <div
-      id="pushStatus"
-      class="status-pill"
-    >
+    <div id="pushStatus" class="status-pill">
+
       <span class="dot"></span>
 
-      <span>
-        PUSH ALERTS ACTIVE
-      </span>
+      <span>PUSH ALERTS ACTIVE</span>
+
     </div>
 
   </div>
@@ -918,39 +978,34 @@ span:last-child{
 
     <div class="tabs">
 
-      <button
-        class="tab active"
-        data-retailer="walmart"
-      >
+      <button class="tab active" data-retailer="walmart">
+
         WALMART
+
       </button>
 
-      <button
-        class="tab"
-        data-retailer="target"
-      >
+      <button class="tab" data-retailer="target">
+
         TARGET
+
       </button>
 
-      <button
-        class="tab"
-        data-retailer="sams"
-      >
+      <button class="tab" data-retailer="sams">
+
         SAM'S CLUB
+
       </button>
 
-      <button
-        class="tab"
-        data-retailer="bestbuy"
-      >
+      <button class="tab" data-retailer="bestbuy">
+
         BEST BUY
+
       </button>
 
-      <button
-        class="tab"
-        data-retailer="costco"
-      >
+      <button class="tab" data-retailer="costco">
+
         COSTCO
+
       </button>
 
     </div>
@@ -963,18 +1018,16 @@ span:last-child{
 
       <div class="panel-head">
 
-        <div
-          id="monitorTitle"
-          class="panel-title"
-        >
+        <div id="monitorTitle" class="panel-title">
+
           Walmart Monitor
+
         </div>
 
-        <div
-          id="monitorState"
-          class="panel-status"
-        >
+        <div id="monitorState" class="panel-status">
+
           SCHEDULED
+
         </div>
 
       </div>
@@ -990,12 +1043,17 @@ span:last-child{
     <div class="toolbar">
 
       <input
+
         id="search"
+
         placeholder="Search Walmart Pokémon products"
+
       >
 
       <button id="refresh">
+
         Refresh
+
       </button>
 
     </div>
@@ -1003,122 +1061,161 @@ span:last-child{
     <div class="meta">
 
       <span id="visibleCount">
+
         0 products
+
       </span>
 
       <span id="lastUpdated">
+
         Not updated yet
+
       </span>
 
     </div>
 
   </section>
 
-  <main
-    id="products"
-    class="products"
-  ></main>
+  <main id="products" class="products"></main>
 
 </div>
 
 <script>
 
 const RETAILER_LABELS = {
-  walmart: "Walmart",
-  target: "Target",
-  sams: "Sam's Club",
-  bestbuy: "Best Buy",
-  costco: "Costco"
+
+  walmart:"Walmart",
+
+  target:"Target",
+
+  sams:"Sam's Club",
+
+  bestbuy:"Best Buy",
+
+  costco:"Costco"
+
 };
 
 const RETAILER_TITLES = {
-  walmart: "Walmart Monitor",
-  target: "Target Monitor",
-  sams: "Sam's Club Monitor",
-  bestbuy: "Best Buy Monitor",
-  costco: "Costco Monitor"
+
+  walmart:"Walmart Monitor",
+
+  target:"Target Monitor",
+
+  sams:"Sam's Club Monitor",
+
+  bestbuy:"Best Buy Monitor",
+
+  costco:"Costco Monitor"
+
 };
 
 const RETAILER_CHANNELS = {
-  walmart: "ONLINE",
-  target: "ONLINE",
-  sams: "ONLINE + CLUBS",
-  bestbuy: "ONLINE + STORES",
-  costco: "ONLINE + WAREHOUSES"
+
+  walmart:"ONLINE",
+
+  target:"ONLINE",
+
+  sams:"ONLINE + CLUBS",
+
+  bestbuy:"ONLINE + STORES",
+
+  costco:"ONLINE + WAREHOUSES"
+
 };
 
 const productsEl =
+
   document.getElementById("products");
 
 const searchEl =
+
   document.getElementById("search");
 
 const refreshBtn =
+
   document.getElementById("refresh");
 
 const backendStatus =
+
   document.getElementById("backendStatus");
 
 const pushStatus =
+
   document.getElementById("pushStatus");
 
 const visibleCount =
+
   document.getElementById("visibleCount");
 
 const lastUpdated =
+
   document.getElementById("lastUpdated");
 
 const monitorTitle =
+
   document.getElementById("monitorTitle");
 
 const monitorState =
+
   document.getElementById("monitorState");
 
 const retailerMonitorBody =
+
   document.getElementById("retailerMonitorBody");
 
-let activeRetailer =
-  "walmart";
+let activeRetailer = "walmart";
 
-let currentProducts =
-  [];
+let currentProducts = [];
 
-let providerStates =
-  [];
+let providerStates = [];
 
-let latestStatus =
-  {};
+let latestStatus = {};
 
 function esc(value){
 
-  return String(
-    value ?? ""
-  ).replace(
+  return String(value ?? "").replace(
+
     /[&<>"']/g,
+
     character => ({
+
       "&":"&amp;",
+
       "<":"&lt;",
+
       ">":"&gt;",
+
       "\"":"&quot;",
+
       "'":"&#39;"
+
     })[character]
+
   );
 
 }
 
 function money(value){
 
-  const number =
-    Number(value);
+  const number = Number(value);
 
   return Number.isFinite(number)
+
     ? new Intl.NumberFormat(
+
         "en-US",
+
         {
+
           style:"currency",
+
           currency:"USD"
+
         }
+
       ).format(number)
+
     : "Price unavailable";
 
 }
@@ -1126,26 +1223,33 @@ function money(value){
 function fallback(name){
 
   const label =
-    esc(
-      name ||
-      "Pokémon product"
-    ).slice(
-      0,
-      42
-    );
+
+    esc(name || "Pokémon product")
+
+      .slice(0,42);
 
   const svg =
+
     `<svg xmlns="http://www.w3.org/2000/svg" width="700" height="520">` +
+
     `<rect width="100%" height="100%" fill="#071729"/>` +
+
     `<circle cx="350" cy="210" r="110" fill="#0d3151"/>` +
+
     `<text x="350" y="205" text-anchor="middle" fill="white" font-size="28" font-family="Arial" font-weight="700">${label}</text>` +
+
     `<text x="350" y="340" text-anchor="middle" fill="#54f3a6" font-size="22" font-family="Arial" font-weight="700">REPRESENTATIVE IMAGE</text>` +
+
     `<text x="350" y="375" text-anchor="middle" fill="#9aa9c1" font-size="16" font-family="Arial">Retailer image unavailable</text>` +
+
     `</svg>`;
 
   return (
+
     "data:image/svg+xml;charset=UTF-8," +
+
     encodeURIComponent(svg)
+
   );
 
 }
@@ -1153,30 +1257,29 @@ function fallback(name){
 function statusBadge(status){
 
   const normalized =
-    String(
-      status ||
-      "out"
-    ).toLowerCase();
+
+    String(status || "out").toLowerCase();
 
   const cssClass =
-    [
-      "instock",
-      "onhand"
-    ].includes(normalized)
+
+    ["instock","onhand"].includes(normalized)
+
       ? "good"
-      : [
-          "transit",
-          "ordered",
-          "preorder",
-          "watching"
-        ].includes(normalized)
+
+      : ["transit","ordered","preorder","watching"].includes(normalized)
+
         ? "warn"
+
         : "out";
 
   return (
+
     `<span class="badge ${cssClass}">` +
+
     `${esc(normalized)}` +
+
     `</span>`
+
   );
 
 }
@@ -1184,40 +1287,61 @@ function statusBadge(status){
 function providerFor(retailer){
 
   return (
+
     providerStates.find(
+
       provider =>
+
         provider.retailer === retailer
+
     ) ||
+
     {
+
       retailer,
-      label:
-        RETAILER_LABELS[retailer] ||
-        retailer,
+
+      label:RETAILER_LABELS[retailer] || retailer,
+
       configured:false,
+
       running:false,
+
       error:null,
+
       itemCount:0,
+
       lastRun:null,
+
       lastSuccess:null
+
     }
+
   );
 
 }
 
 function accordion(
+
   id,
+
   title,
+
   count,
+
   content
+
 ){
 
   return (
+
     `<div class="accordion" id="${esc(id)}">` +
 
       `<button class="accordion-button" data-accordion="${esc(id)}">` +
 
         `<span>` +
+
           `${esc(title)} (${Number(count || 0)})` +
+
         `</span>` +
 
         `<span>⌄</span>` +
@@ -1225,10 +1349,13 @@ function accordion(
       `</button>` +
 
       `<div class="accordion-content">` +
+
         `${content}` +
+
       `</div>` +
 
     `</div>`
+
   );
 
 }
@@ -1236,9 +1363,13 @@ function accordion(
 function emptyAccordionMessage(text){
 
   return (
+
     `<div class="accordion-item">` +
+
       `<small>${esc(text)}</small>` +
+
     `</div>`
+
   );
 
 }
@@ -1246,108 +1377,151 @@ function emptyAccordionMessage(text){
 function renderWalmartDiscovery(){
 
   const discovery =
-    latestStatus
-      ?.walmartPokemonDiscovery ||
-    latestStatus
-      ?.walmart30thDiscovery ||
+
+    latestStatus?.walmartPokemonDiscovery ||
+
+    latestStatus?.walmart30thDiscovery ||
+
     {};
 
   const items =
-    Array.isArray(
-      discovery.items
-    )
+
+    Array.isArray(discovery.items)
+
       ? discovery.items
+
       : [];
 
-  if (
-    discovery.lastError
-  ){
+  if (discovery.lastError){
+
     return (
+
       `<div class="retailer-message">` +
-      `Pokémon product discovery error: ` +
-      `${esc(discovery.lastError)}` +
+
+      `Pokémon product discovery error: ${esc(discovery.lastError)}` +
+
       `</div>`
+
     );
+
   }
 
-  if (
-    !discovery.lastRun
-  ){
+  if (!discovery.lastRun){
+
     return (
+
       `<div class="retailer-message">` +
+
       `No sealed Pokémon discovery scan has run yet.` +
+
       `</div>`
+
     );
+
   }
 
-  if (
-    !items.length
-  ){
+  if (!items.length){
+
     return (
+
       `<div class="retailer-message">` +
+
       `No matching Walmart-direct or GT Collectibles sealed Pokémon products were found in the latest scan.` +
+
       `</div>`
+
     );
+
   }
 
   return (
+
     `<div class="discovery-list">` +
 
     items
-      .slice(
-        0,
-        24
-      )
+
+      .slice(0,24)
+
       .map(
+
         item => {
 
           const state =
+
             item.directSeller
+
               ? (
+
                   item.inStock
+
                     ? "WALMART DIRECT • AVAILABLE"
+
                     : "WALMART DIRECT • WATCHING"
+
                 )
+
               : item.approvedMarketplace
+
                 ? (
+
                     item.inStock
+
                       ? "GT COLLECTIBLES • AVAILABLE"
+
                       : "GT COLLECTIBLES • WATCHING"
+
                   )
+
                 : "MARKETPLACE • NOT APPROVED";
 
           const itemClass =
+
             item.directSeller
+
               ? ""
+
               : item.approvedMarketplace
+
                 ? "approved"
+
                 : "marketplace";
 
           return (
+
             `<a ` +
+
               `class="discovery-item ${itemClass}" ` +
+
               `href="${esc(item.url || "#")}" ` +
+
               `${item.url ? 'target="_blank" rel="noopener noreferrer"' : ""}` +
+
             `>` +
 
-              `<strong>` +
-                `${esc(item.name)}` +
-              `</strong>` +
+              `<strong>${esc(item.name)}</strong>` +
 
               `<small>` +
+
                 `${esc(state)}` +
+
                 `${item.price != null ? ` • ${money(item.price)}` : ""}` +
+
                 `${item.rawStatus ? ` • ${esc(item.rawStatus)}` : ""}` +
+
               `</small>` +
 
             `</a>`
+
           );
 
         }
+
       )
+
       .join("") +
 
     `</div>`
+
   );
 
 }
@@ -1355,45 +1529,59 @@ function renderWalmartDiscovery(){
 function renderWalmartUpcoming(){
 
   const detected =
+
     Array.isArray(
-      latestStatus
-        ?.walmartWatchlist
-        ?.detected
+
+      latestStatus?.walmartWatchlist?.detected
+
     )
-      ? latestStatus
-          .walmartWatchlist
-          .detected
+
+      ? latestStatus.walmartWatchlist.detected
+
       : [];
 
-  if (
-    !detected.length
-  ){
+  if (!detected.length){
+
     return emptyAccordionMessage(
+
       "No upcoming Walmart products detected right now."
+
     );
+
   }
 
   return detected
+
     .map(
+
       item =>
+
         `<a ` +
+
           `class="accordion-item" ` +
+
           `href="${esc(item.url || "#")}" ` +
+
           `${item.url ? 'target="_blank" rel="noopener noreferrer"' : ""}` +
+
         `>` +
 
-          `<strong>` +
-            `${esc(item.name)}` +
-          `</strong>` +
+          `<strong>${esc(item.name)}</strong>` +
 
           `<small>` +
+
             `${esc((item.dropType || item.status || "upcoming").toUpperCase())}` +
+
             `${item.price != null ? ` • ${money(item.price)}` : ""}` +
+
             `${item.rawStatus ? ` • ${esc(item.rawStatus)}` : ""}` +
+
           `</small>` +
 
         `</a>`
+
     )
+
     .join("");
 
 }
@@ -1401,57 +1589,77 @@ function renderWalmartUpcoming(){
 function renderWalmartWatchlist(){
 
   const watching =
+
     Array.isArray(
-      latestStatus
-        ?.walmartWatchlist
-        ?.watching
+
+      latestStatus?.walmartWatchlist?.watching
+
     )
-      ? latestStatus
-          .walmartWatchlist
-          .watching
+
+      ? latestStatus.walmartWatchlist.watching
+
       : [];
 
-  if (
-    !watching.length
-  ){
+  if (!watching.length){
+
     return emptyAccordionMessage(
+
       "No Walmart watchlist items configured."
+
     );
+
   }
 
   return watching
+
     .map(
+
       item => {
 
         const sellerLabel =
+
           item.directSeller
+
             ? "WALMART DIRECT"
+
             : item.approvedMarketplace
+
               ? "GT COLLECTIBLES"
+
               : "WATCHING";
 
         return (
+
           `<a ` +
+
             `class="accordion-item" ` +
+
             `href="${esc(item.url || "#")}" ` +
+
             `${item.url ? 'target="_blank" rel="noopener noreferrer"' : ""}` +
+
           `>` +
 
-            `<strong>` +
-              `${esc(item.name)}` +
-            `</strong>` +
+            `<strong>${esc(item.name)}</strong>` +
 
             `<small>` +
+
               `${esc(sellerLabel)}` +
+
               `${item.price != null ? ` • ${money(item.price)}` : ""}` +
+
               `${item.msrp != null ? ` • MSRP ${money(item.msrp)}` : ""}` +
+
             `</small>` +
 
           `</a>`
+
         );
 
       }
+
     )
+
     .join("");
 
 }
@@ -1459,55 +1667,55 @@ function renderWalmartWatchlist(){
 function renderWalmartMonitor(){
 
   const schedule =
-    latestStatus
-      ?.walmartSchedule ||
-    {};
+
+    latestStatus?.walmartSchedule || {};
 
   const provider =
-    latestStatus
-      ?.walmartProvider ||
-    {};
+
+    latestStatus?.walmartProvider || {};
 
   const hasData =
-    provider
-      ?.health
-      ?.hasdata ||
-    {};
+
+    provider?.health?.hasdata || {};
 
   const rapidApi =
-    provider
-      ?.health
-      ?.rapidapi ||
-    {};
+
+    provider?.health?.rapidapi || {};
 
   const upcoming =
+
     Array.isArray(
-      latestStatus
-        ?.walmartWatchlist
-        ?.detected
+
+      latestStatus?.walmartWatchlist?.detected
+
     )
-      ? latestStatus
-          .walmartWatchlist
-          .detected
+
+      ? latestStatus.walmartWatchlist.detected
+
       : [];
 
   const watching =
+
     Array.isArray(
-      latestStatus
-        ?.walmartWatchlist
-        ?.watching
+
+      latestStatus?.walmartWatchlist?.watching
+
     )
-      ? latestStatus
-          .walmartWatchlist
-          .watching
+
+      ? latestStatus.walmartWatchlist.watching
+
       : [];
 
   monitorState.className =
+
     "panel-status";
 
   monitorState.textContent =
+
     schedule.activeWindow
+
       ? "DROP WINDOW ACTIVE"
+
       : "SCHEDULED";
 
   retailerMonitorBody.innerHTML =
@@ -1515,121 +1723,169 @@ function renderWalmartMonitor(){
     `<div class="schedule-grid">` +
 
       `<div class="schedule-box">` +
+
         `<span>Drop window</span>` +
+
         `<strong>${esc(schedule.scheduleLabel || "Wednesday drop window")}</strong>` +
+
       `</div>` +
 
       `<div class="schedule-box">` +
+
         `<span>Primary source</span>` +
+
         `<strong>` +
+
           `${
+
             provider.primary
+
               ? `${esc(String(provider.primary).toUpperCase())}${provider.fallbackEnabled ? " → RAPIDAPI FALLBACK" : ""}`
+
               : "WALMART"
+
           }` +
+
         `</strong>` +
+
       `</div>` +
 
       `<div class="schedule-box">` +
+
         `<span>Last scan</span>` +
+
         `<strong>` +
+
           `${
+
             schedule.lastManualRun
+
               ? esc(new Date(schedule.lastManualRun).toLocaleString())
+
               : schedule.lastScheduledRun
+
                 ? esc(new Date(schedule.lastScheduledRun).toLocaleString())
+
                 : "—"
+
           }` +
+
         `</strong>` +
+
       `</div>` +
 
       `<div class="schedule-box">` +
+
         `<span>Next scan</span>` +
+
         `<strong>${esc(schedule.nextScanLabel || "—")}</strong>` +
+
       `</div>` +
 
     `</div>` +
 
     `<div class="panel-actions">` +
 
-      `<button ` +
-        `id="manualWalmartScan" ` +
-        `class="action-btn"` +
-      `>` +
+      `<button id="manualWalmartScan" class="action-btn">` +
+
         `SCAN WALMART NOW` +
+
       `</button>` +
 
-      `<button ` +
-        `id="forgetScanToken" ` +
-        `class="action-btn secondary"` +
-      `>` +
+      `<button id="forgetScanToken" class="action-btn secondary">` +
+
         `RESET SCAN KEY` +
+
       `</button>` +
 
     `</div>` +
 
     `<div class="healthline">` +
+
       `HasData: ${Number(hasData.successes || 0)} ok / ${Number(hasData.failures || 0)} failed` +
+
       ` • RapidAPI: ${Number(rapidApi.successes || 0)} ok / ${Number(rapidApi.failures || 0)} failed` +
+
       `${hasData.lastError ? ` • Last HasData error: ${esc(hasData.lastError)}` : ""}` +
+
     `</div>` +
 
     `<div class="section-title">` +
+
       `POKÉMON PRODUCT DISCOVERY` +
+
     `</div>` +
 
     renderWalmartDiscovery() +
 
     accordion(
+
       "walmart-upcoming",
+
       "UPCOMING",
+
       upcoming.length,
+
       renderWalmartUpcoming()
+
     ) +
 
     accordion(
+
       "walmart-watchlist",
+
       "WATCHLIST",
+
       watching.length,
+
       renderWalmartWatchlist()
+
     );
 
   const scanButton =
-    document.getElementById(
-      "manualWalmartScan"
-    );
+
+    document.getElementById("manualWalmartScan");
 
   const resetButton =
-    document.getElementById(
-      "forgetScanToken"
+
+    document.getElementById("forgetScanToken");
+
+  if (scanButton){
+
+    scanButton.addEventListener(
+
+      "click",
+
+      runManualWalmartScan
+
     );
 
-  if (
-    scanButton
-  ){
-    scanButton.addEventListener(
-      "click",
-      runManualWalmartScan
-    );
   }
 
-  if (
-    resetButton
-  ){
+  if (resetButton){
+
     resetButton.addEventListener(
+
       "click",
+
       () => {
 
         localStorage.removeItem(
+
           "pokemonMonitorScanToken"
+
         );
 
         alert(
+
           "Saved scan key cleared."
+
         );
 
       }
+
     );
+
   }
 
 }
@@ -1637,51 +1893,81 @@ function renderWalmartMonitor(){
 function renderOtherRetailerMonitor(){
 
   const provider =
-    providerFor(
-      activeRetailer
-    );
+
+    providerFor(activeRetailer);
 
   const label =
-    RETAILER_LABELS[
-      activeRetailer
-    ];
+
+    RETAILER_LABELS[activeRetailer];
 
   monitorState.className =
+
     provider.error
+
       ? "panel-status off"
+
       : provider.configured
+
         ? (
+
             provider.running
+
               ? "panel-status warn"
+
               : "panel-status"
+
           )
+
         : "panel-status off";
 
   monitorState.textContent =
+
     provider.error
+
       ? "ERROR"
+
       : provider.configured
+
         ? (
+
             provider.running
+
               ? "SCANNING"
+
               : "CONNECTED"
+
           )
+
         : "NOT CONFIGURED";
 
   const statusMessage =
+
     provider.configured
+
       ? (
+
           `${esc(label)} monitor is connected.` +
+
           `<br>` +
+
           `Live products: ${Number(provider.itemCount || 0)}` +
+
           `<br>` +
+
           `Last scan: ${provider.lastRun ? esc(new Date(provider.lastRun).toLocaleString()) : "—"}` +
+
           `${provider.error ? `<br>Error: ${esc(provider.error)}` : ""}`
+
         )
+
       : (
+
           `${esc(label)} is not connected yet.` +
+
           `<br>` +
+
           `No inventory is being fabricated for this retailer.`
+
         );
 
   retailerMonitorBody.innerHTML =
@@ -1689,63 +1975,103 @@ function renderOtherRetailerMonitor(){
     `<div class="schedule-grid">` +
 
       `<div class="schedule-box">` +
+
         `<span>Retailer</span>` +
+
         `<strong>${esc(label)}</strong>` +
+
       `</div>` +
 
       `<div class="schedule-box">` +
+
         `<span>Channel</span>` +
+
         `<strong>${esc(RETAILER_CHANNELS[activeRetailer] || "ONLINE")}</strong>` +
+
       `</div>` +
 
       `<div class="schedule-box">` +
+
         `<span>Last scan</span>` +
+
         `<strong>${provider.lastRun ? esc(new Date(provider.lastRun).toLocaleString()) : "—"}</strong>` +
+
       `</div>` +
 
       `<div class="schedule-box">` +
+
         `<span>Live products</span>` +
+
         `<strong>${Number(provider.itemCount || 0)}</strong>` +
+
       `</div>` +
 
     `</div>` +
 
     `<div class="retailer-message">` +
+
       statusMessage +
+
     `</div>` +
 
     `<div class="section-title">` +
+
       `AVAILABLE / DISCOVERED` +
+
     `</div>` +
 
     `<div class="retailer-message">` +
+
       `${
+
         provider.configured
+
           ? `Current ${esc(label)} results appear below in this tab only.`
+
           : `${esc(label)} discovery will appear here when its data source is connected.`
+
       }` +
+
     `</div>` +
 
     accordion(
+
       `${activeRetailer}-upcoming`,
+
       "UPCOMING",
+
       0,
+
       emptyAccordionMessage(
+
         provider.configured
+
           ? `No ${label} upcoming products detected right now.`
+
           : `${label} upcoming monitoring is not connected yet.`
+
       )
+
     ) +
 
     accordion(
+
       `${activeRetailer}-watchlist`,
+
       "WATCHLIST",
+
       0,
+
       emptyAccordionMessage(
+
         provider.configured
+
           ? `No ${label} watchlist items are currently returned by the provider.`
+
           : `${label} watchlist will appear here once its monitor is connected.`
+
       )
+
     );
 
 }
@@ -1753,37 +2079,43 @@ function renderOtherRetailerMonitor(){
 function bindAccordions(){
 
   document
-    .querySelectorAll(
-      "[data-accordion]"
-    )
+
+    .querySelectorAll("[data-accordion]")
+
     .forEach(
+
       button => {
 
         button.addEventListener(
+
           "click",
+
           () => {
 
             const id =
-              button.dataset
-                .accordion;
+
+              button.dataset.accordion;
 
             const container =
-              document.getElementById(
-                id
+
+              document.getElementById(id);
+
+            if (container){
+
+              container.classList.toggle(
+
+                "open"
+
               );
 
-            if (
-              container
-            ){
-              container.classList.toggle(
-                "open"
-              );
             }
 
           }
+
         );
 
       }
+
     );
 
 }
@@ -1791,22 +2123,25 @@ function bindAccordions(){
 function renderMonitor(){
 
   monitorTitle.textContent =
-    RETAILER_TITLES[
-      activeRetailer
-    ] ||
+
+    RETAILER_TITLES[activeRetailer] ||
+
     `${RETAILER_LABELS[activeRetailer]} Monitor`;
 
   searchEl.placeholder =
+
     `Search ${RETAILER_LABELS[activeRetailer]} Pokémon products`;
 
-  if (
-    activeRetailer ===
-    "walmart"
-  ){
+  if (activeRetailer === "walmart"){
+
     renderWalmartMonitor();
+
   }
+
   else{
+
     renderOtherRetailerMonitor();
+
   }
 
   bindAccordions();
@@ -1826,22 +2161,13 @@ function renderProducts(){
 
         return (
           !query ||
-          String(
-            product.name ||
-            ""
-          )
+          String(product.name || "")
             .toLowerCase()
             .includes(query) ||
-          String(
-            product.seller ||
-            ""
-          )
+          String(product.seller || "")
             .toLowerCase()
             .includes(query) ||
-          String(
-            product.storeName ||
-            ""
-          )
+          String(product.storeName || "")
             .toLowerCase()
             .includes(query)
         );
@@ -1852,14 +2178,10 @@ function renderProducts(){
   visibleCount.textContent =
     `${list.length} product${list.length === 1 ? "" : "s"}`;
 
-  if (
-    !list.length
-  ){
+  if (!list.length){
 
     const provider =
-      providerFor(
-        activeRetailer
-      );
+      providerFor(activeRetailer);
 
     productsEl.innerHTML =
       `<div class="empty">` +
@@ -1878,23 +2200,19 @@ function renderProducts(){
       product => {
 
         const fallbackImage =
-          fallback(
-            product.name
-          );
+          fallback(product.name);
 
         const image =
           product.image ||
           fallbackImage;
 
         const channel =
-          product.channel ===
-          "store"
+          product.channel === "store"
             ? "IN-STORE"
             : "ONLINE";
 
         const store =
-          product.channel ===
-          "store"
+          product.channel === "store"
             ? (
                 `<div class="storeline">` +
                 `Store: ${esc(product.storeName || "Unknown store")}` +
@@ -2022,9 +2340,7 @@ function setOnline(
   );
 
   element
-    .querySelector(
-      "span:last-child"
-    )
+    .querySelector("span:last-child")
     .textContent =
       ok
         ? onText
@@ -2032,41 +2348,161 @@ function setOnline(
 
 }
 
+/*
+  ==================================================
+  RETAILER PRODUCT LOADER
+
+  Walmart gets BOTH:
+  1. Normal provider inventory.
+  2. Sealed Pokémon discovery results.
+
+  Discovery results are restricted to:
+  - Walmart Direct
+  - Approved GT Collectibles marketplace listings
+
+  Unknown-MSRP discoveries can be displayed here,
+  but this does NOT make them alert eligible.
+  ==================================================
+*/
+
 async function fetchRetailerProducts(){
 
   const response =
     await fetch(
       `/api/products?retailer=${encodeURIComponent(activeRetailer)}&t=${Date.now()}`,
       {
-        cache:
-          "no-store"
+        cache:"no-store"
       }
     );
 
-  if (
-    !response.ok
-  ){
+  if (!response.ok){
+
     throw new Error(
       `${RETAILER_LABELS[activeRetailer]} inventory request failed`
     );
+
   }
 
   const data =
     await response.json();
 
-  currentProducts =
+  const providerProducts =
     (
-      Array.isArray(
-        data.items
-      )
+      Array.isArray(data.items)
         ? data.items
         : []
     )
     .filter(
       product =>
-        product.retailer ===
-        activeRetailer
+        product.retailer === activeRetailer
     );
+
+  /*
+    Walmart additionally receives the latest
+    sealed Pokémon discovery results.
+  */
+
+  if (activeRetailer === "walmart"){
+
+    const discovery =
+      latestStatus?.walmartPokemonDiscovery ||
+      latestStatus?.walmart30thDiscovery ||
+      {};
+
+    const discoveredProducts =
+      (
+        Array.isArray(discovery.items)
+          ? discovery.items
+          : []
+      )
+      .filter(
+        product =>
+          product.retailer === "walmart" &&
+          (
+            product.directSeller === true ||
+            product.approvedMarketplace === true
+          )
+      )
+      .map(
+        product => ({
+          ...product,
+
+          channel:
+            product.channel ||
+            "online",
+
+          retailerLabel:
+            product.retailerLabel ||
+            "Walmart"
+        })
+      );
+
+    /*
+      Deduplicate provider + discovery results.
+
+      Walmart item ID is preferred because it
+      identifies the actual Walmart listing.
+    */
+
+    const merged =
+      new Map();
+
+    for (
+      const product
+      of [
+        ...providerProducts,
+        ...discoveredProducts
+      ]
+    ){
+
+      const key =
+        product.walmartItemId
+          ? `item:${product.walmartItemId}`
+          : product.productId
+            ? `product:${product.productId}`
+            : product.url
+              ? `url:${product.url}`
+              : `name:${String(product.name || "").toLowerCase()}`;
+
+      const existing =
+        merged.get(key);
+
+      /*
+        Prefer an in-stock result when duplicates
+        represent the same Walmart listing.
+
+        Also prefer the version containing a real
+        retailer image when the previous one does not.
+      */
+
+      if (
+        !existing ||
+        product.inStock === true ||
+        (
+          existing.image == null &&
+          product.image
+        )
+      ){
+
+        merged.set(
+          key,
+          product
+        );
+
+      }
+
+    }
+
+    currentProducts =
+      Array.from(
+        merged.values()
+      );
+
+    return;
+  }
+
+  currentProducts =
+    providerProducts;
 
 }
 
@@ -2087,16 +2523,14 @@ async function load(){
           fetch(
             `/api/providers?t=${Date.now()}`,
             {
-              cache:
-                "no-store"
+              cache:"no-store"
             }
           ),
 
           fetch(
             `/api/status?t=${Date.now()}`,
             {
-              cache:
-                "no-store"
+              cache:"no-store"
             }
           )
 
@@ -2107,9 +2541,11 @@ async function load(){
       !providersResponse.ok ||
       !statusResponse.ok
     ){
+
       throw new Error(
         "Backend request failed"
       );
+
     }
 
     const [
@@ -2134,6 +2570,15 @@ async function load(){
       statusData ||
       {};
 
+    /*
+      IMPORTANT:
+      latestStatus is loaded BEFORE products.
+
+      That allows fetchRetailerProducts()
+      to merge the latest Walmart discovery
+      results into the product grid.
+    */
+
     await fetchRetailerProducts();
 
     renderMonitor();
@@ -2149,9 +2594,7 @@ async function load(){
     setOnline(
       pushStatus,
       Boolean(
-        statusData
-          ?.push
-          ?.configured
+        statusData?.push?.configured
       ),
       "PUSH ALERTS ACTIVE",
       "PUSH ALERTS NOT ACTIVE"
@@ -2163,9 +2606,7 @@ async function load(){
   }
   catch(error){
 
-    console.error(
-      error
-    );
+    console.error(error);
 
     setOnline(
       backendStatus,
@@ -2195,16 +2636,13 @@ async function switchRetailer(
     "";
 
   document
-    .querySelectorAll(
-      ".tab"
-    )
+    .querySelectorAll(".tab")
     .forEach(
       tab => {
 
         tab.classList.toggle(
           "active",
-          tab.dataset.retailer ===
-          retailer
+          tab.dataset.retailer === retailer
         );
 
       }
@@ -2228,9 +2666,7 @@ async function runManualWalmartScan(){
     ) ||
     "";
 
-  if (
-    !token
-  ){
+  if (!token){
 
     token =
       prompt(
@@ -2238,9 +2674,7 @@ async function runManualWalmartScan(){
       ) ||
       "";
 
-    if (
-      !token
-    ){
+    if (!token){
       return;
     }
 
@@ -2256,14 +2690,14 @@ async function runManualWalmartScan(){
       "manualWalmartScan"
     );
 
-  if (
-    button
-  ){
+  if (button){
+
     button.disabled =
       true;
 
     button.textContent =
       "SCANNING…";
+
   }
 
   try{
@@ -2272,8 +2706,7 @@ async function runManualWalmartScan(){
       await fetch(
         "/api/walmart/scan",
         {
-          method:
-            "POST",
+          method:"POST",
 
           headers:{
             "Content-Type":
@@ -2283,18 +2716,14 @@ async function runManualWalmartScan(){
               token
           },
 
-          body:
-            "{}"
+          body:"{}"
         }
       );
 
     const data =
       await response.json();
 
-    if (
-      response.status ===
-      401
-    ){
+    if (response.status === 401){
 
       localStorage.removeItem(
         "pokemonMonitorScanToken"
@@ -2307,9 +2736,7 @@ async function runManualWalmartScan(){
       return;
     }
 
-    if (
-      !response.ok
-    ){
+    if (!response.ok){
 
       throw new Error(
         data.error ||
@@ -2342,14 +2769,14 @@ async function runManualWalmartScan(){
         "manualWalmartScan"
       );
 
-    if (
-      latestButton
-    ){
+    if (latestButton){
+
       latestButton.disabled =
         false;
 
       latestButton.textContent =
         "SCAN WALMART NOW";
+
     }
 
   }
@@ -2357,9 +2784,7 @@ async function runManualWalmartScan(){
 }
 
 document
-  .querySelectorAll(
-    ".tab"
-  )
+  .querySelectorAll(".tab")
   .forEach(
     button => {
 
