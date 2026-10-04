@@ -418,6 +418,13 @@ a{
   background:#081522;
 }
 
+.discovery-item.approved{
+  border-color:
+    rgba(84,243,166,.42);
+
+  background:#0a201b;
+}
+
 .discovery-item strong{
   font-size:11px;
 }
@@ -888,6 +895,7 @@ span:last-child{
       class="status-pill"
     >
       <span class="dot"></span>
+
       <span>
         LIVE MONITOR CONNECTED
       </span>
@@ -898,6 +906,7 @@ span:last-child{
       class="status-pill"
     >
       <span class="dot"></span>
+
       <span>
         PUSH ALERTS ACTIVE
       </span>
@@ -1238,6 +1247,8 @@ function renderWalmartDiscovery(){
 
   const discovery =
     latestStatus
+      ?.walmartPokemonDiscovery ||
+    latestStatus
       ?.walmart30thDiscovery ||
     {};
 
@@ -1253,7 +1264,7 @@ function renderWalmartDiscovery(){
   ){
     return (
       `<div class="retailer-message">` +
-      `30th discovery error: ` +
+      `Pokémon product discovery error: ` +
       `${esc(discovery.lastError)}` +
       `</div>`
     );
@@ -1264,7 +1275,7 @@ function renderWalmartDiscovery(){
   ){
     return (
       `<div class="retailer-message">` +
-      `No 30th Anniversary discovery scan has run yet.` +
+      `No sealed Pokémon discovery scan has run yet.` +
       `</div>`
     );
   }
@@ -1274,7 +1285,7 @@ function renderWalmartDiscovery(){
   ){
     return (
       `<div class="retailer-message">` +
-      `No matching sealed 30th Anniversary products were found in the latest scan.` +
+      `No matching Walmart-direct or GT Collectibles sealed Pokémon products were found in the latest scan.` +
       `</div>`
     );
   }
@@ -1295,13 +1306,26 @@ function renderWalmartDiscovery(){
               ? (
                   item.inStock
                     ? "WALMART DIRECT • AVAILABLE"
-                    : "WALMART DIRECT"
+                    : "WALMART DIRECT • WATCHING"
                 )
-              : "MARKETPLACE • NOT ALERT ELIGIBLE";
+              : item.approvedMarketplace
+                ? (
+                    item.inStock
+                      ? "GT COLLECTIBLES • AVAILABLE"
+                      : "GT COLLECTIBLES • WATCHING"
+                  )
+                : "MARKETPLACE • NOT APPROVED";
+
+          const itemClass =
+            item.directSeller
+              ? ""
+              : item.approvedMarketplace
+                ? "approved"
+                : "marketplace";
 
           return (
             `<a ` +
-              `class="discovery-item ${item.directSeller ? "" : "marketplace"}" ` +
+              `class="discovery-item ${itemClass}" ` +
               `href="${esc(item.url || "#")}" ` +
               `${item.url ? 'target="_blank" rel="noopener noreferrer"' : ""}` +
             `>` +
@@ -1397,23 +1421,36 @@ function renderWalmartWatchlist(){
 
   return watching
     .map(
-      item =>
-        `<a ` +
-          `class="accordion-item" ` +
-          `href="${esc(item.url || "#")}" ` +
-          `${item.url ? 'target="_blank" rel="noopener noreferrer"' : ""}` +
-        `>` +
+      item => {
 
-          `<strong>` +
-            `${esc(item.name)}` +
-          `</strong>` +
+        const sellerLabel =
+          item.directSeller
+            ? "WALMART DIRECT"
+            : item.approvedMarketplace
+              ? "GT COLLECTIBLES"
+              : "WATCHING";
 
-          `<small>` +
-            `WATCHING` +
-            `${item.msrp != null ? ` • MSRP ${money(item.msrp)}` : ""}` +
-          `</small>` +
+        return (
+          `<a ` +
+            `class="accordion-item" ` +
+            `href="${esc(item.url || "#")}" ` +
+            `${item.url ? 'target="_blank" rel="noopener noreferrer"' : ""}` +
+          `>` +
 
-        `</a>`
+            `<strong>` +
+              `${esc(item.name)}` +
+            `</strong>` +
+
+            `<small>` +
+              `${esc(sellerLabel)}` +
+              `${item.price != null ? ` • ${money(item.price)}` : ""}` +
+              `${item.msrp != null ? ` • MSRP ${money(item.msrp)}` : ""}` +
+            `</small>` +
+
+          `</a>`
+        );
+
+      }
     )
     .join("");
 
@@ -1538,7 +1575,7 @@ function renderWalmartMonitor(){
     `</div>` +
 
     `<div class="section-title">` +
-      `30TH ANNIVERSARY DISCOVERY` +
+      `POKÉMON PRODUCT DISCOVERY` +
     `</div>` +
 
     renderWalmartDiscovery() +
@@ -1867,6 +1904,13 @@ function renderProducts(){
               )
             : "";
 
+        const sellerBadge =
+          product.directSeller === true
+            ? `<span class="badge good">WALMART DIRECT</span>`
+            : product.approvedMarketplace === true
+              ? `<span class="badge good">GT COLLECTIBLES</span>`
+              : "";
+
         return (
 
           `<article class="card">` +
@@ -1908,6 +1952,8 @@ function renderProducts(){
                     product.retailer
                   )}` +
                 `</span>` +
+
+                `${sellerBadge}` +
 
                 `${
                   product.stale
@@ -2008,11 +2054,6 @@ async function fetchRetailerProducts(){
   const data =
     await response.json();
 
-  /*
-    Defensive retailer filtering so even if
-    a backend provider ever returns extra items,
-    this tab only displays its own retailer.
-  */
   currentProducts =
     (
       Array.isArray(
