@@ -1,0 +1,1880 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#020711">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<title>Pokémon Restock Monitor</title>
+
+<style>
+:root{
+  --bg:#020711;
+  --panel:#071326;
+  --panel2:#091a31;
+  --line:#174d82;
+  --text:#f7fbff;
+  --muted:#9aa9c1;
+  --green:#54f3a6;
+  --blue:#62c7ff;
+  --gold:#ffc76b;
+  --red:#ff758b;
+}
+
+*{
+  box-sizing:border-box;
+}
+
+html,
+body{
+  margin:0;
+  padding:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+}
+
+body{
+  min-height:100vh;
+  padding-bottom:max(24px,env(safe-area-inset-bottom));
+}
+
+button,
+input,
+select{
+  font:inherit;
+}
+
+a{
+  color:inherit;
+  text-decoration:none;
+}
+
+.app{
+  width:100%;
+  max-width:900px;
+  margin:0 auto;
+  overflow:hidden;
+}
+
+
+/* =========================================================
+   HERO
+========================================================= */
+
+.hero{
+  position:relative;
+  height:525px;
+  overflow:hidden;
+
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(0,0,0,0) 0%,
+      rgba(0,0,0,0) 68%,
+      rgba(2,7,17,.28) 82%,
+      #020711 100%
+    ),
+    url("hero.webp") center top / cover no-repeat;
+}
+
+.hero::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  box-shadow:inset 0 -70px 70px rgba(2,7,17,.75);
+}
+
+
+/* =========================================================
+   STATUS BUTTONS
+========================================================= */
+
+.status-wrap{
+  position:relative;
+  z-index:3;
+
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+
+  padding:0 14px;
+
+  /*
+    Negative margin intentionally pulls the buttons
+    upward so there is no huge gap under the hero.
+  */
+  margin-top:-78px;
+}
+
+.status-pill{
+  min-height:48px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  gap:7px;
+
+  text-align:center;
+
+  border:1px solid rgba(84,243,166,.55);
+  border-radius:12px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(15,71,57,.95),
+      rgba(8,44,37,.96)
+    );
+
+  box-shadow:
+    0 0 15px rgba(84,243,166,.12),
+    inset 0 1px rgba(255,255,255,.06);
+
+  color:#dfffee;
+
+  font-size:13px;
+  font-weight:800;
+
+  letter-spacing:.25px;
+}
+
+.status-pill.offline{
+  border-color:rgba(255,117,139,.55);
+  color:#ffdce3;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(87,28,43,.95),
+      rgba(48,13,24,.96)
+    );
+}
+
+.status-dot{
+  width:8px;
+  height:8px;
+
+  border-radius:50%;
+
+  background:var(--green);
+
+  box-shadow:
+    0 0 7px rgba(84,243,166,.8);
+}
+
+.status-pill.offline .status-dot{
+  background:var(--red);
+
+  box-shadow:
+    0 0 7px rgba(255,117,139,.8);
+}
+
+
+/* =========================================================
+   LIVE INFO
+========================================================= */
+
+.live-info{
+  padding:14px;
+}
+
+.scanning-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+
+  gap:12px;
+
+  margin-bottom:12px;
+}
+
+.searching{
+  display:flex;
+  align-items:center;
+
+  gap:8px;
+
+  color:var(--green);
+
+  font-size:13px;
+  font-weight:900;
+
+  letter-spacing:.8px;
+}
+
+.pulse{
+  width:8px;
+  height:8px;
+
+  border-radius:50%;
+
+  background:var(--green);
+
+  animation:pulse 1.1s infinite;
+}
+
+@keyframes pulse{
+  0%{
+    transform:scale(.9);
+    opacity:.45;
+  }
+
+  50%{
+    transform:scale(1.25);
+    opacity:1;
+  }
+
+  100%{
+    transform:scale(.9);
+    opacity:.45;
+  }
+}
+
+.updated{
+  color:var(--muted);
+  font-size:11px;
+  text-align:right;
+}
+
+
+/* =========================================================
+   COUNTERS
+========================================================= */
+
+.metrics{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+
+  gap:8px;
+}
+
+.metric{
+  padding:11px 5px;
+
+  border:1px solid rgba(98,199,255,.18);
+  border-radius:11px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(9,27,51,.96),
+      rgba(5,15,30,.96)
+    );
+
+  text-align:center;
+}
+
+.metric-value{
+  font-size:19px;
+  font-weight:900;
+}
+
+.metric-label{
+  margin-top:3px;
+
+  color:var(--muted);
+
+  font-size:9px;
+  font-weight:800;
+
+  text-transform:uppercase;
+  letter-spacing:.45px;
+}
+
+
+/* =========================================================
+   TOOLBAR
+========================================================= */
+
+.toolbar{
+  padding:0 14px 14px;
+}
+
+.toolbar-inner{
+  display:grid;
+  grid-template-columns:1fr auto;
+
+  gap:8px;
+}
+
+.search-box{
+  width:100%;
+
+  border:1px solid var(--line);
+  border-radius:11px;
+
+  outline:none;
+
+  background:#071326;
+  color:white;
+
+  padding:12px;
+}
+
+.search-box::placeholder{
+  color:#72849f;
+}
+
+.refresh-btn{
+  border:1px solid #24689e;
+  border-radius:11px;
+
+  background:#0b3156;
+  color:white;
+
+  padding:0 15px;
+
+  font-weight:800;
+
+  cursor:pointer;
+}
+
+.refresh-btn:active{
+  transform:scale(.97);
+}
+
+
+/* =========================================================
+   SECTION HEADER
+========================================================= */
+
+.section-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+
+  gap:10px;
+
+  padding:2px 14px 10px;
+}
+
+.section-title{
+  font-size:18px;
+  font-weight:900;
+}
+
+.section-subtitle{
+  margin-top:3px;
+
+  color:var(--muted);
+
+  font-size:11px;
+}
+
+.scan-clock{
+  color:var(--blue);
+
+  font-size:11px;
+  text-align:right;
+}
+
+
+/* =========================================================
+   PRODUCTS
+========================================================= */
+
+.products{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+
+  gap:10px;
+
+  padding:0 14px 24px;
+}
+
+.product{
+  overflow:hidden;
+
+  border:1px solid rgba(43,101,154,.62);
+  border-radius:14px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(9,26,49,.98),
+      rgba(5,15,29,.98)
+    );
+
+  box-shadow:
+    0 7px 20px rgba(0,0,0,.23);
+}
+
+.product.in-stock{
+  border-color:rgba(84,243,166,.56);
+
+  box-shadow:
+    0 0 18px rgba(84,243,166,.07),
+    0 7px 20px rgba(0,0,0,.25);
+}
+
+.product-image-wrap{
+  position:relative;
+
+  height:175px;
+
+  overflow:hidden;
+
+  background:
+    radial-gradient(
+      circle at 50% 30%,
+      rgba(33,80,125,.5),
+      rgba(3,10,20,.95)
+    );
+}
+
+.product-image{
+  width:100%;
+  height:100%;
+
+  display:block;
+
+  object-fit:contain;
+
+  padding:8px;
+}
+
+.image-label{
+  position:absolute;
+  left:7px;
+  bottom:7px;
+
+  max-width:calc(100% - 14px);
+
+  padding:4px 6px;
+
+  border-radius:6px;
+
+  background:rgba(0,0,0,.66);
+
+  color:#d7e4f8;
+
+  font-size:8px;
+  font-weight:800;
+
+  letter-spacing:.35px;
+}
+
+.product-body{
+  padding:10px;
+}
+
+.badges{
+  display:flex;
+  flex-wrap:wrap;
+
+  gap:5px;
+
+  margin-bottom:7px;
+}
+
+.badge{
+  padding:4px 6px;
+
+  border-radius:7px;
+
+  background:#102c4a;
+  color:#baddff;
+
+  font-size:8px;
+  font-weight:900;
+
+  text-transform:uppercase;
+}
+
+.badge.stock{
+  background:rgba(21,94,64,.82);
+  color:#adffd5;
+}
+
+.badge.out{
+  background:rgba(93,31,46,.78);
+  color:#ffb9c6;
+}
+
+.badge.direct{
+  background:rgba(28,85,132,.8);
+  color:#caebff;
+}
+
+.badge.market{
+  background:rgba(91,67,23,.82);
+  color:#ffe2a2;
+}
+
+.product-name{
+  min-height:44px;
+
+  line-height:1.28;
+
+  font-size:13px;
+  font-weight:800;
+}
+
+.price-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+
+  gap:8px;
+
+  margin-top:9px;
+}
+
+.price{
+  color:var(--green);
+
+  font-size:18px;
+  font-weight:900;
+}
+
+.msrp{
+  color:var(--muted);
+
+  font-size:9px;
+  text-align:right;
+}
+
+.product-actions{
+  display:grid;
+  grid-template-columns:1fr;
+
+  margin-top:10px;
+}
+
+.buy-btn{
+  width:100%;
+
+  display:block;
+
+  padding:10px 8px;
+
+  border:1px solid rgba(98,199,255,.48);
+  border-radius:9px;
+
+  background:#0b3156;
+  color:white;
+
+  text-align:center;
+
+  font-size:11px;
+  font-weight:900;
+}
+
+.buy-btn.available{
+  border-color:rgba(84,243,166,.56);
+
+  background:#13533c;
+
+  color:#e4fff1;
+}
+
+
+/* =========================================================
+   EMPTY / ERROR
+========================================================= */
+
+.message{
+  grid-column:1/-1;
+
+  padding:30px 18px;
+
+  border:1px solid rgba(98,199,255,.18);
+  border-radius:14px;
+
+  background:#061426;
+
+  color:var(--muted);
+
+  text-align:center;
+
+  line-height:1.5;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media(max-width:520px){
+
+  .hero{
+    height:500px;
+  }
+
+  .status-wrap{
+    margin-top:-74px;
+  }
+
+  .products{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .product-image-wrap{
+    height:155px;
+  }
+
+  .product-name{
+    font-size:12px;
+  }
+
+  .metric-value{
+    font-size:17px;
+  }
+}
+
+@media(max-width:390px){
+
+  .hero{
+    height:475px;
+  }
+
+  .status-wrap{
+    margin-top:-70px;
+  }
+
+  .product-image-wrap{
+    height:145px;
+  }
+
+  .live-info,
+  .toolbar,
+  .products,
+  .section-head{
+    padding-left:10px;
+    padding-right:10px;
+  }
+}
+</style>
+</head>
+
+
+<body>
+
+<div class="app">
+
+  <section class="hero"></section>
+
+
+  <div class="status-wrap">
+
+    <div
+      class="status-pill"
+      id="backendStatus"
+    >
+      <span class="status-dot"></span>
+
+      <span id="backendStatusText">
+        LIVE MONITOR CONNECTING
+      </span>
+    </div>
+
+
+    <div
+      class="status-pill"
+      id="pushStatus"
+    >
+      <span class="status-dot"></span>
+
+      <span id="pushStatusText">
+        PUSH ALERTS CHECKING
+      </span>
+    </div>
+
+  </div>
+
+
+  <section class="live-info">
+
+    <div class="scanning-row">
+
+      <div class="searching">
+        <span class="pulse"></span>
+        SEARCHING…
+      </div>
+
+      <div
+        class="updated"
+        id="lastUpdated"
+      >
+        Waiting for first scan
+      </div>
+
+    </div>
+
+
+    <div class="metrics">
+
+      <div class="metric">
+        <div
+          class="metric-value"
+          id="monitoredCount"
+        >
+          0
+        </div>
+
+        <div class="metric-label">
+          Monitored
+        </div>
+      </div>
+
+
+      <div class="metric">
+        <div
+          class="metric-value"
+          id="stockCount"
+        >
+          0
+        </div>
+
+        <div class="metric-label">
+          In Stock
+        </div>
+      </div>
+
+
+      <div class="metric">
+        <div
+          class="metric-value"
+          id="directCount"
+        >
+          0
+        </div>
+
+        <div class="metric-label">
+          Walmart
+        </div>
+      </div>
+
+
+      <div class="metric">
+        <div
+          class="metric-value"
+          id="marketCount"
+        >
+          0
+        </div>
+
+        <div class="metric-label">
+          Marketplace
+        </div>
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <section class="toolbar">
+
+    <div class="toolbar-inner">
+
+      <input
+        id="searchInput"
+        class="search-box"
+        type="search"
+        placeholder="Search Pokémon products..."
+        autocomplete="off"
+      >
+
+      <button
+        class="refresh-btn"
+        id="refreshBtn"
+        type="button"
+      >
+        Refresh
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <section class="section-head">
+
+    <div>
+
+      <div class="section-title">
+        Live Product Scan
+      </div>
+
+      <div class="section-subtitle">
+        Walmart Pokémon inventory • refreshes every 60 seconds
+      </div>
+
+    </div>
+
+
+    <div
+      class="scan-clock"
+      id="scanClock"
+    >
+      Next scan: 60s
+    </div>
+
+  </section>
+
+
+  <main
+    class="products"
+    id="products"
+  >
+
+    <div class="message">
+      Connecting to live inventory…
+    </div>
+
+  </main>
+
+</div>
+
+
+<script>
+
+/* =========================================================
+   CONFIG
+========================================================= */
+
+const BACKEND =
+  "https://pokemon-live-backend.onrender.com";
+
+const REFRESH_SECONDS = 60;
+
+let allProducts = [];
+
+let secondsRemaining =
+  REFRESH_SECONDS;
+
+
+/* =========================================================
+   DOM
+========================================================= */
+
+const productsEl =
+  document.getElementById("products");
+
+const searchInput =
+  document.getElementById("searchInput");
+
+const refreshBtn =
+  document.getElementById("refreshBtn");
+
+const backendStatus =
+  document.getElementById("backendStatus");
+
+const backendStatusText =
+  document.getElementById("backendStatusText");
+
+const pushStatus =
+  document.getElementById("pushStatus");
+
+const pushStatusText =
+  document.getElementById("pushStatusText");
+
+const lastUpdated =
+  document.getElementById("lastUpdated");
+
+const scanClock =
+  document.getElementById("scanClock");
+
+const monitoredCount =
+  document.getElementById("monitoredCount");
+
+const stockCount =
+  document.getElementById("stockCount");
+
+const directCount =
+  document.getElementById("directCount");
+
+const marketCount =
+  document.getElementById("marketCount");
+
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function safeText(value){
+
+  if(
+    value === null ||
+    value === undefined
+  ){
+    return "";
+  }
+
+  return String(value);
+}
+
+
+function firstValue(...values){
+
+  for(const value of values){
+
+    if(
+      value !== undefined &&
+      value !== null &&
+      value !== ""
+    ){
+      return value;
+    }
+
+  }
+
+  return "";
+}
+
+
+function money(value){
+
+  if(
+    value === "" ||
+    value === null ||
+    value === undefined
+  ){
+    return "—";
+  }
+
+  const number =
+    Number(
+      String(value)
+        .replace("$","")
+        .replace(",","")
+    );
+
+  if(Number.isNaN(number)){
+    return safeText(value);
+  }
+
+  return `$${number.toFixed(2)}`;
+}
+
+
+function isTruthyStock(value){
+
+  if(value === true){
+    return true;
+  }
+
+  if(value === false){
+    return false;
+  }
+
+  const text =
+    String(value || "")
+      .toLowerCase();
+
+  return (
+    text.includes("in stock") ||
+    text.includes("available") ||
+    text.includes("pickup") ||
+    text === "true" ||
+    text === "1"
+  );
+}
+
+
+function normalizeProduct(raw){
+
+  const name =
+    firstValue(
+      raw.name,
+      raw.title,
+      raw.productName,
+      raw.product_name,
+      raw.description,
+      "Pokémon Product"
+    );
+
+  const price =
+    firstValue(
+      raw.price,
+      raw.currentPrice,
+      raw.current_price,
+      raw.salePrice,
+      raw.sale_price
+    );
+
+  const msrp =
+    firstValue(
+      raw.msrp,
+      raw.listPrice,
+      raw.list_price,
+      raw.originalPrice,
+      raw.original_price
+    );
+
+  const image =
+    firstValue(
+      raw.image,
+      raw.imageUrl,
+      raw.imageURL,
+      raw.image_url,
+      raw.thumbnail,
+      raw.thumbnailUrl,
+      raw.thumbnail_url,
+      raw.primaryImage,
+      raw.primary_image,
+      raw.largeImage,
+      raw.large_image
+    );
+
+  const url =
+    firstValue(
+      raw.url,
+      raw.productUrl,
+      raw.productURL,
+      raw.product_url,
+      raw.link,
+      raw.itemUrl,
+      raw.item_url
+    );
+
+  const seller =
+    safeText(
+      firstValue(
+        raw.seller,
+        raw.sellerName,
+        raw.seller_name,
+        raw.merchant,
+        raw.fulfillment
+      )
+    );
+
+  const availability =
+    firstValue(
+      raw.inStock,
+      raw.in_stock,
+      raw.available,
+      raw.availability,
+      raw.stockStatus,
+      raw.stock_status
+    );
+
+  const inStock =
+    isTruthyStock(availability);
+
+  const sellerLower =
+    seller.toLowerCase();
+
+  const direct =
+    sellerLower === "" ||
+    sellerLower.includes("walmart") ||
+    raw.walmartDirect === true ||
+    raw.walmart_direct === true;
+
+  return {
+    raw,
+    name,
+    price,
+    msrp,
+    image,
+    url,
+    seller:
+      seller || "Walmart",
+    inStock,
+    direct
+  };
+}
+
+
+/* =========================================================
+   PRODUCT REPRESENTATION IMAGE
+========================================================= */
+
+function productType(name){
+
+  const text =
+    name.toLowerCase();
+
+  if(
+    text.includes("elite trainer") ||
+    text.includes(" etb")
+  ){
+    return "ELITE TRAINER BOX";
+  }
+
+  if(text.includes("booster bundle")){
+    return "BOOSTER BUNDLE";
+  }
+
+  if(text.includes("booster box")){
+    return "BOOSTER BOX";
+  }
+
+  if(text.includes("poster")){
+    return "POSTER COLLECTION";
+  }
+
+  if(
+    text.includes("mini tin") ||
+    text.includes("mini-tin")
+  ){
+    return "MINI TIN";
+  }
+
+  if(
+    text.includes("tin") ||
+    text.includes("greninja") ||
+    text.includes("sylveon")
+  ){
+    return "COLLECTOR TIN";
+  }
+
+  if(text.includes("sticker")){
+    return "STICKER COLLECTION";
+  }
+
+  if(text.includes("knockout")){
+    return "KNOCKOUT BOX";
+  }
+
+  if(text.includes("collection")){
+    return "COLLECTION BOX";
+  }
+
+  if(text.includes("pack")){
+    return "BOOSTER PACK";
+  }
+
+  return "POKÉMON TCG";
+}
+
+
+function setName(name){
+
+  const text =
+    name.toLowerCase();
+
+  if(
+    text.includes("30th") ||
+    text.includes("anniversary")
+  ){
+    return "30TH ANNIVERSARY";
+  }
+
+  if(text.includes("prismatic")){
+    return "PRISMATIC EVOLUTIONS";
+  }
+
+  if(text.includes("destined rivals")){
+    return "DESTINED RIVALS";
+  }
+
+  if(text.includes("ascended heroes")){
+    return "ASCENDED HEROES";
+  }
+
+  if(text.includes("delta reign")){
+    return "DELTA REIGN";
+  }
+
+  return "POKÉMON";
+}
+
+
+function escapeSvg(text){
+
+  return String(text)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;");
+}
+
+
+function fallbackImage(name){
+
+  const type =
+    productType(name);
+
+  const set =
+    setName(name);
+
+  const svg = `
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="700"
+    height="700"
+    viewBox="0 0 700 700"
+  >
+
+    <defs>
+
+      <radialGradient id="bg">
+
+        <stop
+          offset="0%"
+          stop-color="#17466d"
+        />
+
+        <stop
+          offset="60%"
+          stop-color="#071a31"
+        />
+
+        <stop
+          offset="100%"
+          stop-color="#020711"
+        />
+
+      </radialGradient>
+
+      <linearGradient
+        id="card"
+        x1="0"
+        x2="1"
+      >
+
+        <stop
+          offset="0%"
+          stop-color="#14395e"
+        />
+
+        <stop
+          offset="100%"
+          stop-color="#071729"
+        />
+
+      </linearGradient>
+
+    </defs>
+
+
+    <rect
+      width="700"
+      height="700"
+      rx="30"
+      fill="url(#bg)"
+    />
+
+
+    <circle
+      cx="350"
+      cy="315"
+      r="145"
+      fill="none"
+      stroke="#62c7ff"
+      stroke-opacity=".22"
+      stroke-width="20"
+    />
+
+
+    <circle
+      cx="350"
+      cy="315"
+      r="80"
+      fill="none"
+      stroke="#54f3a6"
+      stroke-opacity=".25"
+      stroke-width="18"
+    />
+
+
+    <rect
+      x="120"
+      y="170"
+      width="460"
+      height="305"
+      rx="26"
+      fill="url(#card)"
+      stroke="#62c7ff"
+      stroke-opacity=".4"
+      stroke-width="4"
+    />
+
+
+    <text
+      x="350"
+      y="260"
+      text-anchor="middle"
+      fill="#ffffff"
+      font-family="Arial"
+      font-size="34"
+      font-weight="900"
+    >
+      ${escapeSvg(set)}
+    </text>
+
+
+    <text
+      x="350"
+      y="320"
+      text-anchor="middle"
+      fill="#54f3a6"
+      font-family="Arial"
+      font-size="28"
+      font-weight="900"
+    >
+      ${escapeSvg(type)}
+    </text>
+
+
+    <text
+      x="350"
+      y="390"
+      text-anchor="middle"
+      fill="#9fbbda"
+      font-family="Arial"
+      font-size="18"
+      font-weight="700"
+    >
+      ITEM REPRESENTATION
+    </text>
+
+
+    <text
+      x="350"
+      y="530"
+      text-anchor="middle"
+      fill="#718aa7"
+      font-family="Arial"
+      font-size="15"
+    >
+      Retailer image unavailable
+    </text>
+
+  </svg>
+  `;
+
+  return (
+    "data:image/svg+xml;charset=UTF-8," +
+    encodeURIComponent(svg)
+  );
+}
+
+
+/* =========================================================
+   RENDER
+========================================================= */
+
+function renderProducts(){
+
+  const query =
+    searchInput.value
+      .trim()
+      .toLowerCase();
+
+  let list =
+    allProducts.filter(product => {
+
+      if(!query){
+        return true;
+      }
+
+      return (
+        product.name
+          .toLowerCase()
+          .includes(query) ||
+
+        product.seller
+          .toLowerCase()
+          .includes(query)
+      );
+
+    });
+
+
+  /*
+    In-stock products first.
+    Walmart-direct products ahead of marketplace.
+  */
+
+  list.sort((a,b) => {
+
+    if(a.inStock !== b.inStock){
+      return Number(b.inStock) -
+        Number(a.inStock);
+    }
+
+    if(a.direct !== b.direct){
+      return Number(b.direct) -
+        Number(a.direct);
+    }
+
+    return a.name.localeCompare(b.name);
+
+  });
+
+
+  if(!list.length){
+
+    productsEl.innerHTML = `
+      <div class="message">
+        No matching Pokémon products found on this scan.
+      </div>
+    `;
+
+    return;
+  }
+
+
+  productsEl.innerHTML =
+    list.map((product,index) => {
+
+      const fallback =
+        fallbackImage(product.name);
+
+      const image =
+        product.image || fallback;
+
+      const stockClass =
+        product.inStock
+          ? "in-stock"
+          : "";
+
+      const stockBadge =
+        product.inStock
+          ? `<span class="badge stock">IN STOCK</span>`
+          : `<span class="badge out">NOT AVAILABLE</span>`;
+
+      const sellerBadge =
+        product.direct
+          ? `<span class="badge direct">WALMART</span>`
+          : `<span class="badge market">MARKETPLACE</span>`;
+
+      const imageLabel =
+        product.image
+          ? "LIVE RETAILER IMAGE"
+          : "ITEM REPRESENTATION";
+
+      const action =
+        product.url
+          ? `
+            <a
+              class="buy-btn ${product.inStock ? "available" : ""}"
+              href="${safeText(product.url)}"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              ${
+                product.inStock
+                  ? "OPEN PRODUCT"
+                  : "VIEW LISTING"
+              }
+            </a>
+          `
+          : `
+            <div class="buy-btn">
+              LINK UNAVAILABLE
+            </div>
+          `;
+
+
+      return `
+        <article
+          class="product ${stockClass}"
+          data-index="${index}"
+        >
+
+          <div class="product-image-wrap">
+
+            <img
+              class="product-image"
+              src="${safeText(image)}"
+              alt="${safeText(product.name)}"
+              loading="lazy"
+              referrerpolicy="no-referrer"
+              onerror="
+                this.onerror=null;
+                this.src='${fallback}';
+                const label=this.parentElement.querySelector('.image-label');
+                if(label) label.textContent='ITEM REPRESENTATION';
+              "
+            >
+
+            <div class="image-label">
+              ${imageLabel}
+            </div>
+
+          </div>
+
+
+          <div class="product-body">
+
+            <div class="badges">
+              ${stockBadge}
+              ${sellerBadge}
+            </div>
+
+
+            <div class="product-name">
+              ${safeText(product.name)}
+            </div>
+
+
+            <div class="price-row">
+
+              <div class="price">
+                ${money(product.price)}
+              </div>
+
+              <div class="msrp">
+                ${
+                  product.msrp
+                    ? `MSRP ${money(product.msrp)}`
+                    : ""
+                }
+              </div>
+
+            </div>
+
+
+            <div class="product-actions">
+              ${action}
+            </div>
+
+          </div>
+
+        </article>
+      `;
+
+    }).join("");
+
+}
+
+
+/* =========================================================
+   COUNTS
+========================================================= */
+
+function updateCounts(){
+
+  const total =
+    allProducts.length;
+
+  const inStock =
+    allProducts.filter(
+      product => product.inStock
+    ).length;
+
+  const direct =
+    allProducts.filter(
+      product => product.direct
+    ).length;
+
+  const marketplace =
+    allProducts.filter(
+      product => !product.direct
+    ).length;
+
+
+  monitoredCount.textContent =
+    total;
+
+  stockCount.textContent =
+    inStock;
+
+  directCount.textContent =
+    direct;
+
+  marketCount.textContent =
+    marketplace;
+
+}
+
+
+/* =========================================================
+   BACKEND STATUS
+========================================================= */
+
+function setBackendOnline(){
+
+  backendStatus.classList.remove("offline");
+
+  backendStatusText.textContent =
+    "LIVE MONITOR CONNECTED";
+
+}
+
+
+function setBackendOffline(){
+
+  backendStatus.classList.add("offline");
+
+  backendStatusText.textContent =
+    "MONITOR CONNECTION ERROR";
+
+}
+
+
+/* =========================================================
+   PUSH STATUS
+========================================================= */
+
+function setPushStatus(configured){
+
+  if(configured){
+
+    pushStatus.classList.remove("offline");
+
+    pushStatusText.textContent =
+      "PUSH ALERTS ACTIVE";
+
+  }else{
+
+    pushStatus.classList.add("offline");
+
+    pushStatusText.textContent =
+      "PUSH ALERTS NOT ACTIVE";
+
+  }
+
+}
+
+
+/* =========================================================
+   LOAD STATUS
+========================================================= */
+
+async function loadStatus(){
+
+  try{
+
+    const response =
+      await fetch(
+        `${BACKEND}/api/status`,
+        {
+          cache:"no-store"
+        }
+      );
+
+    if(!response.ok){
+      throw new Error(
+        `Status request failed: ${response.status}`
+      );
+    }
+
+    const data =
+      await response.json();
+
+    setBackendOnline();
+
+
+    const pushConfigured =
+      Boolean(
+        data?.push?.configured ||
+        data?.pushConfigured ||
+        data?.notifications?.configured
+      );
+
+    setPushStatus(
+      pushConfigured
+    );
+
+  }catch(error){
+
+    console.error(
+      "Status error:",
+      error
+    );
+
+    setBackendOffline();
+
+  }
+
+}
+
+
+/* =========================================================
+   EXTRACT PRODUCT ARRAY
+========================================================= */
+
+function extractProducts(data){
+
+  if(Array.isArray(data)){
+    return data;
+  }
+
+  const possibilities = [
+    data?.products,
+    data?.items,
+    data?.results,
+    data?.data,
+    data?.inventory
+  ];
+
+  for(
+    const possibility of possibilities
+  ){
+
+    if(Array.isArray(possibility)){
+      return possibility;
+    }
+
+  }
+
+  return [];
+}
+
+
+/* =========================================================
+   LOAD PRODUCTS
+========================================================= */
+
+async function loadProducts(){
+
+  refreshBtn.disabled = true;
+
+  refreshBtn.textContent =
+    "Scanning…";
+
+
+  try{
+
+    const response =
+      await fetch(
+        `${BACKEND}/api/products?refresh=${Date.now()}`,
+        {
+          cache:"no-store"
+        }
+      );
+
+    if(!response.ok){
+
+      throw new Error(
+        `Products request failed: ${response.status}`
+      );
+
+    }
+
+
+    const data =
+      await response.json();
+
+
+    const rawProducts =
+      extractProducts(data);
+
+
+    allProducts =
+      rawProducts.map(
+        normalizeProduct
+      );
+
+
+    updateCounts();
+
+    renderProducts();
+
+
+    lastUpdated.textContent =
+      `Updated ${new Date().toLocaleTimeString([],{
+        hour:"numeric",
+        minute:"2-digit",
+        second:"2-digit"
+      })}`;
+
+
+    secondsRemaining =
+      REFRESH_SECONDS;
+
+
+    setBackendOnline();
+
+  }catch(error){
+
+    console.error(
+      "Products error:",
+      error
+    );
+
+
+    productsEl.innerHTML = `
+      <div class="message">
+
+        <strong style="color:#fff">
+          Live inventory could not be loaded.
+        </strong>
+
+        <br><br>
+
+        The monitor will automatically try again
+        on the next scan.
+
+      </div>
+    `;
+
+
+    setBackendOffline();
+
+  }finally{
+
+    refreshBtn.disabled =
+      false;
+
+    refreshBtn.textContent =
+      "Refresh";
+
+  }
+
+}
+
+
+/* =========================================================
+   COUNTDOWN
+========================================================= */
+
+setInterval(() => {
+
+  secondsRemaining--;
+
+  if(secondsRemaining <= 0){
+
+    secondsRemaining =
+      REFRESH_SECONDS;
+
+    loadStatus();
+
+    loadProducts();
+
+  }
+
+
+  scanClock.textContent =
+    `Next scan: ${secondsRemaining}s`;
+
+},1000);
+
+
+/* =========================================================
+   EVENTS
+========================================================= */
+
+searchInput.addEventListener(
+  "input",
+  renderProducts
+);
+
+
+refreshBtn.addEventListener(
+  "click",
+  () => {
+
+    secondsRemaining =
+      REFRESH_SECONDS;
+
+    loadStatus();
+
+    loadProducts();
+
+  }
+);
+
+
+/* =========================================================
+   START
+========================================================= */
+
+loadStatus();
+
+loadProducts();
+
+</script>
+
+</body>
+</html>
