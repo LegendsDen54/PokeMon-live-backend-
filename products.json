@@ -7,7 +7,7 @@
     "searchTerm": "Pokemon 30th Celebration Booster Bundle",
     "walmartItemId": null,
     "retailers": ["walmart"],
-    "msrp": null,
+    "msrp": 26.94,
     "enabled": true
   },
   {
@@ -18,7 +18,7 @@
     "searchTerm": "Pokemon 30th Celebration Mini Tin",
     "walmartItemId": null,
     "retailers": ["walmart"],
-    "msrp": null,
+    "msrp": 9.99,
     "enabled": true
   },
   {
@@ -29,7 +29,7 @@
     "searchTerm": "Pokemon 30th Celebration Tech Sticker Collection",
     "walmartItemId": null,
     "retailers": ["walmart"],
-    "msrp": null,
+    "msrp": 14.99,
     "enabled": true
   },
   {
@@ -40,7 +40,7 @@
     "searchTerm": "Pokemon Prismatic Evolutions Elite Trainer Box",
     "walmartItemId": "18170913799",
     "retailers": ["walmart"],
-    "msrp": null,
+    "msrp": 49.99,
     "enabled": true
   },
   {
@@ -51,7 +51,7 @@
     "searchTerm": "Pokemon Prismatic Evolutions Binder Collection",
     "walmartItemId": null,
     "retailers": ["walmart"],
-    "msrp": null,
+    "msrp": 29.99,
     "enabled": true
   },
   {
@@ -62,7 +62,7 @@
     "searchTerm": "Pokemon Prismatic Evolutions Poster Collection",
     "walmartItemId": null,
     "retailers": ["walmart"],
-    "msrp": null,
+    "msrp": 14.99,
     "enabled": true
   },
   {
@@ -73,7 +73,7 @@
     "searchTerm": "Pokemon Prismatic Evolutions Tech Sticker Collection",
     "walmartItemId": null,
     "retailers": ["walmart"],
-    "msrp": null,
+    "msrp": 14.99,
     "enabled": true
   },
   {
@@ -84,7 +84,7 @@
     "searchTerm": "Pokemon Prismatic Evolutions Surprise Box",
     "walmartItemId": null,
     "retailers": ["walmart"],
-    "msrp": null,
+    "msrp": 22.99,
     "enabled": true
   },
   {
@@ -95,7 +95,7 @@
     "searchTerm": "Pokemon Prismatic Evolutions Mini Tin",
     "walmartItemId": null,
     "retailers": ["walmart"],
-    "msrp": null,
+    "msrp": 9.99,
     "enabled": true
   },
   {
@@ -106,7 +106,7 @@
     "searchTerm": "Pokemon Prismatic Evolutions Booster Bundle",
     "walmartItemId": null,
     "retailers": ["walmart"],
-    "msrp": null,
+    "msrp": 26.94,
     "enabled": true
   },
   {
@@ -117,7 +117,7 @@
     "searchTerm": "Pokemon Prismatic Evolutions Super Premium Collection",
     "walmartItemId": null,
     "retailers": ["walmart"],
-    "msrp": null,
+    "msrp": 89.99,
     "enabled": true
   },
   {
@@ -128,7 +128,7 @@
     "searchTerm": "Pokemon Prismatic Evolutions Premium Figure Collection",
     "walmartItemId": null,
     "retailers": ["walmart"],
-    "msrp": null,
+    "msrp": 69.99,
     "enabled": true
   },
   {
@@ -139,7 +139,7 @@
     "searchTerm": "Pokemon Destined Rivals Elite Trainer Box",
     "walmartItemId": null,
     "retailers": ["walmart"],
-    "msrp": null,
+    "msrp": 49.99,
     "enabled": true
   },
   {
@@ -150,7 +150,7 @@
     "searchTerm": "Pokemon Destined Rivals Booster Bundle",
     "walmartItemId": null,
     "retailers": ["walmart"],
-    "msrp": null,
+    "msrp": 26.94,
     "enabled": true
   },
   {
@@ -161,7 +161,7 @@
     "searchTerm": "Pokemon Ascended Heroes Booster Bundle",
     "walmartItemId": null,
     "retailers": ["walmart"],
-    "msrp": null,
+    "msrp": 26.94,
     "enabled": true
   },
   {
@@ -172,7 +172,7 @@
     "searchTerm": "Pokemon Ascended Heroes First Partners Deluxe Pin Collection",
     "walmartItemId": null,
     "retailers": ["walmart"],
-    "msrp": null,
+    "msrp": 24.99,
     "enabled": true
   },
   {
@@ -183,7 +183,7 @@
     "searchTerm": "Pokemon Ascended Heroes Erika Collection",
     "walmartItemId": null,
     "retailers": ["walmart"],
-    "msrp": null,
+    "msrp": 9.99,
     "enabled": true
   },
   {
@@ -194,7 +194,7 @@
     "searchTerm": "Pokemon Ascended Heroes Larry Collection",
     "walmartItemId": null,
     "retailers": ["walmart"],
-    "msrp": null,
+    "msrp": 9.99,
     "enabled": true
   }
 ]
