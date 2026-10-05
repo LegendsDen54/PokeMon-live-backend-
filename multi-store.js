@@ -1,23 +1,29 @@
 const RETAILERS = {
-  walmart: { label: "Walmart" },
+  walmart: {
+    label: "Walmart"
+  },
+
   target: {
     label: "Target",
     feedEnv: "TARGET_FEED_URL",
     keyEnv: "TARGET_API_KEY",
     pollEnv: "TARGET_POLL_SECONDS"
   },
+
   sams: {
     label: "Sam's Club",
     feedEnv: "SAMS_FEED_URL",
     keyEnv: "SAMS_API_KEY",
     pollEnv: "SAMS_POLL_SECONDS"
   },
+
   bestbuy: {
     label: "Best Buy",
     feedEnv: "BESTBUY_FEED_URL",
     keyEnv: "BESTBUY_API_KEY",
     pollEnv: "BESTBUY_POLL_SECONDS"
   },
+
   costco: {
     label: "Costco",
     feedEnv: "COSTCO_FEED_URL",
@@ -26,28 +32,87 @@ const RETAILERS = {
   }
 };
 
+const BESTBUY_API_BASE =
+  "https://api.bestbuy.com/v1";
+
+const BESTBUY_API_KEY =
+  process.env.BESTBUY_API_KEY || "";
+
+const BESTBUY_POSTAL_CODE =
+  String(
+    process.env.BESTBUY_POSTAL_CODE || ""
+  ).trim();
+
+const BESTBUY_MAX_STORE_SKUS =
+  Math.max(
+    1,
+    Math.min(
+      40,
+      Number(
+        process.env.BESTBUY_MAX_STORE_SKUS || 25
+      )
+    )
+  );
+
+const BESTBUY_REQUEST_TIMEOUT_MS =
+  Math.max(
+    5000,
+    Number(
+      process.env.BESTBUY_REQUEST_TIMEOUT_MS || 12000
+    )
+  );
+
+const BESTBUY_STORE_REQUEST_DELAY_MS =
+  Math.max(
+    210,
+    Number(
+      process.env.BESTBUY_STORE_REQUEST_DELAY_MS || 225
+    )
+  );
+
 const states = Object.fromEntries(
-  Object.entries(RETAILERS).map(([retailer, config]) => [
-    retailer,
-    {
+  Object.entries(RETAILERS).map(
+    ([retailer, config]) => [
       retailer,
-      label: config.label,
-      configured:
-        retailer === "walmart"
-          ? Boolean(process.env.WALMART_RAPIDAPI_KEY)
-          : Boolean(process.env[config.feedEnv]),
-      running: false,
-      lastRun: null,
-      lastSuccess: null,
-      error: null,
-      items: []
-    }
-  ])
+      {
+        retailer,
+        label: config.label,
+
+        configured:
+          retailer === "walmart"
+            ? Boolean(
+                process.env.WALMART_RAPIDAPI_KEY ||
+                process.env.HASDATA_API_KEY
+              )
+            : retailer === "bestbuy"
+              ? Boolean(
+                  BESTBUY_API_KEY ||
+                  process.env.BESTBUY_FEED_URL
+                )
+              : Boolean(
+                  process.env[config.feedEnv]
+                ),
+
+        running: false,
+        lastRun: null,
+        lastSuccess: null,
+        error: null,
+        items: []
+      }
+    ]
+  )
 );
 
 let walmartStateGetter = null;
 
 const timers = new Map();
+
+function sleep(ms) {
+  return new Promise(
+    resolve =>
+      setTimeout(resolve, ms)
+  );
+}
 
 function toNumber(value) {
   if (
@@ -58,11 +123,21 @@ function toNumber(value) {
     return null;
   }
 
-  const number = Number(value);
+  const number =
+    Number(value);
 
   return Number.isFinite(number)
     ? number
     : null;
+}
+
+function normalizeText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/pok[eé]mon/g, "pokemon")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function normalizeStatus(
@@ -70,19 +145,24 @@ function normalizeStatus(
   inStock
 ) {
   const text =
-    String(value || "")
-      .trim()
-      .toLowerCase();
+    normalizeText(value);
 
   if (
-    /(pre[- ]?order|raffle|scheduled.*drop)/
+    /(pre order|preorder|raffle|scheduled drop|coming soon)/
       .test(text)
   ) {
     return "preorder";
   }
 
   if (
-    /(on[- ]?hand)/
+    /(out of stock|unavailable|sold out|not available)/
+      .test(text)
+  ) {
+    return "out";
+  }
+
+  if (
+    /(on hand)/
       .test(text)
   ) {
     return "onhand";
@@ -103,17 +183,10 @@ function normalizeStatus(
   }
 
   if (
-    /(in[- ]?stock|available|live|ready)/
+    /(in stock|instock|available|live|ready)/
       .test(text)
   ) {
     return "instock";
-  }
-
-  if (
-    /(out|unavailable|sold out|not available)/
-      .test(text)
-  ) {
-    return "out";
   }
 
   return inStock === true
@@ -156,6 +229,14 @@ function retailerSellerMatch(
         "samclub",
         "sams"
       ].includes(left)
+    ) ||
+
+    (
+      retailer === "bestbuy" &&
+      [
+        "bestbuy",
+        "bestbuycom"
+      ].includes(left)
     )
   );
 }
@@ -181,7 +262,7 @@ function normalizeItem(
       raw.inStock
     );
 
-  const channel =
+  let channel =
     String(
       raw.channel ||
       (
@@ -194,6 +275,17 @@ function normalizeItem(
       .toLowerCase() === "store"
       ? "store"
       : "online";
+
+  /*
+    TARGET IS ONLINE ONLY.
+    Any Target feed item that claims to be store inventory
+    is forced back to online and loses store metadata.
+  */
+  if (
+    retailer === "target"
+  ) {
+    channel = "online";
+  }
 
   const seller =
     raw.seller ??
@@ -237,19 +329,27 @@ function normalizeItem(
     channel,
 
     storeId:
-      channel === "store" &&
-      raw.storeId != null
-        ? String(raw.storeId)
-        : null,
+      retailer === "target"
+        ? null
+        : (
+            channel === "store" &&
+            raw.storeId != null
+              ? String(raw.storeId)
+              : null
+          ),
 
     storeName:
-      channel === "store"
-        ? (
-            raw.storeName ??
-            raw.location ??
-            null
-          )
-        : null,
+      retailer === "target"
+        ? null
+        : (
+            channel === "store"
+              ? (
+                  raw.storeName ??
+                  raw.location ??
+                  null
+                )
+              : null
+          ),
 
     status,
 
@@ -264,7 +364,8 @@ function normalizeItem(
       toNumber(
         raw.price ??
         raw.currentPrice ??
-        raw.salePrice
+        raw.salePrice ??
+        raw.regularPrice
       ),
 
     msrp:
@@ -334,7 +435,9 @@ function syncWalmartState() {
   state.configured =
     Boolean(
       process.env
-        .WALMART_RAPIDAPI_KEY
+        .WALMART_RAPIDAPI_KEY ||
+      process.env
+        .HASDATA_API_KEY
     );
 
   state.running =
@@ -460,7 +563,608 @@ function pollSecondsFor(
     : 60;
 }
 
-async function pollExternal(
+async function fetchJson(
+  url,
+  options = {},
+  timeoutMs = 15000,
+  label = "External API"
+) {
+  const controller =
+    new AbortController();
+
+  const timeout =
+    setTimeout(
+      () =>
+        controller.abort(),
+      timeoutMs
+    );
+
+  try {
+    const response =
+      await fetch(
+        url,
+        {
+          ...options,
+
+          signal:
+            controller.signal
+        }
+      );
+
+    if (
+      !response.ok
+    ) {
+      const error =
+        new Error(
+          `${label} returned HTTP ${response.status}`
+        );
+
+      error.status =
+        response.status;
+
+      throw error;
+    }
+
+    return await response.json();
+
+  } catch (error) {
+    if (
+      error?.name ===
+      "AbortError"
+    ) {
+      throw new Error(
+        `${label} timed out after ${timeoutMs}ms`
+      );
+    }
+
+    throw error;
+
+  } finally {
+    clearTimeout(
+      timeout
+    );
+  }
+}
+
+/* ========================================
+   BEST BUY HELPERS
+======================================== */
+
+function isPokemonTcgName(value) {
+  const text =
+    normalizeText(value);
+
+  if (
+    !text.includes(
+      "pokemon"
+    )
+  ) {
+    return false;
+  }
+
+  const excluded = [
+    "video game",
+    "nintendo switch",
+    "plush",
+    "shirt",
+    "hoodie",
+    "figure",
+    "figurine",
+    "toy",
+    "funko",
+    "headset",
+    "controller",
+    "case",
+    "backpack",
+    "poster wall art",
+    "single card",
+    "graded card",
+    "psa ",
+    "cgc ",
+    "bgs "
+  ];
+
+  if (
+    excluded.some(
+      word =>
+        text.includes(word)
+    )
+  ) {
+    return false;
+  }
+
+  const sealedSignals = [
+    "trading card",
+    "tcg",
+    "elite trainer",
+    "booster",
+    "bundle",
+    "collection",
+    "box",
+    "tin",
+    "blister",
+    "deck"
+  ];
+
+  return sealedSignals.some(
+    word =>
+      text.includes(word)
+  );
+}
+
+function bestBuyOrderableStatus(
+  product
+) {
+  const orderable =
+    normalizeText(
+      product?.orderable
+    );
+
+  if (
+    orderable.includes(
+      "preordernow"
+    ) ||
+    orderable.includes(
+      "preorder now"
+    ) ||
+    orderable.includes(
+      "comingsoon"
+    ) ||
+    orderable.includes(
+      "coming soon"
+    )
+  ) {
+    return "preorder";
+  }
+
+  if (
+    product?.onlineAvailability ===
+      true ||
+    orderable === "available"
+  ) {
+    return "instock";
+  }
+
+  return "out";
+}
+
+function normalizeBestBuyOnline(
+  product
+) {
+  const status =
+    bestBuyOrderableStatus(
+      product
+    );
+
+  const price =
+    toNumber(
+      product?.salePrice ??
+      product?.regularPrice
+    );
+
+  return normalizeItem(
+    "bestbuy",
+    {
+      productId:
+        product?.sku,
+
+      sku:
+        product?.sku,
+
+      name:
+        product?.name ||
+        "Pokémon product",
+
+      channel:
+        "online",
+
+      status,
+
+      inStock:
+        status ===
+        "instock",
+
+      price,
+
+      seller:
+        "Best Buy",
+
+      directSeller:
+        true,
+
+      image:
+        product?.image ||
+        product?.largeFrontImage ||
+        product?.mediumImage ||
+        null,
+
+      url:
+        product?.url ||
+        product?.addToCartUrl ||
+        (
+          product?.sku
+            ? `https://www.bestbuy.com/site/searchpage.jsp?st=${encodeURIComponent(product.name || product.sku)}`
+            : null
+        ),
+
+      checkedAt:
+        new Date()
+          .toISOString(),
+
+      source:
+        "bestbuy-products-api"
+    }
+  );
+}
+
+function normalizeBestBuyStore(
+  product,
+  store
+) {
+  const storeId =
+    store?.storeID ??
+    store?.storeId ??
+    null;
+
+  const storeName =
+    store?.name ||
+    [
+      store?.city,
+      store?.state
+    ]
+      .filter(Boolean)
+      .join(", ") ||
+    (
+      storeId
+        ? `Best Buy Store ${storeId}`
+        : "Best Buy Store"
+    );
+
+  return normalizeItem(
+    "bestbuy",
+    {
+      productId:
+        product?.sku,
+
+      sku:
+        product?.sku,
+
+      name:
+        product?.name ||
+        "Pokémon product",
+
+      channel:
+        "store",
+
+      storeId,
+
+      storeName,
+
+      status:
+        "instock",
+
+      inStock:
+        true,
+
+      quantity:
+        store?.quantity ??
+        null,
+
+      price:
+        product?.salePrice ??
+        product?.regularPrice ??
+        null,
+
+      seller:
+        "Best Buy",
+
+      directSeller:
+        true,
+
+      image:
+        product?.image ||
+        product?.largeFrontImage ||
+        product?.mediumImage ||
+        null,
+
+      url:
+        product?.url ||
+        (
+          product?.sku
+            ? `https://www.bestbuy.com/site/searchpage.jsp?st=${encodeURIComponent(product.name || product.sku)}`
+            : null
+        ),
+
+      checkedAt:
+        new Date()
+          .toISOString(),
+
+      source:
+        "bestbuy-store-availability-api",
+
+      rawStatus:
+        store?.lowStock === true
+          ? "Low stock"
+          : "In stock"
+    }
+  );
+}
+
+async function searchBestBuyPokemon() {
+  if (
+    !BESTBUY_API_KEY
+  ) {
+    return [];
+  }
+
+  const show =
+    [
+      "sku",
+      "name",
+      "salePrice",
+      "regularPrice",
+      "onlineAvailability",
+      "inStoreAvailability",
+      "inStorePickup",
+      "orderable",
+      "url",
+      "addToCartUrl",
+      "image",
+      "largeFrontImage",
+      "mediumImage"
+    ].join(",");
+
+  const url =
+    `${BESTBUY_API_BASE}` +
+    `/products(search=pokemon)` +
+    `?format=json` +
+    `&pageSize=100` +
+    `&show=${encodeURIComponent(show)}` +
+    `&apiKey=${encodeURIComponent(BESTBUY_API_KEY)}`;
+
+  const payload =
+    await fetchJson(
+      url,
+      {
+        headers: {
+          accept:
+            "application/json"
+        }
+      },
+      BESTBUY_REQUEST_TIMEOUT_MS,
+      "Best Buy Products API"
+    );
+
+  const products =
+    Array.isArray(
+      payload?.products
+    )
+      ? payload.products
+      : [];
+
+  return products.filter(
+    product =>
+      isPokemonTcgName(
+        product?.name
+      )
+  );
+}
+
+async function getBestBuyStoreAvailability(
+  product
+) {
+  if (
+    !BESTBUY_API_KEY ||
+    !BESTBUY_POSTAL_CODE ||
+    !product?.sku
+  ) {
+    return [];
+  }
+
+  const params =
+    new URLSearchParams({
+      postalCode:
+        BESTBUY_POSTAL_CODE,
+
+      apiKey:
+        BESTBUY_API_KEY
+    });
+
+  const url =
+    `${BESTBUY_API_BASE}` +
+    `/products/${encodeURIComponent(product.sku)}` +
+    `/stores.json?${params.toString()}`;
+
+  const payload =
+    await fetchJson(
+      url,
+      {
+        headers: {
+          accept:
+            "application/json"
+        }
+      },
+      BESTBUY_REQUEST_TIMEOUT_MS,
+      "Best Buy Store Availability API"
+    );
+
+  const stores =
+    Array.isArray(
+      payload?.stores
+    )
+      ? payload.stores
+      : [];
+
+  /*
+    Best Buy's store availability endpoint returns
+    stores where that SKU is currently available.
+  */
+  return stores.map(
+    store =>
+      normalizeBestBuyStore(
+        product,
+        store
+      )
+  );
+}
+
+async function pollBestBuy() {
+  const state =
+    states.bestbuy;
+
+  state.configured =
+    Boolean(
+      BESTBUY_API_KEY ||
+      process.env
+        .BESTBUY_FEED_URL
+    );
+
+  if (
+    !BESTBUY_API_KEY
+  ) {
+    /*
+      If no official API key is configured yet,
+      preserve the old external-feed fallback.
+    */
+    if (
+      process.env
+        .BESTBUY_FEED_URL
+    ) {
+      return pollGenericExternal(
+        "bestbuy"
+      );
+    }
+
+    state.running =
+      false;
+
+    state.items =
+      [];
+
+    state.error =
+      null;
+
+    return state;
+  }
+
+  state.running =
+    true;
+
+  state.lastRun =
+    new Date()
+      .toISOString();
+
+  try {
+    const products =
+      await searchBestBuyPokemon();
+
+    const items = [];
+
+    for (
+      const product
+      of products
+    ) {
+      /*
+        ONLINE CARD
+      */
+      items.push(
+        normalizeBestBuyOnline(
+          product
+        )
+      );
+    }
+
+    /*
+      STORE INVENTORY
+
+      Only runs when BESTBUY_POSTAL_CODE exists.
+      We also cap SKU checks to keep API usage sane.
+    */
+    if (
+      BESTBUY_POSTAL_CODE
+    ) {
+      const storeCandidates =
+        products
+          .filter(
+            product =>
+              product
+                ?.inStoreAvailability ===
+                true ||
+              product
+                ?.inStorePickup ===
+                true
+          )
+          .slice(
+            0,
+            BESTBUY_MAX_STORE_SKUS
+          );
+
+      for (
+        let index = 0;
+        index <
+          storeCandidates.length;
+        index += 1
+      ) {
+        const product =
+          storeCandidates[index];
+
+        try {
+          const storeItems =
+            await getBestBuyStoreAvailability(
+              product
+            );
+
+          items.push(
+            ...storeItems
+          );
+
+        } catch (error) {
+          console.error(
+            `Best Buy store lookup failed for SKU ${product?.sku}:`,
+            error.message
+          );
+        }
+
+        if (
+          index <
+          storeCandidates.length -
+            1
+        ) {
+          await sleep(
+            BESTBUY_STORE_REQUEST_DELAY_MS
+          );
+        }
+      }
+    }
+
+    state.items =
+      items;
+
+    state.lastSuccess =
+      new Date()
+        .toISOString();
+
+    state.error =
+      null;
+
+  } catch (error) {
+    state.error =
+      error?.message ||
+      String(error);
+
+  } finally {
+    state.running =
+      false;
+  }
+
+  return state;
+}
+
+/* ========================================
+   GENERIC TARGET / SAMS / COSTCO FEEDS
+======================================== */
+
+async function pollGenericExternal(
   retailer
 ) {
   const config =
@@ -524,48 +1228,17 @@ async function pollExternal(
         apiKey;
     }
 
-    const controller =
-      new AbortController();
-
-    const timeout =
-      setTimeout(
-        () =>
-          controller.abort(),
-        15000
-      );
-
-    let response;
-
-    try {
-      response =
-        await fetch(
-          feedUrl,
-          {
-            headers,
-
-            signal:
-              controller.signal
-          }
-        );
-
-    } finally {
-      clearTimeout(
-        timeout
-      );
-    }
-
-    if (
-      !response.ok
-    ) {
-      throw new Error(
-        `${config.label} feed returned HTTP ${response.status}`
-      );
-    }
-
     const payload =
-      await response.json();
+      await fetchJson(
+        feedUrl,
+        {
+          headers
+        },
+        15000,
+        `${config.label} feed`
+      );
 
-    state.items =
+    let items =
       extractFeedItems(
         payload
       ).map(
@@ -576,6 +1249,24 @@ async function pollExternal(
           )
       );
 
+    /*
+      TARGET = ONLINE ONLY.
+      Store inventory is discarded completely.
+    */
+    if (
+      retailer === "target"
+    ) {
+      items =
+        items.filter(
+          item =>
+            item.channel ===
+            "online"
+        );
+    }
+
+    state.items =
+      items;
+
     state.lastSuccess =
       new Date()
         .toISOString();
@@ -585,13 +1276,8 @@ async function pollExternal(
 
   } catch (error) {
     state.error =
-      error?.name ===
-        "AbortError"
-        ? `${config.label} feed timed out`
-        : (
-            error?.message ||
-            String(error)
-          );
+      error?.message ||
+      String(error);
 
   } finally {
     state.running =
@@ -601,23 +1287,63 @@ async function pollExternal(
   return state;
 }
 
+async function pollExternal(
+  retailer
+) {
+  if (
+    retailer === "bestbuy"
+  ) {
+    return pollBestBuy();
+  }
+
+  return pollGenericExternal(
+    retailer
+  );
+}
+
 async function pollConfiguredProviders() {
   const providers =
     Object.keys(
       RETAILERS
     ).filter(
-      retailer =>
-        retailer !==
-          "walmart" &&
+      retailer => {
+        if (
+          retailer ===
+          "walmart"
+        ) {
+          return false;
+        }
 
-        states[
-          retailer
-        ].configured
+        if (
+          retailer ===
+          "bestbuy"
+        ) {
+          return Boolean(
+            BESTBUY_API_KEY ||
+            process.env
+              .BESTBUY_FEED_URL
+          );
+        }
+
+        const config =
+          RETAILERS[
+            retailer
+          ];
+
+        return Boolean(
+          process.env[
+            config.feedEnv
+          ]
+        );
+      }
     );
 
   return Promise.allSettled(
     providers.map(
-      pollExternal
+      retailer =>
+        pollExternal(
+          retailer
+        )
     )
   );
 }
@@ -660,12 +1386,24 @@ function start(
         retailer
       ];
 
-    state.configured =
-      Boolean(
-        process.env[
-          config.feedEnv
-        ]
-      );
+    if (
+      retailer ===
+      "bestbuy"
+    ) {
+      state.configured =
+        Boolean(
+          BESTBUY_API_KEY ||
+          process.env
+            .BESTBUY_FEED_URL
+        );
+    } else {
+      state.configured =
+        Boolean(
+          process.env[
+            config.feedEnv
+          ]
+        );
+    }
 
     if (
       !state.configured ||
@@ -691,7 +1429,8 @@ function start(
           ).catch(
             error => {
               state.error =
-                error.message;
+                error?.message ||
+                String(error);
 
               state.running =
                 false;
@@ -741,7 +1480,21 @@ function getProviderStates() {
           state.error,
 
         itemCount:
-          state.items.length
+          state.items.length,
+
+        onlineCount:
+          state.items.filter(
+            item =>
+              item.channel ===
+              "online"
+          ).length,
+
+        storeCount:
+          state.items.filter(
+            item =>
+              item.channel ===
+              "store"
+          ).length
       })
     );
 }
@@ -783,7 +1536,15 @@ function getStoreInventory(
   ).filter(
     item =>
       item.channel ===
-      "store"
+      "store" &&
+
+      /*
+        Extra safety:
+        Target can NEVER appear
+        in store inventory.
+      */
+      item.retailer !==
+        "target"
   );
 }
 
