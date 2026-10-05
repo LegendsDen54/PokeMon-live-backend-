@@ -281,28 +281,56 @@ app.get(
 
 
 /* ========================================
-   MANIFEST
+   WEB APP MANIFEST
 ======================================== */
 
 app.get(
-  "/manifest.json",
+  "/manifest.webmanifest",
   (req, res) => {
 
-    res.setHeader(
-      "Content-Type",
+    res.type(
       "application/manifest+json"
     );
 
     res.setHeader(
       "Cache-Control",
-      "no-cache"
+      "no-cache, no-store, must-revalidate"
     );
 
-    res.sendFile(
-      path.join(
-        __dirname,
-        "manifest.json"
-      )
+    res.send(
+      JSON.stringify({
+
+        id:
+          "/",
+
+        name:
+          "Pokémon Restock Monitor",
+
+        short_name:
+          "Pokémon Monitor",
+
+        description:
+          "Live Pokémon inventory and restock monitor",
+
+        start_url:
+          "/",
+
+        scope:
+          "/",
+
+        display:
+          "standalone",
+
+        orientation:
+          "portrait-primary",
+
+        background_color:
+          "#020711",
+
+        theme_color:
+          "#020711"
+
+      })
     );
 
   }
@@ -1417,6 +1445,11 @@ app.get(
 
         } catch (error) {
 
+          console.error(
+            `Marketplace search failed for ${product.id}:`,
+            error.message
+          );
+
           errors.push({
 
             productId:
@@ -1733,6 +1766,11 @@ app.get(
 
     } catch (error) {
 
+      console.error(
+        "Manual discovery failed:",
+        error
+      );
+
       res
         .status(500)
         .json({
@@ -1775,6 +1813,11 @@ app.get(
 
     } catch (error) {
 
+      console.error(
+        "Get discovered products failed:",
+        error
+      );
+
       res
         .status(500)
         .json({
@@ -1805,6 +1848,10 @@ async function runScheduledDiscovery() {
 
   if (discoveryRunning) {
 
+    console.log(
+      "Discovery already running. Skipping duplicate run."
+    );
+
     return;
 
   }
@@ -1814,8 +1861,18 @@ async function runScheduledDiscovery() {
 
   try {
 
-    await discovery
-      .discoverWalmartProducts();
+    console.log(
+      "Starting Walmart product discovery..."
+    );
+
+    const result =
+      await discovery
+        .discoverWalmartProducts();
+
+    console.log(
+      "Walmart product discovery finished:",
+      result
+    );
 
   } catch (error) {
 
@@ -1851,10 +1908,15 @@ app.listen(
       push.getPushStatus()
     );
 
+
     try {
 
       await discovery
         .initializeDiscoveryDatabase();
+
+      console.log(
+        "Discovery storage ready."
+      );
 
     } catch (error) {
 
@@ -1865,10 +1927,17 @@ app.listen(
 
     }
 
+
     try {
 
-      await push
-        .initializePushDatabase();
+      const pushDatabase =
+        await push
+          .initializePushDatabase();
+
+      console.log(
+        "Persistent push storage ready:",
+        pushDatabase
+      );
 
     } catch (error) {
 
@@ -1879,37 +1948,65 @@ app.listen(
 
     }
 
+
     try {
 
-      await multiStore
-        .start({
+      const results =
+        await multiStore
+          .start({
 
-          getWalmartState:
-            getLatest
+            getWalmartState:
+              getLatest
 
-        });
+          });
+
+      console.log(
+        "Multi-store provider engine started:",
+        results
+      );
 
     } catch (error) {
 
       console.error(
-        "Multi-store provider startup failed:",
+        "Multi-store provider engine startup failed:",
         error
       );
 
     }
 
-    walmartScheduler
-      .start();
+
+    const scheduleState =
+      walmartScheduler
+        .start();
+
+    console.log(
+      "Walmart scheduled scanning:",
+      scheduleState
+    );
 
 
     if (runOnStartup) {
 
+      console.log(
+        "RUN_ON_STARTUP enabled."
+      );
+
       await runScheduledScan();
+
+    } else {
+
+      console.log(
+        "Startup scan disabled."
+      );
 
     }
 
 
     if (enableFullPolling) {
+
+      console.log(
+        `Automatic catalog polling ENABLED every ${pollSeconds} seconds.`
+      );
 
       setInterval(
         () => {
@@ -1919,7 +2016,7 @@ app.listen(
               error => {
 
                 console.error(
-                  "Automatic polling failed:",
+                  "Automatic catalog polling failed:",
                   error
                 );
 
@@ -1930,10 +2027,20 @@ app.listen(
         pollSeconds * 1000
       );
 
+    } else {
+
+      console.log(
+        "Continuous catalog polling disabled; Walmart scheduler controls drop-window scans."
+      );
+
     }
 
 
     if (enableDiscovery) {
+
+      console.log(
+        `Automatic Walmart discovery ENABLED every ${discoveryMinutes} minutes.`
+      );
 
       setTimeout(
         runScheduledDiscovery,
@@ -1945,6 +2052,12 @@ app.listen(
         discoveryMinutes *
           60 *
           1000
+      );
+
+    } else {
+
+      console.log(
+        "Continuous Walmart discovery disabled."
       );
 
     }
