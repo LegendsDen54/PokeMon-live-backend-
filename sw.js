@@ -1,6 +1,17 @@
+/* ========================================
+   POKÉMON RESTOCK MONITOR
+   SERVICE WORKER
+======================================== */
+
+
 self.addEventListener(
   "install",
   event => {
+
+    console.log(
+      "[SW] Pokémon Restock Monitor installed"
+    );
+
 
     self.skipWaiting();
 
@@ -12,6 +23,11 @@ self.addEventListener(
   "activate",
   event => {
 
+    console.log(
+      "[SW] Pokémon Restock Monitor activated"
+    );
+
+
     event.waitUntil(
       self.clients.claim()
     );
@@ -20,38 +36,53 @@ self.addEventListener(
 );
 
 
+/* ========================================
+   PUSH NOTIFICATIONS
+======================================== */
+
 self.addEventListener(
   "push",
   event => {
 
+    console.log(
+      "[SW] Push received"
+    );
+
+
     let data = {};
 
-    try{
 
-      data =
-        event.data
-          ? event.data.json()
-          : {};
+    try {
 
-    }
-    catch(error){
+      if (event.data) {
 
-      try{
+        data =
+          event.data.json();
+
+      }
+
+    } catch (error) {
+
+      console.error(
+        "[SW] Could not parse JSON:",
+        error
+      );
+
+
+      try {
 
         data = {
+
           body:
             event.data
               ? event.data.text()
               : "Pokémon restock detected."
+
         };
 
-      }
-      catch(secondError){
+      } catch {
 
-        data = {
-          body:
-            "Pokémon restock detected."
-        };
+        data = {};
 
       }
 
@@ -59,17 +90,16 @@ self.addEventListener(
 
 
     const title =
-
       data.title ||
-
-      "🔥 Pokémon Restock Detected!";
+      "🔥 Pokémon Restock Alert";
 
 
     const options = {
 
       body:
         data.body ||
-        "A monitored Pokémon product is available.",
+        data.message ||
+        "A Pokémon product may be available.",
 
       icon:
         data.icon ||
@@ -81,16 +111,29 @@ self.addEventListener(
 
       tag:
         data.tag ||
-        "pokemon-restock",
+        "pokemon-restock-alert",
 
       renotify:
         true,
 
-      data:{
+      requireInteraction:
+        true,
+
+      data: {
 
         url:
           data.url ||
-          "/"
+          data.productUrl ||
+          "/",
+
+        retailer:
+          data.retailer ||
+          null,
+
+        product:
+          data.product ||
+          data.name ||
+          null
 
       }
 
@@ -101,11 +144,8 @@ self.addEventListener(
 
       self.registration
         .showNotification(
-
           title,
-
           options
-
         )
 
     );
@@ -114,18 +154,21 @@ self.addEventListener(
 );
 
 
+/* ========================================
+   NOTIFICATION CLICK
+======================================== */
+
 self.addEventListener(
   "notificationclick",
   event => {
 
     event.notification.close();
 
-    const targetUrl =
 
+    const targetUrl =
       event.notification
         ?.data
         ?.url ||
-
       "/";
 
 
@@ -134,51 +177,51 @@ self.addEventListener(
       clients
         .matchAll({
 
-          type:"window",
+          type:
+            "window",
 
-          includeUncontrolled:true
+          includeUncontrolled:
+            true
 
         })
 
         .then(
-
-          windowClients => {
+          async windowClients => {
 
             for (
               const client
               of windowClients
-            ){
+            ) {
 
-              try{
+              if (
+                "focus" in client
+              ) {
 
-                const clientUrl =
+                try {
 
-                  new URL(
-                    client.url
+                  if (
+                    "navigate" in client &&
+                    targetUrl
+                  ) {
+
+                    await client
+                      .navigate(
+                        targetUrl
+                      );
+
+                  }
+
+                } catch (error) {
+
+                  console.log(
+                    "[SW] Existing window navigation failed:",
+                    error
                   );
-
-                const target =
-
-                  new URL(
-                    targetUrl,
-                    self.location.origin
-                  );
-
-                if (
-                  clientUrl.origin ===
-                  target.origin
-                ){
-
-                  client.navigate(
-                    target.href
-                  );
-
-                  return client.focus();
 
                 }
 
-              }
-              catch(error){
+
+                return client.focus();
 
               }
 
@@ -187,19 +230,43 @@ self.addEventListener(
 
             if (
               clients.openWindow
-            ){
+            ) {
 
-              return clients.openWindow(
-                targetUrl
-              );
+              return clients
+                .openWindow(
+                  targetUrl
+                );
 
             }
 
-          }
 
+            return null;
+
+          }
         )
 
     );
+
+  }
+);
+
+
+/* ========================================
+   MESSAGE HANDLER
+======================================== */
+
+self.addEventListener(
+  "message",
+  event => {
+
+    if (
+      event.data?.type ===
+      "SKIP_WAITING"
+    ) {
+
+      self.skipWaiting();
+
+    }
 
   }
 );
