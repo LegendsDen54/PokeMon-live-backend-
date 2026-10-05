@@ -16,61 +16,33 @@ const push = require("./push");
 const discovery = require("./discovery");
 const products = require("./products.json");
 const multiStore = require("./multi-store");
-
-const {
-  createWalmartScheduler
-} = require("./walmart-scheduler");
-
-const walmartWatchlist =
-  require("./walmart-watchlist");
-
-const walmart30thDiscovery =
-  require("./walmart-30th-discovery");
-
+const { createWalmartScheduler } = require("./walmart-scheduler");
+const walmartWatchlist = require("./walmart-watchlist");
+const walmart30thDiscovery = require("./walmart-30th-discovery");
 
 const app = express();
 
-
-/* ========================================
-   ENVIRONMENT
-======================================== */
-
-const port =
-  Number(process.env.PORT || 8080);
-
-const allowedOrigin =
-  process.env.ALLOWED_ORIGIN || "*";
+const port = Number(process.env.PORT || 8080);
+const allowedOrigin = process.env.ALLOWED_ORIGIN || "*";
 
 const runOnStartup =
-  String(
-    process.env.RUN_ON_STARTUP || "false"
-  ).toLowerCase() === "true";
+  String(process.env.RUN_ON_STARTUP || "false").toLowerCase() === "true";
 
 const enableFullPolling =
-  String(
-    process.env.ENABLE_FULL_POLLING || "false"
-  ).toLowerCase() === "true";
+  String(process.env.ENABLE_FULL_POLLING || "false").toLowerCase() === "true";
 
 const enableDiscovery =
-  String(
-    process.env.ENABLE_DISCOVERY || "false"
-  ).toLowerCase() === "true";
+  String(process.env.ENABLE_DISCOVERY || "false").toLowerCase() === "true";
 
-const pollSeconds =
-  Math.max(
-    60,
-    Number(
-      process.env.POLL_SECONDS || 60
-    )
-  );
+const pollSeconds = Math.max(
+  60,
+  Number(process.env.POLL_SECONDS || 60)
+);
 
-const discoveryMinutes =
-  Math.max(
-    5,
-    Number(
-      process.env.DISCOVERY_MINUTES || 5
-    )
-  );
+const discoveryMinutes = Math.max(
+  5,
+  Number(process.env.DISCOVERY_MINUTES || 5)
+);
 
 const manualScanToken =
   process.env.MANUAL_SCAN_TOKEN || "";
@@ -80,7 +52,7 @@ const walmartWakeToken =
 
 
 /* ========================================
-   EXPRESS
+   EXPRESS SETUP
 ======================================== */
 
 app.use(
@@ -92,34 +64,25 @@ app.use(
   })
 );
 
-app.use(
-  express.json()
-);
+app.use(express.json());
 
 
 /* ========================================
-   WALMART SCAN
+   WALMART SCHEDULED SCAN
 ======================================== */
 
 async function runScheduledScan() {
-
   try {
-
-    console.log(
-      "Starting Walmart catalog scan..."
-    );
+    console.log("Starting Walmart catalog scan...");
 
     const catalogResult =
       await runCheck();
 
-    let discovery30th =
-      null;
+    let discovery30th = null;
 
     try {
-
       discovery30th =
-        await walmart30thDiscovery
-          .runDiscovery();
+        await walmart30thDiscovery.runDiscovery();
 
       console.log(
         "Walmart 30th discovery finished:",
@@ -131,13 +94,11 @@ async function runScheduledScan() {
             discovery30th?.directCount || 0,
 
           availableDirectCount:
-            discovery30th
-              ?.availableDirectCount || 0
+            discovery30th?.availableDirectCount || 0
         }
       );
 
     } catch (error) {
-
       console.error(
         "Walmart 30th discovery failed:",
         error.message
@@ -147,7 +108,6 @@ async function runScheduledScan() {
         ok: false,
         error: error.message
       };
-
     }
 
     const result = {
@@ -163,36 +123,27 @@ async function runScheduledScan() {
     return result;
 
   } catch (error) {
-
     console.error(
       "Walmart catalog scan failed:",
       error
     );
 
     throw error;
-
   }
-
 }
 
 
-/* ========================================
-   SCHEDULER
-======================================== */
-
 const walmartScheduler =
   createWalmartScheduler({
-    runScan:
-      runScheduledScan
+    runScan: runScheduledScan
   });
 
 
 /* ========================================
-   TOKEN HELPERS
+   AUTH HELPERS
 ======================================== */
 
 function hasValidManualToken(req) {
-
   if (!manualScanToken) {
     return false;
   }
@@ -202,16 +153,11 @@ function hasValidManualToken(req) {
     req.body?.token ||
     "";
 
-  return (
-    supplied ===
-    manualScanToken
-  );
-
+  return supplied === manualScanToken;
 }
 
 
 function hasValidWakeToken(req) {
-
   if (!walmartWakeToken) {
     return false;
   }
@@ -234,55 +180,58 @@ function hasValidWakeToken(req) {
     req.query?.token ||
     "";
 
-  return (
-    supplied ===
-    walmartWakeToken
-  );
-
+  return supplied === walmartWakeToken;
 }
 
 
 /* ========================================
-   FRONTEND
+   FRONTEND ROUTES
 ======================================== */
 
-app.get(
-  "/",
-  (req, res) => {
-
-    res.sendFile(
-      path.join(
-        __dirname,
-        "index.html"
-      )
-    );
-
-  }
-);
+app.get("/", (req, res) => {
+  res.sendFile(
+    path.join(
+      __dirname,
+      "index.html"
+    )
+  );
+});
 
 
-/* ========================================
-   HERO IMAGE
-======================================== */
-
-app.get(
-  "/hero.jpg",
-  (req, res) => {
-
-    res.sendFile(
-      path.join(
-        __dirname,
-        "hero.jpg"
-      )
-    );
-
-  }
-);
+app.get("/hero.jpg", (req, res) => {
+  res.sendFile(
+    path.join(
+      __dirname,
+      "hero.jpg"
+    )
+  );
+});
 
 
-/* ========================================
-   WEB APP MANIFEST
-======================================== */
+app.get("/sw.js", (req, res) => {
+  res.setHeader(
+    "Content-Type",
+    "application/javascript; charset=utf-8"
+  );
+
+  res.setHeader(
+    "Service-Worker-Allowed",
+    "/"
+  );
+
+  res.setHeader(
+    "Cache-Control",
+    "no-cache, no-store, must-revalidate"
+  );
+
+  res.sendFile(
+    path.join(
+      __dirname,
+      "sw.js"
+    )
+  );
+});
+
 
 app.get(
   "/manifest.webmanifest",
@@ -297,82 +246,30 @@ app.get(
       "no-cache, no-store, must-revalidate"
     );
 
-    res.send(
-      JSON.stringify({
-
-        id:
-          "/",
-
-        name:
-          "Pokémon Restock Monitor",
-
-        short_name:
-          "Pokémon Monitor",
-
-        description:
-          "Live Pokémon inventory and restock monitor",
-
-        start_url:
-          "/",
-
-        scope:
-          "/",
-
-        display:
-          "standalone",
-
-        orientation:
-          "portrait-primary",
-
-        background_color:
-          "#020711",
-
-        theme_color:
-          "#020711"
-
-      })
-    );
-
+    res.json({
+      id: "/",
+      name:
+        "Pokémon Restock Monitor",
+      short_name:
+        "Pokémon Monitor",
+      description:
+        "Live Pokémon inventory and restock monitor",
+      start_url: "/",
+      scope: "/",
+      display: "standalone",
+      orientation:
+        "portrait-primary",
+      background_color:
+        "#020711",
+      theme_color:
+        "#020711"
+    });
   }
 );
 
 
 /* ========================================
-   SERVICE WORKER
-======================================== */
-
-app.get(
-  "/sw.js",
-  (req, res) => {
-
-    res.setHeader(
-      "Content-Type",
-      "application/javascript; charset=utf-8"
-    );
-
-    res.setHeader(
-      "Service-Worker-Allowed",
-      "/"
-    );
-
-    res.setHeader(
-      "Cache-Control",
-      "no-cache, no-store, must-revalidate"
-    );
-
-    res.sendFile(
-      path.join(
-        __dirname,
-        "sw.js"
-      )
-    );
-
-  }
-);
-
-
-/* ========================================
-   BACKEND STATUS
+   BACKEND / HEALTH
 ======================================== */
 
 app.get(
@@ -380,12 +277,10 @@ app.get(
   (req, res) => {
 
     res.json({
-
       name:
         "Pokemon Live Monitor Backend",
 
-      ok:
-        true,
+      ok: true,
 
       provider:
         process.env.DATA_PROVIDER ||
@@ -408,30 +303,24 @@ app.get(
           : null,
 
       scheduledWalmartScanning:
-        walmartScheduler
-          .getStatus(),
+        walmartScheduler.getStatus(),
 
       walmartProvider:
-        walmart
-          .getProviderInfo?.() ||
+        walmart.getProviderInfo?.() ||
         null,
 
       walmart30thDiscovery:
-        walmart30thDiscovery
-          .getState(),
+        walmart30thDiscovery.getState(),
 
       marketplaceEndpoint:
         "/api/marketplace",
 
       providers:
-        multiStore
-          .getProviderStates(),
+        multiStore.getProviderStates(),
 
       push:
         push.getPushStatus()
-
     });
-
   }
 );
 
@@ -441,13 +330,10 @@ app.get(
   (req, res) => {
 
     res.json({
-
-      ok:
-        true,
+      ok: true,
 
       time:
-        new Date()
-          .toISOString(),
+        new Date().toISOString(),
 
       automaticScanning:
         enableFullPolling,
@@ -466,33 +352,27 @@ app.get(
           : null,
 
       walmartSchedule:
-        walmartScheduler
-          .getStatus(),
+        walmartScheduler.getStatus(),
 
       walmartProvider:
-        walmart
-          .getProviderInfo?.() ||
+        walmart.getProviderInfo?.() ||
         null,
 
       walmart30thDiscovery:
-        walmart30thDiscovery
-          .getState(),
+        walmart30thDiscovery.getState(),
 
       providers:
-        multiStore
-          .getProviderStates(),
+        multiStore.getProviderStates(),
 
       push:
         push.getPushStatus()
-
     });
-
   }
 );
 
 
 /* ========================================
-   PUSH PUBLIC KEY
+   PUSH NOTIFICATIONS
 ======================================== */
 
 app.get(
@@ -503,37 +383,22 @@ app.get(
       push.getPublicKey();
 
     if (!publicKey) {
-
       return res
         .status(503)
         .json({
-
-          ok:
-            false,
-
+          ok: false,
           error:
             "Web Push is not configured"
-
         });
-
     }
 
     res.json({
-
-      ok:
-        true,
-
+      ok: true,
       publicKey
-
     });
-
   }
 );
 
-
-/* ========================================
-   PUSH STATUS
-======================================== */
 
 app.get(
   "/api/push/status",
@@ -542,42 +407,26 @@ app.get(
     res.json(
       push.getPushStatus()
     );
-
   }
 );
 
-
-/* ========================================
-   PUSH TEST
-======================================== */
 
 app.get(
   "/api/push/test",
   async (req, res) => {
 
     try {
-
       const result =
-        await push
-          .sendTestAlert();
+        await push.sendTestAlert();
 
       res.json({
-
-        ok:
-          true,
-
-        test:
-          "web-push",
-
-        walmartApiCalled:
-          false,
-
+        ok: true,
+        test: "web-push",
+        walmartApiCalled: false,
         ...result
-
       });
 
     } catch (error) {
-
       console.error(
         "Push test failed:",
         error
@@ -586,54 +435,34 @@ app.get(
       res
         .status(500)
         .json({
-
-          ok:
-            false,
-
-          test:
-            "web-push",
-
-          walmartApiCalled:
-            false,
-
+          ok: false,
+          test: "web-push",
+          walmartApiCalled: false,
           error:
             error.message
-
         });
-
     }
-
   }
 );
 
-
-/* ========================================
-   PUSH SUBSCRIBE
-======================================== */
 
 app.post(
   "/api/push/subscribe",
   async (req, res) => {
 
     try {
-
       const result =
-        await push
-          .addSubscription(
-            req.body
-          );
+        await push.addSubscription(
+          req.body
+        );
 
       res.json({
-
         ...result,
-
         message:
           "Push subscription saved permanently"
-
       });
 
     } catch (error) {
-
       console.error(
         "Push subscription failed:",
         error
@@ -642,61 +471,41 @@ app.post(
       res
         .status(400)
         .json({
-
-          ok:
-            false,
-
+          ok: false,
           error:
             error.message
-
         });
-
     }
-
   }
 );
 
-
-/* ========================================
-   PUSH UNSUBSCRIBE
-======================================== */
 
 app.post(
   "/api/push/unsubscribe",
   async (req, res) => {
 
     try {
-
       const endpoint =
         req.body?.endpoint;
 
       if (!endpoint) {
-
         return res
           .status(400)
           .json({
-
-            ok:
-              false,
-
+            ok: false,
             error:
               "Subscription endpoint required"
-
           });
-
       }
 
       res.json(
-
         await push
           .removeSubscription(
             endpoint
           )
-
       );
 
     } catch (error) {
-
       console.error(
         "Push unsubscribe failed:",
         error
@@ -705,23 +514,17 @@ app.post(
       res
         .status(500)
         .json({
-
-          ok:
-            false,
-
+          ok: false,
           error:
             error.message
-
         });
-
     }
-
   }
 );
 
 
 /* ========================================
-   SCANNER
+   SCANNER STATUS
 ======================================== */
 
 app.get(
@@ -729,7 +532,6 @@ app.get(
   (req, res) => {
 
     res.json({
-
       ...getScannerState(),
 
       automaticPolling:
@@ -749,18 +551,11 @@ app.get(
           : null,
 
       walmartSchedule:
-        walmartScheduler
-          .getStatus()
-
+        walmartScheduler.getStatus()
     });
-
   }
 );
 
-
-/* ========================================
-   STATUS
-======================================== */
 
 app.get(
   "/api/status",
@@ -770,9 +565,7 @@ app.get(
       getLatest();
 
     res.json({
-
-      ok:
-        true,
+      ok: true,
 
       lastRun:
         data.lastRun,
@@ -790,8 +583,7 @@ app.get(
         getScannerState(),
 
       providers:
-        multiStore
-          .getProviderStates(),
+        multiStore.getProviderStates(),
 
       automaticScanning:
         enableFullPolling,
@@ -810,27 +602,21 @@ app.get(
           : null,
 
       walmartSchedule:
-        walmartScheduler
-          .getStatus(),
+        walmartScheduler.getStatus(),
 
       walmartProvider:
-        walmart
-          .getProviderInfo?.() ||
+        walmart.getProviderInfo?.() ||
         null,
 
       upcoming:
-        walmart
-          .getUpcoming?.() ||
+        walmart.getUpcoming?.() ||
         [],
 
       walmartWatchlist:
         walmartWatchlist
           .mergeUpcomingWithWatchlist(
-
-            walmart
-              .getUpcoming?.() ||
+            walmart.getUpcoming?.() ||
             []
-
           ),
 
       walmart30thDiscovery:
@@ -839,9 +625,7 @@ app.get(
 
       push:
         push.getPushStatus()
-
     });
-
   }
 );
 
@@ -859,17 +643,11 @@ app.get(
         .getProviderStates();
 
     res.json({
-
-      ok:
-        true,
-
+      ok: true,
       count:
         providers.length,
-
       providers
-
     });
-
   }
 );
 
@@ -891,38 +669,24 @@ app.get(
 
     const allowed =
       new Set([
-
         "walmart",
-
         "target",
-
         "sams",
-
         "bestbuy",
-
         "costco"
-
       ]);
 
     if (
       retailer &&
-      !allowed.has(
-        retailer
-      )
+      !allowed.has(retailer)
     ) {
-
       return res
         .status(400)
         .json({
-
-          ok:
-            false,
-
+          ok: false,
           error:
             "Unsupported retailer"
-
         });
-
     }
 
     const items =
@@ -932,19 +696,12 @@ app.get(
         );
 
     res.json({
-
-      ok:
-        true,
-
+      ok: true,
       retailer,
-
       count:
         items.length,
-
       items
-
     });
-
   }
 );
 
@@ -971,19 +728,12 @@ app.get(
         );
 
     res.json({
-
-      ok:
-        true,
-
+      ok: true,
       retailer,
-
       count:
         items.length,
-
       items
-
     });
-
   }
 );
 
@@ -997,16 +747,11 @@ app.get(
   (req, res) => {
 
     res.json({
-
-      ok:
-        true,
-
+      ok: true,
       schedule:
         walmartScheduler
           .getStatus()
-
     });
-
   }
 );
 
@@ -1020,17 +765,12 @@ app.get(
   (req, res) => {
 
     res.json({
-
-      ok:
-        true,
-
+      ok: true,
       provider:
         walmart
           .getProviderInfo?.() ||
         null
-
     });
-
   }
 );
 
@@ -1044,28 +784,21 @@ app.get(
   (req, res) => {
 
     const items =
-      walmart
-        .getUpcoming?.() ||
+      walmart.getUpcoming?.() ||
       [];
 
     res.json({
-
-      ok:
-        true,
-
+      ok: true,
       count:
         items.length,
-
       items
-
     });
-
   }
 );
 
 
 /* ========================================
-   WATCHLIST
+   WALMART WATCHLIST
 ======================================== */
 
 app.get(
@@ -1075,17 +808,12 @@ app.get(
     const merged =
       walmartWatchlist
         .mergeUpcomingWithWatchlist(
-
-          walmart
-            .getUpcoming?.() ||
+          walmart.getUpcoming?.() ||
           []
-
         );
 
     res.json({
-
-      ok:
-        true,
+      ok: true,
 
       detectedCount:
         merged.detected.length,
@@ -1104,15 +832,13 @@ app.get(
 
       items:
         merged.all
-
     });
-
   }
 );
 
 
 /* ========================================
-   30TH DISCOVERY
+   WALMART 30TH DISCOVERY
 ======================================== */
 
 app.get(
@@ -1120,15 +846,10 @@ app.get(
   (req, res) => {
 
     res.json({
-
-      ok:
-        true,
-
+      ok: true,
       ...walmart30thDiscovery
         .getState()
-
     });
-
   }
 );
 
@@ -1142,9 +863,7 @@ app.get(
   (req, res) => {
 
     res.json({
-
-      ok:
-        true,
+      ok: true,
 
       provider:
         walmart
@@ -1166,9 +885,7 @@ app.get(
       discovery30th:
         walmart30thDiscovery
           .getState()
-
     });
-
   }
 );
 
@@ -1182,62 +899,41 @@ app.all(
   async (req, res) => {
 
     if (!walmartWakeToken) {
-
       return res
         .status(503)
         .json({
-
-          ok:
-            false,
-
+          ok: false,
           error:
             "Wake protection is disabled until WALMART_WAKE_TOKEN is configured"
-
         });
-
     }
 
     if (
-      !hasValidWakeToken(
-        req
-      )
+      !hasValidWakeToken(req)
     ) {
-
       return res
         .status(401)
         .json({
-
-          ok:
-            false,
-
+          ok: false,
           error:
             "Invalid wake token"
-
         });
-
     }
 
     try {
-
       const result =
         await walmartScheduler
           .wakeScan();
 
       res.json({
-
-        ok:
-          true,
-
+        ok: true,
         result,
-
         schedule:
           walmartScheduler
             .getStatus()
-
       });
 
     } catch (error) {
-
       console.error(
         "Walmart wake scan failed:",
         error
@@ -1246,17 +942,11 @@ app.all(
       res
         .status(500)
         .json({
-
-          ok:
-            false,
-
+          ok: false,
           error:
             error.message
-
         });
-
     }
-
   }
 );
 
@@ -1270,58 +960,39 @@ app.post(
   async (req, res) => {
 
     if (!manualScanToken) {
-
       return res
         .status(503)
         .json({
-
-          ok:
-            false,
-
+          ok: false,
           error:
             "Manual scan is disabled until MANUAL_SCAN_TOKEN is configured"
-
         });
-
     }
 
     if (
-      !hasValidManualToken(
-        req
-      )
+      !hasValidManualToken(req)
     ) {
-
       return res
         .status(401)
         .json({
-
-          ok:
-            false,
-
+          ok: false,
           error:
             "Invalid manual scan token"
-
         });
-
     }
 
     try {
-
       const result =
         await walmartScheduler
           .manualScan();
 
       res.json({
-
         ok:
           result?.ok !== false,
-
         result
-
       });
 
     } catch (error) {
-
       console.error(
         "Manual Walmart scan failed:",
         error
@@ -1330,23 +1001,17 @@ app.post(
       res
         .status(500)
         .json({
-
-          ok:
-            false,
-
+          ok: false,
           error:
             error.message
-
         });
-
     }
-
   }
 );
 
 
 /* ========================================
-   MARKETPLACE
+   MARKETPLACE SEARCH
 ======================================== */
 
 app.get(
@@ -1354,73 +1019,55 @@ app.get(
   async (req, res) => {
 
     try {
-
       const requestedProductId =
         req.query.productId ||
         null;
 
       let catalog =
         products.filter(
-
           product =>
             product.enabled !== false &&
-
             Array.isArray(
               product.retailers
             ) &&
-
-            product.retailers
-              .includes(
-                "walmart"
-              )
-
+            product.retailers.includes(
+              "walmart"
+            )
         );
 
-      if (requestedProductId) {
-
+      if (
+        requestedProductId
+      ) {
         catalog =
           catalog.filter(
-
             product =>
               product.id ===
               requestedProductId
-
           );
 
-        if (!catalog.length) {
-
+        if (
+          !catalog.length
+        ) {
           return res
             .status(404)
             .json({
-
-              ok:
-                false,
-
+              ok: false,
               error:
                 "Product not found",
-
               productId:
                 requestedProductId
-
             });
-
         }
-
       }
 
-      const offers =
-        [];
-
-      const errors =
-        [];
+      const offers = [];
+      const errors = [];
 
       for (
         const product
         of catalog
       ) {
-
         try {
-
           const productOffers =
             await walmart
               .searchMarketplaceOffers(
@@ -1431,37 +1078,26 @@ app.get(
             const offer
             of productOffers
           ) {
-
             offers.push({
-
               ...offer,
-
               alertEligible:
                 false
-
             });
-
           }
 
         } catch (error) {
-
           console.error(
             `Marketplace search failed for ${product.id}:`,
             error.message
           );
 
           errors.push({
-
             productId:
               product.id,
-
             error:
               error.message
-
           });
-
         }
-
       }
 
       const uniqueOffers =
@@ -1471,7 +1107,6 @@ app.get(
         const offer
         of offers
       ) {
-
         const key =
           offer.walmartItemId
             ? String(
@@ -1490,29 +1125,26 @@ app.get(
 
         if (
           !existing ||
-
           Number(
             offer.price
           ) <
-
           Number(
             existing.price
           )
         ) {
-
           uniqueOffers.set(
             key,
             offer
           );
-
         }
-
       }
 
       const sorted =
-        Array.from(
-          uniqueOffers.values()
-        )
+        Array
+          .from(
+            uniqueOffers
+              .values()
+          )
           .filter(
             offer =>
               offer.price !== null
@@ -1525,35 +1157,27 @@ app.get(
 
       const available =
         sorted.filter(
-
           offer =>
             offer.offerAvailable ===
             true
-
         );
 
       const walmartDirect =
         available.filter(
-
           offer =>
             offer.directSeller ===
             true
-
         );
 
       const marketplace =
         available.filter(
-
           offer =>
             offer.directSeller !==
             true
-
         );
 
       res.json({
-
-        ok:
-          true,
+        ok: true,
 
         generatedAt:
           new Date()
@@ -1584,19 +1208,14 @@ app.get(
           available,
 
         groups: {
-
           walmartDirect,
-
           marketplace
-
         },
 
         errors
-
       });
 
     } catch (error) {
-
       console.error(
         "Marketplace endpoint failed:",
         error
@@ -1605,23 +1224,17 @@ app.get(
       res
         .status(500)
         .json({
-
-          ok:
-            false,
-
+          ok: false,
           error:
             error.message
-
         });
-
     }
-
   }
 );
 
 
 /* ========================================
-   CONTROLLED PRODUCT TEST
+   SINGLE PRODUCT TEST
 ======================================== */
 
 app.get(
@@ -1629,58 +1242,40 @@ app.get(
   async (req, res) => {
 
     try {
-
       const product =
         products.find(
-
           item =>
             item.id ===
             req.params.productId
-
         );
 
       if (!product) {
-
         return res
           .status(404)
           .json({
-
-            ok:
-              false,
-
+            ok: false,
             error:
               "Product not found",
-
             productId:
               req.params.productId
-
           });
-
       }
 
       if (
         !Array.isArray(
           product.retailers
         ) ||
-
-        !product.retailers
-          .includes(
-            "walmart"
-          )
+        !product.retailers.includes(
+          "walmart"
+        )
       ) {
-
         return res
           .status(400)
           .json({
-
-            ok:
-              false,
-
+            ok: false,
             error:
               "Product is not configured for Walmart"
-
           });
-
       }
 
       const result =
@@ -1691,14 +1286,10 @@ app.get(
           );
 
       const savedResult =
-        saveResult(
-          result
-        );
+        saveResult(result);
 
       res.json({
-
-        ok:
-          true,
+        ok: true,
 
         test:
           "single-product",
@@ -1715,11 +1306,9 @@ app.get(
 
         result:
           savedResult
-
       });
 
     } catch (error) {
-
       console.error(
         "Controlled Walmart test failed:",
         error
@@ -1728,23 +1317,88 @@ app.get(
       res
         .status(500)
         .json({
-
-          ok:
-            false,
-
+          ok: false,
           error:
             error.message
-
         });
-
     }
-
   }
 );
 
 
 /* ========================================
-   DISCOVERY
+   PRISMATIC ETB TEST
+======================================== */
+
+app.get(
+  "/api/test/prismatic-etb",
+  async (req, res) => {
+
+    try {
+      const product =
+        products.find(
+          item =>
+            item.id ===
+            "prismatic-etb"
+        );
+
+      if (!product) {
+        return res
+          .status(404)
+          .json({
+            ok: false,
+            error:
+              "prismatic-etb not found"
+          });
+      }
+
+      const result =
+        await walmart
+          .checkProduct(
+            product,
+            "walmart"
+          );
+
+      const savedResult =
+        saveResult(result);
+
+      res.json({
+        ok: true,
+
+        test:
+          "single-product",
+
+        dashboardUpdated:
+          true,
+
+        configuredItemId:
+          product.walmartItemId ||
+          null,
+
+        result:
+          savedResult
+      });
+
+    } catch (error) {
+      console.error(
+        "Controlled Walmart test failed:",
+        error
+      );
+
+      res
+        .status(500)
+        .json({
+          ok: false,
+          error:
+            error.message
+        });
+    }
+  }
+);
+
+
+/* ========================================
+   DISCOVERY RUN
 ======================================== */
 
 app.get(
@@ -1752,20 +1406,15 @@ app.get(
   async (req, res) => {
 
     try {
-
       res.json({
-
-        ok:
-          true,
+        ok: true,
 
         discovery:
           await discovery
             .discoverWalmartProducts()
-
       });
 
     } catch (error) {
-
       console.error(
         "Manual discovery failed:",
         error
@@ -1774,45 +1423,36 @@ app.get(
       res
         .status(500)
         .json({
-
-          ok:
-            false,
-
+          ok: false,
           error:
             error.message
-
         });
-
     }
-
   }
 );
 
+
+/* ========================================
+   DISCOVERED PRODUCTS
+======================================== */
 
 app.get(
   "/api/discovery/products",
   async (req, res) => {
 
     try {
-
       const items =
         await discovery
           .getDiscoveredProducts();
 
       res.json({
-
-        ok:
-          true,
-
+        ok: true,
         count:
           items.length,
-
         items
-
       });
 
     } catch (error) {
-
       console.error(
         "Get discovered products failed:",
         error
@@ -1821,23 +1461,56 @@ app.get(
       res
         .status(500)
         .json({
-
-          ok:
-            false,
-
+          ok: false,
           error:
             error.message
-
         });
-
     }
-
   }
 );
 
 
 /* ========================================
-   DISCOVERY LOOP
+   WALMART SEARCH DEBUG
+======================================== */
+
+app.get(
+  "/api/debug/walmart-search",
+  async (req, res) => {
+
+    try {
+      const result =
+        await walmart
+          .inspectSearchResponse(
+            req.query.keyword ||
+            "Pokemon TCG"
+          );
+
+      res.json({
+        ok: true,
+        ...result
+      });
+
+    } catch (error) {
+      console.error(
+        "Walmart search diagnostic failed:",
+        error
+      );
+
+      res
+        .status(500)
+        .json({
+          ok: false,
+          error:
+            error.message
+        });
+    }
+  }
+);
+
+
+/* ========================================
+   SCHEDULED DISCOVERY
 ======================================== */
 
 let discoveryRunning =
@@ -1846,21 +1519,20 @@ let discoveryRunning =
 
 async function runScheduledDiscovery() {
 
-  if (discoveryRunning) {
-
+  if (
+    discoveryRunning
+  ) {
     console.log(
       "Discovery already running. Skipping duplicate run."
     );
 
     return;
-
   }
 
   discoveryRunning =
     true;
 
   try {
-
     console.log(
       "Starting Walmart product discovery..."
     );
@@ -1875,24 +1547,20 @@ async function runScheduledDiscovery() {
     );
 
   } catch (error) {
-
     console.error(
       "Walmart product discovery failed:",
       error
     );
 
   } finally {
-
     discoveryRunning =
       false;
-
   }
-
 }
 
 
 /* ========================================
-   START SERVER
+   SERVER START
 ======================================== */
 
 app.listen(
@@ -1909,8 +1577,9 @@ app.listen(
     );
 
 
-    try {
+    /* DISCOVERY DATABASE */
 
+    try {
       await discovery
         .initializeDiscoveryDatabase();
 
@@ -1919,17 +1588,16 @@ app.listen(
       );
 
     } catch (error) {
-
       console.error(
         "Discovery database initialization failed:",
         error
       );
-
     }
 
 
-    try {
+    /* PUSH DATABASE */
 
+    try {
       const pushDatabase =
         await push
           .initializePushDatabase();
@@ -1940,25 +1608,21 @@ app.listen(
       );
 
     } catch (error) {
-
       console.error(
         "Push database initialization failed:",
         error
       );
-
     }
 
 
+    /* MULTI STORE */
+
     try {
-
       const results =
-        await multiStore
-          .start({
-
-            getWalmartState:
-              getLatest
-
-          });
+        await multiStore.start({
+          getWalmartState:
+            getLatest
+        });
 
       console.log(
         "Multi-store provider engine started:",
@@ -1966,18 +1630,17 @@ app.listen(
       );
 
     } catch (error) {
-
       console.error(
         "Multi-store provider engine startup failed:",
         error
       );
-
     }
 
 
+    /* WALMART SCHEDULER */
+
     const scheduleState =
-      walmartScheduler
-        .start();
+      walmartScheduler.start();
 
     console.log(
       "Walmart scheduled scanning:",
@@ -1985,8 +1648,11 @@ app.listen(
     );
 
 
-    if (runOnStartup) {
+    /* STARTUP SCAN */
 
+    if (
+      runOnStartup
+    ) {
       console.log(
         "RUN_ON_STARTUP enabled."
       );
@@ -1994,50 +1660,48 @@ app.listen(
       await runScheduledScan();
 
     } else {
-
       console.log(
         "Startup scan disabled."
       );
-
     }
 
 
-    if (enableFullPolling) {
+    /* FULL POLLING */
 
+    if (
+      enableFullPolling
+    ) {
       console.log(
         `Automatic catalog polling ENABLED every ${pollSeconds} seconds.`
       );
 
       setInterval(
         () => {
-
           runScheduledScan()
             .catch(
               error => {
-
                 console.error(
                   "Automatic catalog polling failed:",
                   error
                 );
-
               }
             );
-
         },
         pollSeconds * 1000
       );
 
     } else {
-
       console.log(
         "Continuous catalog polling disabled; Walmart scheduler controls drop-window scans."
       );
-
     }
 
 
-    if (enableDiscovery) {
+    /* DISCOVERY */
 
+    if (
+      enableDiscovery
+    ) {
       console.log(
         `Automatic Walmart discovery ENABLED every ${discoveryMinutes} minutes.`
       );
@@ -2055,12 +1719,9 @@ app.listen(
       );
 
     } else {
-
       console.log(
         "Continuous Walmart discovery disabled."
       );
-
     }
-
   }
 );
