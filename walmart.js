@@ -1,6 +1,6 @@
 const RAPIDAPI_HOST =
   process.env.WALMART_RAPIDAPI_HOST ||
-  "realtime-walmart-data.p.rapidapi.com";
+  "walmart-data.p.rapidapi.com";
 
 const RAPIDAPI_KEY = process.env.WALMART_RAPIDAPI_KEY;
 const HASDATA_API_KEY = process.env.HASDATA_API_KEY;
@@ -15,8 +15,30 @@ const HASDATA_TIMEOUT_MS = Math.max(
   Number(process.env.HASDATA_TIMEOUT_MS || 7000)
 );
 
+const HASDATA_MAX_ATTEMPTS = Math.max(
+  1,
+  Math.min(3, Number(process.env.HASDATA_MAX_ATTEMPTS || 2))
+);
+
+const HASDATA_RETRY_DELAY_MS = Math.max(
+  100,
+  Number(process.env.HASDATA_RETRY_DELAY_MS || 500)
+);
+
+const RAPIDAPI_AUTH_COOLDOWN_MS = Math.max(
+  60000,
+  Number(process.env.RAPIDAPI_AUTH_COOLDOWN_MS || 3600000)
+);
+
 const discoveredItems = new Map();
 let lastUpcoming = [];
+
+let rapidApiCircuit = {
+  open: false,
+  reason: null,
+  openedAt: null,
+  retryAfter: null
+};
 
 const providerHealth = {
   hasdata: {
@@ -35,28 +57,6 @@ const providerHealth = {
     lastSuccess: null,
     lastError: null
   }
-};
-
-const HASDATA_MAX_ATTEMPTS = Math.max(
-  1,
-  Math.min(3, Number(process.env.HASDATA_MAX_ATTEMPTS || 2))
-);
-
-const HASDATA_RETRY_DELAY_MS = Math.max(
-  100,
-  Number(process.env.HASDATA_RETRY_DELAY_MS || 500)
-);
-
-const RAPIDAPI_AUTH_COOLDOWN_MS = Math.max(
-  60000,
-  Number(process.env.RAPIDAPI_AUTH_COOLDOWN_MS || 3600000)
-);
-
-let rapidApiCircuit = {
-  open: false,
-  reason: null,
-  openedAt: null,
-  retryAfter: null
 };
 
 function markProviderStart(name) {
@@ -79,14 +79,21 @@ function sleep(ms) {
 }
 
 function parsePrice(value) {
-  if (value === null || value === undefined || value === "") return null;
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
 
   const cleaned = String(value)
     .replace(/,/g, "")
     .replace(/[^0-9.]/g, "");
 
-  if (!cleaned) return null;
+  if (!cleaned) {
+    return null;
+  }
 
   const number = Number(cleaned);
 
@@ -115,7 +122,9 @@ function isWalmartSeller(value) {
 }
 
 function getSellerName(item) {
-  if (!item) return null;
+  if (!item) {
+    return null;
+  }
 
   if (typeof item.seller === "string") {
     return item.seller;
@@ -135,6 +144,8 @@ function getSellerName(item) {
   return (
     item.sellerName ||
     item.sellerDisplayName ||
+    item.soldBy ||
+    item.seller_name ||
     null
   );
 }
@@ -142,7 +153,8 @@ function getSellerName(item) {
 function getSellerType(item) {
   return normalize(
     item?.otherDetails?.sellerType ||
-    item?.sellerType
+    item?.sellerType ||
+    item?.seller_type
   );
 }
 
@@ -154,16 +166,16 @@ function getPrice(item) {
     item?.priceDetails?.currentPrice?.priceString ??
     item?.currentPrice ??
     item?.salePrice ??
-    (
-      typeof item?.price === "number"
-        ? item.price
-        : null
-    )
+    item?.price_current ??
+    item?.price ??
+    null
   );
 }
 
 function getImage(item) {
-  if (!item) return null;
+  if (!item) {
+    return null;
+  }
 
   if (
     Array.isArray(item.images) &&
@@ -193,6 +205,8 @@ function getImage(item) {
     item.imageUrl ||
     item.thumbnailUrl ||
     item.primaryImage ||
+    item.thumbnail ||
+    item.image_url ||
     null
   );
 }
@@ -202,6 +216,8 @@ function getAvailability(item) {
     item?.availability ||
     item?.availabilityStatus ||
     item?.stockStatus ||
+    item?.stock_status ||
+    item?.status ||
     item?.otherDetails?.availabilityStatusV2?.value ||
     item?.otherDetails?.availabilityStatusV2?.display ||
     item?.otherDetails?.availabilityStatus ||
@@ -214,16 +230,23 @@ function getItemId(item) {
     item?.itemId ||
     item?.id ||
     item?.usItemId ||
+    item?.product_id ||
+    item?.productId ||
+    item?.walmart_id ||
     null
   );
 }
 
-function normalizeStatus(value, inStock = false) {
+function normalizeStatus(
+  value,
+  inStock = false
+) {
   const text = normalize(value);
 
   if (
-    /pre ?order|raffle|drawing|scheduled drop|coming soon/
-      .test(text)
+    /pre ?order|raffle|drawing|scheduled drop|coming soon/.test(
+      text
+    )
   ) {
     return "preorder";
   }
@@ -241,15 +264,17 @@ function normalizeStatus(value, inStock = false) {
   }
 
   if (
-    /out of stock|unavailable|sold out|not available/
-      .test(text)
+    /out of stock|unavailable|sold out|not available/.test(
+      text
+    )
   ) {
     return "out";
   }
 
   if (
-    /in stock|instock|available|in_stock/
-      .test(text) ||
+    /in stock|instock|available|in_stock/.test(
+      text
+    ) ||
     inStock === true
   ) {
     return "instock";
@@ -271,7 +296,9 @@ function detectDropType(item) {
       .join(" ")
   );
 
-  if (/raffle|drawing|lottery/.test(text)) {
+  if (
+    /raffle|drawing|lottery/.test(text)
+  ) {
     return "raffle";
   }
 
@@ -279,7 +306,11 @@ function detectDropType(item) {
     return "preorder";
   }
 
-  if (/scheduled drop|coming soon/.test(text)) {
+  if (
+    /scheduled drop|coming soon/.test(
+      text
+    )
+  ) {
     return "scheduled";
   }
 
@@ -290,44 +321,32 @@ function detectSet(value) {
   const text = normalize(value);
 
   if (
-    text.includes(
-      "prismatic evolutions"
-    )
+    text.includes("prismatic evolutions")
   ) {
     return "prismatic-evolutions";
   }
 
   if (
-    text.includes(
-      "destined rivals"
-    )
+    text.includes("destined rivals")
   ) {
     return "destined-rivals";
   }
 
   if (
-    text.includes(
-      "ascended heroes"
-    )
+    text.includes("ascended heroes")
   ) {
     return "ascended-heroes";
   }
 
   if (
-    text.includes(
-      "delta reign"
-    )
+    text.includes("delta reign")
   ) {
     return "delta-reign";
   }
 
   if (
-    text.includes(
-      "30th anniversary"
-    ) ||
-    text.includes(
-      "30th celebration"
-    )
+    text.includes("30th anniversary") ||
+    text.includes("30th celebration")
   ) {
     return "30th-anniversary";
   }
@@ -338,29 +357,6 @@ function detectSet(value) {
 function detectProductType(value) {
   const text = normalize(value);
 
-  if (text.includes("premium figure collection")) {
-    return "premium-figure-collection";
-  }
-
-  if (
-    text.includes("super premium collection") ||
-    text.includes("super-premium collection")
-  ) {
-    return "super-premium-collection";
-  }
-
-  if (text.includes("binder collection")) {
-    return "binder-collection";
-  }
-
-  if (text.includes("surprise box")) {
-    return "surprise-box";
-  }
-
-  if (text.includes("deluxe pin collection")) {
-    return "deluxe-pin-collection";
-  }
-
   if (
     text.includes("elite trainer box") ||
     /\betb\b/.test(text)
@@ -368,7 +364,9 @@ function detectProductType(value) {
     return "etb";
   }
 
-  if (text.includes("booster bundle")) {
+  if (
+    text.includes("booster bundle")
+  ) {
     return "booster-bundle";
   }
 
@@ -379,28 +377,40 @@ function detectProductType(value) {
     return "booster-box";
   }
 
-  if (text.includes("poster collection")) {
+  if (
+    text.includes("poster collection")
+  ) {
     return "poster-collection";
   }
 
-  if (text.includes("tech sticker")) {
+  if (
+    text.includes("tech sticker")
+  ) {
     return "tech-sticker";
   }
 
-  if (text.includes("mini tin")) {
+  if (
+    text.includes("mini tin")
+  ) {
     return "mini-tin";
   }
 
-  if (/\btin\b/.test(text)) {
+  if (
+    text.includes("tin")
+  ) {
     return "tin";
   }
 
-  if (text.includes("booster pack")) {
-    return "booster-pack";
+  if (
+    text.includes("collection")
+  ) {
+    return "collection";
   }
 
-  if (text.includes("collection")) {
-    return "collection";
+  if (
+    text.includes("booster pack")
+  ) {
+    return "booster-pack";
   }
 
   return null;
@@ -423,7 +433,10 @@ function isPokemonListing(value) {
     .includes("pokemon");
 }
 
-function productMatches(product, item) {
+function productMatches(
+  product,
+  item
+) {
   const expected = normalize(
     product.name ||
     product.searchTerm
@@ -455,38 +468,34 @@ function productMatches(product, item) {
     "violet"
   ]);
 
-  const expectedWords =
-    expected
-      .split(" ")
-      .filter(
-        word =>
-          word.length > 2 &&
-          !ignored.has(word)
-      );
-
-  const actualWords =
-    new Set(
-      actual.split(" ")
+  const words = expected
+    .split(" ")
+    .filter(
+      word =>
+        word.length > 2 &&
+        !ignored.has(word)
     );
 
-  if (!expectedWords.length) {
+  if (!words.length) {
     return false;
   }
 
-  const matches =
-    expectedWords.filter(
+  const matches = words
+    .filter(
       word =>
-        actualWords.has(word)
-    ).length;
+        actual.includes(word)
+    )
+    .length;
 
   return (
-    matches /
-      expectedWords.length >=
-    0.65
+    matches / words.length >= 0.65
   );
 }
 
-function displayProductMatches(product, item) {
+function displayProductMatches(
+  product,
+  item
+) {
   const actualName =
     item?.name ||
     item?.title ||
@@ -541,6 +550,7 @@ function displayProductMatches(product, item) {
 
   if (
     expectedType &&
+    actualType &&
     actualType !== expectedType
   ) {
     return false;
@@ -578,9 +588,7 @@ function marketplaceProductMatches(
       product,
       item
     ) &&
-    Number(
-      getPrice(item)
-    ) > 0
+    Number(getPrice(item)) > 0
   );
 }
 
@@ -596,8 +604,7 @@ async function fetchJson(
 
   const timeout =
     setTimeout(
-      () =>
-        controller.abort(),
+      () => controller.abort(),
       timeoutMs
     );
 
@@ -627,6 +634,7 @@ async function fetchJson(
     return await response.json();
 
   } catch (error) {
+
     if (
       error?.name ===
       "AbortError"
@@ -645,11 +653,15 @@ async function fetchJson(
     throw error;
 
   } finally {
+
     clearTimeout(timeout);
+
   }
 }
 
-function openRapidApiCircuit(error) {
+function openRapidApiCircuit(
+  error
+) {
   const now = Date.now();
 
   rapidApiCircuit = {
@@ -658,7 +670,8 @@ function openRapidApiCircuit(error) {
       error?.message ||
       "RapidAPI authentication failure",
     openedAt:
-      new Date(now).toISOString(),
+      new Date(now)
+        .toISOString(),
     retryAfter:
       new Date(
         now +
@@ -688,12 +701,16 @@ function rapidApiCircuitIsBlocking() {
 
   const retryAfterMs =
     Date.parse(
-      rapidApiCircuit.retryAfter || ""
+      rapidApiCircuit.retryAfter ||
+      ""
     );
 
   if (
-    Number.isFinite(retryAfterMs) &&
-    Date.now() >= retryAfterMs
+    Number.isFinite(
+      retryAfterMs
+    ) &&
+    Date.now() >=
+      retryAfterMs
   ) {
     closeRapidApiCircuit();
     return false;
@@ -702,7 +719,9 @@ function rapidApiCircuitIsBlocking() {
   return true;
 }
 
-async function rapidApiRequest(path) {
+async function rapidApiRequest(
+  path
+) {
   if (!RAPIDAPI_KEY) {
     const error =
       new Error(
@@ -746,6 +765,7 @@ async function rapidApiRequest(path) {
           headers: {
             "x-rapidapi-key":
               RAPIDAPI_KEY,
+
             "x-rapidapi-host":
               RAPIDAPI_HOST
           }
@@ -764,6 +784,7 @@ async function rapidApiRequest(path) {
     return data;
 
   } catch (error) {
+
     markProviderFailure(
       "rapidapi",
       error
@@ -793,9 +814,7 @@ function isTransientHasDataError(
   }
 
   const status =
-    Number(
-      error?.status
-    );
+    Number(error?.status);
 
   return (
     status === 408 ||
@@ -817,7 +836,8 @@ async function hasDataSearchOnce(
       language: "en",
       sort: "bestMatch",
       page: "1",
-      deliveryType: "shipping"
+      deliveryType:
+        "shipping"
     });
 
   return await fetchJson(
@@ -837,7 +857,9 @@ async function hasDataSearchOnce(
   );
 }
 
-async function hasDataSearch(query) {
+async function hasDataSearch(
+  query
+) {
   if (!HASDATA_API_KEY) {
     throw new Error(
       "HASDATA_API_KEY is missing"
@@ -848,7 +870,8 @@ async function hasDataSearch(query) {
 
   for (
     let attempt = 1;
-    attempt <= HASDATA_MAX_ATTEMPTS;
+    attempt <=
+      HASDATA_MAX_ATTEMPTS;
     attempt += 1
   ) {
     markProviderStart(
@@ -876,6 +899,7 @@ async function hasDataSearch(query) {
       return data.productResults;
 
     } catch (error) {
+
       lastError = error;
 
       markProviderFailure(
@@ -907,9 +931,7 @@ async function hasDataSearch(query) {
         error.message
       );
 
-      await sleep(
-        delay
-      );
+      await sleep(delay);
     }
   }
 
@@ -951,8 +973,7 @@ function makeResult(
     );
 
   const offerAvailable =
-    status ===
-    "instock";
+    status === "instock";
 
   const inStock =
     directSeller &&
@@ -965,6 +986,7 @@ function makeResult(
     item?.canonicalUrl ||
     item?.productUrl ||
     item?.url ||
+    item?.link ||
     (
       itemId
         ? `https://www.walmart.com/ip/${itemId}`
@@ -1009,11 +1031,8 @@ function makeResult(
     dropType,
 
     upcoming:
-      status ===
-        "preorder" ||
-      Boolean(
-        dropType
-      ),
+      status === "preorder" ||
+      Boolean(dropType),
 
     inStock,
 
@@ -1066,7 +1085,9 @@ function makeResult(
   };
 }
 
-function extractSearchResults(data) {
+function extractSearchResults(
+  data
+) {
   if (
     Array.isArray(
       data?.results
@@ -1117,13 +1138,29 @@ function extractSearchResults(data) {
 
   if (
     Array.isArray(
-      data
-        ?.searchResult
-        ?.items
+      data?.searchResult?.items
     )
   ) {
     return data
       .searchResult
+      .items;
+  }
+
+  if (
+    Array.isArray(
+      data?.search_results
+    )
+  ) {
+    return data.search_results;
+  }
+
+  if (
+    Array.isArray(
+      data?.search_results?.items
+    )
+  ) {
+    return data
+      .search_results
       .items;
   }
 
@@ -1156,15 +1193,15 @@ function buildMarketplaceOffers(
       .filter(
         item =>
           item.price !== null &&
-          Number(
-            item.price
-          ) > 0
+          Number(item.price) > 0
       );
 
   const unique =
     new Map();
 
-  for (const offer of offers) {
+  for (
+    const offer of offers
+  ) {
     const key =
       offer.walmartItemId
         ? String(
@@ -1181,12 +1218,10 @@ function buildMarketplaceOffers(
 
     if (
       !existing ||
-      Number(
-        offer.price
-      ) <
-      Number(
-        existing.price
-      )
+      Number(offer.price) <
+        Number(
+          existing.price
+        )
     ) {
       unique.set(
         key,
@@ -1197,11 +1232,12 @@ function buildMarketplaceOffers(
 
   return Array.from(
     unique.values()
-  ).sort(
-    (a, b) =>
-      Number(a.price) -
-      Number(b.price)
-  );
+  )
+    .sort(
+      (a, b) =>
+        Number(a.price) -
+        Number(b.price)
+    );
 }
 
 async function searchMarketplaceOffers(
@@ -1215,8 +1251,7 @@ async function searchMarketplaceOffers(
   const params =
     new URLSearchParams({
       page: "1",
-      sort: "price_low",
-      keyword
+      q: keyword
     });
 
   const data =
@@ -1236,20 +1271,29 @@ async function checkKnownItem(
   product,
   itemId
 ) {
+  const productUrl =
+    `https://www.walmart.com/ip/${encodeURIComponent(
+      itemId
+    )}`;
+
   const data =
     await rapidApiRequest(
-      `/product?itemId=${encodeURIComponent(itemId)}`
+      `/details.php?url=${encodeURIComponent(
+        productUrl
+      )}`
     );
 
   const item =
-    data.product ||
-    data.data ||
-    data.item ||
+    data?.product ||
+    data?.data?.product ||
+    data?.data ||
+    data?.item ||
     data;
 
   if (
     !item ||
-    typeof item !== "object" ||
+    typeof item !==
+      "object" ||
     Array.isArray(item)
   ) {
     throw new Error(
@@ -1258,7 +1302,7 @@ async function checkKnownItem(
   }
 
   if (
-    !displayProductMatches(
+    !productMatches(
       product,
       item
     )
@@ -1275,7 +1319,9 @@ async function checkKnownItem(
   );
 }
 
-async function discoverProduct(product) {
+async function discoverProduct(
+  product
+) {
   const keyword =
     product.searchTerm ||
     product.name ||
@@ -1284,8 +1330,7 @@ async function discoverProduct(product) {
   const params =
     new URLSearchParams({
       page: "1",
-      sort: "best_match",
-      keyword
+      q: keyword
     });
 
   const data =
@@ -1302,9 +1347,11 @@ async function discoverProduct(product) {
     results.find(
       item =>
         isWalmartSeller(
-          getSellerName(item)
+          getSellerName(
+            item
+          )
         ) &&
-        displayProductMatches(
+        productMatches(
           product,
           item
         )
@@ -1329,6 +1376,7 @@ async function discoverProduct(product) {
         directMatch,
         "walmart-discovery"
       ),
+
       discoveryMode:
         !itemId
     };
@@ -1353,14 +1401,28 @@ async function discoverProduct(product) {
 
     return {
       ...preview,
-      inStock: false,
-      directSeller: false,
-      marketplaceOnly: false,
-      alertEligible: false,
-      discoveryMode: true,
-      previewOnly: true,
+
+      inStock:
+        false,
+
+      directSeller:
+        false,
+
+      marketplaceOnly:
+        false,
+
+      alertEligible:
+        false,
+
+      discoveryMode:
+        true,
+
+      previewOnly:
+        true,
+
       previewSeller:
         preview.seller,
+
       error:
         "No validated Walmart-direct result found"
     };
@@ -1461,21 +1523,28 @@ function emptyResult(
   };
 }
 
-function buildQueryForGroup(products) {
+function buildQueryForGroup(
+  products
+) {
   const first =
-    products[0] || {};
+    products[0] ||
+    {};
 
   const set =
     String(
-      first.set || ""
+      first.set ||
+      ""
     ).trim();
 
   if (
     set &&
-    !/auto discovered|other pokemon/i
-      .test(set)
+    !/auto discovered|other pokemon/i.test(
+      set
+    )
   ) {
-    return `Pokemon TCG ${set}`;
+    return (
+      `Pokemon TCG ${set}`
+    );
   }
 
   return "Pokemon TCG";
@@ -1487,7 +1556,9 @@ function groupCuratedProducts(
   const groups =
     new Map();
 
-  for (const product of products) {
+  for (
+    const product of products
+  ) {
     const key =
       detectSet(
         [
@@ -1530,7 +1601,9 @@ function chooseBestMatch(
     results.find(
       item =>
         isWalmartSeller(
-          getSellerName(item)
+          getSellerName(
+            item
+          )
         ) &&
         displayProductMatches(
           product,
@@ -1568,12 +1641,18 @@ function chooseBestMatch(
   return null;
 }
 
-function collectUpcoming(results) {
+function collectUpcoming(
+  results
+) {
   const candidates = [];
 
-  for (const item of results) {
+  for (
+    const item of results
+  ) {
     const rawStatus =
-      getAvailability(item);
+      getAvailability(
+        item
+      );
 
     const status =
       normalizeStatus(
@@ -1581,7 +1660,9 @@ function collectUpcoming(results) {
       );
 
     const dropType =
-      detectDropType(item);
+      detectDropType(
+        item
+      );
 
     if (
       status !== "preorder" &&
@@ -1626,11 +1707,15 @@ function collectUpcoming(results) {
         getPrice(item),
 
       seller:
-        getSellerName(item),
+        getSellerName(
+          item
+        ),
 
       directSeller:
         isWalmartSeller(
-          getSellerName(item)
+          getSellerName(
+            item
+          )
         ),
 
       image:
@@ -1639,6 +1724,7 @@ function collectUpcoming(results) {
       url:
         item?.url ||
         item?.productUrl ||
+        item?.link ||
         (
           itemId
             ? `https://www.walmart.com/ip/${itemId}`
@@ -1657,43 +1743,61 @@ function collectUpcoming(results) {
   return candidates;
 }
 
-async function checkProductsBatch(products) {
+async function checkProductsBatch(
+  products
+) {
   if (
     !HASDATA_API_KEY ||
-    !Array.isArray(products) ||
+    !Array.isArray(
+      products
+    ) ||
     !products.length
   ) {
     return null;
   }
 
   const groups =
-    groupCuratedProducts(products);
+    groupCuratedProducts(
+      products
+    );
 
   const output = [];
-  const upcomingMap = new Map();
+  const upcomingMap =
+    new Map();
 
-  for (const group of groups) {
+  for (
+    const group of groups
+  ) {
     const query =
-      buildQueryForGroup(group);
+      buildQueryForGroup(
+        group
+      );
 
     let results = [];
 
     try {
       results =
-        await hasDataSearch(query);
+        await hasDataSearch(
+          query
+        );
+
     } catch (error) {
+
       console.error(
         `HasData Walmart search failed for "${query}":`,
         error.message
       );
 
-      for (const product of group) {
+      for (
+        const product of group
+      ) {
         output.push({
           ...emptyResult(
             product,
             "hasdata-scan-error",
             error.message
           ),
+
           error:
             error.message
         });
@@ -1703,8 +1807,10 @@ async function checkProductsBatch(products) {
     }
 
     for (
-      const upcoming
-      of collectUpcoming(results)
+      const upcoming of
+        collectUpcoming(
+          results
+        )
     ) {
       const key =
         upcoming.walmartItemId ||
@@ -1716,7 +1822,9 @@ async function checkProductsBatch(products) {
       );
     }
 
-    for (const product of group) {
+    for (
+      const product of group
+    ) {
       const match =
         chooseBestMatch(
           product,
@@ -1745,18 +1853,34 @@ async function checkProductsBatch(products) {
       if (!match.direct) {
         output.push({
           ...result,
-          inStock: false,
-          directSeller: false,
-          marketplaceOnly: false,
-          alertEligible: false,
-          previewOnly: true,
+
+          inStock:
+            false,
+
+          directSeller:
+            false,
+
+          marketplaceOnly:
+            false,
+
+          alertEligible:
+            false,
+
+          previewOnly:
+            true,
+
           previewSeller:
             result.seller,
+
           error:
             "No validated Walmart-direct result found"
         });
+
       } else {
-        output.push(result);
+
+        output.push(
+          result
+        );
       }
     }
   }
@@ -1774,8 +1898,7 @@ async function checkProduct(
   retailer
 ) {
   if (
-    retailer !==
-    "walmart"
+    retailer !== "walmart"
   ) {
     return {
       ...emptyResult(
@@ -1783,6 +1906,7 @@ async function checkProduct(
         "walmart-rapidapi",
         "Retailer not supported by Walmart provider"
       ),
+
       retailer
     };
   }
@@ -1809,7 +1933,9 @@ async function checkProduct(
         product,
         knownItemId
       );
+
     } catch (error) {
+
       console.error(
         `Known Walmart item failed for ${product.id}:`,
         error.message
@@ -1850,7 +1976,9 @@ async function checkProduct(
     return await discoverProduct(
       product
     );
+
   } catch (error) {
+
     if (
       error?.status === 401 ||
       error?.status === 403 ||
@@ -1871,13 +1999,16 @@ async function checkProduct(
 }
 
 async function inspectSearchResponse(
-  keyword = "Pokemon TCG"
+  keyword =
+    "Pokemon TCG"
 ) {
   const params =
     new URLSearchParams({
-      page: "1",
-      sort: "best_match",
-      keyword
+      page:
+        "1",
+
+      q:
+        keyword
     });
 
   const data =
@@ -1886,10 +2017,15 @@ async function inspectSearchResponse(
     );
 
   const results =
-    extractSearchResults(data);
+    extractSearchResults(
+      data
+    );
 
   return {
     keyword,
+
+    rapidApiHost:
+      RAPIDAPI_HOST,
 
     rapidApiTimeoutMs:
       RAPIDAPI_TIMEOUT_MS,
@@ -1961,6 +2097,9 @@ function getProviderInfo() {
       Boolean(
         RAPIDAPI_KEY
       ),
+
+    rapidApiHost:
+      RAPIDAPI_HOST,
 
     rapidApiBlocked,
 
