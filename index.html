@@ -9,12 +9,7 @@
 >
 
 <meta name="theme-color" content="#020711">
-
-<meta
-  name="apple-mobile-web-app-capable"
-  content="yes"
->
-
+<meta name="apple-mobile-web-app-capable" content="yes">
 <meta
   name="apple-mobile-web-app-status-bar-style"
   content="black-translucent"
@@ -27,13 +22,17 @@
   --bg:#020711;
   --panel:#071326;
   --panel2:#0a1b31;
+  --panel3:#0d223d;
+
   --text:#f7fbff;
   --muted:#96a8bf;
+
   --green:#54f3a6;
   --blue:#62c7ff;
   --gold:#ffc76b;
-  --red:#ff758b;
-  --purple:#bb8cff;
+  --red:#ff4d67;
+
+  --border:rgba(98,199,255,.20);
 }
 
 *{
@@ -56,11 +55,7 @@ body{
 
 body{
   min-height:100vh;
-  padding-bottom:
-    max(
-      24px,
-      env(safe-area-inset-bottom)
-    );
+  padding-bottom:max(28px,env(safe-area-inset-bottom));
 }
 
 button,
@@ -70,6 +65,11 @@ input{
 
 button{
   cursor:pointer;
+}
+
+button:disabled{
+  opacity:.62;
+  cursor:default;
 }
 
 a{
@@ -84,9 +84,9 @@ a{
 }
 
 
-/* ========================================
+/* =========================================
    HERO
-======================================== */
+========================================= */
 
 .hero{
   height:360px;
@@ -98,29 +98,22 @@ a{
       rgba(2,7,17,.35) 76%,
       var(--bg) 100%
     ),
-    url("hero.jpg")
-    center top/
-    cover
-    no-repeat;
+    url("hero.jpg") center top / cover no-repeat;
 }
 
 
-/* ========================================
+/* =========================================
    TOP STATUS
-======================================== */
+========================================= */
 
 .status-wrap{
   display:grid;
-  grid-template-columns:
-    1fr 1fr;
-
+  grid-template-columns:1fr 1fr;
   gap:9px;
 
-  padding:
-    0 14px;
+  padding:0 14px;
 
-  margin-top:
-    -28px;
+  margin-top:-28px;
 
   position:relative;
   z-index:2;
@@ -128,8 +121,6 @@ a{
 
 .status-pill{
   min-height:46px;
-
-  cursor:pointer;
 
   border:
     1px solid
@@ -164,8 +155,7 @@ a{
 
   border-radius:50%;
 
-  background:
-    var(--green);
+  background:var(--green);
 
   box-shadow:
     0 0 8px
@@ -173,8 +163,7 @@ a{
 }
 
 .offline .dot{
-  background:
-    var(--red);
+  background:var(--red);
 
   box-shadow:
     0 0 8px
@@ -182,28 +171,18 @@ a{
 }
 
 
-/* ========================================
+/* =========================================
    GENERAL
-======================================== */
+========================================= */
 
 .section{
-  padding:
-    12px 14px;
+  padding:12px 14px;
 }
-
-
-/* ========================================
-   RETAILER TABS
-======================================== */
 
 .tabs{
   display:grid;
-
   grid-template-columns:
-    repeat(
-      5,
-      minmax(0,1fr)
-    );
+    repeat(6,minmax(0,1fr));
 
   gap:7px;
 }
@@ -215,21 +194,18 @@ a{
 
   border-radius:10px;
 
-  background:
-    var(--panel);
+  background:var(--panel);
 
   color:#dcecff;
 
-  padding:
-    11px 6px;
+  padding:11px 6px;
 
   font-size:11px;
   font-weight:900;
 }
 
 .tab.active{
-  border-color:
-    var(--green);
+  border-color:var(--green);
 
   background:#0d2f2a;
 
@@ -237,77 +213,16 @@ a{
 }
 
 
-/* ========================================
-   WALMART SUB TABS
-======================================== */
+/* =========================================
+   WALMART PANEL
+========================================= */
 
-.walmart-subtabs{
-  display:grid;
-
-  grid-template-columns:
-    1fr 1fr;
-
-  gap:8px;
-
-  margin-top:12px;
-}
-
-.walmart-subtab{
-  border:
-    1px solid
-    rgba(98,199,255,.27);
-
-  background:
-    #071629;
-
-  color:
-    #aebed0;
-
-  border-radius:10px;
-
-  padding:
-    10px;
-
-  font-size:11px;
-  font-weight:900;
-}
-
-.walmart-subtab.active{
-  border-color:
-    var(--green);
-
-  color:white;
-
-  background:
-    #0b3028;
-
-  box-shadow:
-    inset 0 0 0 1px
-    rgba(84,243,166,.08);
-}
-
-.walmart-subtab.raffles.active{
-  border-color:
-    var(--gold);
-
-  color:
-    var(--gold);
-
-  background:
-    #2a210d;
-}
-
-
-/* ========================================
-   MONITOR PANEL
-======================================== */
-
-.monitor-panel{
+.walmart-panel{
   border:
     1px solid
     rgba(98,199,255,.24);
 
-  border-radius:14px;
+  border-radius:16px;
 
   background:
     linear-gradient(
@@ -317,13 +232,16 @@ a{
     );
 
   padding:14px;
+
+  box-shadow:
+    0 15px 40px
+    rgba(0,0,0,.18);
 }
 
 .panel-head{
   display:flex;
   align-items:center;
-  justify-content:
-    space-between;
+  justify-content:space-between;
 
   gap:10px;
 }
@@ -337,44 +255,28 @@ a{
   font-size:10px;
   font-weight:900;
 
-  padding:
-    5px 8px;
+  padding:5px 8px;
 
-  border-radius:
-    999px;
+  border-radius:999px;
 
   border:
     1px solid
     rgba(84,243,166,.35);
 
-  color:
-    var(--green);
+  color:var(--green);
+
+  white-space:nowrap;
 }
 
-.panel-status.warn{
-  border-color:
-    rgba(255,199,107,.4);
 
-  color:
-    var(--gold);
-}
-
-.panel-status.off{
-  border-color:
-    rgba(255,117,139,.4);
-
-  color:
-    var(--red);
-}
+/* =========================================
+   SCHEDULE
+========================================= */
 
 .schedule-grid{
   display:grid;
-
   grid-template-columns:
-    repeat(
-      4,
-      1fr
-    );
+    repeat(3,1fr);
 
   gap:8px;
 
@@ -382,8 +284,7 @@ a{
 }
 
 .schedule-box{
-  background:
-    #06111f;
+  background:#06111f;
 
   border:
     1px solid
@@ -397,13 +298,11 @@ a{
 .schedule-box span{
   display:block;
 
-  color:
-    var(--muted);
+  color:var(--muted);
 
   font-size:9px;
 
-  text-transform:
-    uppercase;
+  text-transform:uppercase;
 
   font-weight:800;
 }
@@ -416,504 +315,743 @@ a{
   font-size:12px;
 }
 
+
+/* =========================================
+   MAIN ACTION BUTTONS
+========================================= */
+
 .panel-actions{
-  display:flex;
+  display:grid;
+  grid-template-columns:1fr 1fr;
 
-  gap:8px;
+  gap:9px;
 
-  margin-top:10px;
-}
-
-.action-btn{
-  flex:1;
-
-  border:
-    1px solid
-    rgba(84,243,166,.45);
-
-  background:
-    #0b2b25;
-
-  color:white;
-
-  border-radius:10px;
-
-  padding:11px;
-
-  font-weight:900;
-}
-
-.action-btn.secondary{
-  border-color:
-    rgba(98,199,255,.35);
-
-  background:
-    #0a1b31;
-}
-
-.upcoming-wrap{
   margin-top:12px;
 }
 
-.upcoming-title{
-  font-size:11px;
-  font-weight:900;
-  color:#dcecff;
+.action-wrap{
+  position:relative;
 }
 
-.upcoming-list{
-  display:grid;
-
-  gap:7px;
-
-  margin-top:7px;
-}
-
-.upcoming-item{
-  border:
-    1px solid
-    rgba(255,199,107,.28);
-
-  border-radius:9px;
-
-  padding:9px;
-
-  background:
-    #17140c;
-}
-
-.upcoming-item strong{
-  font-size:11px;
-}
-
-.upcoming-item small{
-  display:block;
-
-  margin-top:3px;
-
-  color:
-    var(--muted);
-}
-
-.upcoming-item.watch{
-  border-color:
-    rgba(98,199,255,.25);
-
-  background:
-    #081522;
-}
-
-.healthline{
-  margin-top:9px;
-
-  color:
-    var(--muted);
-
-  font-size:10px;
-
-  line-height:1.5;
-}
-
-
-/* ========================================
-   TOOLBAR
-======================================== */
-
-.toolbar{
-  display:flex;
-
-  gap:8px;
-
-  align-items:center;
-}
-
-.toolbar input{
-  flex:1;
-  min-width:0;
-
-  background:
-    var(--panel);
+.action-btn{
+  width:100%;
+  min-height:49px;
 
   border:
     1px solid
-    rgba(98,199,255,.25);
-
-  color:white;
-
-  border-radius:10px;
-
-  padding:12px;
-}
-
-.toolbar button{
-  border:
-    1px solid
-    rgba(84,243,166,.45);
-
-  background:
-    #0b2b25;
-
-  color:
-    #e9fff5;
-
-  border-radius:10px;
-
-  padding:
-    12px 16px;
-
-  font-weight:900;
-}
-
-.meta{
-  display:flex;
-
-  justify-content:
-    space-between;
-
-  gap:10px;
-
-  margin-top:8px;
-
-  color:
-    var(--muted);
-
-  font-size:11px;
-}
-
-
-/* ========================================
-   PRODUCTS
-======================================== */
-
-.products{
-  display:grid;
-
-  grid-template-columns:
-    repeat(
-      2,
-      minmax(0,1fr)
-    );
-
-  gap:12px;
-
-  padding:
-    4px 14px 20px;
-}
-
-.card{
-  border:
-    1px solid
-    rgba(98,199,255,.18);
-
-  border-radius:14px;
+    rgba(84,243,166,.50);
 
   background:
     linear-gradient(
       180deg,
-      #09192d,
+      #103b31,
+      #0b2b25
+    );
+
+  color:white;
+
+  border-radius:11px;
+
+  padding:11px 8px;
+
+  font-size:11px;
+  font-weight:900;
+
+  letter-spacing:.15px;
+}
+
+.action-btn.secondary{
+  border-color:
+    rgba(98,199,255,.40);
+
+  background:
+    linear-gradient(
+      180deg,
+      #0d2846,
+      #091a30
+    );
+}
+
+.notification-badge{
+  position:absolute;
+
+  top:-8px;
+  right:-7px;
+
+  min-width:22px;
+  height:22px;
+
+  padding:0 6px;
+
+  border-radius:999px;
+
+  display:none;
+  align-items:center;
+  justify-content:center;
+
+  background:var(--red);
+
+  border:
+    2px solid
+    var(--panel);
+
+  color:white;
+
+  font-size:10px;
+  font-weight:1000;
+
+  box-shadow:
+    0 0 12px
+    rgba(255,77,103,.6);
+
+  z-index:5;
+}
+
+.notification-badge.show{
+  display:flex;
+}
+
+
+/* =========================================
+   LIVE WALMART BUY-NOW AREA
+========================================= */
+
+.live-panel{
+  display:none;
+
+  margin-top:12px;
+
+  border:
+    1px solid
+    rgba(84,243,166,.22);
+
+  background:
+    rgba(2,12,20,.52);
+
+  border-radius:13px;
+
+  overflow:hidden;
+}
+
+.live-panel.open{
+  display:block;
+}
+
+.live-panel-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+
+  gap:10px;
+
+  padding:
+    10px 11px
+    4px;
+}
+
+.live-heading{
+  font-size:11px;
+  font-weight:950;
+
+  color:white;
+}
+
+.live-count{
+  font-size:10px;
+  color:var(--green);
+  font-weight:900;
+}
+
+.live-description{
+  color:var(--muted);
+
+  font-size:10px;
+  line-height:1.4;
+
+  padding:
+    0 11px
+    9px;
+}
+
+.horizontal-products{
+  display:flex;
+
+  gap:10px;
+
+  overflow-x:auto;
+  overflow-y:hidden;
+
+  padding:
+    2px 11px
+    12px;
+
+  scroll-snap-type:x mandatory;
+
+  -webkit-overflow-scrolling:touch;
+}
+
+.horizontal-products::-webkit-scrollbar{
+  display:none;
+}
+
+.horizontal-products{
+  scrollbar-width:none;
+}
+
+
+/* =========================================
+   PRODUCT CARD
+========================================= */
+
+.product-card{
+  flex:
+    0 0
+    min(76vw,285px);
+
+  max-width:285px;
+
+  scroll-snap-align:start;
+
+  border:
+    1px solid
+    rgba(98,199,255,.19);
+
+  border-radius:13px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #0a1c32,
       #06111f
     );
 
   overflow:hidden;
 }
 
-.card.raffle-card{
-  border-color:
-    rgba(255,199,107,.28);
+.product-image{
+  height:145px;
 
-  background:
-    linear-gradient(
-      180deg,
-      #17140c,
-      #08111e
-    );
-}
-
-.card.raffle-card.live{
-  border-color:
-    rgba(84,243,166,.65);
-
-  box-shadow:
-    0 0 22px
-    rgba(84,243,166,.12);
-}
-
-.image-wrap{
-  aspect-ratio:
-    1.35 / 1;
-
-  background:
-    #08111e;
+  background:#07111f;
 
   display:flex;
-
   align-items:center;
   justify-content:center;
 
   position:relative;
 }
 
-.image-wrap img{
+.product-image img{
   width:100%;
   height:100%;
 
-  object-fit:
-    contain;
+  object-fit:contain;
 }
 
-.image-note{
+.live-flag{
   position:absolute;
 
-  bottom:7px;
-  left:7px;
+  top:8px;
+  left:8px;
+
+  border-radius:999px;
 
   background:
-    rgba(2,7,17,.8);
+    rgba(7,55,43,.95);
 
   border:
     1px solid
-    rgba(255,255,255,.14);
+    rgba(84,243,166,.60);
 
-  border-radius:6px;
+  color:var(--green);
 
-  padding:
-    4px 6px;
-
-  font-size:9px;
-  font-weight:900;
-}
-
-.body{
-  padding:12px;
-}
-
-.badges{
-  display:flex;
-
-  flex-wrap:wrap;
-
-  gap:6px;
-}
-
-.badge{
-  display:inline-flex;
-
-  border-radius:
-    999px;
-
-  border:
-    1px solid
-    rgba(255,255,255,.18);
-
-  padding:
-    4px 7px;
+  padding:4px 7px;
 
   font-size:9px;
-
-  font-weight:900;
-
-  text-transform:
-    uppercase;
+  font-weight:950;
 }
 
-.badge.good{
-  border-color:
-    rgba(84,243,166,.5);
-
-  color:
-    var(--green);
+.product-body{
+  padding:10px;
 }
 
-.badge.warn{
-  border-color:
-    rgba(255,199,107,.5);
-
-  color:
-    var(--gold);
-}
-
-.badge.out{
-  border-color:
-    rgba(255,117,139,.5);
-
-  color:
-    var(--red);
-}
-
-.badge.detected{
-  border-color:
-    rgba(187,140,255,.55);
-
-  color:
-    var(--purple);
-}
-
-.name{
-  margin-top:9px;
-
-  font-size:15px;
-
+.product-name{
+  font-size:13px;
   font-weight:900;
 
   line-height:1.3;
 }
 
-.sub{
+.product-seller{
   margin-top:4px;
 
-  color:
-    var(--muted);
+  color:var(--muted);
 
-  font-size:11px;
+  font-size:10px;
 }
 
-.price{
-  margin-top:10px;
+.product-price{
+  margin-top:7px;
 
-  font-size:21px;
-
-  font-weight:900;
+  font-size:19px;
+  font-weight:950;
 }
 
-.price small{
-  font-size:11px;
+.msrp{
+  margin-left:4px;
 
-  color:
-    var(--muted);
+  font-size:9px;
+  color:var(--muted);
 
   font-weight:700;
 }
 
-.storeline{
-  margin-top:8px;
+.price-rule{
+  display:inline-flex;
 
-  color:
-    #dcecff;
+  margin-top:6px;
 
-  font-size:11px;
+  border:
+    1px solid
+    rgba(84,243,166,.30);
+
+  border-radius:999px;
+
+  color:var(--green);
+
+  font-size:8px;
+  font-weight:900;
+
+  padding:3px 6px;
 }
 
-.buy{
+.buy-now{
   display:block;
 
-  margin-top:11px;
+  margin-top:9px;
 
-  text-align:center;
+  width:100%;
 
   border:
     1px solid
     rgba(84,243,166,.5);
 
-  border-radius:9px;
+  background:#0c3128;
 
-  background:
-    #0c3128;
+  border-radius:8px;
 
-  padding:10px;
+  padding:9px;
 
-  font-size:11px;
-
-  font-weight:900;
-}
-
-.buy.raffle{
-  border-color:
-    rgba(255,199,107,.55);
-
-  background:
-    #33270c;
-
-  color:
-    #fff3c8;
-}
-
-.buy.raffle.live{
-  border-color:
-    rgba(84,243,166,.7);
-
-  background:
-    #0c392d;
+  text-align:center;
 
   color:white;
+
+  font-size:10px;
+  font-weight:950;
 }
 
-.empty{
-  grid-column:
-    1 / -1;
+
+/* =========================================
+   EMPTY / SCANNING STATES
+========================================= */
+
+.compact-empty{
+  min-width:100%;
 
   border:
     1px dashed
-    rgba(98,199,255,.25);
+    rgba(98,199,255,.20);
 
-  border-radius:12px;
+  border-radius:10px;
 
-  padding:28px;
-
-  text-align:center;
-
-  color:
-    var(--muted);
-}
-
-.store-placeholder{
-  margin-top:12px;
-
-  border:
-    1px dashed
-    rgba(98,199,255,.25);
-
-  border-radius:12px;
-
-  padding:22px;
+  padding:18px 14px;
 
   text-align:center;
 
-  color:
-    var(--muted);
+  color:var(--muted);
 
+  font-size:11px;
   line-height:1.5;
 }
 
-.hidden{
-  display:none!important;
+.scanning-animation{
+  display:inline-flex;
+  gap:4px;
+
+  margin-right:6px;
+}
+
+.scanning-animation span{
+  width:5px;
+  height:5px;
+
+  border-radius:50%;
+
+  background:var(--green);
+
+  animation:pulse 1s infinite ease-in-out;
+}
+
+.scanning-animation span:nth-child(2){
+  animation-delay:.15s;
+}
+
+.scanning-animation span:nth-child(3){
+  animation-delay:.30s;
+}
+
+@keyframes pulse{
+  0%,100%{
+    opacity:.25;
+    transform:scale(.75);
+  }
+
+  50%{
+    opacity:1;
+    transform:scale(1.1);
+  }
 }
 
 
-/* ========================================
+/* =========================================
+   COMPACT SYSTEM INFO
+========================================= */
+
+.system-strip{
+  margin-top:12px;
+
+  display:flex;
+
+  align-items:center;
+  justify-content:space-between;
+
+  gap:10px;
+
+  color:var(--muted);
+
+  font-size:10px;
+}
+
+.system-strip strong{
+  color:#dcecff;
+}
+
+
+/* =========================================
+   OTHER RETAILER VIEW
+========================================= */
+
+.other-retailer{
+  display:none;
+}
+
+.other-retailer.show{
+  display:block;
+}
+
+.other-card{
+  border:
+    1px solid
+    var(--border);
+
+  border-radius:14px;
+
+  background:var(--panel);
+
+  padding:18px;
+
+  text-align:center;
+
+  color:var(--muted);
+
+  font-size:12px;
+  line-height:1.5;
+}
+
+
+/* =========================================
+   MODAL
+========================================= */
+
+.modal-backdrop{
+  position:fixed;
+  inset:0;
+
+  z-index:1000;
+
+  background:
+    rgba(0,0,0,.78);
+
+  backdrop-filter:
+    blur(7px);
+
+  display:none;
+
+  align-items:flex-end;
+  justify-content:center;
+}
+
+.modal-backdrop.open{
+  display:flex;
+}
+
+.modal{
+  width:min(100%,760px);
+
+  max-height:86vh;
+
+  background:
+    linear-gradient(
+      180deg,
+      #0b1d34,
+      #06101d
+    );
+
+  border:
+    1px solid
+    rgba(98,199,255,.28);
+
+  border-radius:
+    20px 20px 0 0;
+
+  overflow:hidden;
+
+  box-shadow:
+    0 -15px 55px
+    rgba(0,0,0,.55);
+}
+
+.modal-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+
+  gap:10px;
+
+  padding:15px;
+
+  border-bottom:
+    1px solid
+    rgba(255,255,255,.08);
+}
+
+.modal-title{
+  font-size:15px;
+  font-weight:950;
+}
+
+.modal-subtitle{
+  margin-top:3px;
+
+  color:var(--muted);
+
+  font-size:10px;
+}
+
+.close-btn{
+  width:34px;
+  height:34px;
+
+  border-radius:50%;
+
+  border:
+    1px solid
+    rgba(255,255,255,.15);
+
+  background:#09182a;
+
+  color:white;
+
+  font-size:19px;
+}
+
+.modal-body{
+  overflow-y:auto;
+
+  max-height:
+    calc(86vh - 65px);
+
+  padding:12px;
+}
+
+
+/* =========================================
+   RAFFLE CARDS
+========================================= */
+
+.raffle-list{
+  display:grid;
+  gap:10px;
+}
+
+.raffle-card{
+  display:grid;
+  grid-template-columns:90px 1fr;
+
+  gap:10px;
+
+  border:
+    1px solid
+    rgba(255,199,107,.24);
+
+  border-radius:13px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #17150f,
+      #0d1119
+    );
+
+  overflow:hidden;
+
+  min-height:100px;
+}
+
+.raffle-image{
+  background:#07111f;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.raffle-image img{
+  width:100%;
+  height:100%;
+
+  object-fit:contain;
+}
+
+.raffle-body{
+  padding:
+    10px 10px 10px 0;
+}
+
+.raffle-status{
+  display:inline-flex;
+
+  border:
+    1px solid
+    rgba(255,199,107,.45);
+
+  color:var(--gold);
+
+  border-radius:999px;
+
+  padding:3px 6px;
+
+  font-size:8px;
+  font-weight:950;
+
+  text-transform:uppercase;
+}
+
+.raffle-name{
+  margin-top:6px;
+
+  font-size:12px;
+  font-weight:900;
+
+  line-height:1.3;
+}
+
+.raffle-detail{
+  margin-top:5px;
+
+  color:var(--muted);
+
+  font-size:9px;
+}
+
+.enter-raffle{
+  margin-top:7px;
+
+  color:var(--green);
+
+  font-size:9px;
+  font-weight:950;
+}
+
+.new-dot{
+  display:inline-flex;
+
+  margin-left:5px;
+
+  min-width:18px;
+  height:18px;
+
+  align-items:center;
+  justify-content:center;
+
+  border-radius:999px;
+
+  background:var(--red);
+
+  color:white;
+
+  font-size:7px;
+  font-weight:950;
+
+  vertical-align:middle;
+}
+
+
+/* =========================================
    MOBILE
-======================================== */
+========================================= */
 
 @media(max-width:760px){
-
-  .tabs{
-    grid-template-columns:
-      repeat(
-        2,
-        1fr
-      );
-  }
-
-  .tabs .tab:last-child{
-    grid-column:
-      1 / -1;
-  }
-
-  .schedule-grid{
-    grid-template-columns:
-      1fr;
-  }
-
-  .products{
-    grid-template-columns:
-      1fr;
-  }
 
   .hero{
     height:320px;
   }
+
+  .tabs{
+    grid-template-columns:
+      repeat(3,1fr);
+  }
+
+  .schedule-grid{
+    grid-template-columns:1fr;
+  }
+
+  .panel-actions{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .action-btn{
+    font-size:10px;
+    padding:10px 6px;
+  }
+}
+
+@media(max-width:430px){
+
+  .hero{
+    height:315px;
+  }
+
+  .section{
+    padding-left:12px;
+    padding-right:12px;
+  }
+
+  .status-wrap{
+    padding-left:12px;
+    padding-right:12px;
+  }
+
+  .status-pill{
+    font-size:10px;
+  }
+
+  .product-card{
+    flex-basis:78vw;
+  }
 }
 </style>
 </head>
+
 
 <body>
 
@@ -922,6 +1060,7 @@ a{
   <div class="hero"></div>
 
 
+  <!-- STATUS -->
   <div class="status-wrap">
 
     <div
@@ -929,35 +1068,31 @@ a{
       class="status-pill"
     >
       <span class="dot"></span>
-
-      <span>
-        LIVE MONITOR CONNECTED
-      </span>
+      <span>LIVE MONITOR CONNECTED</span>
     </div>
-
 
     <div
       id="pushStatus"
-      class="status-pill offline"
-      role="button"
-      tabindex="0"
-      aria-label="Enable push alerts"
+      class="status-pill"
     >
       <span class="dot"></span>
-
-      <span>
-        CHECKING PUSH ALERTS…
-      </span>
+      <span>PUSH ALERTS ACTIVE</span>
     </div>
 
   </div>
 
 
-  <!-- RETAILERS -->
-
+  <!-- RETAILER TABS -->
   <section class="section">
 
     <div class="tabs">
+
+      <button
+        class="tab"
+        data-retailer="all"
+      >
+        ALL
+      </button>
 
       <button
         class="tab active"
@@ -999,26 +1134,24 @@ a{
   </section>
 
 
-  <!-- MONITOR -->
+  <!-- WALMART DASHBOARD -->
+  <section
+    id="walmartSection"
+    class="section"
+  >
 
-  <section class="section">
+    <div class="walmart-panel">
 
-    <div
-      id="retailerMonitor"
-      class="monitor-panel"
-    >
 
+      <!-- HEADER -->
       <div class="panel-head">
 
-        <div
-          id="monitorTitle"
-          class="panel-title"
-        >
+        <div class="panel-title">
           Walmart Drop Monitor
         </div>
 
         <div
-          id="monitorState"
+          id="walmartWindowState"
           class="panel-status"
         >
           SCHEDULED
@@ -1027,73 +1160,56 @@ a{
       </div>
 
 
-      <div id="walmartDetails">
+      <!-- STATUS BOXES -->
+      <div class="schedule-grid">
 
-        <div class="schedule-grid">
+        <div class="schedule-box">
 
-          <div class="schedule-box">
+          <span>
+            Drop window
+          </span>
 
-            <span>
-              Drop window
-            </span>
-
-            <strong
-              id="walmartSchedule"
-            >
-              Loading…
-            </strong>
-
-          </div>
-
-
-          <div class="schedule-box">
-
-            <span>
-              Primary source
-            </span>
-
-            <strong
-              id="walmartPrimary"
-            >
-              Loading…
-            </strong>
-
-          </div>
-
-
-          <div class="schedule-box">
-
-            <span>
-              Last scheduled scan
-            </span>
-
-            <strong
-              id="walmartLastScan"
-            >
-              —
-            </strong>
-
-          </div>
-
-
-          <div class="schedule-box">
-
-            <span>
-              Next scan
-            </span>
-
-            <strong
-              id="walmartNextScan"
-            >
-              —
-            </strong>
-
-          </div>
+          <strong id="walmartSchedule">
+            Loading…
+          </strong>
 
         </div>
 
 
-        <div class="panel-actions">
+        <div class="schedule-box">
+
+          <span>
+            Primary source
+          </span>
+
+          <strong id="walmartPrimary">
+            Loading…
+          </strong>
+
+        </div>
+
+
+        <div class="schedule-box">
+
+          <span>
+            Last scan
+          </span>
+
+          <strong id="walmartLastScan">
+            —
+          </strong>
+
+        </div>
+
+      </div>
+
+
+      <!-- MAIN ACTIONS -->
+      <div class="panel-actions">
+
+
+        <!-- MANUAL SCAN -->
+        <div class="action-wrap">
 
           <button
             id="manualWalmartScan"
@@ -1102,80 +1218,81 @@ a{
             SCAN WALMART NOW
           </button>
 
+        </div>
+
+
+        <!-- RAFFLES -->
+        <div class="action-wrap">
 
           <button
-            id="forgetScanToken"
+            id="raffleButton"
             class="action-btn secondary"
           >
-            RESET SCAN KEY
+            🎟 WEEKLY RAFFLE ITEMS
           </button>
-
-        </div>
-
-
-        <div
-          id="walmartHealth"
-          class="healthline"
-        >
-          Provider health loading…
-        </div>
-
-
-        <div class="upcoming-wrap">
-
-          <div class="upcoming-title">
-            DETECTED UPCOMING + WATCHLIST
-          </div>
-
 
           <div
-            id="upcomingList"
-            class="upcoming-list"
+            id="raffleBadge"
+            class="notification-badge"
           >
-
-            <div class="sub">
-              Loading Walmart watchlist…
-            </div>
-
+            NEW
           </div>
-
-        </div>
-
-
-        <!-- WALMART PRODUCTS / RAFFLES -->
-
-        <div
-          class="walmart-subtabs"
-        >
-
-          <button
-            id="walmartProductsTab"
-            class="walmart-subtab active"
-          >
-            PRODUCTS
-          </button>
-
-          <button
-            id="walmartRafflesTab"
-            class="walmart-subtab raffles"
-          >
-            RAFFLES
-          </button>
 
         </div>
 
       </div>
 
 
+      <!-- BUY NOW RESULTS -->
       <div
-        id="otherRetailerDetails"
-        class="hidden"
+        id="livePanel"
+        class="live-panel"
       >
 
+        <div class="live-panel-head">
+
+          <div class="live-heading">
+            LIVE • READY TO BUY
+          </div>
+
+          <div
+            id="liveCount"
+            class="live-count"
+          >
+            0 FOUND
+          </div>
+
+        </div>
+
+
+        <div class="live-description">
+          Only products currently purchasable
+          within our Walmart seller and price rules
+          are shown here.
+        </div>
+
+
         <div
-          id="otherRetailerMessage"
-          class="store-placeholder"
-        ></div>
+          id="liveProducts"
+          class="horizontal-products"
+        >
+        </div>
+
+      </div>
+
+
+      <!-- COMPACT FOOTER -->
+      <div class="system-strip">
+
+        <span>
+          Backend scanning continues automatically
+        </span>
+
+        <span>
+          <strong id="lastUpdated">
+            —
+          </strong>
+        </span>
 
       </div>
 
@@ -1184,126 +1301,99 @@ a{
   </section>
 
 
-  <!-- SEARCH -->
+  <!-- NON-WALMART PLACEHOLDER -->
+  <section
+    id="otherRetailerSection"
+    class="section other-retailer"
+  >
 
-  <section class="section">
+    <div
+      id="otherRetailerCard"
+      class="other-card"
+    >
+    </div>
 
-    <div class="toolbar">
+  </section>
 
-      <input
-        id="search"
-        placeholder="Search Walmart Pokémon products"
+</div>
+
+
+
+<!-- ======================================
+     RAFFLE MODAL
+====================================== -->
+
+<div
+  id="raffleModal"
+  class="modal-backdrop"
+>
+
+  <div class="modal">
+
+    <div class="modal-head">
+
+      <div>
+
+        <div class="modal-title">
+          🎟 Walmart Weekly Raffle Items
+        </div>
+
+        <div class="modal-subtitle">
+          Tap a product to open Walmart and enter.
+        </div>
+
+      </div>
+
+      <button
+        id="closeRaffle"
+        class="close-btn"
+        aria-label="Close"
       >
-
-      <button id="refresh">
-        Refresh
+        ×
       </button>
 
     </div>
 
 
-    <div class="meta">
+    <div class="modal-body">
 
-      <span id="visibleCount">
-        0 products
-      </span>
-
-      <span id="lastUpdated">
-        Not updated yet
-      </span>
+      <div
+        id="raffleList"
+        class="raffle-list"
+      >
+      </div>
 
     </div>
 
-  </section>
-
-
-  <main
-    id="products"
-    class="products"
-  ></main>
+  </div>
 
 </div>
 
 
+
 <script>
 
-/* ========================================
-   LABELS
-======================================== */
-
-const RETAILER_LABELS = {
-  walmart:
-    "Walmart",
-
-  target:
-    "Target",
-
-  sams:
-    "Sam's Club",
-
-  bestbuy:
-    "Best Buy",
-
-  costco:
-    "Costco"
-};
-
-
-const RETAILER_MONITOR_NAMES = {
-  walmart:
-    "Walmart Drop Monitor",
-
-  target:
-    "Target Online Monitor",
-
-  sams:
-    "Sam's Club Monitor",
-
-  bestbuy:
-    "Best Buy Monitor",
-
-  costco:
-    "Costco Monitor"
-};
-
-
-/* ========================================
+/* =========================================
    ELEMENTS
-======================================== */
-
-const productsEl =
-  document.getElementById(
-    "products"
-  );
-
-const searchEl =
-  document.getElementById(
-    "search"
-  );
-
-const refreshBtn =
-  document.getElementById(
-    "refresh"
-  );
+========================================= */
 
 const backendStatus =
-  document.getElementById(
-    "backendStatus"
-  );
+  document.getElementById("backendStatus");
 
 const pushStatus =
+  document.getElementById("pushStatus");
+
+const walmartSection =
+  document.getElementById("walmartSection");
+
+const otherRetailerSection =
   document.getElementById(
-    "pushStatus"
+    "otherRetailerSection"
   );
 
-const visibleCount =
+const otherRetailerCard =
   document.getElementById(
-    "visibleCount"
-  );
-
-const lastUpdated =
-  document.getElementById(
-    "lastUpdated"
+    "otherRetailerCard"
   );
 
 const manualWalmartScan =
@@ -1311,9 +1401,44 @@ const manualWalmartScan =
     "manualWalmartScan"
   );
 
-const forgetScanToken =
+const raffleButton =
   document.getElementById(
-    "forgetScanToken"
+    "raffleButton"
+  );
+
+const raffleBadge =
+  document.getElementById(
+    "raffleBadge"
+  );
+
+const raffleModal =
+  document.getElementById(
+    "raffleModal"
+  );
+
+const closeRaffle =
+  document.getElementById(
+    "closeRaffle"
+  );
+
+const raffleList =
+  document.getElementById(
+    "raffleList"
+  );
+
+const livePanel =
+  document.getElementById(
+    "livePanel"
+  );
+
+const liveProducts =
+  document.getElementById(
+    "liveProducts"
+  );
+
+const liveCount =
+  document.getElementById(
+    "liveCount"
   );
 
 const walmartSchedule =
@@ -1331,193 +1456,91 @@ const walmartLastScan =
     "walmartLastScan"
   );
 
-const walmartNextScan =
+const walmartWindowState =
   document.getElementById(
-    "walmartNextScan"
+    "walmartWindowState"
   );
 
-const walmartHealth =
+const lastUpdated =
   document.getElementById(
-    "walmartHealth"
-  );
-
-const upcomingList =
-  document.getElementById(
-    "upcomingList"
-  );
-
-const monitorTitle =
-  document.getElementById(
-    "monitorTitle"
-  );
-
-const monitorState =
-  document.getElementById(
-    "monitorState"
-  );
-
-const walmartDetails =
-  document.getElementById(
-    "walmartDetails"
-  );
-
-const otherRetailerDetails =
-  document.getElementById(
-    "otherRetailerDetails"
-  );
-
-const otherRetailerMessage =
-  document.getElementById(
-    "otherRetailerMessage"
-  );
-
-const walmartProductsTab =
-  document.getElementById(
-    "walmartProductsTab"
-  );
-
-const walmartRafflesTab =
-  document.getElementById(
-    "walmartRafflesTab"
+    "lastUpdated"
   );
 
 
-/* ========================================
+/* =========================================
    STATE
-======================================== */
+========================================= */
 
-let activeRetailer =
-  "walmart";
+let activeRetailer = "walmart";
 
-let walmartView =
-  "products";
+let latestStatusData = null;
 
-let currentProducts =
-  [];
+let currentRaffles = [];
 
-let raffleData = {
-  ok:false,
-  count:0,
-  items:[]
-};
+let currentLiveProducts = [];
 
-let providerStates =
-  [];
-
-let latestStatus =
-  {};
+let livePanelWasOpened = false;
 
 
-/* ========================================
-   BASIC HELPERS
-======================================== */
+/* =========================================
+   HELPERS
+========================================= */
 
 function esc(value){
 
-  return String(
-    value ?? ""
-  )
+  return String(value ?? "")
     .replace(
       /[&<>"']/g,
-      c => ({
+      character => ({
         "&":"&amp;",
         "<":"&lt;",
         ">":"&gt;",
         "\"":"&quot;",
         "'":"&#39;"
-      })[c]
+      })[character]
     );
-
 }
 
 
 function money(value){
 
-  const n =
-    Number(value);
+  const number = Number(value);
 
-
-  return Number.isFinite(n)
-    ? new Intl.NumberFormat(
-        "en-US",
-        {
-          style:
-            "currency",
-
-          currency:
-            "USD"
-        }
-      )
-        .format(n)
-
-    : "Price unavailable";
-
-}
-
-
-function formatDateTime(
-  value
-){
-
-  if(!value){
-    return "—";
+  if(!Number.isFinite(number)){
+    return "Price unavailable";
   }
 
-
-  const date =
-    new Date(value);
-
-
-  if(
-    Number.isNaN(
-      date.getTime()
-    )
-  ){
-    return String(value);
-  }
-
-
-  return date.toLocaleString(
+  return new Intl.NumberFormat(
     "en-US",
     {
-      month:
-        "numeric",
-
-      day:
-        "numeric",
-
-      year:
-        "numeric",
-
-      hour:
-        "numeric",
-
-      minute:
-        "2-digit",
-
-      second:
-        "2-digit"
+      style:"currency",
+      currency:"USD"
     }
-  );
-
+  ).format(number);
 }
 
 
-function fallback(name){
+function normalize(value){
 
-  const label =
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g," ")
+    .replace(/\s+/g," ")
+    .trim();
+}
+
+
+function fallbackImage(name){
+
+  const cleanName =
     esc(
       name ||
       "Pokémon product"
-    )
-      .slice(
-        0,
-        42
-      );
-
+    ).slice(0,42);
 
   const svg =
-    `<svg
+    `
+    <svg
       xmlns="http://www.w3.org/2000/svg"
       width="700"
       height="520"
@@ -1545,7 +1568,7 @@ function fallback(name){
         font-family="Arial"
         font-weight="700"
       >
-        ${label}
+        ${cleanName}
       </text>
 
       <text
@@ -1557,1244 +1580,18 @@ function fallback(name){
         font-family="Arial"
         font-weight="700"
       >
-        POKÉMON MONITOR
+        POKÉMON PRODUCT
       </text>
 
-      <text
-        x="350"
-        y="375"
-        text-anchor="middle"
-        fill="#9aa9c1"
-        font-size="16"
-        font-family="Arial"
-      >
-        Retailer image unavailable
-      </text>
-
-    </svg>`;
-
+    </svg>
+    `;
 
   return (
     "data:image/svg+xml;charset=UTF-8," +
     encodeURIComponent(svg)
   );
-
 }
 
-
-/* ========================================
-   BADGES
-======================================== */
-
-function statusBadge(
-  status
-){
-
-  const n =
-    String(
-      status ||
-      "out"
-    )
-      .toLowerCase();
-
-
-  const cls =
-    [
-      "instock",
-      "onhand",
-      "live"
-    ]
-      .includes(n)
-
-      ? "good"
-
-      : [
-          "transit",
-          "ordered",
-          "preorder",
-          "upcoming",
-          "watching"
-        ]
-          .includes(n)
-
-        ? "warn"
-
-        : n === "detected"
-
-          ? "detected"
-
-          : "out";
-
-
-  const label =
-    n === "instock"
-      ? "IN STOCK"
-
-      : n === "live"
-        ? "RAFFLE LIVE"
-
-      : n === "upcoming"
-        ? "UPCOMING"
-
-      : n === "detected"
-        ? "EARLY DETECTED"
-
-      : n === "closed"
-        ? "CLOSED"
-
-      : n;
-
-
-  return `
-    <span
-      class="badge ${cls}"
-    >
-      ${esc(label)}
-    </span>
-  `;
-
-}
-
-
-/* ========================================
-   PROVIDERS
-======================================== */
-
-function providerFor(
-  retailer
-){
-
-  return providerStates
-    .find(
-      p =>
-        p.retailer ===
-        retailer
-    ) || {
-
-      retailer,
-
-      label:
-        RETAILER_LABELS[
-          retailer
-        ] ||
-        retailer,
-
-      configured:
-        false,
-
-      running:
-        false,
-
-      error:
-        null,
-
-      itemCount:
-        0,
-
-      lastRun:
-        null
-    };
-
-}
-
-
-/* ========================================
-   UPCOMING / WATCHLIST
-======================================== */
-
-function renderUpcoming(
-  watchData,
-  legacyItems = []
-){
-
-  const detected =
-    Array.isArray(
-      watchData?.detected
-    )
-      ? watchData.detected
-
-      : (
-          Array.isArray(
-            legacyItems
-          )
-            ? legacyItems
-            : []
-        );
-
-
-  const watching =
-    Array.isArray(
-      watchData?.watching
-    )
-      ? watchData.watching
-      : [];
-
-
-  const rows = [];
-
-
-  for(
-    const item of
-    detected.slice(0,8)
-  ){
-
-    rows.push(`
-      <a
-        class="upcoming-item"
-        href="${esc(
-          item.url || "#"
-        )}"
-        ${
-          item.url
-            ? `target="_blank"
-               rel="noopener noreferrer"`
-            : ""
-        }
-      >
-
-        <strong>
-          ${esc(item.name)}
-        </strong>
-
-        <small>
-
-          ${
-            esc(
-              (
-                item.dropType ||
-                item.status ||
-                "upcoming"
-              )
-                .toUpperCase()
-            )
-          }
-
-          ${
-            item.price != null
-              ? ` • ${
-                  money(
-                    item.price
-                  )
-                }`
-              : ""
-          }
-
-          ${
-            item.rawStatus
-              ? ` • ${
-                  esc(
-                    item.rawStatus
-                  )
-                }`
-              : ""
-          }
-
-        </small>
-
-      </a>
-    `);
-
-  }
-
-
-  for(
-    const item of
-    watching.slice(0,18)
-  ){
-
-    rows.push(`
-      <a
-        class="upcoming-item watch"
-        href="${esc(
-          item.url || "#"
-        )}"
-        ${
-          item.url
-            ? `target="_blank"
-               rel="noopener noreferrer"`
-            : ""
-        }
-      >
-
-        <strong>
-          ${esc(item.name)}
-        </strong>
-
-        <small>
-
-          WATCHING
-
-          ${
-            item.msrp != null
-              ? ` • MSRP ${
-                  money(
-                    item.msrp
-                  )
-                }`
-              : ""
-          }
-
-        </small>
-
-      </a>
-    `);
-
-  }
-
-
-  upcomingList.innerHTML =
-    rows.length
-
-      ? rows.join("")
-
-      : `
-        <div class="sub">
-          No upcoming Walmart items
-          detected right now.
-        </div>
-      `;
-
-}
-
-
-/* ========================================
-   MONITOR PANEL
-======================================== */
-
-function renderMonitor(){
-
-  const provider =
-    providerFor(
-      activeRetailer
-    );
-
-
-  monitorTitle.textContent =
-    RETAILER_MONITOR_NAMES[
-      activeRetailer
-    ] ||
-    `${RETAILER_LABELS[
-      activeRetailer
-    ]} Monitor`;
-
-
-  if(
-    activeRetailer ===
-    "walmart"
-  ){
-
-    walmartDetails
-      .classList
-      .remove(
-        "hidden"
-      );
-
-
-    otherRetailerDetails
-      .classList
-      .add(
-        "hidden"
-      );
-
-
-    searchEl.placeholder =
-      walmartView ===
-      "raffles"
-
-        ? "Search Walmart raffles"
-
-        : "Search Walmart Pokémon products";
-
-
-    const schedule =
-      latestStatus
-        ?.walmartSchedule ||
-      {};
-
-
-    const walmartProvider =
-      latestStatus
-        ?.walmartProvider ||
-      {};
-
-
-    const hd =
-      walmartProvider
-        ?.health
-        ?.hasdata ||
-      {};
-
-
-    const ax =
-      walmartProvider
-        ?.health
-        ?.axesso ||
-      {};
-
-
-    monitorState.className =
-      "panel-status";
-
-
-    monitorState.textContent =
-      schedule.activeWindow
-
-        ? "DROP WINDOW ACTIVE"
-
-        : walmartView ===
-          "raffles"
-
-          ? `${
-              Number(
-                raffleData.count ||
-                0
-              )
-            } RAFFLES`
-
-          : "SCHEDULED";
-
-
-    walmartSchedule.textContent =
-      schedule.scheduleLabel ||
-      "Walmart scheduled scanning";
-
-
-    walmartPrimary.textContent =
-      walmartProvider.primary
-
-        ? `${
-            String(
-              walmartProvider.primary
-            )
-              .toUpperCase()
-          }${
-            walmartProvider
-              .fallbackEnabled
-
-              ? " → HASDATA BACKUP"
-
-              : ""
-          }`
-
-        : "AXESSO";
-
-
-    walmartLastScan.textContent =
-      formatDateTime(
-        schedule
-          .lastScheduledRun
-      );
-
-
-    walmartNextScan.textContent =
-      formatDateTime(
-        schedule.nextScanLabel ||
-        schedule.nextScan ||
-        schedule.nextScheduledRun
-      );
-
-
-    walmartHealth.textContent =
-      `Axesso: ${
-        Number(
-          ax.successes ||
-          0
-        )
-      } ok / ${
-        Number(
-          ax.failures ||
-          0
-        )
-      } failed • HasData: ${
-        Number(
-          hd.successes ||
-          0
-        )
-      } ok / ${
-        Number(
-          hd.failures ||
-          0
-        )
-      } failed • Raffles: ${
-        Number(
-          raffleData.count ||
-          0
-        )
-      } found`;
-
-
-    renderUpcoming(
-      latestStatus
-        ?.walmartWatchlist,
-
-      latestStatus
-        ?.upcoming ||
-      []
-    );
-
-
-    walmartProductsTab
-      .classList
-      .toggle(
-        "active",
-        walmartView ===
-        "products"
-      );
-
-
-    walmartRafflesTab
-      .classList
-      .toggle(
-        "active",
-        walmartView ===
-        "raffles"
-      );
-
-
-    return;
-
-  }
-
-
-  walmartDetails
-    .classList
-    .add(
-      "hidden"
-    );
-
-
-  otherRetailerDetails
-    .classList
-    .remove(
-      "hidden"
-    );
-
-
-  searchEl.placeholder =
-    `Search ${
-      RETAILER_LABELS[
-        activeRetailer
-      ]
-    } Pokémon products`;
-
-
-  if(
-    provider.configured
-  ){
-
-    monitorState.className =
-      provider.error
-
-        ? "panel-status off"
-
-        : provider.running
-
-          ? "panel-status warn"
-
-          : "panel-status";
-
-
-    monitorState.textContent =
-      provider.error
-
-        ? "ERROR"
-
-        : provider.running
-
-          ? "SCANNING"
-
-          : "CONNECTED";
-
-
-    otherRetailerMessage
-      .innerHTML =
-        `<strong>${
-          esc(
-            provider.label
-          )
-        } monitor connected.</strong><br>` +
-
-        `Live products: ${
-          Number(
-            provider.itemCount ||
-            0
-          )
-        }<br>` +
-
-        `Last scan: ${
-          provider.lastRun
-            ? formatDateTime(
-                provider.lastRun
-              )
-            : "—"
-        }` +
-
-        (
-          provider.error
-            ? `<br>Error: ${
-                esc(
-                  provider.error
-                )
-              }`
-            : ""
-        );
-
-  }else{
-
-    monitorState.className =
-      "panel-status off";
-
-
-    monitorState.textContent =
-      "NOT CONFIGURED";
-
-
-    otherRetailerMessage
-      .innerHTML =
-        `<strong>${
-          esc(
-            provider.label
-          )
-        } is not connected yet.</strong><br>` +
-
-        `This retailer stays separate until its live provider is connected.`;
-
-  }
-
-}
-
-
-/* ========================================
-   STANDARD PRODUCT CARDS
-======================================== */
-
-function renderProducts(){
-
-  if(
-    activeRetailer ===
-      "walmart" &&
-    walmartView ===
-      "raffles"
-  ){
-    renderRaffles();
-    return;
-  }
-
-
-  const query =
-    searchEl.value
-      .trim()
-      .toLowerCase();
-
-
-  const list =
-    currentProducts.filter(
-      product => {
-
-        return (
-          !query ||
-
-          String(
-            product.name ||
-            ""
-          )
-            .toLowerCase()
-            .includes(query) ||
-
-          String(
-            product.seller ||
-            ""
-          )
-            .toLowerCase()
-            .includes(query) ||
-
-          String(
-            product.storeName ||
-            ""
-          )
-            .toLowerCase()
-            .includes(query)
-        );
-
-      }
-    );
-
-
-  visibleCount.textContent =
-    `${list.length} product${
-      list.length === 1
-        ? ""
-        : "s"
-    }`;
-
-
-  if(!list.length){
-
-    const provider =
-      providerFor(
-        activeRetailer
-      );
-
-
-    productsEl.innerHTML =
-      `<div class="empty">${
-        provider.configured
-
-          ? `No ${
-              esc(
-                provider.label
-              )
-            } qualifying inventory returned right now.`
-
-          : `${
-              esc(
-                provider.label
-              )
-            } is not connected yet.`
-      }</div>`;
-
-
-    return;
-  }
-
-
-  productsEl.innerHTML =
-    list.map(
-      product => {
-
-        const fallbackImage =
-          fallback(
-            product.name
-          );
-
-
-        const image =
-          product.image ||
-          fallbackImage;
-
-
-        const channel =
-          product.channel ===
-          "store"
-
-            ? "IN-STORE"
-
-            : "ONLINE";
-
-
-        const store =
-          product.channel ===
-          "store"
-
-            ? `
-              <div class="storeline">
-
-                Store:
-                ${
-                  esc(
-                    product.storeName ||
-                    "Unknown store"
-                  )
-                }
-
-                ${
-                  product.storeId
-                    ? ` • ID ${
-                        esc(
-                          product.storeId
-                        )
-                      }`
-                    : ""
-                }
-
-                ${
-                  product.quantity != null
-                    ? ` • Qty ${
-                        esc(
-                          product.quantity
-                        )
-                      }`
-                    : ""
-                }
-
-              </div>
-            `
-
-            : "";
-
-
-        const sellerLabel =
-          product.directSeller ===
-          true
-
-            ? "Walmart"
-
-            : product.gtApprovedSeller ===
-              true
-
-              ? "GT Collectibles"
-
-              : product.seller ||
-                "Not provided";
-
-
-        return `
-          <article class="card">
-
-            <div class="image-wrap">
-
-              <img
-                src="${esc(image)}"
-                alt="${esc(
-                  product.name
-                )}"
-                onerror="
-                  this.onerror=null;
-                  this.src='${fallbackImage}'
-                "
-              >
-
-              <div class="image-note">
-
-                ${
-                  product.image
-                    ? "RETAILER IMAGE"
-                    : "REPRESENTATIVE IMAGE"
-                }
-
-              </div>
-
-            </div>
-
-
-            <div class="body">
-
-              <div class="badges">
-
-                ${
-                  statusBadge(
-                    product.status
-                  )
-                }
-
-                <span class="badge">
-                  ${channel}
-                </span>
-
-                <span class="badge">
-                  WALMART
-                </span>
-
-                ${
-                  product.gtApprovedSeller ===
-                  true
-
-                    ? `<span class="badge warn">
-                        GT APPROVED
-                       </span>`
-
-                    : ""
-                }
-
-                ${
-                  product.stale
-
-                    ? `<span class="badge warn">
-                        STALE DISPLAY
-                       </span>`
-
-                    : ""
-                }
-
-              </div>
-
-
-              <div class="name">
-                ${esc(
-                  product.name
-                )}
-              </div>
-
-
-              <div class="sub">
-
-                Seller:
-                ${esc(
-                  sellerLabel
-                )}
-
-              </div>
-
-
-              <div class="price">
-
-                ${
-                  money(
-                    product.price
-                  )
-                }
-
-                <small>
-
-                  ${
-                    product.msrp != null
-                      ? `MSRP ${
-                          money(
-                            product.msrp
-                          )
-                        }`
-                      : ""
-                  }
-
-                </small>
-
-              </div>
-
-
-              ${store}
-
-
-              <div class="sub">
-
-                Checked:
-                ${
-                  product.checkedAt
-
-                    ? new Date(
-                        product.checkedAt
-                      )
-                        .toLocaleTimeString()
-
-                    : "—"
-                }
-
-              </div>
-
-
-              ${
-                product.url
-
-                  ? `
-                    <a
-                      class="buy"
-                      href="${esc(
-                        product.url
-                      )}"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      OPEN PRODUCT
-                    </a>
-                  `
-
-                  : ""
-              }
-
-            </div>
-
-          </article>
-        `;
-
-      }
-    )
-      .join("");
-
-}
-
-
-/* ========================================
-   RAFFLE CARDS
-======================================== */
-
-function renderRaffles(){
-
-  const query =
-    searchEl.value
-      .trim()
-      .toLowerCase();
-
-
-  const allItems =
-    Array.isArray(
-      raffleData.items
-    )
-      ? raffleData.items
-      : [];
-
-
-  const list =
-    allItems.filter(
-      item =>
-
-        !query ||
-
-        String(
-          item.name ||
-          ""
-        )
-          .toLowerCase()
-          .includes(query)
-    );
-
-
-  visibleCount.textContent =
-    `${list.length} raffle${
-      list.length === 1
-        ? ""
-        : "s"
-    }`;
-
-
-  if(!list.length){
-
-    productsEl.innerHTML = `
-      <div class="empty">
-
-        <strong>
-          No Walmart Pokémon raffles
-          detected right now.
-        </strong>
-
-        <br><br>
-
-        The raffle watcher is still active
-        and will automatically populate
-        this tab when Walmart exposes
-        another drawing.
-
-      </div>
-    `;
-
-    return;
-  }
-
-
-  productsEl.innerHTML =
-    list.map(
-      item => {
-
-        const status =
-          String(
-            item.raffleStatus ||
-            item.status ||
-            "detected"
-          )
-            .toLowerCase();
-
-
-        const fallbackImage =
-          fallback(
-            item.name
-          );
-
-
-        const image =
-          item.image ||
-          fallbackImage;
-
-
-        const isLive =
-          status ===
-          "live";
-
-
-        const dateText =
-          item.startsAt
-
-            ? formatDateTime(
-                item.startsAt
-              )
-
-            : status ===
-              "closed"
-
-              ? "Drawing ended"
-
-              : "Start time not published yet";
-
-
-        return `
-          <article
-            class="card raffle-card ${
-              isLive
-                ? "live"
-                : ""
-            }"
-          >
-
-            <div class="image-wrap">
-
-              <img
-                src="${esc(image)}"
-                alt="${esc(
-                  item.name
-                )}"
-                onerror="
-                  this.onerror=null;
-                  this.src='${fallbackImage}'
-                "
-              >
-
-              <div class="image-note">
-                WALMART RAFFLE
-              </div>
-
-            </div>
-
-
-            <div class="body">
-
-              <div class="badges">
-
-                ${
-                  statusBadge(
-                    status
-                  )
-                }
-
-                <span class="badge">
-                  WALMART DRAW
-                </span>
-
-              </div>
-
-
-              <div class="name">
-                ${esc(
-                  item.name
-                )}
-              </div>
-
-
-              <div class="sub">
-
-                ${
-                  status ===
-                  "live"
-
-                    ? "Drawing is LIVE now"
-
-                    : status ===
-                      "upcoming"
-
-                      ? "Upcoming Walmart drawing"
-
-                      : status ===
-                        "detected"
-
-                        ? "Detected before drawing goes live"
-
-                        : "Previous Walmart drawing"
-                }
-
-              </div>
-
-
-              <div class="price">
-
-                ${
-                  item.price != null
-
-                    ? money(
-                        item.price
-                      )
-
-                    : "Price not published"
-                }
-
-              </div>
-
-
-              <div class="storeline">
-
-                ${
-                  status ===
-                  "closed"
-
-                    ? "Status: Drawing closed"
-
-                    : `Starts: ${
-                        esc(
-                          dateText
-                        )
-                      }`
-                }
-
-              </div>
-
-
-              ${
-                item.walmartItemId
-
-                  ? `
-                    <div class="sub">
-                      Walmart item:
-                      ${
-                        esc(
-                          item.walmartItemId
-                        )
-                      }
-                    </div>
-                  `
-
-                  : ""
-              }
-
-
-              <div class="sub">
-
-                Last checked:
-                ${
-                  item.checkedAt
-
-                    ? new Date(
-                        item.checkedAt
-                      )
-                        .toLocaleTimeString()
-
-                    : "—"
-                }
-
-              </div>
-
-
-              <a
-                class="buy raffle ${
-                  isLive
-                    ? "live"
-                    : ""
-                }"
-                href="${esc(
-                  item.url ||
-                  "https://www.walmart.com/shop/collectibles/draw"
-                )}"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-
-                ${
-                  isLive
-                    ? "🔥 OPEN LIVE RAFFLE"
-                    : "OPEN WALMART LISTING"
-                }
-
-              </a>
-
-            </div>
-
-          </article>
-        `;
-
-      }
-    )
-      .join("");
-
-}
-
-
-/* ========================================
-   CONNECTION STATUS
-======================================== */
 
 function setOnline(
   element,
@@ -2803,13 +1600,10 @@ function setOnline(
   offText
 ){
 
-  element
-    .classList
-    .toggle(
-      "offline",
-      !ok
-    );
-
+  element.classList.toggle(
+    "offline",
+    !ok
+  );
 
   element
     .querySelector(
@@ -2819,496 +1613,892 @@ function setOnline(
       ok
         ? onText
         : offText;
-
 }
 
 
-/* ========================================
-   PUSH
-======================================== */
+/* =========================================
+   APPROVED WALMART SELLER RULE
+========================================= */
 
-function urlBase64ToUint8Array(
-  base64String
-){
+function isApprovedSeller(product){
 
-  const padding =
-    "=".repeat(
-      (
-        4 -
-        base64String.length %
-        4
-      ) %
-      4
-    );
+  if(
+    product.directSeller === true
+  ){
+    return true;
+  }
 
+  const seller =
+    normalize(product.seller);
 
-  const base64 =
-    (
-      base64String +
-      padding
+  if(
+    seller === "walmart" ||
+    seller === "walmart com" ||
+    seller === "walmartcom"
+  ){
+    return true;
+  }
+
+  /*
+    Approved GT variants.
+    This does NOT broadly permit other
+    marketplace sellers.
+  */
+
+  if(
+    seller.includes(
+      "gt collectibles"
+    ) ||
+    seller.includes(
+      "gt collectibles and toys"
+    ) ||
+    seller.includes(
+      "gt mj"
     )
-      .replace(
-        /-/g,
-        "+"
-      )
-      .replace(
-        /_/g,
-        "/"
-      );
+  ){
+    return true;
+  }
 
+  return false;
+}
+
+
+/* =========================================
+   PRICE RULES
+========================================= */
+
+function isWithinPriceRule(product){
+
+  /*
+    Prefer the backend decision whenever
+    it is available.
+  */
+
+  if(
+    product.withinPriceRule === false
+  ){
+    return false;
+  }
+
+
+  const price =
+    Number(product.price);
+
+  const msrp =
+    Number(product.msrp);
+
+
+  /*
+    Buy-now cards require a real price.
+  */
+
+  if(
+    !Number.isFinite(price) ||
+    price <= 0
+  ){
+    return false;
+  }
+
+
+  /*
+    If MSRP is known:
+    max allowed = MSRP + 50%
+  */
+
+  if(
+    Number.isFinite(msrp) &&
+    msrp > 0
+  ){
+
+    return (
+      price <=
+      msrp * 1.5
+    );
+  }
+
+
+  /*
+    Unknown MSRP products should only
+    show if backend explicitly qualified them.
+  */
+
+  return (
+    product.withinPriceRule === true
+  );
+}
+
+
+function isUnderMsrp(product){
+
+  const price =
+    Number(product.price);
+
+  const msrp =
+    Number(product.msrp);
+
+  return (
+    Number.isFinite(price) &&
+    Number.isFinite(msrp) &&
+    msrp > 0 &&
+    price <= msrp
+  );
+}
+
+
+/* =========================================
+   LIVE / PURCHASABLE RULE
+========================================= */
+
+function isActuallyLive(product){
+
+  const status =
+    normalize(product.status);
 
   const raw =
-    atob(
-      base64
+    normalize(product.rawStatus);
+
+
+  if(
+    product.stale === true
+  ){
+    return false;
+  }
+
+
+  if(
+    product.offerAvailable === true ||
+    product.inStock === true
+  ){
+    return true;
+  }
+
+
+  if(
+    status === "instock" ||
+    status === "in stock" ||
+    status === "onhand" ||
+    status === "available"
+  ){
+    return true;
+  }
+
+
+  if(
+    raw.includes("in stock") ||
+    raw === "available"
+  ){
+    return true;
+  }
+
+
+  return false;
+}
+
+
+/* =========================================
+   WALMART BUY-NOW QUALIFIER
+========================================= */
+
+function qualifiesForBuyNow(product){
+
+  if(
+    normalize(product.retailer)
+      !== "walmart"
+  ){
+    return false;
+  }
+
+
+  if(
+    !product.url
+  ){
+    return false;
+  }
+
+
+  if(
+    !isActuallyLive(product)
+  ){
+    return false;
+  }
+
+
+  if(
+    !isWithinPriceRule(product)
+  ){
+    return false;
+  }
+
+
+  /*
+    Primary seller rule:
+    Walmart or approved GT seller.
+
+    We also preserve the explicitly requested
+    under-MSRP discovery behavior for products
+    already returned by our monitored search.
+  */
+
+  const sellerQualified =
+    isApprovedSeller(product);
+
+  const underMsrp =
+    isUnderMsrp(product);
+
+
+  if(
+    !sellerQualified &&
+    !underMsrp
+  ){
+    return false;
+  }
+
+
+  return true;
+}
+
+
+/* =========================================
+   PRODUCT CARD
+========================================= */
+
+function buildLiveCard(product){
+
+  const image =
+    product.image ||
+    fallbackImage(product.name);
+
+  const msrp =
+    Number(product.msrp);
+
+  const price =
+    Number(product.price);
+
+  let priceLabel =
+    "WITHIN PRICE RULE";
+
+
+  if(
+    Number.isFinite(msrp) &&
+    Number.isFinite(price)
+  ){
+
+    const difference =
+      (
+        (price - msrp) /
+        msrp
+      ) * 100;
+
+
+    if(
+      difference <= 0
+    ){
+
+      priceLabel =
+        "AT / BELOW MSRP";
+
+    }else{
+
+      priceLabel =
+        `+${Math.round(difference)}% VS MSRP`;
+
+    }
+  }
+
+
+  return `
+    <article class="product-card">
+
+      <div class="product-image">
+
+        <img
+          src="${esc(image)}"
+          alt="${esc(product.name)}"
+
+          onerror="
+            this.onerror=null;
+            this.src='${fallbackImage(
+              product.name
+            )}'
+          "
+        >
+
+        <span class="live-flag">
+          ● LIVE
+        </span>
+
+      </div>
+
+
+      <div class="product-body">
+
+        <div class="product-name">
+          ${esc(product.name)}
+        </div>
+
+
+        <div class="product-seller">
+          Sold by:
+          ${esc(
+            product.seller ||
+            "Walmart"
+          )}
+        </div>
+
+
+        <div class="product-price">
+
+          ${money(product.price)}
+
+          ${
+            product.msrp != null
+              ?
+              `
+              <span class="msrp">
+                MSRP ${money(product.msrp)}
+              </span>
+              `
+              :
+              ""
+          }
+
+        </div>
+
+
+        <div class="price-rule">
+          ${esc(priceLabel)}
+        </div>
+
+
+        <a
+          class="buy-now"
+          href="${esc(product.url)}"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          BUY NOW →
+        </a>
+
+      </div>
+
+    </article>
+  `;
+}
+
+
+/* =========================================
+   LIVE RESULTS
+========================================= */
+
+function renderLiveProducts(items){
+
+  currentLiveProducts =
+    Array.isArray(items)
+      ?
+      items
+        .filter(
+          qualifiesForBuyNow
+        )
+        .sort(
+          (a,b) =>
+            Number(a.price || Infinity) -
+            Number(b.price || Infinity)
+        )
+      :
+      [];
+
+
+  liveCount.textContent =
+    `${currentLiveProducts.length} FOUND`;
+
+
+  if(
+    !currentLiveProducts.length
+  ){
+
+    liveProducts.innerHTML =
+      `
+      <div class="compact-empty">
+        No qualifying Walmart products
+        are live for purchase right now.
+        <br><br>
+        The monitor is still watching
+        in the background.
+      </div>
+      `;
+
+    return;
+  }
+
+
+  liveProducts.innerHTML =
+    currentLiveProducts
+      .map(buildLiveCard)
+      .join("");
+}
+
+
+/* =========================================
+   RAFFLE ID
+========================================= */
+
+function getRaffleId(item){
+
+  return String(
+    item.walmartItemId ||
+    item.itemId ||
+    item.productId ||
+    item.url ||
+    item.name
+  );
+}
+
+
+/* =========================================
+   RAFFLE STORAGE
+========================================= */
+
+function getSeenRaffles(){
+
+  try{
+
+    const saved =
+      JSON.parse(
+        localStorage.getItem(
+          "pokemonSeenWalmartRaffles"
+        ) ||
+        "[]"
+      );
+
+    return new Set(
+      Array.isArray(saved)
+        ? saved
+        : []
+    );
+
+  }catch(error){
+
+    return new Set();
+
+  }
+}
+
+
+function saveSeenRaffles(ids){
+
+  localStorage.setItem(
+    "pokemonSeenWalmartRaffles",
+    JSON.stringify(
+      Array.from(ids)
+    )
+  );
+}
+
+
+/* =========================================
+   RAFFLE NEW BADGE
+========================================= */
+
+function updateRaffleBadge(){
+
+  const seen =
+    getSeenRaffles();
+
+  const unseen =
+    currentRaffles.filter(
+      item =>
+        !seen.has(
+          getRaffleId(item)
+        )
     );
 
 
-  return Uint8Array.from(
-    [...raw]
+  if(
+    !unseen.length
+  ){
+
+    raffleBadge.classList.remove(
+      "show"
+    );
+
+    return;
+  }
+
+
+  raffleBadge.textContent =
+    unseen.length === 1
+      ? "NEW"
+      : String(
+          unseen.length
+        );
+
+
+  raffleBadge.classList.add(
+    "show"
+  );
+}
+
+
+/* =========================================
+   RAFFLE FILTER
+========================================= */
+
+function isRaffleItem(item){
+
+  const type =
+    normalize(
+      item.dropType
+    );
+
+  const status =
+    normalize(
+      item.status
+    );
+
+  const text =
+    normalize(
+      [
+        item.name,
+        item.rawStatus,
+        item.dropType,
+        item.url
+      ].join(" ")
+    );
+
+
+  return (
+    type === "raffle" ||
+    text.includes("raffle") ||
+    text.includes("drawing") ||
+    text.includes("lottery")
+  );
+}
+
+
+/* =========================================
+   RAFFLE CARD
+========================================= */
+
+function buildRaffleCard(
+  item,
+  seen
+){
+
+  const image =
+    item.image ||
+    fallbackImage(
+      item.name
+    );
+
+  const id =
+    getRaffleId(item);
+
+  const isNew =
+    !seen.has(id);
+
+  const url =
+    item.url || "#";
+
+
+  return `
+    <a
+      class="raffle-card"
+      href="${esc(url)}"
+
+      ${
+        item.url
+          ?
+          `
+          target="_blank"
+          rel="noopener noreferrer"
+          `
+          :
+          ""
+      }
+    >
+
+      <div class="raffle-image">
+
+        <img
+          src="${esc(image)}"
+          alt="${esc(item.name)}"
+
+          onerror="
+            this.onerror=null;
+            this.src='${fallbackImage(
+              item.name
+            )}'
+          "
+        >
+
+      </div>
+
+
+      <div class="raffle-body">
+
+        <div>
+
+          <span class="raffle-status">
+            ${
+              esc(
+                (
+                  item.dropType ||
+                  item.status ||
+                  "RAFFLE"
+                ).toUpperCase()
+              )
+            }
+          </span>
+
+          ${
+            isNew
+              ?
+              `
+              <span class="new-dot">
+                NEW
+              </span>
+              `
+              :
+              ""
+          }
+
+        </div>
+
+
+        <div class="raffle-name">
+          ${esc(item.name)}
+        </div>
+
+
+        <div class="raffle-detail">
+
+          ${
+            item.price != null
+              ?
+              `${money(item.price)} • `
+              :
+              ""
+          }
+
+          ${
+            esc(
+              item.rawStatus ||
+              "Currently listed by Walmart"
+            )
+          }
+
+        </div>
+
+
+        <div class="enter-raffle">
+          OPEN IN WALMART →
+        </div>
+
+      </div>
+
+    </a>
+  `;
+}
+
+
+/* =========================================
+   RENDER RAFFLES
+========================================= */
+
+function renderRaffles(){
+
+  const seen =
+    getSeenRaffles();
+
+
+  if(
+    !currentRaffles.length
+  ){
+
+    raffleList.innerHTML =
+      `
+      <div class="compact-empty">
+        No active Walmart raffle items
+        have been detected yet.
+        <br><br>
+        When the monitor finds one,
+        a red NEW badge will appear
+        on the Weekly Raffle Items button.
+      </div>
+      `;
+
+    return;
+  }
+
+
+  raffleList.innerHTML =
+    currentRaffles
       .map(
-        ch =>
-          ch.charCodeAt(0)
+        item =>
+          buildRaffleCard(
+            item,
+            seen
+          )
       )
+      .join("");
+}
+
+
+/* =========================================
+   OPEN RAFFLES
+========================================= */
+
+function openRaffleModal(){
+
+  /*
+    Render BEFORE marking them seen
+    so NEW labels can appear during
+    this opening.
+  */
+
+  renderRaffles();
+
+  raffleModal.classList.add(
+    "open"
+  );
+
+
+  /*
+    Opening the tab clears unread state,
+    but DOES NOT remove any product.
+  */
+
+  const seen =
+    getSeenRaffles();
+
+  for(
+    const item
+    of currentRaffles
+  ){
+
+    seen.add(
+      getRaffleId(item)
+    );
+
+  }
+
+  saveSeenRaffles(seen);
+
+  raffleBadge.classList.remove(
+    "show"
+  );
+}
+
+
+function closeRaffleModal(){
+
+  raffleModal.classList.remove(
+    "open"
   );
 
 }
 
 
-function setPushState(
-  ok,
-  text
+/* =========================================
+   WALMART STATUS
+========================================= */
+
+function renderWalmartStatus(
+  statusData
 ){
 
-  pushStatus
-    .classList
-    .toggle(
-      "offline",
-      !ok
-    );
+  const schedule =
+    statusData?.walmartSchedule ||
+    {};
 
+  const provider =
+    statusData?.walmartProvider ||
+    {};
 
-  pushStatus
-    .querySelector(
-      "span:last-child"
-    )
-    .textContent =
-      text;
 
-}
+  walmartSchedule.textContent =
+    schedule.scheduleLabel ||
+    "Walmart scan schedule";
 
 
-async function ensurePushSubscription(
-  requestPermission = false
-){
+  walmartPrimary.textContent =
+    provider.primary
+      ?
+      String(
+        provider.primary
+      ).toUpperCase()
+      :
+      "WALMART";
 
-  if(
-    !(
-      "serviceWorker" in
-      navigator
-    ) ||
-    !(
-      "PushManager" in
-      window
-    ) ||
-    !(
-      "Notification" in
-      window
-    )
-  ){
 
-    setPushState(
-      false,
-      "PUSH NOT SUPPORTED"
-    );
+  const last =
+    schedule.lastScheduledRun ||
+    statusData?.lastRun;
 
-    return false;
 
-  }
+  walmartLastScan.textContent =
+    last
+      ?
+      new Date(
+        last
+      ).toLocaleString()
+      :
+      "—";
 
 
-  if(
-    requestPermission &&
-    Notification.permission ===
-      "default"
-  ){
+  walmartWindowState.textContent =
+    schedule.activeWindow
+      ?
+      "DROP WINDOW ACTIVE"
+      :
+      "MONITORING";
 
-    const permission =
-      await Notification
-        .requestPermission();
 
+  /*
+    The backend already removes items from
+    /upcoming when Walmart no longer returns
+    them. Therefore the UI keeps only the
+    currently active Walmart raffle set.
+  */
 
-    if(
-      permission !==
-      "granted"
-    ){
-
-      setPushState(
-        false,
-        "PUSH PERMISSION NEEDED"
-      );
-
-      return false;
-
-    }
-
-  }
-
-
-  if(
-    Notification.permission !==
-    "granted"
-  ){
-
-    setPushState(
-      false,
-      "TAP TO ENABLE ALERTS"
-    );
-
-    return false;
-
-  }
-
-
-  try{
-
-    setPushState(
-      false,
-      "CONNECTING ALERTS…"
-    );
-
-
-    const registration =
-      await navigator
-        .serviceWorker
-        .register(
-          "/sw.js",
-          {
-            scope:"/"
-          }
-        );
-
-
-    await navigator
-      .serviceWorker
-      .ready;
-
-
-    const keyResponse =
-      await fetch(
-        `/api/push/public-key?t=${
-          Date.now()
-        }`,
-        {
-          cache:
-            "no-store"
-        }
-      );
-
-
-    if(
-      !keyResponse.ok
-    ){
-
-      throw new Error(
-        "Push key unavailable"
-      );
-
-    }
-
-
-    const keyData =
-      await keyResponse
-        .json();
-
-
-    let subscription =
-      await registration
-        .pushManager
-        .getSubscription();
-
-
-    if(
-      !subscription
-    ){
-
-      subscription =
-        await registration
-          .pushManager
-          .subscribe({
-
-            userVisibleOnly:
-              true,
-
-            applicationServerKey:
-              urlBase64ToUint8Array(
-                keyData.publicKey
-              )
-
-          });
-
-    }
-
-
-    const saveResponse =
-      await fetch(
-        "/api/push/subscribe",
-        {
-          method:
-            "POST",
-
-          headers:{
-            "Content-Type":
-              "application/json"
-          },
-
-          body:
-            JSON.stringify(
-              subscription
-            )
-        }
-      );
-
-
-    if(
-      !saveResponse.ok
-    ){
-
-      const details =
-        await saveResponse
-          .json()
-          .catch(
-            () => ({})
-          );
-
-
-      throw new Error(
-        details.error ||
-        "Push subscription save failed"
-      );
-
-    }
-
-
-    setPushState(
-      true,
-      "PUSH ALERTS ACTIVE"
-    );
-
-
-    return true;
-
-
-  }catch(error){
-
-    console.error(
-      "Push setup failed:",
-      error
-    );
-
-
-    setPushState(
-      false,
-      "TAP TO RETRY ALERTS"
-    );
-
-
-    return false;
-
-  }
-
-}
-
-
-async function initializePush(){
-
-  if(
-    Notification.permission ===
-    "granted"
-  ){
-
-    await ensurePushSubscription(
-      false
-    );
-
-  }else if(
-    Notification.permission ===
-    "denied"
-  ){
-
-    setPushState(
-      false,
-      "PUSH BLOCKED IN SETTINGS"
-    );
-
-  }else{
-
-    setPushState(
-      false,
-      "TAP TO ENABLE ALERTS"
-    );
-
-  }
-
-}
-
-
-/* ========================================
-   DATA FETCHING
-======================================== */
-
-async function fetchRetailerProducts(){
-
-  const response =
-    await fetch(
-      `/api/products?retailer=${
-        encodeURIComponent(
-          activeRetailer
-        )
-      }&t=${
-        Date.now()
-      }`,
-      {
-        cache:
-          "no-store"
-      }
-    );
-
-
-  if(
-    !response.ok
-  ){
-
-    throw new Error(
-      `${
-        RETAILER_LABELS[
-          activeRetailer
-        ]
-      } inventory request failed`
-    );
-
-  }
-
-
-  const data =
-    await response.json();
-
-
-  currentProducts =
+  const upcoming =
     Array.isArray(
-      data.items
+      statusData?.upcoming
     )
-      ? data.items
-      : [];
-
-}
-
-
-async function fetchWalmartRaffles(){
-
-  try{
-
-    const response =
-      await fetch(
-        `/api/walmart/raffles?t=${
-          Date.now()
-        }`,
-        {
-          cache:
-            "no-store"
-        }
-      );
+      ?
+      statusData.upcoming
+      :
+      [];
 
 
-    if(
-      !response.ok
-    ){
-      throw new Error(
-        "Raffle request failed"
-      );
-    }
-
-
-    const data =
-      await response.json();
-
-
-    raffleData = {
-      ...data,
-
-      items:
-        Array.isArray(
-          data.items
-        )
-          ? data.items
-          : []
-    };
-
-
-  }catch(error){
-
-    console.error(
-      "Raffle fetch failed:",
-      error
+  currentRaffles =
+    upcoming.filter(
+      isRaffleItem
     );
 
 
-    raffleData = {
-      ...raffleData,
-
-      ok:false,
-
-      error:
-        error.message
-    };
-
-  }
-
+  updateRaffleBadge();
 }
 
 
-/* ========================================
-   MAIN LOAD
-======================================== */
+/* =========================================
+   LOAD CURRENT DATA
+========================================= */
 
 async function load(){
 
-  refreshBtn.disabled =
-    true;
-
-
   try{
 
-    const [
-      providersResponse,
-      statusResponse
-    ] =
-      await Promise.all([
-
-        fetch(
-          `/api/providers?t=${
-            Date.now()
-          }`,
-          {
-            cache:
-              "no-store"
-          }
-        ),
-
-        fetch(
-          `/api/status?t=${
-            Date.now()
-          }`,
-          {
-            cache:
-              "no-store"
-          }
-        )
-
-      ]);
+    const statusResponse =
+      await fetch(
+        `/api/status?t=${Date.now()}`,
+        {
+          cache:"no-store"
+        }
+      );
 
 
     if(
-      !providersResponse.ok ||
       !statusResponse.ok
     ){
 
@@ -3319,207 +2509,90 @@ async function load(){
     }
 
 
-    const [
-      providersData,
-      statusData
-    ] =
-      await Promise.all([
-
-        providersResponse.json(),
-
-        statusResponse.json()
-
-      ]);
+    const statusData =
+      await statusResponse.json();
 
 
-    providerStates =
-      Array.isArray(
-        providersData.providers
-      )
-        ? providersData.providers
-        : [];
-
-
-    latestStatus =
-      statusData ||
-      {};
-
-
-    await fetchRetailerProducts();
-
-
-    if(
-      activeRetailer ===
-      "walmart"
-    ){
-      await fetchWalmartRaffles();
-    }
-
-
-    renderMonitor();
-    renderProducts();
+    latestStatusData =
+      statusData;
 
 
     setOnline(
       backendStatus,
       true,
-
       "LIVE MONITOR CONNECTED",
-
       "MONITOR CONNECTION ERROR"
     );
 
 
-    if(
-      !statusData
-        ?.push
-        ?.configured
-    ){
+    setOnline(
+      pushStatus,
+      Boolean(
+        statusData?.push?.configured
+      ),
+      "PUSH ALERTS ACTIVE",
+      "PUSH ALERTS NOT ACTIVE"
+    );
 
-      setPushState(
-        false,
-        "PUSH SERVER NOT CONFIGURED"
-      );
 
-    }
+    renderWalmartStatus(
+      statusData
+    );
+
+
+    /*
+      The backend keeps scanning everything.
+      The dashboard only surfaces qualifying
+      live Walmart products here.
+    */
+
+    renderLiveProducts(
+      Array.isArray(
+        statusData?.items
+      )
+        ?
+        statusData.items
+        :
+        []
+    );
 
 
     lastUpdated.textContent =
-      `Updated ${
-        new Date()
-          .toLocaleTimeString()
-      }`;
+      `Updated ${new Date().toLocaleTimeString()}`;
 
 
   }catch(error){
 
-    console.error(
-      error
-    );
+    console.error(error);
 
 
     setOnline(
       backendStatus,
       false,
-
       "LIVE MONITOR CONNECTED",
-
       "MONITOR CONNECTION ERROR"
     );
 
-
-  }finally{
-
-    refreshBtn.disabled =
-      false;
-
   }
-
 }
 
 
-/* ========================================
-   RETAILER SWITCHING
-======================================== */
-
-async function switchRetailer(
-  retailer
-){
-
-  activeRetailer =
-    retailer;
-
-
-  if(
-    retailer !==
-    "walmart"
-  ){
-    walmartView =
-      "products";
-  }
-
-
-  searchEl.value =
-    "";
-
-
-  document
-    .querySelectorAll(
-      ".tab"
-    )
-    .forEach(
-      tab => {
-
-        tab.classList
-          .toggle(
-            "active",
-
-            tab.dataset.retailer ===
-            retailer
-          );
-
-      }
-    );
-
-
-  currentProducts =
-    [];
-
-
-  renderMonitor();
-  renderProducts();
-
-
-  await load();
-
-}
-
-
-/* ========================================
-   WALMART VIEW SWITCHING
-======================================== */
-
-function switchWalmartView(
-  view
-){
-
-  if(
-    activeRetailer !==
-    "walmart"
-  ){
-    return;
-  }
-
-
-  walmartView =
-    view;
-
-
-  searchEl.value =
-    "";
-
-
-  renderMonitor();
-  renderProducts();
-
-}
-
-
-/* ========================================
+/* =========================================
    MANUAL WALMART SCAN
-======================================== */
+========================================= */
 
 async function runManualWalmartScan(){
 
   let token =
-    localStorage
-      .getItem(
-        "pokemonMonitorScanToken"
-      ) ||
+    localStorage.getItem(
+      "pokemonMonitorScanToken"
+    ) ||
     "";
 
 
-  if(!token){
+  if(
+    !token
+  ){
 
     token =
       prompt(
@@ -3528,18 +2601,54 @@ async function runManualWalmartScan(){
       "";
 
 
-    if(!token){
+    if(
+      !token
+    ){
       return;
     }
 
 
-    localStorage
-      .setItem(
-        "pokemonMonitorScanToken",
-        token
-      );
+    localStorage.setItem(
+      "pokemonMonitorScanToken",
+      token
+    );
 
   }
+
+
+  livePanel.classList.add(
+    "open"
+  );
+
+  livePanelWasOpened = true;
+
+
+  liveCount.textContent =
+    "SCANNING…";
+
+
+  liveProducts.innerHTML =
+    `
+    <div class="compact-empty">
+
+      <div>
+        <span class="scanning-animation">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+
+        Scanning Walmart now…
+      </div>
+
+      <br>
+
+      Only live products that pass
+      our seller and price rules
+      will appear here.
+
+    </div>
+    `;
 
 
   manualWalmartScan.disabled =
@@ -3556,8 +2665,7 @@ async function runManualWalmartScan(){
       await fetch(
         "/api/walmart/scan",
         {
-          method:
-            "POST",
+          method:"POST",
 
           headers:{
             "Content-Type":
@@ -3567,35 +2675,29 @@ async function runManualWalmartScan(){
               token
           },
 
-          body:
-            "{}"
+          body:"{}"
         }
       );
 
 
     const data =
-      await response
-        .json();
+      await response.json();
 
 
     if(
-      response.status ===
-      401
+      response.status === 401
     ){
 
-      localStorage
-        .removeItem(
-          "pokemonMonitorScanToken"
-        );
-
-
-      alert(
-        "Scan key was rejected. Tap SCAN WALMART NOW and enter it again."
+      localStorage.removeItem(
+        "pokemonMonitorScanToken"
       );
 
 
-      return;
+      alert(
+        "Scan key was rejected. Tap SCAN WALMART NOW again and enter the correct key."
+      );
 
+      return;
     }
 
 
@@ -3612,14 +2714,10 @@ async function runManualWalmartScan(){
     }
 
 
-    alert(
-      data.result?.skipped
-
-        ? data.result.reason
-
-        : "Walmart scan completed."
-    );
-
+    /*
+      Immediately reload the freshly
+      published Walmart scan.
+    */
 
     await load();
 
@@ -3629,6 +2727,9 @@ async function runManualWalmartScan(){
     alert(
       error.message
     );
+
+
+    await load();
 
 
   }finally{
@@ -3641,13 +2742,141 @@ async function runManualWalmartScan(){
       "SCAN WALMART NOW";
 
   }
+}
+
+
+/* =========================================
+   RETAILER TABS
+========================================= */
+
+function setRetailer(
+  retailer
+){
+
+  activeRetailer =
+    retailer;
+
+
+  document
+    .querySelectorAll(
+      ".tab"
+    )
+    .forEach(
+      tab =>
+        tab.classList.toggle(
+          "active",
+          tab.dataset.retailer ===
+          retailer
+        )
+    );
+
+
+  /*
+    Walmart gets the specialized compact
+    dashboard. We intentionally do not show
+    a giant raw item list.
+  */
+
+  if(
+    retailer === "walmart" ||
+    retailer === "all"
+  ){
+
+    walmartSection.style.display =
+      "block";
+
+
+    otherRetailerSection.classList.remove(
+      "show"
+    );
+
+
+    return;
+  }
+
+
+  walmartSection.style.display =
+    "none";
+
+
+  otherRetailerSection.classList.add(
+    "show"
+  );
+
+
+  const labels = {
+    target:"Target",
+    sams:"Sam's Club",
+    bestbuy:"Best Buy",
+    costco:"Costco"
+  };
+
+
+  const label =
+    labels[retailer] ||
+    retailer;
+
+
+  otherRetailerCard.innerHTML =
+    `
+    <strong
+      style="
+        color:white;
+        display:block;
+        margin-bottom:6px;
+      "
+    >
+      ${esc(label)}
+    </strong>
+
+    ${esc(label)}
+    monitoring remains separate from
+    the Walmart buy-now and raffle feeds.
+    No Walmart scan results are mixed
+    into this tab.
+    `;
 
 }
 
 
-/* ========================================
+/* =========================================
    EVENTS
-======================================== */
+========================================= */
+
+manualWalmartScan.addEventListener(
+  "click",
+  runManualWalmartScan
+);
+
+
+raffleButton.addEventListener(
+  "click",
+  openRaffleModal
+);
+
+
+closeRaffle.addEventListener(
+  "click",
+  closeRaffleModal
+);
+
+
+raffleModal.addEventListener(
+  "click",
+  event => {
+
+    if(
+      event.target ===
+      raffleModal
+    ){
+
+      closeRaffleModal();
+
+    }
+
+  }
+);
+
 
 document
   .querySelectorAll(
@@ -3656,117 +2885,33 @@ document
   .forEach(
     button => {
 
-      button
-        .addEventListener(
-          "click",
-          () =>
-            switchRetailer(
-              button.dataset.retailer
-            )
-        );
-
-    }
-  );
-
-
-walmartProductsTab
-  .addEventListener(
-    "click",
-    () =>
-      switchWalmartView(
-        "products"
-      )
-  );
-
-
-walmartRafflesTab
-  .addEventListener(
-    "click",
-    () =>
-      switchWalmartView(
-        "raffles"
-      )
-  );
-
-
-searchEl
-  .addEventListener(
-    "input",
-    renderProducts
-  );
-
-
-refreshBtn
-  .addEventListener(
-    "click",
-    load
-  );
-
-
-manualWalmartScan
-  .addEventListener(
-    "click",
-    runManualWalmartScan
-  );
-
-
-forgetScanToken
-  .addEventListener(
-    "click",
-    () => {
-
-      localStorage
-        .removeItem(
-          "pokemonMonitorScanToken"
-        );
-
-
-      alert(
-        "Saved scan key cleared."
+      button.addEventListener(
+        "click",
+        () =>
+          setRetailer(
+            button.dataset.retailer
+          )
       );
 
     }
   );
 
 
-pushStatus
-  .addEventListener(
-    "click",
-    () =>
-      ensurePushSubscription(
-        true
-      )
-  );
+/* =========================================
+   BACKGROUND REFRESH
+========================================= */
 
+/*
+  Refreshes status every 15 seconds.
 
-pushStatus
-  .addEventListener(
-    "keydown",
-    event => {
+  IMPORTANT:
+  this does NOT open the buy-now feed
+  automatically and does NOT create
+  a long scrolling page.
 
-      if(
-        event.key ===
-          "Enter" ||
-        event.key ===
-          " "
-      ){
-
-        event.preventDefault();
-
-
-        ensurePushSubscription(
-          true
-        );
-
-      }
-
-    }
-  );
-
-
-/* ========================================
-   AUTO REFRESH
-======================================== */
+  It lets the raffle NEW badge update
+  when the backend discovers a new item.
+*/
 
 setInterval(
   load,
@@ -3774,8 +2919,15 @@ setInterval(
 );
 
 
+/* =========================================
+   START
+========================================= */
+
+setRetailer(
+  "walmart"
+);
+
 load();
-initializePush();
 
 </script>
 
