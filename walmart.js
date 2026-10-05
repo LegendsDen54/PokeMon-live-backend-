@@ -1,7 +1,15 @@
-const catalogProducts = require("./products.json");
+const rawCatalog = require("./products.json");
+
+const catalogProducts =
+  Array.isArray(rawCatalog)
+    ? rawCatalog
+    : Array.isArray(rawCatalog?.products)
+      ? rawCatalog.products
+      : [];
+
 
 /* ========================================
-   WALMART PROVIDER CONFIG
+   CONFIG
 ======================================== */
 
 const RAPIDAPI_HOST =
@@ -9,16 +17,16 @@ const RAPIDAPI_HOST =
   "axesso-walmart-data-service.p.rapidapi.com";
 
 const RAPIDAPI_KEY =
-  process.env.WALMART_RAPIDAPI_KEY;
+  process.env.WALMART_RAPIDAPI_KEY || "";
 
 const HASDATA_API_KEY =
-  process.env.HASDATA_API_KEY;
+  process.env.HASDATA_API_KEY || "";
 
 const RAPIDAPI_TIMEOUT_MS = Math.max(
   5000,
   Number(
     process.env.WALMART_REQUEST_TIMEOUT_MS ||
-    12000
+    10000
   )
 );
 
@@ -49,11 +57,6 @@ const HASDATA_RETRY_DELAY_MS = Math.max(
   )
 );
 
-/*
-  Do not lock Walmart for an hour anymore.
-  A temporary authentication/provider failure
-  will cool down for 5 minutes.
-*/
 const RAPIDAPI_AUTH_COOLDOWN_MS = Math.max(
   60000,
   Number(
@@ -62,10 +65,12 @@ const RAPIDAPI_AUTH_COOLDOWN_MS = Math.max(
   )
 );
 
-const discoveredItems = new Map();
+const discoveredItems =
+  new Map();
 
 let lastUpcoming = [];
 let lastDiscoveredDeals = [];
+let lastRaffles = [];
 
 let rapidApiCircuit = {
   open: false,
@@ -99,45 +104,6 @@ const providerHealth = {
    BASIC HELPERS
 ======================================== */
 
-function markProviderStart(name) {
-  if (!providerHealth[name]) return;
-
-  providerHealth[name].requests += 1;
-}
-
-function markProviderSuccess(name) {
-  if (!providerHealth[name]) return;
-
-  providerHealth[name].successes += 1;
-  providerHealth[name].lastSuccess =
-    new Date().toISOString();
-
-  providerHealth[name].lastError = null;
-}
-
-function markProviderFailure(
-  name,
-  error
-) {
-  if (!providerHealth[name]) return;
-
-  providerHealth[name].failures += 1;
-
-  providerHealth[name].lastError =
-    error?.message ||
-    String(error);
-}
-
-function sleep(ms) {
-  return new Promise(
-    resolve =>
-      setTimeout(
-        resolve,
-        ms
-      )
-  );
-}
-
 function normalize(value) {
   return String(value || "")
     .toLowerCase()
@@ -156,9 +122,7 @@ function parsePrice(value) {
     return null;
   }
 
-  if (
-    typeof value === "number"
-  ) {
+  if (typeof value === "number") {
     return Number.isFinite(value)
       ? value
       : null;
@@ -179,6 +143,64 @@ function parsePrice(value) {
   return Number.isFinite(number)
     ? number
     : null;
+}
+
+function sleep(ms) {
+  return new Promise(
+    resolve =>
+      setTimeout(
+        resolve,
+        ms
+      )
+  );
+}
+
+function nowIso() {
+  return new Date()
+    .toISOString();
+}
+
+function markProviderStart(name) {
+  if (!providerHealth[name]) {
+    return;
+  }
+
+  providerHealth[name]
+    .requests += 1;
+}
+
+function markProviderSuccess(name) {
+  if (!providerHealth[name]) {
+    return;
+  }
+
+  providerHealth[name]
+    .successes += 1;
+
+  providerHealth[name]
+    .lastSuccess =
+      nowIso();
+
+  providerHealth[name]
+    .lastError =
+      null;
+}
+
+function markProviderFailure(
+  name,
+  error
+) {
+  if (!providerHealth[name]) {
+    return;
+  }
+
+  providerHealth[name]
+    .failures += 1;
+
+  providerHealth[name]
+    .lastError =
+      error?.message ||
+      String(error);
 }
 
 
@@ -238,6 +260,25 @@ function isApprovedSeller(value) {
    AXESSO FIELD READERS
 ======================================== */
 
+function getProductName(item) {
+  return (
+    item?.name ||
+    item?.title ||
+    item?.productName ||
+    ""
+  );
+}
+
+function getItemId(item) {
+  return (
+    item?.usItemId ||
+    item?.itemId ||
+    item?.id ||
+    item?.productId ||
+    null
+  );
+}
+
 function getSellerName(item) {
   if (!item) {
     return null;
@@ -278,10 +319,15 @@ function getSellerName(item) {
   }
 
   return (
-    item?.sellerInfo?.sellerName ||
-    item?.sellerInfo?.displayName ||
-    item?.sellerInfo?.name ||
-    item?.sellerDisplayName ||
+    item?.sellerInfo
+      ?.sellerName ||
+
+    item?.sellerInfo
+      ?.displayName ||
+
+    item?.sellerInfo
+      ?.name ||
+
     null
   );
 }
@@ -290,7 +336,8 @@ function getSellerType(item) {
   return normalize(
     item?.sellerType ||
     item?.sellerInfo?.sellerType ||
-    item?.otherDetails?.sellerType
+    item?.otherDetails
+      ?.sellerType
   );
 }
 
@@ -344,54 +391,57 @@ function getImage(item) {
   }
 
   if (
-    item?.imageInfo?.thumbnailUrl
+    item?.imageInfo
+      ?.thumbnailUrl
   ) {
     return (
-      item.imageInfo.thumbnailUrl
+      item.imageInfo
+        .thumbnailUrl
     );
   }
 
   if (
-    item?.imageInfo?.imageUrl
+    item?.imageInfo
+      ?.imageUrl
   ) {
     return (
-      item.imageInfo.imageUrl
+      item.imageInfo
+        .imageUrl
     );
   }
 
   if (
-    item?.imageInfo?.allImages &&
-    Array.isArray(
-      item.imageInfo.allImages
-    ) &&
-    item.imageInfo.allImages.length
+    typeof item.image ===
+    "string"
   ) {
-    const first =
-      item.imageInfo.allImages[0];
+    return item.image;
+  }
 
-    if (
-      typeof first === "string"
-    ) {
-      return first;
-    }
-
+  if (
+    item.image &&
+    typeof item.image ===
+      "object"
+  ) {
     return (
-      first?.url ||
-      first?.imageUrl ||
-      first?.thumbnailUrl ||
+      item.image.url ||
+      item.image.imageUrl ||
+      item.image.thumbnailUrl ||
       null
     );
   }
 
   if (
-    Array.isArray(item.images) &&
+    Array.isArray(
+      item.images
+    ) &&
     item.images.length
   ) {
     const first =
       item.images[0];
 
     if (
-      typeof first === "string"
+      typeof first ===
+      "string"
     ) {
       return first;
     }
@@ -405,7 +455,6 @@ function getImage(item) {
   }
 
   return (
-    item.image ||
     item.imageUrl ||
     item.thumbnailUrl ||
     item.primaryImage ||
@@ -421,9 +470,11 @@ function getAvailability(item) {
     item?.availabilityStatusV2
       ?.display ||
 
-    item?.availability ||
+    item?.availabilityStatusDisplayValue ||
 
     item?.availabilityStatus ||
+
+    item?.availability ||
 
     item?.stockStatus ||
 
@@ -435,29 +486,6 @@ function getAvailability(item) {
       ?.availabilityStatusV2
       ?.display ||
 
-    item?.otherDetails
-      ?.availabilityStatus ||
-
-    item?.shippingOption
-      ?.availabilityStatus
-  );
-}
-
-function getItemId(item) {
-  return (
-    item?.usItemId ||
-    item?.itemId ||
-    item?.id ||
-    item?.productId ||
-    null
-  );
-}
-
-function getProductName(item) {
-  return (
-    item?.name ||
-    item?.title ||
-    item?.productName ||
     ""
   );
 }
@@ -470,17 +498,22 @@ function getProductUrl(item) {
     item?.canonicalUrl ||
     item?.productUrl ||
     item?.url ||
+    item?.externalInfoUrl ||
     null;
 
   if (
     url &&
-    String(url).startsWith("/")
+    String(url)
+      .startsWith("/")
   ) {
     url =
       `https://www.walmart.com${url}`;
   }
 
-  if (!url && itemId) {
+  if (
+    !url &&
+    itemId
+  ) {
     url =
       `https://www.walmart.com/ip/${itemId}`;
   }
@@ -490,7 +523,7 @@ function getProductUrl(item) {
 
 
 /* ========================================
-   PRODUCT STATUS
+   STOCK STATUS
 ======================================== */
 
 function normalizeStatus(
@@ -501,10 +534,25 @@ function normalizeStatus(
     normalize(value);
 
   if (
-    /pre ?order|raffle|drawing|scheduled drop|coming soon/
+    /pre ?order|coming soon|scheduled drop/
       .test(text)
   ) {
     return "preorder";
+  }
+
+  if (
+    /out of stock|unavailable|sold out|not available|out_of_stock/
+      .test(text)
+  ) {
+    return "out";
+  }
+
+  if (
+    /in stock|instock|available|in_stock/
+      .test(text) ||
+    inStock === true
+  ) {
+    return "instock";
   }
 
   if (
@@ -525,72 +573,12 @@ function normalizeStatus(
     return "ordered";
   }
 
-  /*
-    Negative status MUST
-    be checked first.
-  */
-  if (
-    /out of stock|unavailable|sold out|not available|out_of_stock/
-      .test(text)
-  ) {
-    return "out";
-  }
-
-  if (
-    /in stock|instock|available|in_stock/
-      .test(text) ||
-    inStock === true
-  ) {
-    return "instock";
-  }
-
   return "out";
-}
-
-function detectDropType(item) {
-  const text =
-    normalize(
-      [
-        item?.title,
-        item?.name,
-        item?.availability,
-        item?.availabilityStatus,
-        item?.availabilityStatusV2
-          ?.display,
-        item?.url,
-        item?.canonicalUrl
-      ]
-        .filter(Boolean)
-        .join(" ")
-    );
-
-  if (
-    /raffle|drawing|lottery/
-      .test(text)
-  ) {
-    return "raffle";
-  }
-
-  if (
-    /pre ?order/
-      .test(text)
-  ) {
-    return "preorder";
-  }
-
-  if (
-    /scheduled drop|coming soon/
-      .test(text)
-  ) {
-    return "scheduled";
-  }
-
-  return null;
 }
 
 
 /* ========================================
-   POKEMON DETECTION
+   POKEMON PRODUCT FILTER
 ======================================== */
 
 function isPokemonListing(value) {
@@ -621,6 +609,268 @@ function isGradedListing(value) {
     )
   );
 }
+
+function detectProductType(value) {
+  const text =
+    normalize(value);
+
+  if (
+    text.includes(
+      "elite trainer box"
+    ) ||
+    /\betb\b/
+      .test(text)
+  ) {
+    return "etb";
+  }
+
+  if (
+    text.includes(
+      "ultra premium collection"
+    ) ||
+    /\bupc\b/
+      .test(text)
+  ) {
+    return "ultra-premium-collection";
+  }
+
+  if (
+    text.includes(
+      "booster bundle"
+    )
+  ) {
+    return "booster-bundle";
+  }
+
+  if (
+    text.includes(
+      "booster box"
+    ) ||
+    text.includes(
+      "display box"
+    )
+  ) {
+    return "booster-box";
+  }
+
+  if (
+    text.includes(
+      "sleeved booster"
+    )
+  ) {
+    return "sleeved-booster";
+  }
+
+  if (
+    text.includes(
+      "booster pack"
+    )
+  ) {
+    return "booster-pack";
+  }
+
+  if (
+    text.includes(
+      "3 pack blister"
+    ) ||
+    text.includes(
+      "three pack blister"
+    )
+  ) {
+    return "3-pack-blister";
+  }
+
+  if (
+    text.includes(
+      "blister pack"
+    )
+  ) {
+    return "blister";
+  }
+
+  if (
+    text.includes(
+      "poster collection"
+    )
+  ) {
+    return "poster-collection";
+  }
+
+  if (
+    text.includes(
+      "tech sticker"
+    )
+  ) {
+    return "tech-sticker";
+  }
+
+  if (
+    text.includes(
+      "knockout box"
+    ) ||
+    text.includes(
+      "knockout collection"
+    )
+  ) {
+    return "knockout-box";
+  }
+
+  if (
+    text.includes(
+      "mini tin"
+    )
+  ) {
+    return "mini-tin";
+  }
+
+  if (
+    text.includes(
+      "collector tin"
+    ) ||
+    text.includes(
+      "collection tin"
+    ) ||
+    /\btin\b/
+      .test(text)
+  ) {
+    return "tin";
+  }
+
+  if (
+    text.includes(
+      "build battle"
+    ) ||
+    text.includes(
+      "build and battle"
+    )
+  ) {
+    return "build-and-battle";
+  }
+
+  if (
+    text.includes(
+      "premium collection"
+    )
+  ) {
+    return "premium-collection";
+  }
+
+  if (
+    text.includes(
+      "special collection"
+    )
+  ) {
+    return "special-collection";
+  }
+
+  if (
+    text.includes(
+      "ex collection"
+    ) ||
+    text.includes(
+      "ex box"
+    )
+  ) {
+    return "ex-box";
+  }
+
+  if (
+    text.includes(
+      "collection box"
+    ) ||
+    text.includes(
+      "collection"
+    )
+  ) {
+    return "collection";
+  }
+
+  if (
+    text.includes(
+      "pin collection"
+    )
+  ) {
+    return "pin-collection";
+  }
+
+  return null;
+}
+
+function isOfficialSealedPokemonProduct(
+  itemOrName
+) {
+  const name =
+    typeof itemOrName ===
+      "string"
+      ? itemOrName
+      : getProductName(
+          itemOrName
+        );
+
+  const text =
+    normalize(name);
+
+  if (
+    !text ||
+    !isPokemonListing(text) ||
+    isGradedListing(text)
+  ) {
+    return false;
+  }
+
+  /*
+    Hard reject seller-made junk,
+    mystery packs, repacks,
+    guaranteed-hit bundles, singles,
+    lots and similar listings.
+  */
+  const rejectedPatterns = [
+    /\bmystery\b/,
+    /\brepack\b/,
+    /\brepacked\b/,
+    /\bcustom pack\b/,
+    /\bcustom bundle\b/,
+    /\brandom pack\b/,
+    /\brandom cards\b/,
+    /\bassorted cards\b/,
+    /\bcard lot\b/,
+    /\blot of cards\b/,
+    /\bsingle card\b/,
+    /\bguaranteed ex\b/,
+    /\bguaranteed gx\b/,
+    /\bguaranteed v\b/,
+    /\bguaranteed vmax\b/,
+    /\bguaranteed vstar\b/,
+    /\bguaranteed hit\b/,
+    /\bguaranteed rare\b/,
+    /\bbonus card\b/,
+    /\bhot pack\b/,
+    /\bgod pack\b/,
+    /\bmega pack\b/,
+    /\bmystery box\b/
+  ];
+
+  if (
+    rejectedPatterns.some(
+      pattern =>
+        pattern.test(text)
+    )
+  ) {
+    return false;
+  }
+
+  const type =
+    detectProductType(
+      text
+    );
+
+  return Boolean(type);
+}
+
+
+/* ========================================
+   SET DETECTION
+======================================== */
 
 function detectSet(value) {
   const text =
@@ -672,127 +922,42 @@ function detectSet(value) {
   return null;
 }
 
-function detectProductType(value) {
-  const text =
-    normalize(value);
-
-  if (
-    text.includes(
-      "elite trainer box"
-    ) ||
-    /\betb\b/
-      .test(text)
-  ) {
-    return "etb";
-  }
-
-  if (
-    text.includes(
-      "booster bundle"
-    )
-  ) {
-    return "booster-bundle";
-  }
-
-  if (
-    text.includes(
-      "booster box"
-    ) ||
-    text.includes(
-      "display box"
-    )
-  ) {
-    return "booster-box";
-  }
-
-  if (
-    text.includes(
-      "poster collection"
-    )
-  ) {
-    return "poster-collection";
-  }
-
-  if (
-    text.includes(
-      "tech sticker"
-    )
-  ) {
-    return "tech-sticker";
-  }
-
-  if (
-    text.includes(
-      "mini tin"
-    )
-  ) {
-    return "mini-tin";
-  }
-
-  if (
-    text.includes("tin")
-  ) {
-    return "tin";
-  }
-
-  if (
-    text.includes(
-      "collection"
-    )
-  ) {
-    return "collection";
-  }
-
-  if (
-    text.includes(
-      "booster pack"
-    )
-  ) {
-    return "booster-pack";
-  }
-
-  return null;
-}
-
 
 /* ========================================
-   MATCHING
+   CATALOG MATCHING / MSRP
 ======================================== */
 
-function productMatches(
-  product,
-  item
+function wordMatchScore(
+  expectedValue,
+  actualValue
 ) {
   const expected =
     normalize(
-      product.name ||
-      product.searchTerm
+      expectedValue
     );
 
   const actual =
     normalize(
-      getProductName(item)
+      actualValue
     );
 
   if (
     !expected ||
-    !actual ||
-    !isPokemonListing(actual) ||
-    isGradedListing(actual)
+    !actual
   ) {
-    return false;
+    return 0;
   }
 
   const ignored =
     new Set([
       "pokemon",
       "tcg",
-      "the",
-      "and",
-      "collection",
       "trading",
       "card",
       "game",
+      "the",
+      "and",
+      "with",
       "scarlet",
       "violet"
     ]);
@@ -807,59 +972,45 @@ function productMatches(
       );
 
   if (!words.length) {
-    return false;
+    return 0;
   }
 
-  const matches =
+  const matched =
     words.filter(
       word =>
         actual.includes(word)
     ).length;
 
   return (
-    matches /
-      words.length >=
-    0.65
+    matched /
+    words.length
   );
 }
 
-function displayProductMatches(
+function productMatches(
   product,
   item
 ) {
   const actualName =
     getProductName(item);
 
-  const actual =
-    normalize(actualName);
-
   if (
-    !actual ||
-    !isPokemonListing(actual) ||
-    isGradedListing(actual)
+    !isOfficialSealedPokemonProduct(
+      actualName
+    )
   ) {
     return false;
   }
 
-  const expectedSet =
-    detectSet(
-      [
-        product.set,
-        product.name,
-        product.searchTerm
-      ]
-        .filter(Boolean)
-        .join(" ")
+  const score =
+    wordMatchScore(
+      product?.name ||
+      product?.searchTerm,
+      actualName
     );
 
-  const actualSet =
-    detectSet(actual);
-
   if (
-    expectedSet &&
-    actualSet &&
-    actualSet !==
-      expectedSet
+    score < 0.65
   ) {
     return false;
   }
@@ -867,9 +1018,9 @@ function displayProductMatches(
   const expectedType =
     detectProductType(
       [
-        product.productType,
-        product.name,
-        product.searchTerm
+        product?.productType,
+        product?.name,
+        product?.searchTerm
       ]
         .filter(Boolean)
         .join(" ")
@@ -877,28 +1028,20 @@ function displayProductMatches(
 
   const actualType =
     detectProductType(
-      actual
+      actualName
     );
 
   if (
     expectedType &&
     actualType &&
-    actualType !==
-      expectedType
+    expectedType !==
+      actualType
   ) {
     return false;
   }
 
-  return productMatches(
-    product,
-    item
-  );
+  return true;
 }
-
-
-/* ========================================
-   MSRP / PRICE QUALIFICATION
-======================================== */
 
 function findCatalogMatchForItem(
   item
@@ -907,8 +1050,9 @@ function findCatalogMatchForItem(
     getProductName(item);
 
   if (
-    !name ||
-    !isPokemonListing(name)
+    !isOfficialSealedPokemonProduct(
+      name
+    )
   ) {
     return null;
   }
@@ -921,80 +1065,60 @@ function findCatalogMatchForItem(
     catalogProducts
   ) {
     if (
-      product.enabled === false ||
-      product.msrp == null
+      product?.enabled === false ||
+      product?.msrp == null
     ) {
       continue;
     }
 
-    const expected =
-      normalize(
-        product.name ||
-        product.searchTerm
+    const expectedType =
+      detectProductType(
+        [
+          product.productType,
+          product.name,
+          product.searchTerm
+        ]
+          .filter(Boolean)
+          .join(" ")
       );
 
-    const actual =
-      normalize(name);
+    const actualType =
+      detectProductType(
+        name
+      );
 
     if (
-      !expected ||
-      !actual
+      expectedType &&
+      actualType &&
+      expectedType !==
+        actualType
     ) {
       continue;
     }
 
-    const ignored =
-      new Set([
-        "pokemon",
-        "tcg",
-        "the",
-        "and",
-        "collection",
-        "trading",
-        "card",
-        "game",
-        "scarlet",
-        "violet"
-      ]);
-
-    const words =
-      expected
-        .split(" ")
-        .filter(
-          word =>
-            word.length > 2 &&
-            !ignored.has(word)
-        );
-
-    if (!words.length) {
-      continue;
-    }
-
-    const matched =
-      words.filter(
-        word =>
-          actual.includes(word)
-      ).length;
-
     const score =
-      matched /
-      words.length;
+      wordMatchScore(
+        product.name ||
+        product.searchTerm,
+        name
+      );
 
     if (
       score > bestScore
     ) {
-      bestScore = score;
-      best = product;
+      bestScore =
+        score;
+
+      best =
+        product;
     }
   }
 
-  if (
-    bestScore < 0.65
-  ) {
-    return null;
-  }
-
-  return best;
+  return (
+    bestScore >= 0.65
+      ? best
+      : null
+  );
 }
 
 function resolveMsrp(
@@ -1002,16 +1126,23 @@ function resolveMsrp(
   requestedProduct = null
 ) {
   if (
-    requestedProduct &&
-    requestedProduct.msrp != null &&
-    displayProductMatches(
+    requestedProduct?.msrp != null &&
+    productMatches(
       requestedProduct,
       item
     )
   ) {
-    return Number(
-      requestedProduct.msrp
-    );
+    const value =
+      Number(
+        requestedProduct.msrp
+      );
+
+    if (
+      Number.isFinite(value) &&
+      value > 0
+    ) {
+      return value;
+    }
   }
 
   const catalogMatch =
@@ -1031,9 +1162,12 @@ function resolveMsrp(
       catalogMatch.msrp
     );
 
-  return Number.isFinite(msrp)
-    ? msrp
-    : null;
+  return (
+    Number.isFinite(msrp) &&
+    msrp > 0
+      ? msrp
+      : null
+  );
 }
 
 function withinPriceRule(
@@ -1071,7 +1205,7 @@ async function fetchJson(
   options,
   timeoutMs,
   timeoutCode,
-  timeoutLabel
+  label
 ) {
   const controller =
     new AbortController();
@@ -1096,17 +1230,18 @@ async function fetchJson(
 
     if (!response.ok) {
       const body =
-        await response.text()
+        await response
+          .text()
           .catch(
             () => ""
           );
 
       const error =
         new Error(
-          `${timeoutLabel} returned ${response.status}` +
+          `${label} returned ${response.status}` +
           (
             body
-              ? `: ${body.slice(0, 200)}`
+              ? `: ${body.slice(0, 180)}`
               : ""
           )
         );
@@ -1120,14 +1255,13 @@ async function fetchJson(
     return await response.json();
 
   } catch (error) {
-
     if (
       error?.name ===
       "AbortError"
     ) {
       const timeoutError =
         new Error(
-          `${timeoutLabel} request timed out after ${timeoutMs}ms`
+          `${label} timed out after ${timeoutMs}ms`
         );
 
       timeoutError.code =
@@ -1139,7 +1273,6 @@ async function fetchJson(
     throw error;
 
   } finally {
-
     clearTimeout(
       timeout
     );
@@ -1165,9 +1298,8 @@ function openRapidApiCircuit(
       "RapidAPI authentication failure",
 
     openedAt:
-      new Date(
-        now
-      ).toISOString(),
+      new Date(now)
+        .toISOString(),
 
     retryAfter:
       new Date(
@@ -1175,11 +1307,6 @@ function openRapidApiCircuit(
         RAPIDAPI_AUTH_COOLDOWN_MS
       ).toISOString()
   };
-
-  console.error(
-    "Axesso circuit opened:",
-    rapidApiCircuit
-  );
 }
 
 function closeRapidApiCircuit() {
@@ -1198,18 +1325,19 @@ function rapidApiCircuitIsBlocking() {
     return false;
   }
 
-  const retryAfterMs =
+  const retryAfter =
     Date.parse(
-      rapidApiCircuit.retryAfter ||
+      rapidApiCircuit
+        .retryAfter ||
       ""
     );
 
   if (
     Number.isFinite(
-      retryAfterMs
+      retryAfter
     ) &&
     Date.now() >=
-      retryAfterMs
+      retryAfter
   ) {
     closeRapidApiCircuit();
 
@@ -1222,7 +1350,9 @@ function rapidApiCircuitIsBlocking() {
 async function axessoRequest(
   path
 ) {
-  if (!RAPIDAPI_KEY) {
+  if (
+    !RAPIDAPI_KEY
+  ) {
     const error =
       new Error(
         "WALMART_RAPIDAPI_KEY is missing"
@@ -1243,7 +1373,7 @@ async function axessoRequest(
 
     const error =
       new Error(
-        `Axesso temporarily disabled. Retry after ${rapidApiCircuit.retryAfter}`
+        `Axesso temporarily disabled until ${rapidApiCircuit.retryAfter}`
       );
 
     error.code =
@@ -1287,7 +1417,6 @@ async function axessoRequest(
     return data;
 
   } catch (error) {
-
     markProviderFailure(
       "axesso",
       error
@@ -1308,48 +1437,35 @@ async function axessoRequest(
 
 
 /* ========================================
-   AXESSO SEARCH
+   AXESSO RESULT EXTRACTION
 ======================================== */
 
 function extractSearchResults(
   data
 ) {
-  const found = [];
+  const results = [];
 
-  const add =
-    items => {
+  function add(items) {
+    if (
+      !Array.isArray(items)
+    ) {
+      return;
+    }
 
+    for (
+      const item of items
+    ) {
       if (
-        !Array.isArray(items)
+        item &&
+        typeof item ===
+          "object"
       ) {
-        return;
+        results.push(
+          item
+        );
       }
-
-      for (
-        const item of items
-      ) {
-        if (
-          item &&
-          typeof item ===
-            "object"
-        ) {
-          found.push(
-            item
-          );
-        }
-      }
-    };
-
-  /*
-    Axesso response observed:
-    item
-      .props
-      .pageProps
-      .initialData
-      .searchResult
-      .itemStacks[]
-      .items[]
-  */
+    }
+  }
 
   const searchResult =
     data?.item
@@ -1375,7 +1491,8 @@ function extractSearchResults(
 
   if (
     Array.isArray(
-      searchResult?.itemStacks
+      searchResult
+        ?.itemStacks
     )
   ) {
     for (
@@ -1420,7 +1537,7 @@ function extractSearchResults(
     new Map();
 
   for (
-    const item of found
+    const item of results
   ) {
     const key =
       String(
@@ -1452,7 +1569,8 @@ function extractSearchResults(
 }
 
 async function axessoSearch(
-  keyword
+  keyword =
+    "Pokemon TCG"
 ) {
   const params =
     new URLSearchParams({
@@ -1462,29 +1580,27 @@ async function axessoSearch(
       page:
         "1",
 
-      keyword:
-        keyword ||
-        "Pokemon TCG"
+      keyword
     });
 
-  const data =
+  const raw =
     await axessoRequest(
       `/wlm/walmart-search-by-keyword?${params.toString()}`
     );
 
   return {
-    raw: data,
+    raw,
 
     results:
       extractSearchResults(
-        data
+        raw
       )
   };
 }
 
 
 /* ========================================
-   OPTIONAL HASDATA BACKUP
+   HASDATA FALLBACK
 ======================================== */
 
 function isTransientHasDataError(
@@ -1599,7 +1715,6 @@ async function hasDataSearch(
         : [];
 
     } catch (error) {
-
       lastError =
         error;
 
@@ -1608,14 +1723,14 @@ async function hasDataSearch(
         error
       );
 
-      const canRetry =
+      const retry =
         attempt <
           HASDATA_MAX_ATTEMPTS &&
         isTransientHasDataError(
           error
         );
 
-      if (!canRetry) {
+      if (!retry) {
         break;
       }
 
@@ -1640,814 +1755,257 @@ async function hasDataSearch(
 
 
 /* ========================================
-   RESULT BUILDER
+   RAFFLE / DRAW DETECTION
 ======================================== */
 
-function makeResult(
-  product,
-  item,
-  source
-) {
-  const sellerName =
-    getSellerName(item);
+function getRaffleText(item) {
+  const values = [
+    getProductName(item),
 
-  const directSeller =
-    isWalmartSeller(
-      sellerName
-    );
+    item?.badge,
+    item?.badges,
+    item?.annualEvent,
+    item?.annualEventV2,
+    item?.earlyAccessEvent,
+    item?.preEarlyAccessEvent,
+    item?.showDrawCTA,
+    item?.showBuyNow,
+    item?.type,
+    item?.itemType,
+    item?.classType,
+    item?.promoData,
+    item?.eventAttributes,
+    item?.fulfillmentTitle,
+    item?.availabilityStatus,
+    item?.availabilityStatusV2
+  ];
 
-  const approvedSeller =
-    isApprovedSeller(
-      sellerName
-    );
-
-  const gtApprovedSeller =
-    isGtApprovedSeller(
-      sellerName
-    );
-
-  const sellerType =
-    getSellerType(item);
-
-  const price =
-    getPrice(item);
-
-  const msrp =
-    resolveMsrp(
-      item,
-      product
-    );
-
-  const priceQualified =
-    withinPriceRule(
-      price,
-      msrp
-    );
-
-  const availability =
-    getAvailability(item);
-
-  const status =
-    normalizeStatus(
-      availability
-    );
-
-  const offerAvailable =
-    status ===
-    "instock";
-
-  const itemId =
-    getItemId(item);
-
-  const dropType =
-    detectDropType(item);
-
-  /*
-    Only qualifying approved sellers
-    are considered visible deals.
-  */
-  const displayEligible =
-    approvedSeller &&
-    priceQualified;
-
-  /*
-    Existing push behavior stays conservative:
-    Walmart Direct only.
-    GT remains visible but separate.
-  */
-  const inStock =
-    directSeller &&
-    offerAvailable &&
-    priceQualified;
-
-  return {
-    productId:
-      product?.id ||
-      (
-        itemId
-          ? `walmart-${itemId}`
-          : null
-      ),
-
-    name:
-      getProductName(item) ||
-      product?.name ||
-      "Walmart Pokémon Product",
-
-    set:
-      product?.set ||
-      detectSet(
-        getProductName(item)
-      ) ||
-      "Auto Discovered",
-
-    productType:
-      product?.productType ||
-      detectProductType(
-        getProductName(item)
-      ),
-
-    retailer:
-      "walmart",
-
-    retailerLabel:
-      "Walmart",
-
-    channel:
-      "online",
-
-    storeId:
-      null,
-
-    storeName:
-      null,
-
-    status,
-
-    rawStatus:
-      availability ||
-      "",
-
-    dropType,
-
-    upcoming:
-      status ===
-        "preorder" ||
-      Boolean(
-        dropType
-      ),
-
-    inStock,
-
-    offerAvailable,
-
-    price,
-
-    msrp,
-
-    withinPriceRule:
-      priceQualified,
-
-    displayEligible,
-
-    directSeller,
-
-    approvedSeller,
-
-    gtApprovedSeller,
-
-    seller:
-      directSeller
-        ? "Walmart"
-        : (
-            sellerName ||
-            "Marketplace Seller"
-          ),
-
-    sellerType:
-      directSeller
-        ? "walmart"
-        : (
-            gtApprovedSeller
-              ? "gt-approved"
-              : (
-                  sellerType ||
-                  "marketplace"
+  try {
+    return normalize(
+      values
+        .map(
+          value =>
+            typeof value ===
+              "object"
+              ? JSON.stringify(
+                  value
                 )
-          ),
+              : String(
+                  value ?? ""
+                )
+        )
+        .join(" ")
+    );
 
-    marketplaceOnly:
-      !directSeller,
-
-    alertEligible:
-      directSeller &&
-      offerAvailable &&
-      priceQualified,
-
-    walmartItemId:
-      itemId,
-
-    image:
-      getImage(item),
-
-    url:
-      getProductUrl(item),
-
-    checkedAt:
-      new Date()
-        .toISOString(),
-
-    source,
-
-    autoDiscovered:
-      !product?.id
-  };
+  } catch {
+    return normalize(
+      getProductName(item)
+    );
+  }
 }
 
-
-/* ========================================
-   DISCOVER QUALIFYING DEALS
-======================================== */
-
-function collectQualifiedDeals(
-  results
-) {
-  const deals = [];
-
-  for (
-    const item of results
+function isRaffleItem(item) {
+  if (
+    !isOfficialSealedPokemonProduct(
+      item
+    )
   ) {
-    const name =
-      getProductName(item);
+    return false;
+  }
 
-    if (
-      !isPokemonListing(
-        name
-      ) ||
-      isGradedListing(
-        name
-      )
-    ) {
-      continue;
-    }
+  if (
+    item?.showDrawCTA ===
+    true
+  ) {
+    return true;
+  }
 
-    const seller =
-      getSellerName(item);
-
-    if (
-      !isApprovedSeller(
-        seller
-      )
-    ) {
-      continue;
-    }
-
-    const msrp =
-      resolveMsrp(
-        item
-      );
-
-    const price =
-      getPrice(item);
-
-    /*
-      User rule:
-      if MSRP is unknown,
-      do not qualify it yet.
-    */
-    if (
-      !withinPriceRule(
-        price,
-        msrp
-      )
-    ) {
-      continue;
-    }
-
-    const result =
-      makeResult(
-        null,
-        item,
-        "axesso-discovered-deal"
-      );
-
-    deals.push(
-      result
+  const text =
+    getRaffleText(
+      item
     );
-  }
 
-  const unique =
-    new Map();
-
-  for (
-    const deal of deals
-  ) {
-    const key =
-      deal.walmartItemId ||
-      deal.url ||
-      `${deal.name}|${deal.seller}|${deal.price}`;
-
-    if (
-      !unique.has(
-        key
-      )
-    ) {
-      unique.set(
-        key,
-        deal
-      );
-    }
-  }
-
-  return Array.from(
-    unique.values()
+  return (
+    /\bdraw\b|\bdrawing\b|\braffle\b|\blottery\b/
+      .test(text)
   );
 }
 
-
-/* ========================================
-   MARKETPLACE SEARCH
-======================================== */
-
-function buildMarketplaceOffers(
-  product,
-  results,
-  source =
-    "axesso-walmart-search"
+function findDateValue(
+  value,
+  depth = 0
 ) {
-  const offers = [];
-
-  for (
-    const item of results
+  if (
+    depth > 5 ||
+    value === null ||
+    value === undefined
   ) {
-    const name =
-      getProductName(item);
-
-    if (
-      !isPokemonListing(
-        name
-      ) ||
-      isGradedListing(
-        name
-      )
-    ) {
-      continue;
-    }
-
-    const seller =
-      getSellerName(item);
-
-    if (
-      !isApprovedSeller(
-        seller
-      )
-    ) {
-      continue;
-    }
-
-    const price =
-      getPrice(item);
-
-    const msrp =
-      resolveMsrp(
-        item,
-        product
-      );
-
-    if (
-      !withinPriceRule(
-        price,
-        msrp
-      )
-    ) {
-      continue;
-    }
-
-    const matchedProduct =
-      findCatalogMatchForItem(
-        item
-      );
-
-    const result =
-      makeResult(
-        matchedProduct ||
-        product,
-        item,
-        source
-      );
-
-    if (
-      result.displayEligible
-    ) {
-      offers.push(
-        result
-      );
-    }
+    return null;
   }
-
-  const unique =
-    new Map();
-
-  for (
-    const offer of offers
-  ) {
-    const key =
-      offer.walmartItemId
-        ? String(
-            offer.walmartItemId
-          )
-        : [
-            offer.name,
-            offer.seller,
-            offer.price
-          ].join("|");
-
-    const existing =
-      unique.get(key);
-
-    if (
-      !existing ||
-      Number(
-        offer.price
-      ) <
-      Number(
-        existing.price
-      )
-    ) {
-      unique.set(
-        key,
-        offer
-      );
-    }
-  }
-
-  return Array.from(
-    unique.values()
-  )
-    .sort(
-      (a, b) =>
-        Number(a.price) -
-        Number(b.price)
-    );
-}
-
-async function searchMarketplaceOffers(
-  product
-) {
-  const keyword =
-    product?.searchTerm ||
-    product?.name ||
-    "Pokemon TCG";
-
-  const search =
-    await axessoSearch(
-      keyword
-    );
-
-  const discovered =
-    collectQualifiedDeals(
-      search.results
-    );
 
   if (
-    discovered.length
+    typeof value ===
+    "string"
   ) {
-    const combined =
-      [
-        ...lastDiscoveredDeals,
-        ...discovered
-      ];
+    const parsed =
+      Date.parse(value);
 
-    const unique =
-      new Map();
+    if (
+      Number.isFinite(parsed) &&
+      /20[0-9]{2}/
+        .test(value)
+    ) {
+      return new Date(
+        parsed
+      ).toISOString();
+    }
+
+    return null;
+  }
+
+  if (
+    Array.isArray(value)
+  ) {
+    for (
+      const item of value
+    ) {
+      const found =
+        findDateValue(
+          item,
+          depth + 1
+        );
+
+      if (found) {
+        return found;
+      }
+    }
+
+    return null;
+  }
+
+  if (
+    typeof value ===
+    "object"
+  ) {
+    const preferredKeys = [
+      "startDateTime",
+      "startTime",
+      "startDate",
+      "eventStartTime",
+      "eventStartDate",
+      "drawStartTime",
+      "drawingStartTime",
+      "dateTime"
+    ];
 
     for (
-      const item of combined
+      const key of
+      preferredKeys
     ) {
-      const key =
-        item.walmartItemId ||
-        item.url ||
-        `${item.name}|${item.seller}|${item.price}`;
+      if (
+        value[key] !==
+        undefined
+      ) {
+        const found =
+          findDateValue(
+            value[key],
+            depth + 1
+          );
 
-      unique.set(
-        String(key),
-        item
-      );
+        if (found) {
+          return found;
+        }
+      }
     }
 
-    lastDiscoveredDeals =
-      Array.from(
-        unique.values()
-      );
-  }
+    for (
+      const nested of
+      Object.values(value)
+    ) {
+      const found =
+        findDateValue(
+          nested,
+          depth + 1
+        );
 
-  return buildMarketplaceOffers(
-    product,
-    search.results,
-    "axesso-walmart-search"
-  );
-}
-
-
-/* ========================================
-   PRODUCT LOOKUP
-======================================== */
-
-function chooseBestMatch(
-  product,
-  results
-) {
-  /*
-    Prefer Walmart Direct.
-  */
-  const walmartDirect =
-    results.find(
-      item =>
-        isWalmartSeller(
-          getSellerName(item)
-        ) &&
-        displayProductMatches(
-          product,
-          item
-        )
-    );
-
-  if (
-    walmartDirect
-  ) {
-    return {
-      item:
-        walmartDirect,
-
-      direct:
-        true,
-
-      approved:
-        true
-    };
-  }
-
-  /*
-    Next preference:
-    GT approved seller.
-  */
-  const gtMatch =
-    results.find(
-      item =>
-        isGtApprovedSeller(
-          getSellerName(item)
-        ) &&
-        displayProductMatches(
-          product,
-          item
-        )
-    );
-
-  if (
-    gtMatch
-  ) {
-    return {
-      item:
-        gtMatch,
-
-      direct:
-        false,
-
-      approved:
-        true
-    };
+      if (found) {
+        return found;
+      }
+    }
   }
 
   return null;
 }
 
-async function discoverProduct(
-  product
-) {
-  const keyword =
-    product.searchTerm ||
-    product.name ||
-    "Pokemon TCG";
-
-  const search =
-    await axessoSearch(
-      keyword
-    );
-
-  const results =
-    search.results;
-
-  const discovered =
-    collectQualifiedDeals(
-      results
+function getRaffleStatus(item) {
+  const text =
+    getRaffleText(
+      item
     );
 
   if (
-    discovered.length
+    /\bclosed\b|\bended\b|\bdrawing ended\b|\bdraw ended\b/
+      .test(text)
   ) {
-    lastDiscoveredDeals =
-      discovered;
+    return "closed";
   }
-
-  const match =
-    chooseBestMatch(
-      product,
-      results
-    );
-
-  if (!match) {
-    return emptyResult(
-      product,
-      "axesso-no-match",
-      "No qualifying Walmart or GT seller result found"
-    );
-  }
-
-  const itemId =
-    getItemId(
-      match.item
-    );
 
   if (
-    itemId
+    /\bactive drawing\b|\bdrawing open\b|\benter drawing\b|\benter now\b|\bjoin drawing\b|\bdraw live\b/
+      .test(text)
   ) {
-    discoveredItems.set(
-      product.id,
-      String(itemId)
-    );
+    return "live";
   }
 
-  const result =
-    makeResult(
-      product,
-      match.item,
-      "axesso-walmart-search"
-    );
-
-  /*
-    If product exists but is over
-    the allowed price ceiling,
-    it must not count as a deal.
-  */
   if (
-    !result.withinPriceRule
+    /\bupcoming\b|\bcoming soon\b|\bstarts\b|\bscheduled\b/
+      .test(text)
   ) {
-    return {
-      ...result,
-      inStock:
-        false,
-      alertEligible:
-        false,
-      displayEligible:
-        false,
-      error:
-        "Product is above 150% of MSRP or MSRP is unknown"
-    };
+    return "upcoming";
   }
 
-  return result;
+  if (
+    item?.showDrawCTA ===
+    true
+  ) {
+    return "detected";
+  }
+
+  return "detected";
 }
 
+function rafflePriority(status) {
+  switch (status) {
+    case "live":
+      return 0;
 
-/* ========================================
-   EMPTY RESULT
-======================================== */
+    case "upcoming":
+      return 1;
 
-function emptyResult(
-  product,
-  source,
-  error = null
-) {
-  return {
-    productId:
-      product.id,
+    case "detected":
+      return 2;
 
-    name:
-      product.name,
+    case "closed":
+      return 3;
 
-    set:
-      product.set,
-
-    productType:
-      product.productType,
-
-    retailer:
-      "walmart",
-
-    retailerLabel:
-      "Walmart",
-
-    channel:
-      "online",
-
-    storeId:
-      null,
-
-    storeName:
-      null,
-
-    status:
-      "out",
-
-    rawStatus:
-      "",
-
-    dropType:
-      null,
-
-    upcoming:
-      false,
-
-    inStock:
-      false,
-
-    offerAvailable:
-      false,
-
-    directSeller:
-      false,
-
-    approvedSeller:
-      false,
-
-    gtApprovedSeller:
-      false,
-
-    price:
-      null,
-
-    msrp:
-      product.msrp ??
-      null,
-
-    withinPriceRule:
-      false,
-
-    displayEligible:
-      false,
-
-    url:
-      product.walmartItemId
-        ? `https://www.walmart.com/ip/${product.walmartItemId}`
-        : null,
-
-    seller:
-      null,
-
-    sellerType:
-      null,
-
-    checkedAt:
-      new Date()
-        .toISOString(),
-
-    source,
-
-    marketplaceOnly:
-      false,
-
-    alertEligible:
-      false,
-
-    image:
-      null,
-
-    error
-  };
+    default:
+      return 4;
+  }
 }
 
-
-/* ========================================
-   UPCOMING DETECTION
-======================================== */
-
-function collectUpcoming(
+function collectRaffles(
   results
 ) {
-  const candidates = [];
+  const map =
+    new Map();
 
   for (
     const item of results
   ) {
-    const name =
-      getProductName(item);
-
     if (
-      !isPokemonListing(
-        name
-      )
-    ) {
-      continue;
-    }
-
-    const seller =
-      getSellerName(item);
-
-    if (
-      !isApprovedSeller(
-        seller
-      )
-    ) {
-      continue;
-    }
-
-    const rawStatus =
-      getAvailability(item);
-
-    const status =
-      normalizeStatus(
-        rawStatus
-      );
-
-    const dropType =
-      detectDropType(
+      !isRaffleItem(
         item
-      );
-
-    if (
-      status !==
-        "preorder" &&
-      !dropType
+      )
     ) {
       continue;
     }
@@ -2455,31 +2013,64 @@ function collectUpcoming(
     const itemId =
       getItemId(item);
 
-    candidates.push({
+    const seller =
+      getSellerName(item);
+
+    const status =
+      getRaffleStatus(
+        item
+      );
+
+    const raffle = {
+      productId:
+        itemId
+          ? `walmart-raffle-${itemId}`
+          : `walmart-raffle-${normalize(
+              getProductName(item)
+            ).replace(/\s+/g, "-")}`,
+
+      walmartItemId:
+        itemId,
+
       retailer:
         "walmart",
 
       retailerLabel:
         "Walmart",
 
-      name,
+      name:
+        getProductName(item),
 
-      productId:
-        itemId
-          ? `walmart-upcoming-${itemId}`
-          : null,
+      productType:
+        detectProductType(
+          getProductName(item)
+        ),
 
-      walmartItemId:
-        itemId,
+      set:
+        detectSet(
+          getProductName(item)
+        ) ||
+        "Raffle",
+
+      raffle:
+        true,
+
+      raffleStatus:
+        status,
 
       status:
-        "preorder",
+        status === "live"
+          ? "instock"
+          : status,
 
-      rawStatus,
-
-      dropType:
-        dropType ||
-        "scheduled",
+      startsAt:
+        findDateValue(
+          item?.annualEventV2 ||
+          item?.annualEvent ||
+          item?.eventAttributes ||
+          item?.earlyAccessEvent ||
+          item
+        ),
 
       price:
         getPrice(item),
@@ -2506,15 +2097,1013 @@ function collectUpcoming(
         getProductUrl(item),
 
       checkedAt:
-        new Date()
-          .toISOString(),
+        nowIso(),
 
       source:
-        "axesso-upcoming-detection"
+        "axesso-walmart-raffle"
+    };
+
+    const key =
+      String(
+        itemId ||
+        raffle.url ||
+        raffle.name
+      );
+
+    const existing =
+      map.get(key);
+
+    if (
+      !existing ||
+      rafflePriority(
+        raffle.raffleStatus
+      ) <
+      rafflePriority(
+        existing.raffleStatus
+      )
+    ) {
+      map.set(
+        key,
+        raffle
+      );
+    }
+  }
+
+  return Array
+    .from(
+      map.values()
+    )
+    .sort(
+      (a, b) => {
+        const priority =
+          rafflePriority(
+            a.raffleStatus
+          ) -
+          rafflePriority(
+            b.raffleStatus
+          );
+
+        if (priority !== 0) {
+          return priority;
+        }
+
+        const aTime =
+          Date.parse(
+            a.startsAt || ""
+          );
+
+        const bTime =
+          Date.parse(
+            b.startsAt || ""
+          );
+
+        if (
+          Number.isFinite(aTime) &&
+          Number.isFinite(bTime)
+        ) {
+          return aTime - bTime;
+        }
+
+        return 0;
+      }
+    );
+}
+
+
+/* ========================================
+   RESULT BUILDER
+======================================== */
+
+function makeResult(
+  product,
+  item,
+  source
+) {
+  const name =
+    getProductName(item) ||
+    product?.name ||
+    "Pokémon Product";
+
+  const seller =
+    getSellerName(item);
+
+  const directSeller =
+    isWalmartSeller(
+      seller
+    );
+
+  const gtApprovedSeller =
+    isGtApprovedSeller(
+      seller
+    );
+
+  const approvedSeller =
+    directSeller ||
+    gtApprovedSeller;
+
+  const price =
+    getPrice(item);
+
+  const msrp =
+    resolveMsrp(
+      item,
+      product
+    );
+
+  const priceQualified =
+    withinPriceRule(
+      price,
+      msrp
+    );
+
+  const rawStatus =
+    getAvailability(
+      item
+    );
+
+  const status =
+    normalizeStatus(
+      rawStatus,
+      item?.isOutOfStock ===
+        false
+    );
+
+  const offerAvailable =
+    status === "instock";
+
+  const officialProduct =
+    isOfficialSealedPokemonProduct(
+      name
+    );
+
+  const itemId =
+    getItemId(item);
+
+  /*
+    IMPORTANT:
+    Walmart direct keeps actual
+    restock-alert eligibility.
+
+    GT is visible when approved and
+    price-qualified, but remains
+    separately labeled.
+  */
+  const inStock =
+    directSeller &&
+    offerAvailable &&
+    priceQualified &&
+    officialProduct;
+
+  const displayEligible =
+    approvedSeller &&
+    priceQualified &&
+    officialProduct;
+
+  return {
+    productId:
+      product?.id ||
+      (
+        itemId
+          ? `walmart-${itemId}`
+          : `walmart-${normalize(
+              name
+            ).replace(/\s+/g, "-")}`
+      ),
+
+    name,
+
+    set:
+      product?.set ||
+      detectSet(name) ||
+      "Auto Discovered",
+
+    productType:
+      product?.productType ||
+      detectProductType(name),
+
+    retailer:
+      "walmart",
+
+    retailerLabel:
+      "Walmart",
+
+    channel:
+      "online",
+
+    storeId:
+      null,
+
+    storeName:
+      null,
+
+    status,
+
+    rawStatus,
+
+    inStock,
+
+    offerAvailable,
+
+    directSeller,
+
+    gtApprovedSeller,
+
+    approvedSeller,
+
+    /*
+      Compatibility with existing
+      GT-related code.
+    */
+    approvedMarketplace:
+      gtApprovedSeller,
+
+    seller:
+      directSeller
+        ? "Walmart"
+        : (
+            seller ||
+            "Marketplace Seller"
+          ),
+
+    sellerType:
+      directSeller
+        ? "walmart"
+        : gtApprovedSeller
+          ? "gt-approved"
+          : (
+              getSellerType(item) ||
+              "marketplace"
+            ),
+
+    price,
+
+    msrp,
+
+    withinPriceRule:
+      priceQualified,
+
+    officialSealedProduct:
+      officialProduct,
+
+    displayEligible,
+
+    alertEligible:
+      directSeller &&
+      offerAvailable &&
+      priceQualified &&
+      officialProduct,
+
+    walmartItemId:
+      itemId,
+
+    image:
+      getImage(item),
+
+    url:
+      getProductUrl(item),
+
+    checkedAt:
+      nowIso(),
+
+    source,
+
+    marketplaceOnly:
+      !directSeller,
+
+    autoDiscovered:
+      !product?.id
+  };
+}
+
+function emptyResult(
+  product,
+  source,
+  error = null
+) {
+  return {
+    productId:
+      product?.id,
+
+    name:
+      product?.name,
+
+    set:
+      product?.set,
+
+    productType:
+      product?.productType,
+
+    retailer:
+      "walmart",
+
+    retailerLabel:
+      "Walmart",
+
+    channel:
+      "online",
+
+    status:
+      "out",
+
+    rawStatus:
+      "",
+
+    inStock:
+      false,
+
+    offerAvailable:
+      false,
+
+    directSeller:
+      false,
+
+    gtApprovedSeller:
+      false,
+
+    approvedSeller:
+      false,
+
+    approvedMarketplace:
+      false,
+
+    seller:
+      null,
+
+    sellerType:
+      null,
+
+    price:
+      null,
+
+    msrp:
+      product?.msrp ??
+      null,
+
+    withinPriceRule:
+      false,
+
+    officialSealedProduct:
+      true,
+
+    displayEligible:
+      false,
+
+    alertEligible:
+      false,
+
+    walmartItemId:
+      product?.walmartItemId ||
+      null,
+
+    image:
+      null,
+
+    url:
+      product?.walmartItemId
+        ? `https://www.walmart.com/ip/${product.walmartItemId}`
+        : null,
+
+    checkedAt:
+      nowIso(),
+
+    source,
+
+    marketplaceOnly:
+      false,
+
+    autoDiscovered:
+      product?.autoDiscovered ===
+        true,
+
+    error
+  };
+}
+
+
+/* ========================================
+   QUALIFYING DISCOVERED PRODUCTS
+======================================== */
+
+function collectQualifiedDeals(
+  results
+) {
+  const map =
+    new Map();
+
+  for (
+    const item of results
+  ) {
+    const name =
+      getProductName(item);
+
+    if (
+      !isOfficialSealedPokemonProduct(
+        name
+      )
+    ) {
+      continue;
+    }
+
+    const seller =
+      getSellerName(item);
+
+    if (
+      !isApprovedSeller(
+        seller
+      )
+    ) {
+      continue;
+    }
+
+    const price =
+      getPrice(item);
+
+    const msrp =
+      resolveMsrp(item);
+
+    if (
+      !withinPriceRule(
+        price,
+        msrp
+      )
+    ) {
+      continue;
+    }
+
+    const catalogMatch =
+      findCatalogMatchForItem(
+        item
+      );
+
+    const result =
+      makeResult(
+        catalogMatch,
+        item,
+        "axesso-discovered-deal"
+      );
+
+    if (
+      !result.displayEligible
+    ) {
+      continue;
+    }
+
+    const key =
+      String(
+        result.walmartItemId ||
+        result.url ||
+        `${result.name}|${result.seller}|${result.price}`
+      );
+
+    const existing =
+      map.get(key);
+
+    if (
+      !existing ||
+      Number(
+        result.price
+      ) <
+      Number(
+        existing.price
+      )
+    ) {
+      map.set(
+        key,
+        result
+      );
+    }
+  }
+
+  return Array
+    .from(
+      map.values()
+    )
+    .sort(
+      (a, b) =>
+        Number(a.price) -
+        Number(b.price)
+    );
+}
+
+
+/* ========================================
+   UPCOMING PRODUCT DETECTION
+======================================== */
+
+function collectUpcoming(
+  results
+) {
+  const output = [];
+
+  for (
+    const item of results
+  ) {
+    const name =
+      getProductName(item);
+
+    if (
+      !isOfficialSealedPokemonProduct(
+        name
+      )
+    ) {
+      continue;
+    }
+
+    const text =
+      normalize(
+        [
+          name,
+          item?.preOrder,
+          item?.preOrderBadge,
+          item?.availabilityStatus,
+          item?.availabilityStatusV2,
+          item?.badge,
+          item?.badges
+        ]
+          .map(
+            value =>
+              typeof value ===
+                "object"
+                ? JSON.stringify(
+                    value
+                  )
+                : String(
+                    value ?? ""
+                  )
+          )
+          .join(" ")
+      );
+
+    if (
+      !/pre ?order|coming soon|scheduled/
+        .test(text)
+    ) {
+      continue;
+    }
+
+    const itemId =
+      getItemId(item);
+
+    output.push({
+      retailer:
+        "walmart",
+
+      retailerLabel:
+        "Walmart",
+
+      name,
+
+      productId:
+        itemId
+          ? `walmart-upcoming-${itemId}`
+          : null,
+
+      walmartItemId:
+        itemId,
+
+      status:
+        "preorder",
+
+      rawStatus:
+        getAvailability(item),
+
+      dropType:
+        "scheduled",
+
+      price:
+        getPrice(item),
+
+      msrp:
+        resolveMsrp(item),
+
+      seller:
+        getSellerName(item),
+
+      directSeller:
+        isWalmartSeller(
+          getSellerName(item)
+        ),
+
+      image:
+        getImage(item),
+
+      url:
+        getProductUrl(item),
+
+      checkedAt:
+        nowIso(),
+
+      source:
+        "axesso-upcoming"
     });
   }
 
-  return candidates;
+  return output;
+}
+
+
+/* ========================================
+   MARKETPLACE / OFFER SEARCH
+======================================== */
+
+function buildMarketplaceOffers(
+  product,
+  results,
+  source =
+    "axesso-walmart-search"
+) {
+  const offers = [];
+
+  for (
+    const item of results
+  ) {
+    if (
+      !isOfficialSealedPokemonProduct(
+        item
+      )
+    ) {
+      continue;
+    }
+
+    if (
+      product &&
+      !productMatches(
+        product,
+        item
+      )
+    ) {
+      continue;
+    }
+
+    const result =
+      makeResult(
+        product ||
+        findCatalogMatchForItem(
+          item
+        ),
+        item,
+        source
+      );
+
+    if (
+      result.displayEligible
+    ) {
+      offers.push(
+        result
+      );
+    }
+  }
+
+  const unique =
+    new Map();
+
+  for (
+    const offer of offers
+  ) {
+    const key =
+      String(
+        offer.walmartItemId ||
+        offer.url ||
+        `${offer.name}|${offer.seller}|${offer.price}`
+      );
+
+    const existing =
+      unique.get(key);
+
+    if (
+      !existing ||
+      Number(
+        offer.price
+      ) <
+      Number(
+        existing.price
+      )
+    ) {
+      unique.set(
+        key,
+        offer
+      );
+    }
+  }
+
+  return Array
+    .from(
+      unique.values()
+    )
+    .sort(
+      (a, b) =>
+        Number(a.price) -
+        Number(b.price)
+    );
+}
+
+async function searchMarketplaceOffers(
+  product
+) {
+  const keyword =
+    product?.searchTerm ||
+    product?.name ||
+    "Pokemon TCG";
+
+  const search =
+    await axessoSearch(
+      keyword
+    );
+
+  updateDiscoveryState(
+    search.results
+  );
+
+  return buildMarketplaceOffers(
+    product,
+    search.results
+  );
+}
+
+
+/* ========================================
+   STATE MERGING
+======================================== */
+
+function mergeUnique(
+  previous,
+  incoming,
+  keyGetter
+) {
+  const map =
+    new Map();
+
+  for (
+    const item of [
+      ...previous,
+      ...incoming
+    ]
+  ) {
+    const key =
+      String(
+        keyGetter(item)
+      );
+
+    if (
+      !key ||
+      key === "undefined" ||
+      key === "null"
+    ) {
+      continue;
+    }
+
+    map.set(
+      key,
+      item
+    );
+  }
+
+  return Array.from(
+    map.values()
+  );
+}
+
+function updateDiscoveryState(
+  results
+) {
+  const discovered =
+    collectQualifiedDeals(
+      results
+    );
+
+  const upcoming =
+    collectUpcoming(
+      results
+    );
+
+  const raffles =
+    collectRaffles(
+      results
+    );
+
+  lastDiscoveredDeals =
+    mergeUnique(
+      lastDiscoveredDeals,
+      discovered,
+      item =>
+        item.walmartItemId ||
+        item.url ||
+        item.name
+    )
+      .filter(
+        item =>
+          item.displayEligible ===
+          true
+      )
+      .sort(
+        (a, b) =>
+          Number(a.price) -
+          Number(b.price)
+      );
+
+  lastUpcoming =
+    mergeUnique(
+      lastUpcoming,
+      upcoming,
+      item =>
+        item.walmartItemId ||
+        item.url ||
+        item.name
+    );
+
+  lastRaffles =
+    mergeUnique(
+      lastRaffles,
+      raffles,
+      item =>
+        item.walmartItemId ||
+        item.url ||
+        item.name
+    )
+      .sort(
+        (a, b) =>
+          rafflePriority(
+            a.raffleStatus
+          ) -
+          rafflePriority(
+            b.raffleStatus
+          )
+      );
+}
+
+
+/* ========================================
+   SINGLE PRODUCT SEARCH
+======================================== */
+
+function chooseBestMatch(
+  product,
+  results
+) {
+  const walmartMatch =
+    results.find(
+      item =>
+        isWalmartSeller(
+          getSellerName(item)
+        ) &&
+        productMatches(
+          product,
+          item
+        )
+    );
+
+  if (
+    walmartMatch
+  ) {
+    return walmartMatch;
+  }
+
+  const gtMatch =
+    results.find(
+      item =>
+        isGtApprovedSeller(
+          getSellerName(item)
+        ) &&
+        productMatches(
+          product,
+          item
+        )
+    );
+
+  return (
+    gtMatch ||
+    null
+  );
+}
+
+async function discoverProduct(
+  product
+) {
+  const keyword =
+    product.searchTerm ||
+    product.name ||
+    "Pokemon TCG";
+
+  const search =
+    await axessoSearch(
+      keyword
+    );
+
+  updateDiscoveryState(
+    search.results
+  );
+
+  const match =
+    chooseBestMatch(
+      product,
+      search.results
+    );
+
+  if (!match) {
+    return emptyResult(
+      product,
+      "axesso-no-match",
+      "No qualifying Walmart or GT official sealed product found"
+    );
+  }
+
+  const itemId =
+    getItemId(match);
+
+  if (
+    itemId &&
+    product?.id
+  ) {
+    discoveredItems.set(
+      product.id,
+      String(itemId)
+    );
+  }
+
+  return makeResult(
+    product,
+    match,
+    "axesso-walmart-search"
+  );
+}
+
+async function checkProduct(
+  product,
+  retailer
+) {
+  if (
+    retailer !==
+    "walmart"
+  ) {
+    return {
+      ...emptyResult(
+        product,
+        "walmart-provider",
+        "Retailer not supported by Walmart provider"
+      ),
+
+      retailer
+    };
+  }
+
+  try {
+    return await discoverProduct(
+      product
+    );
+
+  } catch (
+    axessoError
+  ) {
+    console.error(
+      `Axesso failed for ${product.id}:`,
+      axessoError.message
+    );
+
+    if (
+      HASDATA_API_KEY
+    ) {
+      try {
+        const results =
+          await hasDataSearch(
+            product.searchTerm ||
+            product.name ||
+            "Pokemon TCG"
+          );
+
+        updateDiscoveryState(
+          results
+        );
+
+        const match =
+          chooseBestMatch(
+            product,
+            results
+          );
+
+        if (match) {
+          return makeResult(
+            product,
+            match,
+            "hasdata-walmart-backup"
+          );
+        }
+
+      } catch (
+        hasDataError
+      ) {
+        console.error(
+          `HasData backup failed for ${product.id}:`,
+          hasDataError.message
+        );
+      }
+    }
+
+    return emptyResult(
+      product,
+      "walmart-provider-error",
+      axessoError.message
+    );
+  }
 }
 
 
@@ -2558,18 +3147,17 @@ function groupCuratedProducts(
     const product of products
   ) {
     const key =
-      detectSet(
-        [
-          product.set,
-          product.name,
-          product.searchTerm
-        ]
-          .filter(Boolean)
-          .join(" ")
-      ) ||
       normalize(
         product.set ||
-        "other"
+        detectSet(
+          [
+            product.name,
+            product.searchTerm
+          ]
+            .filter(Boolean)
+            .join(" ")
+        ) ||
+        "pokemon"
       );
 
     if (
@@ -2607,11 +3195,8 @@ async function checkProductsBatch(
     );
 
   const output = [];
-  const upcomingMap =
-    new Map();
 
-  const discoveredDealMap =
-    new Map();
+  const allResults = [];
 
   for (
     const group of groups
@@ -2623,9 +3208,6 @@ async function checkProductsBatch(
 
     let results = [];
 
-    /*
-      AXESSO = PRIMARY
-    */
     try {
       const search =
         await axessoSearch(
@@ -2635,16 +3217,14 @@ async function checkProductsBatch(
       results =
         search.results;
 
-    } catch (axessoError) {
-
+    } catch (
+      axessoError
+    ) {
       console.error(
-        `Axesso search failed for "${query}":`,
+        `Axesso batch failed for "${query}":`,
         axessoError.message
       );
 
-      /*
-        HASDATA = BACKUP ONLY
-      */
       if (
         HASDATA_API_KEY
       ) {
@@ -2654,8 +3234,9 @@ async function checkProductsBatch(
               query
             );
 
-        } catch (hasDataError) {
-
+        } catch (
+          hasDataError
+        ) {
           console.error(
             `HasData backup failed for "${query}":`,
             hasDataError.message
@@ -2677,7 +3258,6 @@ async function checkProductsBatch(
         }
 
       } else {
-
         for (
           const product of group
         ) {
@@ -2694,51 +3274,10 @@ async function checkProductsBatch(
       }
     }
 
-    /*
-      Save all qualifying deals
-      found during this scan.
-    */
-    const discovered =
-      collectQualifiedDeals(
-        results
-      );
+    allResults.push(
+      ...results
+    );
 
-    for (
-      const deal of discovered
-    ) {
-      const key =
-        deal.walmartItemId ||
-        deal.url ||
-        `${deal.name}|${deal.seller}|${deal.price}`;
-
-      discoveredDealMap.set(
-        String(key),
-        deal
-      );
-    }
-
-    /*
-      Upcoming products.
-    */
-    for (
-      const upcoming of
-      collectUpcoming(
-        results
-      )
-    ) {
-      const key =
-        upcoming.walmartItemId ||
-        upcoming.name;
-
-      upcomingMap.set(
-        String(key),
-        upcoming
-      );
-    }
-
-    /*
-      Match curated products.
-    */
     for (
       const product of group
     ) {
@@ -2753,146 +3292,117 @@ async function checkProductsBatch(
           emptyResult(
             product,
             "axesso-no-match",
-            "No qualifying Walmart or GT seller result found"
+            "No qualifying official sealed Walmart or GT result found"
           )
         );
 
         continue;
       }
 
-      const result =
+      output.push(
         makeResult(
           product,
-          match.item,
+          match,
           "axesso-walmart-search"
-        );
-
-      if (
-        !result.withinPriceRule
-      ) {
-        output.push({
-          ...result,
-
-          inStock:
-            false,
-
-          alertEligible:
-            false,
-
-          displayEligible:
-            false,
-
-          error:
-            "Above 150% of MSRP or MSRP unavailable"
-        });
-
-        continue;
-      }
-
-      output.push(
-        result
+        )
       );
     }
   }
 
-  lastUpcoming =
-    Array.from(
-      upcomingMap.values()
+  /*
+    Also run one broad Pokemon search so
+    products not already in products.json
+    can still be discovered.
+  */
+  try {
+    const broad =
+      await axessoSearch(
+        "Pokemon TCG"
+      );
+
+    allResults.push(
+      ...broad.results
     );
 
-  lastDiscoveredDeals =
-    Array.from(
-      discoveredDealMap.values()
-    )
-      .sort(
-        (a, b) =>
-          Number(a.price) -
-          Number(b.price)
-      );
+  } catch (error) {
+    console.error(
+      "Broad Walmart discovery search failed:",
+      error.message
+    );
+  }
+
+  updateDiscoveryState(
+    allResults
+  );
 
   return output;
 }
 
 
 /* ========================================
-   SINGLE PRODUCT
+   RAFFLE REFRESH
 ======================================== */
 
-async function checkProduct(
-  product,
-  retailer
-) {
-  if (
-    retailer !==
-    "walmart"
+async function refreshRaffles() {
+  /*
+    Run dedicated searches so raffle
+    products can be discovered even when
+    they are not in our normal catalog.
+  */
+
+  const queries = [
+    "Pokemon TCG",
+    "Pokemon Collectibles Draw"
+  ];
+
+  const all = [];
+
+  for (
+    const query of queries
   ) {
-    return {
-      ...emptyResult(
-        product,
-        "walmart-provider",
-        "Retailer not supported by Walmart provider"
-      ),
-      retailer
-    };
-  }
-
-  try {
-    return await discoverProduct(
-      product
-    );
-
-  } catch (error) {
-
-    console.error(
-      `Walmart lookup failed for ${product.id}:`,
-      error.message
-    );
-
-    /*
-      Try HasData only when Axesso
-      actually fails.
-    */
-    if (
-      HASDATA_API_KEY
-    ) {
-      try {
-        const results =
-          await hasDataSearch(
-            product.searchTerm ||
-            product.name ||
-            "Pokemon TCG"
-          );
-
-        const match =
-          chooseBestMatch(
-            product,
-            results
-          );
-
-        if (match) {
-          return makeResult(
-            product,
-            match.item,
-            "hasdata-walmart-backup"
-          );
-        }
-
-      } catch (
-        backupError
-      ) {
-        console.error(
-          `HasData backup also failed for ${product.id}:`,
-          backupError.message
+    try {
+      const search =
+        await axessoSearch(
+          query
         );
-      }
-    }
 
-    return emptyResult(
-      product,
-      "walmart-provider-error",
-      error.message
-    );
+      all.push(
+        ...search.results
+      );
+
+    } catch (error) {
+      console.error(
+        `Walmart raffle search failed for "${query}":`,
+        error.message
+      );
+    }
   }
+
+  const raffles =
+    collectRaffles(
+      all
+    );
+
+  lastRaffles =
+    mergeUnique(
+      lastRaffles,
+      raffles,
+      item =>
+        item.walmartItemId ||
+        item.url ||
+        item.name
+    )
+      .sort(
+        (a, b) =>
+          rafflePriority(
+            a.raffleStatus
+          ) -
+          rafflePriority(
+            b.raffleStatus
+          )
+      );
+
+  return lastRaffles;
 }
 
 
@@ -2912,9 +3422,48 @@ async function inspectSearchResponse(
   const results =
     search.results;
 
+  updateDiscoveryState(
+    results
+  );
+
   const first =
     results[0] ||
     null;
+
+  const official =
+    results.filter(
+      item =>
+        isOfficialSealedPokemonProduct(
+          item
+        )
+    );
+
+  const walmartOfficial =
+    official.filter(
+      item =>
+        isWalmartSeller(
+          getSellerName(item)
+        )
+    );
+
+  const gtOfficial =
+    official.filter(
+      item =>
+        isGtApprovedSeller(
+          getSellerName(item)
+        )
+    );
+
+  const randomRejected =
+    results.filter(
+      item =>
+        isPokemonListing(
+          getProductName(item)
+        ) &&
+        !isOfficialSealedPokemonProduct(
+          item
+        )
+    );
 
   return {
     keyword,
@@ -2931,10 +3480,30 @@ async function inspectSearchResponse(
     extractedCount:
       results.length,
 
+    officialSealedCount:
+      official.length,
+
+    rejectedNonOfficialCount:
+      randomRejected.length,
+
+    walmartOfficialCount:
+      walmartOfficial.length,
+
+    gtOfficialCount:
+      gtOfficial.length,
+
+    qualifyingDeals:
+      collectQualifiedDeals(
+        results
+      ).length,
+
+    raffleItemsDetected:
+      collectRaffles(
+        results
+      ).length,
+
     sampleItemKeys:
-      first &&
-      typeof first ===
-        "object"
+      first
         ? Object.keys(
             first
           )
@@ -2980,18 +3549,13 @@ async function inspectSearchResponse(
         ? getProductUrl(
             first
           )
-        : null,
-
-    qualifyingDeals:
-      collectQualifiedDeals(
-        results
-      ).length
+        : null
   };
 }
 
 
 /* ========================================
-   STATE
+   PUBLIC STATE
 ======================================== */
 
 function getUpcoming() {
@@ -3002,10 +3566,11 @@ function getDiscoveredDeals() {
   return lastDiscoveredDeals;
 }
 
-function getProviderInfo() {
-  const blocked =
-    rapidApiCircuitIsBlocking();
+function getRaffles() {
+  return lastRaffles;
+}
 
+function getProviderInfo() {
   return {
     primary:
       "axesso",
@@ -3034,7 +3599,7 @@ function getProviderInfo() {
       ),
 
     rapidApiBlocked:
-      blocked,
+      rapidApiCircuitIsBlocking(),
 
     rapidApiCircuit: {
       ...rapidApiCircuit
@@ -3061,6 +3626,9 @@ function getProviderInfo() {
     discoveredDealCount:
       lastDiscoveredDeals.length,
 
+    raffleCount:
+      lastRaffles.length,
+
     sellerRules: {
       walmart:
         true,
@@ -3083,6 +3651,41 @@ function getProviderInfo() {
         false
     },
 
+    productFilter: {
+      officialSealedOnly:
+        true,
+
+      mysteryProducts:
+        false,
+
+      repacks:
+        false,
+
+      randomBundles:
+        false,
+
+      guaranteedHitPacks:
+        false,
+
+      singleCards:
+        false,
+
+      gradedCards:
+        false
+    },
+
+    raffles: {
+      enabled:
+        true,
+
+      states: [
+        "detected",
+        "upcoming",
+        "live",
+        "closed"
+      ]
+    },
+
     health:
       JSON.parse(
         JSON.stringify(
@@ -3100,11 +3703,20 @@ function getProviderInfo() {
 module.exports = {
   checkProduct,
   checkProductsBatch,
+
   searchMarketplaceOffers,
   buildMarketplaceOffers,
+
   inspectSearchResponse,
   extractSearchResults,
+
+  isOfficialSealedPokemonProduct,
+
+  refreshRaffles,
+
   getUpcoming,
   getDiscoveredDeals,
+  getRaffles,
+
   getProviderInfo
 };
