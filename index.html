@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+
 <meta charset="utf-8">
 
 <meta
@@ -44,29 +45,46 @@
 
 <title>Pokémon Restock Monitor</title>
 
+
 <style>
 
 :root{
+
   --bg:#020711;
   --panel:#071326;
   --panel2:#0a1b31;
+
   --text:#f7fbff;
   --muted:#96a8bf;
+
   --green:#54f3a6;
   --blue:#62c7ff;
   --gold:#ffc76b;
   --red:#ff758b;
+
+  --border:rgba(98,199,255,.22);
+
 }
 
+
 *{
+
   box-sizing:border-box;
+
 }
+
 
 html,
 body{
+
   margin:0;
-  background:var(--bg);
-  color:var(--text);
+
+  background:
+    #020711;
+
+  color:
+    var(--text);
+
   font-family:
     -apple-system,
     BlinkMacSystemFont,
@@ -74,608 +92,1794 @@ body{
     Roboto,
     Arial,
     sans-serif;
+
 }
 
+
 body{
-  min-height:100vh;
-  padding-bottom:max(24px,env(safe-area-inset-bottom));
+
+  min-height:
+    100vh;
+
+  padding-bottom:
+    max(
+      94px,
+      env(safe-area-inset-bottom)
+    );
+
 }
+
 
 button,
 input{
+
   font:inherit;
+
 }
+
 
 button{
+
   cursor:pointer;
+
 }
+
 
 a{
+
   color:inherit;
   text-decoration:none;
+
 }
+
 
 .app{
-  max-width:980px;
+
+  width:100%;
+  max-width:1100px;
+
   margin:auto;
+
   overflow:hidden;
+
 }
+
+
+/* ========================================
+   HERO
+======================================== */
 
 .hero{
-  height:360px;
+
+  height:320px;
+
+  position:relative;
+
   background:
+
     linear-gradient(
       to bottom,
-      rgba(2,7,17,0) 58%,
-      rgba(2,7,17,.35) 76%,
-      var(--bg) 100%
+      rgba(2,7,17,.03) 0%,
+      rgba(2,7,17,.10) 55%,
+      rgba(2,7,17,.82) 90%,
+      #020711 100%
     ),
+
     url("/hero.jpg")
-    center top / cover no-repeat;
+    center top /
+    cover
+    no-repeat;
+
 }
 
-.status-wrap{
+
+.hero::after{
+
+  content:"";
+
+  position:absolute;
+
+  inset:0;
+
+  pointer-events:none;
+
+  background:
+    radial-gradient(
+      circle at 50% 25%,
+      transparent 0%,
+      rgba(2,7,17,.12) 65%,
+      rgba(2,7,17,.28) 100%
+    );
+
+}
+
+
+/* ========================================
+   CONNECTION STATUS
+======================================== */
+
+.connection-row{
+
   display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:9px;
-  padding:0 14px;
-  margin-top:-28px;
+
+  grid-template-columns:
+    1fr 1fr;
+
+  gap:10px;
+
+  padding:
+    0 14px;
+
+  margin-top:
+    -22px;
+
   position:relative;
-  z-index:2;
+
+  z-index:3;
+
 }
 
-.status-pill{
-  min-height:46px;
-  border:1px solid rgba(84,243,166,.55);
-  border-radius:12px;
-  background:rgba(8,44,37,.96);
+
+.connection-card{
+
+  min-height:68px;
+
+  border:
+    1px solid
+    rgba(84,243,166,.55);
+
+  border-radius:15px;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(6,52,43,.97),
+      rgba(4,32,34,.97)
+    );
+
   color:white;
+
   display:flex;
+
   align-items:center;
+
   justify-content:center;
-  gap:7px;
-  font-size:12px;
-  font-weight:900;
-  text-align:center;
-  padding:8px;
+
+  gap:10px;
+
+  padding:10px 12px;
+
+  text-align:left;
+
+  box-shadow:
+    0 0 20px
+    rgba(84,243,166,.08);
+
 }
 
-button.status-pill{
-  width:100%;
+
+.connection-card.push{
+
+  border-color:
+    rgba(255,199,107,.55);
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(67,48,14,.97),
+      rgba(43,32,13,.97)
+    );
+
+  box-shadow:
+    0 0 20px
+    rgba(255,199,107,.08);
+
   appearance:none;
+
   -webkit-appearance:none;
+
 }
 
-button.status-pill:active{
-  transform:scale(.98);
+
+.connection-card:active{
+
+  transform:
+    scale(.985);
+
 }
 
-.status-pill.offline{
-  border-color:rgba(255,117,139,.55);
-  background:rgba(57,19,29,.96);
+
+.connection-card.offline{
+
+  border-color:
+    rgba(255,117,139,.55);
+
+  background:
+    rgba(57,19,29,.97);
+
 }
 
-.status-pill.warn{
-  border-color:rgba(255,199,107,.55);
-  background:rgba(57,43,19,.96);
+
+.connection-card.warn{
+
+  border-color:
+    rgba(255,199,107,.55);
+
 }
 
-.dot{
-  width:8px;
-  height:8px;
+
+.status-dot{
+
+  width:17px;
+  height:17px;
+
   flex:none;
+
   border-radius:50%;
-  background:var(--green);
-  box-shadow:0 0 8px var(--green);
+
+  background:
+    var(--green);
+
+  box-shadow:
+    0 0 16px
+    var(--green);
+
 }
 
-.offline .dot{
-  background:var(--red);
-  box-shadow:0 0 8px var(--red);
+
+.offline .status-dot{
+
+  background:
+    var(--red);
+
+  box-shadow:
+    0 0 16px
+    var(--red);
+
 }
 
-.warn .dot{
-  background:var(--gold);
-  box-shadow:0 0 8px var(--gold);
+
+.warn .status-dot{
+
+  background:
+    var(--gold);
+
+  box-shadow:
+    0 0 16px
+    var(--gold);
+
 }
 
-.section{
-  padding:12px 14px;
+
+.status-icon{
+
+  font-size:27px;
+
+  flex:none;
+
 }
 
-.tabs{
+
+.connection-copy strong{
+
+  display:block;
+
+  font-size:12px;
+
+  font-weight:950;
+
+  letter-spacing:.2px;
+
+}
+
+
+.connection-copy small{
+
+  display:block;
+
+  margin-top:3px;
+
+  font-size:9px;
+
+  color:
+    rgba(255,255,255,.68);
+
+  font-weight:750;
+
+}
+
+
+/* ========================================
+   STORE TABS
+======================================== */
+
+.store-tabs{
+
   display:grid;
-  grid-template-columns:repeat(5,minmax(0,1fr));
+
+  grid-template-columns:
+    repeat(
+      5,
+      minmax(0,1fr)
+    );
+
   gap:7px;
+
+  padding:
+    12px 14px;
+
 }
 
-.tab{
-  border:1px solid rgba(98,199,255,.25);
-  border-radius:10px;
-  background:var(--panel);
-  color:#dcecff;
-  padding:11px 6px;
-  font-size:11px;
-  font-weight:900;
+
+.store-tab{
+
+  min-height:61px;
+
+  border:
+    1px solid
+    rgba(98,199,255,.25);
+
+  border-radius:12px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #0a1930,
+      #071326
+    );
+
+  color:
+    #e8f4ff;
+
+  padding:
+    8px 5px;
+
+  font-size:10px;
+
+  font-weight:950;
+
+  display:flex;
+
+  flex-direction:column;
+
+  align-items:center;
+
+  justify-content:center;
+
+  gap:5px;
+
+  overflow:hidden;
+
 }
 
-.tab.active{
-  border-color:var(--green);
-  background:#0d2f2a;
-  color:white;
+
+.store-tab.active{
+
+  border-color:
+    var(--blue);
+
+  background:
+    linear-gradient(
+      180deg,
+      #0c3152,
+      #09223b
+    );
+
+  box-shadow:
+    0 0 18px
+    rgba(98,199,255,.16);
+
 }
+
+
+.store-logo{
+
+  font-size:18px;
+
+  line-height:1;
+
+}
+
+
+.walmart-logo{
+
+  color:#ffd84a;
+
+}
+
+
+.target-logo{
+
+  color:#ff4055;
+
+}
+
+
+.sams-logo{
+
+  color:#41a8ff;
+
+}
+
+
+.bestbuy-logo{
+
+  color:#ffe23f;
+
+}
+
+
+.costco-logo{
+
+  color:#ff6575;
+
+}
+
+
+/* ========================================
+   MAIN MONITOR
+======================================== */
+
+.monitor-wrap{
+
+  padding:
+    0 14px 14px;
+
+}
+
 
 .monitor-panel{
-  border:1px solid rgba(98,199,255,.24);
-  border-radius:14px;
-  background:linear-gradient(180deg,#0b1d34,#071326);
-  padding:14px;
+
+  border:
+    1px solid
+    rgba(98,199,255,.30);
+
+  border-radius:17px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(8,31,56,.98),
+      rgba(5,19,36,.98)
+    );
+
+  box-shadow:
+    inset 0 1px 0
+    rgba(255,255,255,.025);
+
+  overflow:hidden;
+
 }
 
-.panel-head{
+
+.monitor-inner{
+
+  padding:15px;
+
+}
+
+
+.monitor-head{
+
   display:flex;
+
+  justify-content:
+    space-between;
+
   align-items:center;
-  justify-content:space-between;
+
   gap:10px;
+
 }
 
-.panel-title{
-  font-size:14px;
-  font-weight:900;
-}
 
-.panel-status{
-  font-size:10px;
-  font-weight:900;
-  padding:5px 8px;
-  border-radius:999px;
-  border:1px solid rgba(84,243,166,.35);
-  color:var(--green);
-}
+.monitor-name-wrap{
 
-.panel-status.warn{
-  border-color:rgba(255,199,107,.4);
-  color:var(--gold);
-}
-
-.panel-status.off{
-  border-color:rgba(255,117,139,.4);
-  color:var(--red);
-}
-
-.schedule-grid{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:8px;
-  margin-top:10px;
-}
-
-.schedule-box{
-  background:#06111f;
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:10px;
-  padding:10px;
-}
-
-.schedule-box span{
-  display:block;
-  color:var(--muted);
-  font-size:9px;
-  text-transform:uppercase;
-  font-weight:800;
-}
-
-.schedule-box strong{
-  display:block;
-  margin-top:4px;
-  font-size:12px;
-}
-
-.panel-actions{
   display:flex;
-  gap:8px;
-  margin-top:10px;
+
+  align-items:center;
+
+  gap:9px;
+
 }
 
-.action-btn{
-  flex:1;
-  border:1px solid rgba(84,243,166,.45);
-  background:#0b2b25;
-  color:white;
+
+.monitor-store-icon{
+
+  width:34px;
+  height:34px;
+
   border-radius:10px;
-  padding:11px;
-  font-weight:900;
+
+  display:flex;
+
+  align-items:center;
+
+  justify-content:center;
+
+  background:
+    rgba(98,199,255,.08);
+
+  font-size:23px;
+
 }
 
-.action-btn.secondary{
-  border-color:rgba(98,199,255,.35);
-  background:#0a1b31;
+
+.monitor-title{
+
+  font-size:22px;
+
+  font-weight:950;
+
+  line-height:1;
+
 }
+
+
+.live-pill{
+
+  display:flex;
+
+  align-items:center;
+
+  gap:6px;
+
+  border:
+    1px solid
+    rgba(84,243,166,.4);
+
+  border-radius:999px;
+
+  padding:7px 11px;
+
+  font-size:10px;
+
+  font-weight:950;
+
+  color:
+    var(--green);
+
+  background:
+    rgba(8,44,37,.72);
+
+}
+
+
+.live-dot{
+
+  width:8px;
+  height:8px;
+
+  border-radius:50%;
+
+  background:
+    var(--green);
+
+  box-shadow:
+    0 0 8px
+    var(--green);
+
+}
+
+
+/* ========================================
+   STAT CARDS
+======================================== */
+
+.stats-grid{
+
+  display:grid;
+
+  grid-template-columns:
+    repeat(3,1fr);
+
+  gap:8px;
+
+  margin-top:14px;
+
+}
+
+
+.stat-card{
+
+  min-height:78px;
+
+  border:
+    1px solid
+    rgba(98,199,255,.22);
+
+  border-radius:12px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #091a30,
+      #071326
+    );
+
+  padding:11px;
+
+}
+
+
+.stat-card span{
+
+  display:block;
+
+  color:
+    var(--muted);
+
+  font-size:9px;
+
+  font-weight:800;
+
+  text-transform:uppercase;
+
+}
+
+
+.stat-card strong{
+
+  display:block;
+
+  margin-top:6px;
+
+  font-size:12px;
+
+  line-height:1.3;
+
+}
+
+
+/* ========================================
+   ACTION BUTTONS
+======================================== */
+
+.monitor-actions{
+
+  display:grid;
+
+  grid-template-columns:
+    1fr 1fr;
+
+  gap:9px;
+
+  margin-top:10px;
+
+}
+
+
+.monitor-action{
+
+  min-height:48px;
+
+  border-radius:11px;
+
+  border:
+    1px solid
+    rgba(98,199,255,.36);
+
+  background:
+    #09203a;
+
+  color:white;
+
+  font-size:11px;
+
+  font-weight:950;
+
+}
+
+
+.monitor-action.primary{
+
+  border-color:
+    rgba(84,243,166,.55);
+
+  background:
+    linear-gradient(
+      180deg,
+      #12a954,
+      #08753f
+    );
+
+  box-shadow:
+    0 0 15px
+    rgba(84,243,166,.12);
+
+}
+
+
+.monitor-action:disabled{
+
+  opacity:.6;
+
+}
+
 
 .push-debug{
-  margin-top:10px;
-  border:1px solid rgba(98,199,255,.18);
-  background:#06111f;
-  border-radius:10px;
-  padding:10px;
-  color:var(--muted);
-  font-size:10px;
-  line-height:1.5;
-  word-break:break-word;
-}
 
-.upcoming-wrap{
-  margin-top:12px;
-}
-
-.upcoming-title{
-  font-size:11px;
-  font-weight:900;
-  color:#dcecff;
-}
-
-.upcoming-list{
-  display:grid;
-  gap:7px;
-  margin-top:7px;
-}
-
-.upcoming-item{
-  border:1px solid rgba(255,199,107,.28);
-  border-radius:9px;
-  padding:9px;
-  background:#17140c;
-}
-
-.upcoming-item strong{
-  font-size:11px;
-}
-
-.upcoming-item small{
-  display:block;
-  margin-top:3px;
-  color:var(--muted);
-}
-
-.upcoming-item.watch{
-  border-color:rgba(98,199,255,.25);
-  background:#081522;
-}
-
-.healthline{
   margin-top:9px;
-  color:var(--muted);
-  font-size:10px;
+
+  padding:9px 10px;
+
+  border-radius:9px;
+
+  border:
+    1px solid
+    rgba(98,199,255,.13);
+
+  color:
+    var(--muted);
+
+  background:
+    rgba(2,12,23,.72);
+
+  font-size:9px;
+
   line-height:1.5;
+
 }
 
-.toolbar{
+
+/* ========================================
+   DISCOVERY
+======================================== */
+
+.section-heading{
+
+  margin-top:18px;
+
   display:flex;
-  gap:8px;
+
   align-items:center;
-}
 
-.toolbar input{
-  flex:1;
-  min-width:0;
-  background:var(--panel);
-  border:1px solid rgba(98,199,255,.25);
-  color:white;
-  border-radius:10px;
-  padding:12px;
-}
+  justify-content:
+    space-between;
 
-.toolbar button{
-  border:1px solid rgba(84,243,166,.45);
-  background:#0b2b25;
-  color:#e9fff5;
-  border-radius:10px;
-  padding:12px 16px;
-  font-weight:900;
-}
-
-.meta{
-  display:flex;
-  justify-content:space-between;
   gap:10px;
-  margin-top:8px;
-  color:var(--muted);
-  font-size:11px;
+
 }
 
-.products{
+
+.section-heading strong{
+
+  font-size:12px;
+
+  font-weight:950;
+
+}
+
+
+.section-heading span{
+
+  color:
+    var(--blue);
+
+  font-size:10px;
+
+  font-weight:900;
+
+}
+
+
+.discovery-grid{
+
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:12px;
-  padding:4px 14px 20px;
+
+  grid-template-columns:
+    repeat(4,minmax(0,1fr));
+
+  gap:8px;
+
+  margin-top:9px;
+
 }
 
-.card{
-  border:1px solid rgba(98,199,255,.18);
-  border-radius:14px;
-  background:linear-gradient(180deg,#09192d,#06111f);
+
+.discovery-card{
+
+  min-width:0;
+
+  border:
+    1px solid
+    rgba(98,199,255,.18);
+
+  border-radius:11px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #091a30,
+      #06111f
+    );
+
   overflow:hidden;
+
 }
 
-.image-wrap{
-  aspect-ratio:1.35/1;
-  background:#08111e;
+
+.discovery-image{
+
+  height:115px;
+
+  background:
+    #07101c;
+
   display:flex;
+
   align-items:center;
+
   justify-content:center;
-  position:relative;
+
 }
 
-.image-wrap img{
+
+.discovery-image img{
+
   width:100%;
   height:100%;
+
   object-fit:contain;
+
 }
 
-.image-note{
-  position:absolute;
-  bottom:7px;
-  left:7px;
-  background:rgba(2,7,17,.8);
-  border:1px solid rgba(255,255,255,.14);
-  border-radius:6px;
-  padding:4px 6px;
-  font-size:9px;
+
+.discovery-body{
+
+  padding:9px;
+
+}
+
+
+.discovery-status{
+
+  display:inline-flex;
+
+  border:
+    1px solid
+    rgba(84,243,166,.5);
+
+  border-radius:999px;
+
+  padding:3px 6px;
+
+  color:
+    var(--green);
+
+  font-size:8px;
+
+  font-weight:950;
+
+}
+
+
+.discovery-status.warn{
+
+  border-color:
+    rgba(255,199,107,.5);
+
+  color:
+    var(--gold);
+
+}
+
+
+.discovery-status.out{
+
+  border-color:
+    rgba(255,117,139,.5);
+
+  color:
+    var(--red);
+
+}
+
+
+.discovery-name{
+
+  margin-top:6px;
+
+  height:36px;
+
+  overflow:hidden;
+
+  font-size:10px;
+
+  line-height:1.25;
+
   font-weight:900;
+
 }
 
-.body{
-  padding:12px;
+
+.discovery-price{
+
+  margin-top:6px;
+
+  font-size:15px;
+
+  font-weight:950;
+
 }
+
+
+.discovery-open{
+
+  display:block;
+
+  margin-top:7px;
+
+  padding:7px;
+
+  text-align:center;
+
+  border-radius:7px;
+
+  border:
+    1px solid
+    rgba(98,199,255,.5);
+
+  background:
+    #0a3153;
+
+  color:white;
+
+  font-size:9px;
+
+  font-weight:900;
+
+}
+
+
+/* ========================================
+   ALL MONITORED
+======================================== */
+
+.all-products-section{
+
+  margin-top:16px;
+
+  padding-top:14px;
+
+  border-top:
+    1px solid
+    rgba(98,199,255,.14);
+
+}
+
+
+.search-row{
+
+  display:flex;
+
+  gap:8px;
+
+  margin-top:9px;
+
+}
+
+
+.search-box{
+
+  flex:1;
+
+  min-width:0;
+
+  border:
+    1px solid
+    rgba(98,199,255,.28);
+
+  background:
+    #061426;
+
+  border-radius:10px;
+
+  color:white;
+
+  padding:11px 12px;
+
+}
+
+
+.filter-button{
+
+  border:
+    1px solid
+    rgba(98,199,255,.3);
+
+  border-radius:10px;
+
+  color:white;
+
+  background:
+    #0a1930;
+
+  padding:
+    10px 15px;
+
+  font-weight:850;
+
+}
+
+
+.meta-row{
+
+  display:flex;
+
+  justify-content:
+    space-between;
+
+  gap:10px;
+
+  margin-top:8px;
+
+  color:
+    var(--muted);
+
+  font-size:9px;
+
+}
+
+
+/* ========================================
+   PRODUCT LIST
+======================================== */
+
+.products{
+
+  display:grid;
+
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+
+  gap:10px;
+
+  margin-top:12px;
+
+}
+
+
+.product-card{
+
+  border:
+    1px solid
+    rgba(98,199,255,.17);
+
+  border-radius:12px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #09192d,
+      #06111f
+    );
+
+  overflow:hidden;
+
+}
+
+
+.product-image{
+
+  height:190px;
+
+  background:
+    #07101c;
+
+  display:flex;
+
+  justify-content:center;
+
+  align-items:center;
+
+}
+
+
+.product-image img{
+
+  width:100%;
+  height:100%;
+
+  object-fit:contain;
+
+}
+
+
+.product-body{
+
+  padding:11px;
+
+}
+
 
 .badges{
+
   display:flex;
+
   flex-wrap:wrap;
-  gap:6px;
+
+  gap:5px;
+
 }
+
 
 .badge{
+
   display:inline-flex;
+
+  padding:
+    4px 7px;
+
   border-radius:999px;
-  border:1px solid rgba(255,255,255,.18);
-  padding:4px 7px;
-  font-size:9px;
-  font-weight:900;
+
+  border:
+    1px solid
+    rgba(255,255,255,.16);
+
+  font-size:8px;
+
+  font-weight:950;
+
   text-transform:uppercase;
+
 }
+
 
 .badge.good{
-  border-color:rgba(84,243,166,.5);
-  color:var(--green);
+
+  color:
+    var(--green);
+
+  border-color:
+    rgba(84,243,166,.45);
+
 }
+
 
 .badge.warn{
-  border-color:rgba(255,199,107,.5);
-  color:var(--gold);
+
+  color:
+    var(--gold);
+
+  border-color:
+    rgba(255,199,107,.45);
+
 }
+
 
 .badge.out{
-  border-color:rgba(255,117,139,.5);
-  color:var(--red);
+
+  color:
+    var(--red);
+
+  border-color:
+    rgba(255,117,139,.45);
+
 }
 
-.name{
-  margin-top:9px;
-  font-size:15px;
-  font-weight:900;
-  line-height:1.3;
-}
 
-.sub{
-  margin-top:4px;
-  color:var(--muted);
-  font-size:11px;
-}
+.product-name{
 
-.price{
-  margin-top:10px;
-  font-size:21px;
-  font-weight:900;
-}
-
-.price small{
-  font-size:11px;
-  color:var(--muted);
-  font-weight:700;
-}
-
-.storeline{
   margin-top:8px;
-  color:#dcecff;
-  font-size:11px;
+
+  font-size:14px;
+
+  font-weight:950;
+
+  line-height:1.25;
+
 }
 
-.buy{
-  display:block;
-  margin-top:11px;
-  text-align:center;
-  border:1px solid rgba(84,243,166,.5);
-  border-radius:9px;
-  background:#0c3128;
-  padding:10px;
-  font-size:11px;
-  font-weight:900;
+
+.product-seller{
+
+  margin-top:4px;
+
+  color:
+    var(--muted);
+
+  font-size:9px;
+
 }
+
+
+.product-price{
+
+  margin-top:8px;
+
+  font-size:19px;
+
+  font-weight:950;
+
+}
+
+
+.open-product{
+
+  display:block;
+
+  margin-top:9px;
+
+  padding:9px;
+
+  text-align:center;
+
+  border:
+    1px solid
+    rgba(98,199,255,.45);
+
+  border-radius:8px;
+
+  background:
+    #0a3153;
+
+  font-size:10px;
+
+  font-weight:950;
+
+}
+
 
 .empty{
-  grid-column:1/-1;
-  border:1px dashed rgba(98,199,255,.25);
+
+  grid-column:
+    1 / -1;
+
+  padding:30px 15px;
+
+  border:
+    1px dashed
+    rgba(98,199,255,.24);
+
   border-radius:12px;
-  padding:28px;
+
   text-align:center;
-  color:var(--muted);
+
+  color:
+    var(--muted);
+
+  font-size:11px;
+
 }
 
-.store-placeholder{
-  margin-top:12px;
-  border:1px dashed rgba(98,199,255,.25);
-  border-radius:12px;
-  padding:22px;
-  text-align:center;
-  color:var(--muted);
-  line-height:1.5;
+
+/* ========================================
+   BOTTOM NAVIGATION
+======================================== */
+
+.bottom-nav{
+
+  position:fixed;
+
+  left:0;
+  right:0;
+  bottom:0;
+
+  z-index:30;
+
+  margin:auto;
+
+  width:100%;
+
+  max-width:1100px;
+
+  display:grid;
+
+  grid-template-columns:
+    repeat(6,1fr);
+
+  background:
+    rgba(3,13,27,.97);
+
+  border-top:
+    1px solid
+    rgba(98,199,255,.22);
+
+  backdrop-filter:
+    blur(18px);
+
+  -webkit-backdrop-filter:
+    blur(18px);
+
+  padding-bottom:
+    env(safe-area-inset-bottom);
+
 }
 
-.hidden{
-  display:none!important;
+
+.nav-btn{
+
+  min-height:65px;
+
+  border:0;
+
+  background:
+    transparent;
+
+  color:
+    #e8f4ff;
+
+  display:flex;
+
+  flex-direction:column;
+
+  align-items:center;
+
+  justify-content:center;
+
+  gap:4px;
+
+  font-size:8px;
+
+  font-weight:850;
+
 }
 
-@media(max-width:760px){
 
-  .tabs{
-    grid-template-columns:repeat(2,1fr);
-  }
+.nav-btn.active{
 
-  .tabs .tab:last-child{
-    grid-column:1/-1;
-  }
+  background:
+    rgba(20,115,180,.13);
 
-  .schedule-grid{
-    grid-template-columns:1fr;
-  }
+  color:
+    var(--blue);
 
-  .products{
-    grid-template-columns:1fr;
-  }
+}
+
+
+.nav-icon{
+
+  font-size:21px;
+
+  line-height:1;
+
+}
+
+
+/* ========================================
+   MOBILE
+======================================== */
+
+@media(
+  max-width:760px
+){
 
   .hero{
-    height:320px;
+
+    height:285px;
+
+  }
+
+
+  .connection-row{
+
+    grid-template-columns:
+      1fr 1fr;
+
+  }
+
+
+  .connection-card{
+
+    min-height:62px;
+
+    padding:
+      9px 8px;
+
+  }
+
+
+  .status-icon{
+
+    font-size:22px;
+
+  }
+
+
+  .connection-copy strong{
+
+    font-size:10px;
+
+  }
+
+
+  .connection-copy small{
+
+    font-size:8px;
+
+  }
+
+
+  .store-tabs{
+
+    gap:5px;
+
+  }
+
+
+  .store-tab{
+
+    min-height:57px;
+
+    font-size:8px;
+
+  }
+
+
+  .monitor-title{
+
+    font-size:19px;
+
+  }
+
+
+  .stats-grid{
+
+    grid-template-columns:
+      repeat(3,1fr);
+
+  }
+
+
+  .stat-card{
+
+    min-height:73px;
+
+    padding:9px;
+
+  }
+
+
+  .stat-card strong{
+
+    font-size:10px;
+
+  }
+
+
+  .discovery-grid{
+
+    display:flex;
+
+    overflow-x:auto;
+
+    padding-bottom:5px;
+
+    scroll-snap-type:
+      x mandatory;
+
+  }
+
+
+  .discovery-card{
+
+    flex:
+      0 0 155px;
+
+    scroll-snap-align:start;
+
+  }
+
+
+  .products{
+
+    grid-template-columns:
+      1fr;
+
+  }
+
+}
+
+
+/* ========================================
+   VERY SMALL SCREENS
+======================================== */
+
+@media(
+  max-width:390px
+){
+
+  .connection-row{
+
+    grid-template-columns:
+      1fr;
+
+  }
+
+
+  .stats-grid{
+
+    grid-template-columns:
+      1fr;
+
+  }
+
+
+  .monitor-actions{
+
+    grid-template-columns:
+      1fr;
+
   }
 
 }
 
 </style>
+
 </head>
+
 
 <body>
 
 <div class="app">
 
+
+  <!-- HERO -->
+
   <div class="hero"></div>
 
-  <div class="status-wrap">
+
+  <!-- STATUS -->
+
+  <div class="connection-row">
+
 
     <div
       id="backendStatus"
-      class="status-pill offline"
+      class="connection-card offline"
     >
-      <span class="dot"></span>
-      <span>CONNECTING...</span>
+
+      <span class="status-dot"></span>
+
+      <div class="connection-copy">
+
+        <strong>
+          CONNECTING...
+        </strong>
+
+        <small>
+          MONITOR STATUS
+        </small>
+
+      </div>
+
     </div>
+
 
     <button
       id="pushStatus"
-      class="status-pill warn"
+      class="connection-card push warn"
       type="button"
     >
-      <span class="dot"></span>
-      <span>ENABLE PHONE ALERTS</span>
+
+      <span class="status-icon">
+        🔔
+      </span>
+
+      <div class="connection-copy">
+
+        <strong id="pushStatusText">
+          ENABLE PHONE ALERTS
+        </strong>
+
+        <small>
+          TAP TO ENABLE / MANAGE
+        </small>
+
+      </div>
+
     </button>
+
 
   </div>
 
 
-  <section class="section">
+  <!-- STORE TABS -->
 
-    <div class="tabs">
-
-      <button class="tab active" data-retailer="walmart">
-        WALMART
-      </button>
-
-      <button class="tab" data-retailer="target">
-        TARGET
-      </button>
-
-      <button class="tab" data-retailer="sams">
-        SAM'S CLUB
-      </button>
-
-      <button class="tab" data-retailer="bestbuy">
-        BEST BUY
-      </button>
-
-      <button class="tab" data-retailer="costco">
-        COSTCO
-      </button>
-
-    </div>
-
-  </section>
+  <div class="store-tabs">
 
 
-  <section class="section">
+    <button
+      class="store-tab active"
+      data-retailer="walmart"
+    >
+
+      <span
+        class="store-logo walmart-logo"
+      >
+        ✦
+      </span>
+
+      WALMART
+
+    </button>
+
+
+    <button
+      class="store-tab"
+      data-retailer="target"
+    >
+
+      <span
+        class="store-logo target-logo"
+      >
+        ⦿
+      </span>
+
+      TARGET
+
+    </button>
+
+
+    <button
+      class="store-tab"
+      data-retailer="sams"
+    >
+
+      <span
+        class="store-logo sams-logo"
+      >
+        ◇
+      </span>
+
+      SAM'S CLUB
+
+    </button>
+
+
+    <button
+      class="store-tab"
+      data-retailer="bestbuy"
+    >
+
+      <span
+        class="store-logo bestbuy-logo"
+      >
+        ▰
+      </span>
+
+      BEST BUY
+
+    </button>
+
+
+    <button
+      class="store-tab"
+      data-retailer="costco"
+    >
+
+      <span
+        class="store-logo costco-logo"
+      >
+        C
+      </span>
+
+      COSTCO
+
+    </button>
+
+
+  </div>
+
+
+  <!-- MAIN MONITOR -->
+
+  <div class="monitor-wrap">
 
     <div class="monitor-panel">
 
-      <div class="panel-head">
+      <div class="monitor-inner">
 
-        <div id="monitorTitle" class="panel-title">
-          Walmart Monitor
+
+        <!-- HEADER -->
+
+        <div class="monitor-head">
+
+
+          <div class="monitor-name-wrap">
+
+            <div
+              id="monitorStoreIcon"
+              class="monitor-store-icon"
+            >
+              ✦
+            </div>
+
+            <div
+              id="monitorTitle"
+              class="monitor-title"
+            >
+              Walmart Monitor
+            </div>
+
+          </div>
+
+
+          <div
+            id="monitorState"
+            class="live-pill"
+          >
+
+            <span class="live-dot"></span>
+
+            <span>
+              LIVE
+            </span>
+
+          </div>
+
+
         </div>
 
-        <div id="monitorState" class="panel-status">
-          LIVE
-        </div>
 
-      </div>
+        <!-- STATS -->
+
+        <div class="stats-grid">
 
 
-      <div id="walmartDetails">
+          <div class="stat-card">
 
-        <div class="schedule-grid">
+            <span>
+              Scan schedule
+            </span>
 
-          <div class="schedule-box">
-            <span>Scan schedule</span>
-            <strong id="walmartSchedule">
+            <strong id="scanSchedule">
               Loading…
             </strong>
+
           </div>
 
-          <div class="schedule-box">
-            <span>Primary source</span>
-            <strong id="walmartPrimary">
-              Loading…
-            </strong>
-          </div>
 
-          <div class="schedule-box">
-            <span>Last scan</span>
-            <strong id="walmartLastScan">
+          <div class="stat-card">
+
+            <span>
+              Last scan
+            </span>
+
+            <strong id="lastScan">
               —
             </strong>
+
           </div>
 
-          <div class="schedule-box">
-            <span>Next scan</span>
-            <strong id="walmartNextScan">
+
+          <div class="stat-card">
+
+            <span>
+              Next scan
+            </span>
+
+            <strong id="nextScan">
               —
             </strong>
+
           </div>
+
 
         </div>
 
 
-        <div class="panel-actions">
+        <!-- ACTIONS -->
+
+        <div class="monitor-actions">
+
 
           <button
-            id="manualWalmartScan"
-            class="action-btn"
+            id="primaryAction"
+            class="monitor-action primary"
           >
             SCAN WALMART NOW
           </button>
 
+
           <button
-            id="forgetScanToken"
-            class="action-btn secondary"
+            id="secondaryAction"
+            class="monitor-action"
           >
             RESET SCAN KEY
           </button>
+
 
         </div>
 
@@ -684,174 +1888,403 @@ button.status-pill:active{
           id="pushDebug"
           class="push-debug"
         >
-          Tap ENABLE PHONE ALERTS above to connect this device.
+          Checking phone alert status…
+        </div>
+
+
+        <!-- DISCOVERY -->
+
+        <div class="section-heading">
+
+          <strong>
+            POKÉMON PRODUCT DISCOVERY
+          </strong>
+
+          <span>
+            LIVE
+          </span>
+
         </div>
 
 
         <div
-          id="walmartHealth"
-          class="healthline"
-        >
-          Provider health loading…
-        </div>
+          id="discoveryGrid"
+          class="discovery-grid"
+        ></div>
 
 
-        <div class="upcoming-wrap">
+        <!-- ALL PRODUCTS -->
 
-          <div class="upcoming-title">
-            POKÉMON PRODUCT DISCOVERY
+        <div class="all-products-section">
+
+
+          <div class="section-heading">
+
+            <strong id="allItemsTitle">
+              ALL MONITORED ITEMS
+            </strong>
+
+            <span id="visibleCount">
+              0 ITEMS
+            </span>
+
           </div>
+
+
+          <div class="search-row">
+
+
+            <input
+              id="search"
+              class="search-box"
+              placeholder="Search Pokémon products..."
+            >
+
+
+            <button
+              id="refresh"
+              class="filter-button"
+            >
+              REFRESH
+            </button>
+
+
+          </div>
+
+
+          <div class="meta-row">
+
+            <span id="retailerStatus">
+              Connecting…
+            </span>
+
+            <span id="lastUpdated">
+              Not updated yet
+            </span>
+
+          </div>
+
 
           <div
-            id="upcomingList"
-            class="upcoming-list"
-          >
-            <div class="sub">
-              Loading Walmart watchlist…
-            </div>
-          </div>
+            id="products"
+            class="products"
+          ></div>
+
 
         </div>
 
-      </div>
 
-
-      <div
-        id="otherRetailerDetails"
-        class="hidden"
-      >
-        <div
-          id="otherRetailerMessage"
-          class="store-placeholder"
-        ></div>
       </div>
 
     </div>
 
-  </section>
+  </div>
 
-
-  <section class="section">
-
-    <div class="toolbar">
-
-      <input
-        id="search"
-        placeholder="Search Walmart Pokémon products"
-      >
-
-      <button id="refresh">
-        Refresh
-      </button>
-
-    </div>
-
-    <div class="meta">
-
-      <span id="visibleCount">
-        0 products
-      </span>
-
-      <span id="lastUpdated">
-        Not updated yet
-      </span>
-
-    </div>
-
-  </section>
-
-
-  <main
-    id="products"
-    class="products"
-  ></main>
 
 </div>
 
 
+<!-- BOTTOM NAVIGATION -->
+
+<nav class="bottom-nav">
+
+
+  <button
+    id="homeNav"
+    class="nav-btn active"
+  >
+
+    <span class="nav-icon">
+      ⌂
+    </span>
+
+    HOME
+
+  </button>
+
+
+  <button
+    class="nav-btn retailer-nav"
+    data-retailer="walmart"
+  >
+
+    <span
+      class="nav-icon walmart-logo"
+    >
+      ✦
+    </span>
+
+    Walmart
+
+  </button>
+
+
+  <button
+    class="nav-btn retailer-nav"
+    data-retailer="target"
+  >
+
+    <span
+      class="nav-icon target-logo"
+    >
+      ⦿
+    </span>
+
+    Target
+
+  </button>
+
+
+  <button
+    class="nav-btn retailer-nav"
+    data-retailer="sams"
+  >
+
+    <span
+      class="nav-icon sams-logo"
+    >
+      ◇
+    </span>
+
+    Sam's Club
+
+  </button>
+
+
+  <button
+    class="nav-btn retailer-nav"
+    data-retailer="bestbuy"
+  >
+
+    <span
+      class="nav-icon bestbuy-logo"
+    >
+      ▰
+    </span>
+
+    Best Buy
+
+  </button>
+
+
+  <button
+    class="nav-btn retailer-nav"
+    data-retailer="costco"
+  >
+
+    <span
+      class="nav-icon costco-logo"
+    >
+      C
+    </span>
+
+    Costco
+
+  </button>
+
+
+</nav>
+
+
 <script>
 
-const RETAILER_LABELS = {
-  walmart:"Walmart",
-  target:"Target",
-  sams:"Sam's Club",
-  bestbuy:"Best Buy",
-  costco:"Costco"
+
+/* ========================================
+   RETAILERS
+======================================== */
+
+const RETAILERS = {
+
+  walmart:{
+    label:"Walmart",
+    icon:"✦"
+  },
+
+  target:{
+    label:"Target",
+    icon:"⦿"
+  },
+
+  sams:{
+    label:"Sam's Club",
+    icon:"◇"
+  },
+
+  bestbuy:{
+    label:"Best Buy",
+    icon:"▰"
+  },
+
+  costco:{
+    label:"Costco",
+    icon:"C"
+  }
+
 };
 
-const RETAILER_MONITOR_NAMES = {
-  walmart:"Walmart Monitor",
-  target:"Target Monitor",
-  sams:"Sam's Club Monitor",
-  bestbuy:"Best Buy Monitor",
-  costco:"Costco Monitor"
-};
 
-const productsEl = document.getElementById("products");
-const searchEl = document.getElementById("search");
-const refreshBtn = document.getElementById("refresh");
-const backendStatus = document.getElementById("backendStatus");
-const pushStatus = document.getElementById("pushStatus");
-const pushDebug = document.getElementById("pushDebug");
-const visibleCount = document.getElementById("visibleCount");
-const lastUpdated = document.getElementById("lastUpdated");
+/* ========================================
+   ELEMENTS
+======================================== */
 
-const manualWalmartScan =
-  document.getElementById("manualWalmartScan");
+const backendStatus =
+  document.getElementById(
+    "backendStatus"
+  );
 
-const forgetScanToken =
-  document.getElementById("forgetScanToken");
 
-const walmartSchedule =
-  document.getElementById("walmartSchedule");
+const pushStatus =
+  document.getElementById(
+    "pushStatus"
+  );
 
-const walmartPrimary =
-  document.getElementById("walmartPrimary");
 
-const walmartLastScan =
-  document.getElementById("walmartLastScan");
+const pushStatusText =
+  document.getElementById(
+    "pushStatusText"
+  );
 
-const walmartNextScan =
-  document.getElementById("walmartNextScan");
 
-const walmartHealth =
-  document.getElementById("walmartHealth");
+const pushDebug =
+  document.getElementById(
+    "pushDebug"
+  );
 
-const upcomingList =
-  document.getElementById("upcomingList");
 
 const monitorTitle =
-  document.getElementById("monitorTitle");
+  document.getElementById(
+    "monitorTitle"
+  );
+
+
+const monitorStoreIcon =
+  document.getElementById(
+    "monitorStoreIcon"
+  );
+
 
 const monitorState =
-  document.getElementById("monitorState");
-
-const walmartDetails =
-  document.getElementById("walmartDetails");
-
-const otherRetailerDetails =
-  document.getElementById("otherRetailerDetails");
-
-const otherRetailerMessage =
-  document.getElementById("otherRetailerMessage");
+  document.getElementById(
+    "monitorState"
+  );
 
 
-let activeRetailer = "walmart";
-let currentProducts = [];
-let providerStates = [];
-let latestStatus = {};
+const scanSchedule =
+  document.getElementById(
+    "scanSchedule"
+  );
 
 
-function esc(value){
+const lastScan =
+  document.getElementById(
+    "lastScan"
+  );
 
-  return String(value ?? "").replace(
+
+const nextScan =
+  document.getElementById(
+    "nextScan"
+  );
+
+
+const primaryAction =
+  document.getElementById(
+    "primaryAction"
+  );
+
+
+const secondaryAction =
+  document.getElementById(
+    "secondaryAction"
+  );
+
+
+const discoveryGrid =
+  document.getElementById(
+    "discoveryGrid"
+  );
+
+
+const productsEl =
+  document.getElementById(
+    "products"
+  );
+
+
+const searchEl =
+  document.getElementById(
+    "search"
+  );
+
+
+const refreshBtn =
+  document.getElementById(
+    "refresh"
+  );
+
+
+const visibleCount =
+  document.getElementById(
+    "visibleCount"
+  );
+
+
+const retailerStatus =
+  document.getElementById(
+    "retailerStatus"
+  );
+
+
+const lastUpdated =
+  document.getElementById(
+    "lastUpdated"
+  );
+
+
+const allItemsTitle =
+  document.getElementById(
+    "allItemsTitle"
+  );
+
+
+/* ========================================
+   STATE
+======================================== */
+
+let activeRetailer =
+  "walmart";
+
+
+let currentProducts =
+  [];
+
+
+let providers =
+  [];
+
+
+let statusData =
+  {};
+
+
+/* ========================================
+   BASIC HELPERS
+======================================== */
+
+function escapeHtml(value){
+
+  return String(
+    value ?? ""
+  ).replace(
     /[&<>"']/g,
     character => ({
+
       "&":"&amp;",
       "<":"&lt;",
       ">":"&gt;",
       "\"":"&quot;",
       "'":"&#39;"
+
     })[character]
   );
 
@@ -863,97 +2296,166 @@ function money(value){
   const number =
     Number(value);
 
-  return Number.isFinite(number)
-    ? new Intl.NumberFormat(
-        "en-US",
-        {
-          style:"currency",
-          currency:"USD"
-        }
-      ).format(number)
-    : "Price unavailable";
+
+  if(
+    !Number.isFinite(
+      number
+    )
+  ){
+    return "Price unavailable";
+  }
+
+
+  return new Intl.NumberFormat(
+    "en-US",
+    {
+
+      style:"currency",
+      currency:"USD"
+
+    }
+  ).format(number);
 
 }
 
 
-function fallback(name){
+function formatDate(value){
 
-  const label =
-    esc(
+  if(!value){
+    return "—";
+  }
+
+
+  const date =
+    new Date(value);
+
+
+  if(
+    Number.isNaN(
+      date.getTime()
+    )
+  ){
+    return "—";
+  }
+
+
+  return date
+    .toLocaleString();
+
+}
+
+
+function fallbackImage(
+  name
+){
+
+  const safe =
+    escapeHtml(
       name ||
-      "Pokémon product"
-    ).slice(0,42);
+      "Pokémon Product"
+    ).slice(
+      0,
+      40
+    );
+
 
   const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="700" height="520">
-      <rect width="100%" height="100%" fill="#071729"/>
-      <circle cx="350" cy="210" r="110" fill="#0d3151"/>
-      <text x="350" y="205" text-anchor="middle" fill="white" font-size="28" font-family="Arial" font-weight="700">${label}</text>
-      <text x="350" y="340" text-anchor="middle" fill="#54f3a6" font-size="22" font-family="Arial" font-weight="700">REPRESENTATIVE IMAGE</text>
+
+    `<svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="700"
+      height="500"
+    >
+
+      <rect
+        width="100%"
+        height="100%"
+        fill="#061426"
+      />
+
+      <circle
+        cx="350"
+        cy="210"
+        r="110"
+        fill="#0d3151"
+      />
+
+      <text
+        x="350"
+        y="205"
+        text-anchor="middle"
+        fill="#ffffff"
+        font-size="26"
+        font-family="Arial"
+        font-weight="700"
+      >
+        ${safe}
+      </text>
+
+      <text
+        x="350"
+        y="345"
+        text-anchor="middle"
+        fill="#62c7ff"
+        font-size="18"
+        font-family="Arial"
+        font-weight="700"
+      >
+        POKÉMON MONITOR
+      </text>
+
     </svg>`;
+
 
   return (
     "data:image/svg+xml;charset=UTF-8," +
-    encodeURIComponent(svg)
+    encodeURIComponent(
+      svg
+    )
   );
 
 }
 
 
-function statusBadge(status){
-
-  const normalized =
-    String(
-      status ||
-      "out"
-    ).toLowerCase();
-
-  const className =
-    [
-      "instock",
-      "onhand"
-    ].includes(normalized)
-      ? "good"
-      : [
-          "transit",
-          "ordered",
-          "preorder",
-          "watching"
-        ].includes(normalized)
-        ? "warn"
-        : "out";
+function getProvider(
+  retailer
+){
 
   return (
-    `<span class="badge ${className}">
-      ${esc(normalized)}
-    </span>`
-  );
-
-}
-
-
-function providerFor(retailer){
-
-  return (
-    providerStates.find(
-      provider =>
-        provider.retailer === retailer
+    providers.find(
+      item =>
+        item.retailer ===
+        retailer
     ) ||
     {
+
       retailer,
+
       label:
-        RETAILER_LABELS[retailer] ||
+        RETAILERS[
+          retailer
+        ]?.label ||
         retailer,
+
       configured:false,
+
       running:false,
+
       error:null,
+
       itemCount:0,
+
       lastRun:null
+
     }
   );
 
 }
 
+
+/* ========================================
+   PUSH NOTIFICATIONS
+======================================== */
 
 function isStandalone(){
 
@@ -961,39 +2463,62 @@ function isStandalone(){
     window.matchMedia(
       "(display-mode: standalone)"
     ).matches ||
-    window.navigator.standalone === true
+    window.navigator
+      .standalone === true
   );
 
 }
 
 
-function setPushState(state,text){
+function setPushState(
+  state,
+  text
+){
 
   pushStatus.classList.remove(
     "offline",
     "warn"
   );
 
-  if(state === "offline"){
-    pushStatus.classList.add(
-      "offline"
-    );
+
+  if(
+    state ===
+    "offline"
+  ){
+
+    pushStatus
+      .classList
+      .add(
+        "offline"
+      );
+
   }
 
-  if(state === "warn"){
-    pushStatus.classList.add(
-      "warn"
-    );
+
+  if(
+    state ===
+    "warn"
+  ){
+
+    pushStatus
+      .classList
+      .add(
+        "warn"
+      );
+
   }
 
-  pushStatus.querySelector(
-    "span:last-child"
-  ).textContent = text;
+
+  pushStatusText
+    .textContent =
+    text;
 
 }
 
 
-function setPushDebug(text){
+function setPushDebug(
+  text
+){
 
   pushDebug.textContent =
     text;
@@ -1009,25 +2534,41 @@ function urlBase64ToUint8Array(
     "=".repeat(
       (
         4 -
-        base64String.length % 4
-      ) % 4
+        base64String.length %
+        4
+      ) %
+      4
     );
+
 
   const base64 =
     (
       base64String +
       padding
     )
-      .replace(/-/g,"+")
-      .replace(/_/g,"/");
+      .replace(
+        /-/g,
+        "+"
+      )
+      .replace(
+        /_/g,
+        "/"
+      );
+
 
   const rawData =
-    window.atob(base64);
+    window.atob(
+      base64
+    );
+
 
   return Uint8Array.from(
     [...rawData].map(
       character =>
-        character.charCodeAt(0)
+        character
+          .charCodeAt(
+            0
+          )
     )
   );
 
@@ -1036,32 +2577,49 @@ function urlBase64ToUint8Array(
 
 async function registerServiceWorker(){
 
-  if(!("serviceWorker" in navigator)){
+  if(
+    !(
+      "serviceWorker"
+      in navigator
+    )
+  ){
+
     throw new Error(
-      "Service workers are not supported on this device."
+      "Service workers are unavailable."
     );
+
   }
 
-  const registration =
-    await navigator.serviceWorker.register(
-      "/sw.js",
-      {
-        scope:"/"
-      }
-    );
 
-  await navigator.serviceWorker.ready;
+  const registration =
+    await navigator
+      .serviceWorker
+      .register(
+        "/sw.js",
+        {
+          scope:"/"
+        }
+      );
+
+
+  await navigator
+    .serviceWorker
+    .ready;
+
 
   return registration;
 
 }
 
 
-async function checkPushSubscription(){
+async function checkPush(){
 
   try{
 
-    if(!window.isSecureContext){
+
+    if(
+      !window.isSecureContext
+    ){
 
       setPushState(
         "offline",
@@ -1069,14 +2627,20 @@ async function checkPushSubscription(){
       );
 
       setPushDebug(
-        "Push notifications require HTTPS."
+        "Push alerts require HTTPS."
       );
 
       return;
+
     }
 
 
-    if(!("Notification" in window)){
+    if(
+      !(
+        "Notification"
+        in window
+      )
+    ){
 
       setPushState(
         "offline",
@@ -1088,21 +2652,16 @@ async function checkPushSubscription(){
       );
 
       return;
+
     }
 
 
-    if(!("serviceWorker" in navigator)){
-
-      setPushState(
-        "offline",
-        "SERVICE WORKER UNSUPPORTED"
-      );
-
-      return;
-    }
-
-
-    if(!("PushManager" in window)){
+    if(
+      !(
+        "PushManager"
+        in window
+      )
+    ){
 
       setPushState(
         "offline",
@@ -1111,16 +2670,18 @@ async function checkPushSubscription(){
 
       setPushDebug(
         isStandalone()
-          ? "PushManager is unavailable on this installation."
-          : "Open this app from its Home Screen icon."
+          ? "PushManager is unavailable."
+          : "Open the app from its Home Screen icon."
       );
 
       return;
+
     }
 
 
     const registration =
       await registerServiceWorker();
+
 
     const subscription =
       await registration
@@ -1136,10 +2697,11 @@ async function checkPushSubscription(){
       );
 
       setPushDebug(
-        "This iPhone is subscribed to Pokémon alerts."
+        "This device is subscribed to Pokémon alerts."
       );
 
       return;
+
     }
 
 
@@ -1158,6 +2720,7 @@ async function checkPushSubscription(){
       );
 
       return;
+
     }
 
 
@@ -1166,18 +2729,24 @@ async function checkPushSubscription(){
       "ENABLE PHONE ALERTS"
     );
 
+
     setPushDebug(
       "Tap ENABLE PHONE ALERTS above."
     );
 
+
   }catch(error){
 
-    console.error(error);
+    console.error(
+      error
+    );
+
 
     setPushState(
       "offline",
       "PUSH CHECK FAILED"
     );
+
 
     setPushDebug(
       error.message
@@ -1190,52 +2759,66 @@ async function checkPushSubscription(){
 
 async function enablePhoneAlerts(){
 
-  pushStatus.disabled = true;
+  pushStatus.disabled =
+    true;
+
 
   setPushState(
     "warn",
     "CONNECTING..."
   );
 
+
   setPushDebug(
-    "Starting push notification setup..."
+    "Connecting phone alerts..."
   );
+
 
   try{
 
-    if(!window.isSecureContext){
+
+    if(
+      !(
+        "Notification"
+        in window
+      )
+    ){
+
       throw new Error(
-        "This page must use HTTPS."
+        "Notifications are unavailable here. Open the installed app from your Home Screen."
       );
+
     }
 
-    if(!("Notification" in window)){
-      throw new Error(
-        "Notifications are unavailable here. Open the app from your iPhone Home Screen."
-      );
-    }
 
-    if(!("serviceWorker" in navigator)){
-      throw new Error(
-        "Service workers are unavailable."
-      );
-    }
+    if(
+      !(
+        "PushManager"
+        in window
+      )
+    ){
 
-    if(!("PushManager" in window)){
       throw new Error(
         "Push notifications are unavailable in this browser."
       );
+
     }
 
 
     const permission =
-      await Notification.requestPermission();
+      await Notification
+        .requestPermission();
 
 
-    if(permission !== "granted"){
+    if(
+      permission !==
+      "granted"
+    ){
+
       throw new Error(
         `Notification permission is ${permission}.`
       );
+
     }
 
 
@@ -1251,15 +2834,21 @@ async function enablePhoneAlerts(){
         }
       );
 
+
     const keyData =
-      await keyResponse.json();
+      await keyResponse
+        .json();
 
 
-    if(!keyResponse.ok){
+    if(
+      !keyResponse.ok
+    ){
+
       throw new Error(
         keyData.error ||
         "Push key could not be loaded."
       );
+
     }
 
 
@@ -1269,18 +2858,27 @@ async function enablePhoneAlerts(){
         .getSubscription();
 
 
-    if(!subscription){
+    if(
+      !subscription
+    ){
 
       subscription =
         await registration
           .pushManager
-          .subscribe({
-            userVisibleOnly:true,
-            applicationServerKey:
-              urlBase64ToUint8Array(
-                keyData.publicKey
-              )
-          });
+          .subscribe(
+            {
+
+              userVisibleOnly:
+                true,
+
+              applicationServerKey:
+                urlBase64ToUint8Array(
+                  keyData
+                    .publicKey
+                )
+
+            }
+          );
 
     }
 
@@ -1289,30 +2887,42 @@ async function enablePhoneAlerts(){
       await fetch(
         "/api/push/subscribe",
         {
+
           method:"POST",
+
           headers:{
+
             "Content-Type":
               "application/json"
+
           },
+
           body:
             JSON.stringify(
               subscription.toJSON
-                ? subscription.toJSON()
+                ? subscription
+                    .toJSON()
                 : subscription
             )
+
         }
       );
 
 
     const result =
-      await response.json();
+      await response
+        .json();
 
 
-    if(!response.ok){
+    if(
+      !response.ok
+    ){
+
       throw new Error(
         result.error ||
         "Push subscription failed."
       );
+
     }
 
 
@@ -1321,481 +2931,295 @@ async function enablePhoneAlerts(){
       "PUSH ALERTS ACTIVE"
     );
 
+
     setPushDebug(
-      "SUCCESS: This iPhone is subscribed to Pokémon alerts."
+      "SUCCESS: This device is subscribed to Pokémon alerts."
     );
+
 
   }catch(error){
 
     console.error(
-      "Push setup failed:",
       error
     );
+
 
     setPushState(
       "offline",
       "PUSH SETUP FAILED"
     );
 
+
     setPushDebug(
       error.message
     );
 
+
   }finally{
 
-    pushStatus.disabled = false;
+    pushStatus.disabled =
+      false;
 
   }
 
 }
 
 
-function renderUpcoming(
-  watchData,
-  legacyItems = []
+/* ========================================
+   STATUS HELPERS
+======================================== */
+
+function statusClass(
+  status
 ){
 
-  const detected =
-    Array.isArray(
-      watchData?.detected
+  const normalized =
+    String(
+      status ||
+      ""
+    ).toLowerCase();
+
+
+  if(
+    [
+      "instock",
+      "in stock",
+      "onhand",
+      "available"
+    ].includes(
+      normalized
     )
-      ? watchData.detected
-      : Array.isArray(
-          legacyItems
-        )
-        ? legacyItems
-        : [];
-
-  const watching =
-    Array.isArray(
-      watchData?.watching
-    )
-      ? watchData.watching
-      : [];
-
-  const rows = [];
-
-
-  for(
-    const item
-    of detected.slice(0,8)
   ){
 
-    rows.push(
-      `<a
-        class="upcoming-item"
-        href="${esc(item.url || "#")}"
-        ${
-          item.url
-            ? 'target="_blank" rel="noopener noreferrer"'
-            : ""
-        }
-      >
-        <strong>
-          ${esc(item.name)}
-        </strong>
-
-        <small>
-          ${esc(
-            (
-              item.dropType ||
-              item.status ||
-              "upcoming"
-            ).toUpperCase()
-          )}
-          ${
-            item.price != null
-              ? ` • ${money(item.price)}`
-              : ""
-          }
-        </small>
-      </a>`
-    );
+    return "good";
 
   }
 
 
-  for(
-    const item
-    of watching.slice(0,18)
+  if(
+    [
+      "preorder",
+      "transit",
+      "ordered",
+      "lowstock",
+      "low stock",
+      "watching"
+    ].includes(
+      normalized
+    )
   ){
 
-    rows.push(
-      `<a
-        class="upcoming-item watch"
-        href="${esc(item.url || "#")}"
-        ${
-          item.url
-            ? 'target="_blank" rel="noopener noreferrer"'
-            : ""
-        }
-      >
-        <strong>
-          ${esc(item.name)}
-        </strong>
-
-        <small>
-          WATCHING
-          ${
-            item.msrp != null
-              ? ` • MSRP ${money(item.msrp)}`
-              : ""
-          }
-        </small>
-      </a>`
-    );
+    return "warn";
 
   }
 
 
-  upcomingList.innerHTML =
-    rows.length
-      ? rows.join("")
-      : '<div class="sub">No Walmart watchlist items configured.</div>';
+  return "out";
 
 }
 
 
-function renderMonitor(){
+function prettyStatus(
+  status
+){
 
-  const provider =
-    providerFor(
-      activeRetailer
-    );
-
-  monitorTitle.textContent =
-    RETAILER_MONITOR_NAMES[
-      activeRetailer
-    ] ||
-    `${RETAILER_LABELS[activeRetailer]} Monitor`;
-
-  searchEl.placeholder =
-    `Search ${RETAILER_LABELS[activeRetailer]} Pokémon products`;
+  const normalized =
+    String(
+      status ||
+      ""
+    ).toLowerCase();
 
 
-  if(activeRetailer === "walmart"){
+  if(
+    normalized ===
+    "instock"
+  ){
 
-    walmartDetails
-      .classList
-      .remove("hidden");
+    return "IN STOCK";
 
-    otherRetailerDetails
-      .classList
-      .add("hidden");
-
-
-    const schedule =
-      latestStatus?.walmartSchedule ||
-      {};
-
-    const walmartProvider =
-      latestStatus?.walmartProvider ||
-      {};
-
-    const hd =
-      walmartProvider
-        ?.health
-        ?.hasdata ||
-      {};
-
-    const ra =
-      walmartProvider
-        ?.health
-        ?.rapidapi ||
-      {};
+  }
 
 
-    monitorState.className =
-      "panel-status";
+  if(
+    normalized ===
+    "onhand"
+  ){
 
-    monitorState.textContent =
-      schedule.activeWindow
-        ? "DROP WINDOW ACTIVE"
-        : "LIVE";
+    return "ON HAND";
 
-
-    walmartSchedule.textContent =
-      schedule.scheduleLabel ||
-      "Scheduled monitoring";
-
-
-    walmartPrimary.textContent =
-      walmartProvider.primary
-        ? String(
-            walmartProvider.primary
-          ).toUpperCase()
-        : "WALMART";
-
-
-    walmartLastScan.textContent =
-      schedule.lastScheduledRun
-        ? new Date(
-            schedule.lastScheduledRun
-          ).toLocaleString()
-        : "—";
-
-
-    walmartNextScan.textContent =
-      schedule.nextScanLabel ||
-      "Automatic";
-
-
-    walmartHealth.textContent =
-      `HasData: ${Number(hd.successes || 0)} ok / ${Number(hd.failures || 0)} failed • ` +
-      `RapidAPI: ${Number(ra.successes || 0)} ok / ${Number(ra.failures || 0)} failed`;
-
-
-    renderUpcoming(
-      latestStatus?.walmartWatchlist,
-      latestStatus?.upcoming ||
-      []
-    );
-
-
-    return;
   }
 
 
-  walmartDetails
-    .classList
-    .add("hidden");
+  if(
+    normalized ===
+    "preorder"
+  ){
 
-  otherRetailerDetails
-    .classList
-    .remove("hidden");
-
-
-  if(provider.configured){
-
-    monitorState.className =
-      provider.error
-        ? "panel-status off"
-        : provider.running
-          ? "panel-status warn"
-          : "panel-status";
-
-    monitorState.textContent =
-      provider.error
-        ? "ERROR"
-        : provider.running
-          ? "SCANNING"
-          : "CONNECTED";
-
-
-    otherRetailerMessage.innerHTML =
-      `<strong>${esc(provider.label)} monitor connected.</strong><br>` +
-      `Live products: ${Number(provider.itemCount || 0)}<br>` +
-      `Last scan: ${
-        provider.lastRun
-          ? new Date(
-              provider.lastRun
-            ).toLocaleString()
-          : "—"
-      }`;
-
-  }else{
-
-    monitorState.className =
-      "panel-status off";
-
-    monitorState.textContent =
-      "NOT CONFIGURED";
-
-    otherRetailerMessage.innerHTML =
-      `<strong>${esc(provider.label)} is not connected yet.</strong>`;
+    return "PREORDER";
 
   }
+
+
+  if(
+    normalized ===
+    "transit"
+  ){
+
+    return "IN TRANSIT";
+
+  }
+
+
+  if(
+    normalized ===
+    "ordered"
+  ){
+
+    return "ORDERED";
+
+  }
+
+
+  if(
+    normalized ===
+    "watching"
+  ){
+
+    return "WATCHING";
+
+  }
+
+
+  return (
+    status
+      ? String(
+          status
+        ).toUpperCase()
+      : "UNKNOWN"
+  );
 
 }
 
 
-function renderProducts(){
+/* ========================================
+   DISCOVERY CARDS
+======================================== */
 
-  const query =
-    searchEl.value
-      .trim()
-      .toLowerCase();
+function renderDiscovery(){
 
-  const list =
-    currentProducts.filter(
-      product => {
-
-        return (
-          !query ||
-          String(
-            product.name || ""
-          )
-            .toLowerCase()
-            .includes(query) ||
-          String(
-            product.seller || ""
-          )
-            .toLowerCase()
-            .includes(query) ||
-          String(
-            product.storeName || ""
-          )
-            .toLowerCase()
-            .includes(query)
-        );
-
-      }
-    );
+  const items =
+    currentProducts
+      .slice(0,8);
 
 
-  visibleCount.textContent =
-    `${list.length} product${
-      list.length === 1
-        ? ""
-        : "s"
-    }`;
+  if(
+    !items.length
+  ){
 
+    discoveryGrid.innerHTML =
 
-  if(!list.length){
+      `<div
+        class="empty"
+        style="min-width:100%;"
+      >
+        No ${escapeHtml(
+          RETAILERS[
+            activeRetailer
+          ].label
+        )} products returned right now.
+      </div>`;
 
-    const provider =
-      providerFor(
-        activeRetailer
-      );
-
-    productsEl.innerHTML =
-      `<div class="empty">${
-        provider.configured
-          ? `No ${esc(provider.label)} inventory returned right now.`
-          : `${esc(provider.label)} is not connected yet.`
-      }</div>`;
 
     return;
+
   }
 
 
-  productsEl.innerHTML =
-    list.map(
+  discoveryGrid.innerHTML =
+    items.map(
       product => {
 
-        const fallbackImage =
-          fallback(
-            product.name
-          );
 
         const image =
           product.image ||
-          fallbackImage;
+          fallbackImage(
+            product.name
+          );
 
-        const channel =
-          product.channel ===
-          "store"
-            ? "IN-STORE"
-            : "ONLINE";
 
-        const store =
-          product.channel ===
-          "store"
-            ? `<div class="storeline">
-                Store: ${esc(product.storeName || "Unknown store")}
-                ${
-                  product.storeId
-                    ? ` • ID ${esc(product.storeId)}`
-                    : ""
-                }
-                ${
-                  product.quantity != null
-                    ? ` • Qty ${esc(product.quantity)}`
-                    : ""
-                }
-              </div>`
-            : "";
+        const state =
+          statusClass(
+            product.status
+          );
 
 
         return (
-          `<article class="card">
 
-            <div class="image-wrap">
+          `<article class="discovery-card">
+
+
+            <div class="discovery-image">
 
               <img
-                src="${esc(image)}"
-                alt="${esc(product.name)}"
-                onerror="this.onerror=null;this.src='${fallbackImage}'"
+                src="${escapeHtml(image)}"
+                alt="${escapeHtml(product.name)}"
+                onerror="this.onerror=null;this.src='${fallbackImage(product.name)}'"
               >
-
-              <div class="image-note">
-                ${
-                  product.image
-                    ? "PRODUCT IMAGE"
-                    : "REPRESENTATIVE IMAGE"
-                }
-              </div>
 
             </div>
 
-            <div class="body">
 
-              <div class="badges">
+            <div class="discovery-body">
 
-                ${statusBadge(
-                  product.status
+
+              <span class="discovery-status ${state}">
+
+                ${escapeHtml(
+                  prettyStatus(
+                    product.status
+                  )
                 )}
 
-                <span class="badge">
-                  ${channel}
-                </span>
+              </span>
 
-                <span class="badge">
-                  ${esc(
-                    product.retailerLabel ||
-                    RETAILER_LABELS[
-                      product.retailer
-                    ] ||
-                    product.retailer
-                  )}
-                </span>
 
-              </div>
+              <div class="discovery-name">
 
-              <div class="name">
-                ${esc(product.name)}
-              </div>
-
-              <div class="sub">
-                Seller:
-                ${esc(
-                  product.seller ||
-                  "Not provided"
+                ${escapeHtml(
+                  product.name
                 )}
-              </div>
-
-              <div class="price">
-
-                ${money(product.price)}
-
-                <small>
-                  ${
-                    product.msrp != null
-                      ? `MSRP ${money(product.msrp)}`
-                      : ""
-                  }
-                </small>
 
               </div>
 
-              ${store}
+
+              <div class="discovery-price">
+
+                ${money(
+                  product.price
+                )}
+
+              </div>
+
 
               ${
                 product.url
                   ? `<a
-                      class="buy"
-                      href="${esc(product.url)}"
+                      class="discovery-open"
+                      href="${escapeHtml(product.url)}"
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      OPEN PRODUCT
+                      VIEW PRODUCT
                     </a>`
                   : ""
               }
 
+
             </div>
 
+
           </article>`
+
         );
 
       }
@@ -1804,50 +3228,416 @@ function renderProducts(){
 }
 
 
-function setOnline(
-  element,
-  ok,
-  onText,
-  offText
-){
+/* ========================================
+   FULL PRODUCT CARDS
+======================================== */
 
-  element.classList.toggle(
-    "offline",
-    !ok
-  );
+function renderProducts(){
 
-  element.querySelector(
-    "span:last-child"
-  ).textContent =
-    ok
-      ? onText
-      : offText;
+  const query =
+    searchEl.value
+      .trim()
+      .toLowerCase();
+
+
+  const filtered =
+    currentProducts
+      .filter(
+        product => {
+
+          if(
+            !query
+          ){
+
+            return true;
+
+          }
+
+
+          return (
+
+            String(
+              product.name ||
+              ""
+            )
+              .toLowerCase()
+              .includes(
+                query
+              )
+
+            ||
+
+            String(
+              product.seller ||
+              ""
+            )
+              .toLowerCase()
+              .includes(
+                query
+              )
+
+            ||
+
+            String(
+              product.storeName ||
+              ""
+            )
+              .toLowerCase()
+              .includes(
+                query
+              )
+
+          );
+
+        }
+      );
+
+
+  visibleCount.textContent =
+    `${filtered.length} ITEM${
+      filtered.length === 1
+        ? ""
+        : "S"
+    }`;
+
+
+  if(
+    !filtered.length
+  ){
+
+    const provider =
+      getProvider(
+        activeRetailer
+      );
+
+
+    productsEl.innerHTML =
+
+      `<div class="empty">
+
+        ${
+          provider.configured
+            ? `No ${escapeHtml(provider.label)} inventory is currently being returned.`
+            : `${escapeHtml(provider.label)} is not connected to a live inventory provider yet.`
+        }
+
+      </div>`;
+
+
+    return;
+
+  }
+
+
+  productsEl.innerHTML =
+    filtered.map(
+      product => {
+
+
+        const image =
+          product.image ||
+          fallbackImage(
+            product.name
+          );
+
+
+        const state =
+          statusClass(
+            product.status
+          );
+
+
+        return (
+
+          `<article class="product-card">
+
+
+            <div class="product-image">
+
+              <img
+                src="${escapeHtml(image)}"
+                alt="${escapeHtml(product.name)}"
+                onerror="this.onerror=null;this.src='${fallbackImage(product.name)}'"
+              >
+
+            </div>
+
+
+            <div class="product-body">
+
+
+              <div class="badges">
+
+
+                <span class="badge ${state}">
+
+                  ${escapeHtml(
+                    prettyStatus(
+                      product.status
+                    )
+                  )}
+
+                </span>
+
+
+                <span class="badge">
+
+                  ${escapeHtml(
+                    product.channel ===
+                    "store"
+                      ? "IN STORE"
+                      : "ONLINE"
+                  )}
+
+                </span>
+
+
+              </div>
+
+
+              <div class="product-name">
+
+                ${escapeHtml(
+                  product.name
+                )}
+
+              </div>
+
+
+              <div class="product-seller">
+
+                ${
+                  product.seller
+                    ? `Seller: ${escapeHtml(product.seller)}`
+                    : ""
+                }
+
+              </div>
+
+
+              <div class="product-price">
+
+                ${money(
+                  product.price
+                )}
+
+              </div>
+
+
+              ${
+                product.url
+                  ? `<a
+                      class="open-product"
+                      href="${escapeHtml(product.url)}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      OPEN PRODUCT
+                    </a>`
+                  : ""
+              }
+
+
+            </div>
+
+
+          </article>`
+
+        );
+
+      }
+    ).join("");
 
 }
 
 
-async function fetchRetailerProducts(){
+/* ========================================
+   RENDER RETAILER PANEL
+======================================== */
+
+function renderRetailer(){
+
+  const retailer =
+    RETAILERS[
+      activeRetailer
+    ];
+
+
+  const provider =
+    getProvider(
+      activeRetailer
+    );
+
+
+  monitorTitle.textContent =
+    `${retailer.label} Monitor`;
+
+
+  monitorStoreIcon.textContent =
+    retailer.icon;
+
+
+  allItemsTitle.textContent =
+    `ALL MONITORED ITEMS (${retailer.label.toUpperCase()})`;
+
+
+  searchEl.placeholder =
+    `Search ${retailer.label} Pokémon products...`;
+
+
+  if(
+    activeRetailer ===
+    "walmart"
+  ){
+
+    const schedule =
+      statusData
+        ?.walmartSchedule ||
+      {};
+
+
+    scanSchedule.textContent =
+      schedule.scheduleLabel ||
+      "Scheduled monitoring";
+
+
+    lastScan.textContent =
+      formatDate(
+        schedule.lastScheduledRun ||
+        statusData.lastRun
+      );
+
+
+    nextScan.textContent =
+      schedule.nextScanLabel ||
+      "Automatic";
+
+
+    monitorState.innerHTML =
+      `<span class="live-dot"></span>
+       <span>${
+         schedule.activeWindow
+           ? "LIVE"
+           : "SCHEDULED"
+       }</span>`;
+
+
+    primaryAction.textContent =
+      "SCAN WALMART NOW";
+
+
+    primaryAction.disabled =
+      false;
+
+
+    secondaryAction.textContent =
+      "RESET SCAN KEY";
+
+
+    secondaryAction.disabled =
+      false;
+
+
+  }else{
+
+
+    scanSchedule.textContent =
+      provider.configured
+        ? "Live monitoring"
+        : "Not connected";
+
+
+    lastScan.textContent =
+      provider.lastRun
+        ? formatDate(
+            provider.lastRun
+          )
+        : "—";
+
+
+    nextScan.textContent =
+      provider.configured
+        ? "Automatic"
+        : "—";
+
+
+    monitorState.innerHTML =
+      `<span class="live-dot"></span>
+       <span>${
+         provider.error
+           ? "ERROR"
+           : provider.running
+             ? "SCANNING"
+             : provider.configured
+               ? "LIVE"
+               : "OFFLINE"
+       }</span>`;
+
+
+    primaryAction.textContent =
+      `REFRESH ${retailer.label.toUpperCase()}`;
+
+
+    primaryAction.disabled =
+      false;
+
+
+    secondaryAction.textContent =
+      provider.configured
+        ? "MONITOR CONNECTED"
+        : "NOT CONFIGURED";
+
+
+    secondaryAction.disabled =
+      true;
+
+  }
+
+
+  retailerStatus.textContent =
+    provider.error
+      ? provider.error
+      : provider.configured
+        ? `${retailer.label} monitor connected`
+        : `${retailer.label} provider not configured`;
+
+
+  renderDiscovery();
+
+  renderProducts();
+
+}
+
+
+/* ========================================
+   FETCH PRODUCTS
+======================================== */
+
+async function fetchProducts(){
 
   const response =
     await fetch(
-      `/api/products?retailer=${encodeURIComponent(
-        activeRetailer
-      )}&t=${Date.now()}`,
+      `/api/products?retailer=${encodeURIComponent(activeRetailer)}&t=${Date.now()}`,
       {
         cache:"no-store"
       }
     );
 
 
-  if(!response.ok){
+  if(
+    !response.ok
+  ){
+
     throw new Error(
-      `${RETAILER_LABELS[activeRetailer]} inventory request failed`
+      `${RETAILERS[activeRetailer].label} inventory request failed`
     );
+
   }
 
 
   const data =
-    await response.json();
+    await response
+      .json();
 
 
   currentProducts =
@@ -1860,17 +3650,24 @@ async function fetchRetailerProducts(){
 }
 
 
+/* ========================================
+   MAIN LOAD
+======================================== */
+
 async function load(){
 
   refreshBtn.disabled =
     true;
 
+
   try{
+
 
     const [
       providersResponse,
       statusResponse
     ] = await Promise.all([
+
 
       fetch(
         `/api/providers?t=${Date.now()}`,
@@ -1879,12 +3676,14 @@ async function load(){
         }
       ),
 
+
       fetch(
         `/api/status?t=${Date.now()}`,
         {
           cache:"no-store"
         }
       )
+
 
     ]);
 
@@ -1893,22 +3692,27 @@ async function load(){
       !providersResponse.ok ||
       !statusResponse.ok
     ){
+
       throw new Error(
         "Backend request failed"
       );
+
     }
 
 
     const [
       providersData,
-      statusData
+      currentStatus
     ] = await Promise.all([
+
       providersResponse.json(),
+
       statusResponse.json()
+
     ]);
 
 
-    providerStates =
+    providers =
       Array.isArray(
         providersData.providers
       )
@@ -1916,42 +3720,81 @@ async function load(){
         : [];
 
 
-    latestStatus =
-      statusData ||
+    statusData =
+      currentStatus ||
       {};
 
 
-    await fetchRetailerProducts();
+    await fetchProducts();
 
 
-    renderMonitor();
-
-    renderProducts();
+    renderRetailer();
 
 
-    setOnline(
-      backendStatus,
-      true,
-      "LIVE MONITOR CONNECTED",
-      "MONITOR CONNECTION ERROR"
-    );
+    backendStatus
+      .classList
+      .remove(
+        "offline"
+      );
+
+
+    backendStatus
+      .querySelector(
+        "strong"
+      )
+      .textContent =
+      "BACKEND ONLINE";
+
+
+    backendStatus
+      .querySelector(
+        "small"
+      )
+      .textContent =
+      "MONITOR ACTIVE";
 
 
     lastUpdated.textContent =
       `Updated ${new Date().toLocaleTimeString()}`;
 
+
   }catch(error){
 
-    console.error(error);
 
-    setOnline(
-      backendStatus,
-      false,
-      "LIVE MONITOR CONNECTED",
-      "MONITOR CONNECTION ERROR"
+    console.error(
+      error
     );
 
+
+    backendStatus
+      .classList
+      .add(
+        "offline"
+      );
+
+
+    backendStatus
+      .querySelector(
+        "strong"
+      )
+      .textContent =
+      "BACKEND OFFLINE";
+
+
+    backendStatus
+      .querySelector(
+        "small"
+      )
+      .textContent =
+      "CONNECTION ERROR";
+
+
+    retailerStatus.textContent =
+      error.message;
+
+
   }finally{
+
 
     refreshBtn.disabled =
       false;
@@ -1961,6 +3804,10 @@ async function load(){
 }
 
 
+/* ========================================
+   SWITCH RETAILER
+======================================== */
+
 async function switchRetailer(
   retailer
 ){
@@ -1968,24 +3815,56 @@ async function switchRetailer(
   activeRetailer =
     retailer;
 
+
   searchEl.value =
     "";
 
 
   document
     .querySelectorAll(
-      ".tab"
+      ".store-tab"
     )
     .forEach(
-      tab => {
+      button => {
 
-        tab.classList.toggle(
-          "active",
-          tab.dataset.retailer ===
-          retailer
-        );
+        button
+          .classList
+          .toggle(
+            "active",
+            button.dataset.retailer ===
+            retailer
+          );
 
       }
+    );
+
+
+  document
+    .querySelectorAll(
+      ".retailer-nav"
+    )
+    .forEach(
+      button => {
+
+        button
+          .classList
+          .toggle(
+            "active",
+            button.dataset.retailer ===
+            retailer
+          );
+
+      }
+    );
+
+
+  document
+    .getElementById(
+      "homeNav"
+    )
+    .classList
+    .remove(
+      "active"
     );
 
 
@@ -1993,33 +3872,52 @@ async function switchRetailer(
     [];
 
 
-  renderMonitor();
+  renderRetailer();
 
-  renderProducts();
+
+  window.scrollTo(
+    {
+      top:250,
+      behavior:"smooth"
+    }
+  );
+
 
   await load();
 
 }
 
 
-async function runManualWalmartScan(){
+/* ========================================
+   WALMART MANUAL SCAN
+======================================== */
+
+async function runWalmartScan(){
 
   let token =
     localStorage.getItem(
       "pokemonMonitorScanToken"
-    ) || "";
+    ) ||
+    "";
 
 
-  if(!token){
+  if(
+    !token
+  ){
 
     token =
       prompt(
         "Enter your MANUAL_SCAN_TOKEN from Render:"
-      ) || "";
+      ) ||
+      "";
 
 
-    if(!token){
+    if(
+      !token
+    ){
+
       return;
+
     }
 
 
@@ -2031,84 +3929,94 @@ async function runManualWalmartScan(){
   }
 
 
-  manualWalmartScan.disabled =
+  primaryAction.disabled =
     true;
 
-  manualWalmartScan.textContent =
+
+  primaryAction.textContent =
     "SCANNING…";
 
 
   try{
 
+
     const response =
       await fetch(
         "/api/walmart/scan",
         {
+
           method:"POST",
 
           headers:{
+
             "Content-Type":
               "application/json",
 
             "x-monitor-token":
               token
+
           },
 
           body:"{}"
+
         }
       );
 
 
     const data =
-      await response.json();
+      await response
+        .json();
 
 
-    if(response.status === 401){
+    if(
+      response.status ===
+      401
+    ){
 
       localStorage.removeItem(
         "pokemonMonitorScanToken"
       );
 
-      alert(
-        "Scan key was rejected."
+
+      throw new Error(
+        "Scan key rejected. Tap scan again and enter the correct key."
       );
 
-      return;
     }
 
 
-    if(!response.ok){
+    if(
+      !response.ok
+    ){
 
       throw new Error(
         data.error ||
         data.result?.reason ||
-        "Manual scan failed"
+        "Walmart scan failed."
       );
 
     }
 
 
-    alert(
-      data.result?.skipped
-        ? data.result.reason
-        : "Walmart scan completed."
-    );
-
-
     await load();
 
+
   }catch(error){
+
 
     alert(
       error.message
     );
 
+
   }finally{
 
-    manualWalmartScan.disabled =
+
+    primaryAction.disabled =
       false;
 
-    manualWalmartScan.textContent =
+
+    primaryAction.textContent =
       "SCAN WALMART NOW";
 
   }
@@ -2116,75 +4024,179 @@ async function runManualWalmartScan(){
 }
 
 
-document
-  .querySelectorAll(
-    ".tab"
-  )
-  .forEach(
-    button => {
+/* ========================================
+   ACTIONS
+======================================== */
 
-      button.addEventListener(
-        "click",
-        () =>
-          switchRetailer(
-            button.dataset.retailer
-          )
+primaryAction
+  .addEventListener(
+    "click",
+    async () => {
+
+
+      if(
+        activeRetailer ===
+        "walmart"
+      ){
+
+        await runWalmartScan();
+
+      }else{
+
+        await load();
+
+      }
+
+    }
+  );
+
+
+secondaryAction
+  .addEventListener(
+    "click",
+    () => {
+
+
+      if(
+        activeRetailer !==
+        "walmart"
+      ){
+
+        return;
+
+      }
+
+
+      localStorage.removeItem(
+        "pokemonMonitorScanToken"
+      );
+
+
+      alert(
+        "Saved scan key cleared."
       );
 
     }
   );
 
 
-searchEl.addEventListener(
-  "input",
-  renderProducts
-);
+refreshBtn
+  .addEventListener(
+    "click",
+    load
+  );
 
 
-refreshBtn.addEventListener(
-  "click",
-  load
-);
+searchEl
+  .addEventListener(
+    "input",
+    renderProducts
+  );
 
 
-manualWalmartScan.addEventListener(
-  "click",
-  runManualWalmartScan
-);
+pushStatus
+  .addEventListener(
+    "click",
+    enablePhoneAlerts
+  );
 
 
-forgetScanToken.addEventListener(
-  "click",
-  () => {
-
-    localStorage.removeItem(
-      "pokemonMonitorScanToken"
-    );
-
-    alert(
-      "Saved scan key cleared."
-    );
-
-  }
-);
+document
+  .querySelectorAll(
+    ".store-tab"
+  )
+  .forEach(
+    button => {
 
 
-pushStatus.addEventListener(
-  "click",
-  enablePhoneAlerts
-);
+      button
+        .addEventListener(
+          "click",
+          () => {
 
+            switchRetailer(
+              button.dataset.retailer
+            );
+
+          }
+        );
+
+    }
+  );
+
+
+document
+  .querySelectorAll(
+    ".retailer-nav"
+  )
+  .forEach(
+    button => {
+
+
+      button
+        .addEventListener(
+          "click",
+          () => {
+
+            switchRetailer(
+              button.dataset.retailer
+            );
+
+          }
+        );
+
+    }
+  );
+
+
+document
+  .getElementById(
+    "homeNav"
+  )
+  .addEventListener(
+    "click",
+    () => {
+
+
+      document
+        .getElementById(
+          "homeNav"
+        )
+        .classList
+        .add(
+          "active"
+        );
+
+
+      window.scrollTo(
+        {
+          top:0,
+          behavior:"smooth"
+        }
+      );
+
+    }
+  );
+
+
+/* ========================================
+   START
+======================================== */
 
 load();
 
-checkPushSubscription();
+checkPush();
+
 
 setInterval(
   load,
   15000
 );
 
+
 </script>
 
+
 </body>
+
 </html>
