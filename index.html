@@ -7,26 +7,27 @@
 <meta charset="utf-8">
 
 <meta
-
   name="viewport"
-
   content="width=device-width,initial-scale=1,viewport-fit=cover"
-
 >
 
-<meta name="theme-color" content="#020711">
-
-<meta name="apple-mobile-web-app-capable" content="yes">
+<meta
+  name="theme-color"
+  content="#020711"
+>
 
 <meta
+  name="apple-mobile-web-app-capable"
+  content="yes"
+>
 
+<meta
   name="apple-mobile-web-app-status-bar-style"
-
   content="black-translucent"
-
 >
 
 <title>Pokémon Restock Monitor</title>
+
 
 <style>
 
@@ -52,14 +53,15 @@
 
 }
 
+
 *{
 
   box-sizing:border-box;
 
 }
 
-html,
 
+html,
 body{
 
   margin:0;
@@ -69,42 +71,43 @@ body{
   color:var(--text);
 
   font-family:
-
     -apple-system,
-
     BlinkMacSystemFont,
-
     "Segoe UI",
-
     Roboto,
-
     Arial,
-
     sans-serif;
 
 }
+
 
 body{
 
   min-height:100vh;
 
-  padding-bottom:max(24px,env(safe-area-inset-bottom));
+  padding-bottom:
+    max(
+      24px,
+      env(safe-area-inset-bottom)
+    );
 
 }
 
-button,
 
+button,
 input{
 
   font:inherit;
 
 }
 
+
 button{
 
   cursor:pointer;
 
 }
+
 
 a{
 
@@ -113,6 +116,7 @@ a{
   text-decoration:none;
 
 }
+
 
 .app{
 
@@ -124,6 +128,7 @@ a{
 
 }
 
+
 .hero{
 
   height:360px;
@@ -131,38 +136,34 @@ a{
   background:
 
     linear-gradient(
-
       to bottom,
-
       rgba(2,7,17,0) 58%,
-
       rgba(2,7,17,.35) 76%,
-
       var(--bg) 100%
-
     ),
 
-    url("hero.jpg")
-
-    center top /
-
-    cover
-
-    no-repeat;
+    url("/hero.jpg")
+      center top /
+      cover
+      no-repeat;
 
 }
+
 
 .status-wrap{
 
   display:grid;
 
-  grid-template-columns:1fr 1fr;
+  grid-template-columns:
+    1fr 1fr;
 
   gap:9px;
 
-  padding:0 14px;
+  padding:
+    0 14px;
 
-  margin-top:-28px;
+  margin-top:
+    -28px;
 
   position:relative;
 
@@ -170,15 +171,19 @@ a{
 
 }
 
+
 .status-pill{
 
   min-height:46px;
 
-  border:1px solid rgba(84,243,166,.55);
+  border:
+    1px solid
+    rgba(84,243,166,.55);
 
   border-radius:12px;
 
-  background:rgba(8,44,37,.96);
+  background:
+    rgba(8,44,37,.96);
 
   display:flex;
 
@@ -192,17 +197,30 @@ a{
 
   font-weight:900;
 
-  color:inherit;
-
 }
+
 
 .status-pill.offline{
 
-  border-color:rgba(255,117,139,.55);
+  border-color:
+    rgba(255,117,139,.55);
 
-  background:rgba(57,19,29,.96);
+  background:
+    rgba(57,19,29,.96);
 
 }
+
+
+.status-pill.warn{
+
+  border-color:
+    rgba(255,199,107,.55);
+
+  background:
+    rgba(57,43,19,.96);
+
+}
+
 
 .dot{
 
@@ -212,47 +230,78 @@ a{
 
   border-radius:50%;
 
-  background:var(--green);
+  background:
+    var(--green);
 
-  box-shadow:0 0 8px var(--green);
+  box-shadow:
+    0 0 8px
+    var(--green);
 
 }
+
 
 .offline .dot{
 
-  background:var(--red);
+  background:
+    var(--red);
 
-  box-shadow:0 0 8px var(--red);
+  box-shadow:
+    0 0 8px
+    var(--red);
 
 }
+
+
+.warn .dot{
+
+  background:
+    var(--gold);
+
+  box-shadow:
+    0 0 8px
+    var(--gold);
+
+}
+
 
 .section{
 
-  padding:12px 14px;
+  padding:
+    12px 14px;
 
 }
+
 
 .tabs{
 
   display:grid;
 
-  grid-template-columns:repeat(5,minmax(0,1fr));
+  grid-template-columns:
+    repeat(
+      5,
+      minmax(0,1fr)
+    );
 
   gap:7px;
 
 }
 
+
 .tab{
 
-  border:1px solid rgba(98,199,255,.25);
+  border:
+    1px solid
+    rgba(98,199,255,.25);
 
   border-radius:10px;
 
-  background:var(--panel);
+  background:
+    var(--panel);
 
   color:#dcecff;
 
-  padding:11px 6px;
+  padding:
+    11px 6px;
 
   font-size:11px;
 
@@ -260,9 +309,11 @@ a{
 
 }
 
+
 .tab.active{
 
-  border-color:var(--green);
+  border-color:
+    var(--green);
 
   background:#0d2f2a;
 
@@ -270,17 +321,26 @@ a{
 
 }
 
+
 .monitor-panel{
 
-  border:1px solid rgba(98,199,255,.24);
+  border:
+    1px solid
+    rgba(98,199,255,.24);
 
   border-radius:14px;
 
-  background:linear-gradient(180deg,#0b1d34,#071326);
+  background:
+    linear-gradient(
+      180deg,
+      #0b1d34,
+      #071326
+    );
 
   padding:14px;
 
 }
+
 
 .panel-head{
 
@@ -288,19 +348,22 @@ a{
 
   align-items:center;
 
-  justify-content:space-between;
+  justify-content:
+    space-between;
 
   gap:10px;
 
 }
 
+
 .panel-title{
 
-  font-size:15px;
+  font-size:14px;
 
   font-weight:900;
 
 }
+
 
 .panel-status{
 
@@ -308,37 +371,49 @@ a{
 
   font-weight:900;
 
-  padding:5px 8px;
+  padding:
+    5px 8px;
 
   border-radius:999px;
 
-  border:1px solid rgba(84,243,166,.35);
+  border:
+    1px solid
+    rgba(84,243,166,.35);
 
-  color:var(--green);
+  color:
+    var(--green);
 
 }
+
 
 .panel-status.warn{
 
-  border-color:rgba(255,199,107,.45);
+  border-color:
+    rgba(255,199,107,.4);
 
-  color:var(--gold);
+  color:
+    var(--gold);
 
 }
+
 
 .panel-status.off{
 
-  border-color:rgba(255,117,139,.4);
+  border-color:
+    rgba(255,117,139,.4);
 
-  color:var(--red);
+  color:
+    var(--red);
 
 }
+
 
 .schedule-grid{
 
   display:grid;
 
-  grid-template-columns:repeat(4,1fr);
+  grid-template-columns:
+    repeat(4,1fr);
 
   gap:8px;
 
@@ -346,11 +421,14 @@ a{
 
 }
 
+
 .schedule-box{
 
   background:#06111f;
 
-  border:1px solid rgba(255,255,255,.08);
+  border:
+    1px solid
+    rgba(255,255,255,.08);
 
   border-radius:10px;
 
@@ -358,11 +436,13 @@ a{
 
 }
 
+
 .schedule-box span{
 
   display:block;
 
-  color:var(--muted);
+  color:
+    var(--muted);
 
   font-size:9px;
 
@@ -371,6 +451,7 @@ a{
   font-weight:800;
 
 }
+
 
 .schedule-box strong{
 
@@ -382,6 +463,7 @@ a{
 
 }
 
+
 .panel-actions{
 
   display:flex;
@@ -392,11 +474,14 @@ a{
 
 }
 
+
 .action-btn{
 
   flex:1;
 
-  border:1px solid rgba(84,243,166,.45);
+  border:
+    1px solid
+    rgba(84,243,166,.45);
 
   background:#0b2b25;
 
@@ -410,29 +495,70 @@ a{
 
 }
 
+
 .action-btn.secondary{
 
-  border-color:rgba(98,199,255,.35);
+  border-color:
+    rgba(98,199,255,.35);
 
   background:#0a1b31;
 
 }
 
-.healthline{
 
-  margin-top:9px;
+.push-controls{
 
-  color:var(--muted);
+  display:grid;
 
-  font-size:10px;
+  grid-template-columns:
+    1fr 1fr;
 
-  line-height:1.5;
+  gap:8px;
+
+  margin-top:10px;
 
 }
 
-.section-title{
 
-  margin-top:16px;
+.push-btn{
+
+  border:
+    1px solid
+    rgba(98,199,255,.35);
+
+  background:#0a1b31;
+
+  color:white;
+
+  border-radius:10px;
+
+  padding:11px;
+
+  font-size:11px;
+
+  font-weight:900;
+
+}
+
+
+.push-btn.primary{
+
+  border-color:
+    rgba(84,243,166,.5);
+
+  background:#0b2b25;
+
+}
+
+
+.upcoming-wrap{
+
+  margin-top:12px;
+
+}
+
+
+.upcoming-title{
 
   font-size:11px;
 
@@ -440,11 +566,10 @@ a{
 
   color:#dcecff;
 
-  letter-spacing:.3px;
-
 }
 
-.discovery-list{
+
+.upcoming-list{
 
   display:grid;
 
@@ -454,177 +579,64 @@ a{
 
 }
 
-.discovery-item{
 
-  border:1px solid rgba(255,199,107,.28);
+.upcoming-item{
+
+  border:
+    1px solid
+    rgba(255,199,107,.28);
 
   border-radius:9px;
 
-  padding:10px;
+  padding:9px;
 
   background:#17140c;
 
 }
 
-.discovery-item.marketplace{
 
-  border-color:rgba(98,199,255,.25);
-
-  background:#081522;
-
-}
-
-.discovery-item.approved{
-
-  border-color:rgba(84,243,166,.42);
-
-  background:#0a201b;
-
-}
-
-.discovery-item strong{
+.upcoming-item strong{
 
   font-size:11px;
 
 }
 
-.discovery-item small{
 
-  display:block;
-
-  margin-top:4px;
-
-  color:var(--muted);
-
-  line-height:1.45;
-
-}
-
-.accordion{
-
-  margin-top:10px;
-
-  border:1px solid rgba(98,199,255,.2);
-
-  border-radius:11px;
-
-  overflow:hidden;
-
-  background:#071524;
-
-}
-
-.accordion-button{
-
-  width:100%;
-
-  border:0;
-
-  background:#091a2d;
-
-  color:white;
-
-  padding:13px 12px;
-
-  display:flex;
-
-  align-items:center;
-
-  justify-content:space-between;
-
-  font-size:11px;
-
-  font-weight:900;
-
-  text-align:left;
-
-}
-
-.accordion-button span:last-child{
-
-  color:var(--blue);
-
-  font-size:15px;
-
-}
-
-.accordion-content{
-
-  display:none;
-
-  padding:9px;
-
-}
-
-.accordion.open .accordion-content{
-
-  display:grid;
-
-  gap:7px;
-
-}
-
-.accordion.open .accordion-button span:last-child{
-
-  transform:rotate(180deg);
-
-}
-
-.accordion-item{
-
-  border:1px solid rgba(255,255,255,.08);
-
-  border-radius:9px;
-
-  padding:9px;
-
-  background:#06111f;
-
-}
-
-.accordion-item strong{
-
-  display:block;
-
-  font-size:11px;
-
-  line-height:1.4;
-
-}
-
-.accordion-item small{
+.upcoming-item small{
 
   display:block;
 
   margin-top:3px;
 
-  color:var(--muted);
+  color:
+    var(--muted);
+
+}
+
+
+.upcoming-item.watch{
+
+  border-color:
+    rgba(98,199,255,.25);
+
+  background:#081522;
+
+}
+
+
+.healthline{
+
+  margin-top:9px;
+
+  color:
+    var(--muted);
 
   font-size:10px;
 
-  line-height:1.4;
-
-}
-
-.retailer-message{
-
-  margin-top:12px;
-
-  border:1px dashed rgba(98,199,255,.25);
-
-  border-radius:12px;
-
-  padding:20px;
-
-  color:var(--muted);
-
-  text-align:center;
-
   line-height:1.5;
 
-  font-size:12px;
-
 }
+
 
 .toolbar{
 
@@ -636,15 +648,19 @@ a{
 
 }
 
+
 .toolbar input{
 
   flex:1;
 
   min-width:0;
 
-  background:var(--panel);
+  background:
+    var(--panel);
 
-  border:1px solid rgba(98,199,255,.25);
+  border:
+    1px solid
+    rgba(98,199,255,.25);
 
   color:white;
 
@@ -654,9 +670,12 @@ a{
 
 }
 
+
 .toolbar button{
 
-  border:1px solid rgba(84,243,166,.45);
+  border:
+    1px solid
+    rgba(84,243,166,.45);
 
   background:#0b2b25;
 
@@ -664,55 +683,75 @@ a{
 
   border-radius:10px;
 
-  padding:12px 16px;
+  padding:
+    12px 16px;
 
   font-weight:900;
 
 }
 
+
 .meta{
 
   display:flex;
 
-  justify-content:space-between;
+  justify-content:
+    space-between;
 
   gap:10px;
 
   margin-top:8px;
 
-  color:var(--muted);
+  color:
+    var(--muted);
 
   font-size:11px;
 
 }
 
+
 .products{
 
   display:grid;
 
-  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0,1fr)
+    );
 
   gap:12px;
 
-  padding:4px 14px 20px;
+  padding:
+    4px 14px 20px;
 
 }
 
+
 .card{
 
-  border:1px solid rgba(98,199,255,.18);
+  border:
+    1px solid
+    rgba(98,199,255,.18);
 
   border-radius:14px;
 
-  background:linear-gradient(180deg,#09192d,#06111f);
+  background:
+    linear-gradient(
+      180deg,
+      #09192d,
+      #06111f
+    );
 
   overflow:hidden;
 
 }
 
+
 .image-wrap{
 
-  aspect-ratio:1.35 / 1;
+  aspect-ratio:
+    1.35 / 1;
 
   background:#08111e;
 
@@ -726,6 +765,7 @@ a{
 
 }
 
+
 .image-wrap img{
 
   width:100%;
@@ -736,6 +776,7 @@ a{
 
 }
 
+
 .image-note{
 
   position:absolute;
@@ -744,13 +785,17 @@ a{
 
   left:7px;
 
-  background:rgba(2,7,17,.8);
+  background:
+    rgba(2,7,17,.8);
 
-  border:1px solid rgba(255,255,255,.14);
+  border:
+    1px solid
+    rgba(255,255,255,.14);
 
   border-radius:6px;
 
-  padding:4px 6px;
+  padding:
+    4px 6px;
 
   font-size:9px;
 
@@ -758,11 +803,13 @@ a{
 
 }
 
+
 .body{
 
   padding:12px;
 
 }
+
 
 .badges{
 
@@ -774,47 +821,62 @@ a{
 
 }
 
+
 .badge{
 
   display:inline-flex;
 
   border-radius:999px;
 
-  border:1px solid rgba(255,255,255,.18);
+  border:
+    1px solid
+    rgba(255,255,255,.18);
 
-  padding:4px 7px;
+  padding:
+    4px 7px;
 
   font-size:9px;
 
   font-weight:900;
 
-  text-transform:uppercase;
+  text-transform:
+    uppercase;
 
 }
+
 
 .badge.good{
 
-  border-color:rgba(84,243,166,.5);
+  border-color:
+    rgba(84,243,166,.5);
 
-  color:var(--green);
+  color:
+    var(--green);
 
 }
+
 
 .badge.warn{
 
-  border-color:rgba(255,199,107,.5);
+  border-color:
+    rgba(255,199,107,.5);
 
-  color:var(--gold);
+  color:
+    var(--gold);
 
 }
+
 
 .badge.out{
 
-  border-color:rgba(255,117,139,.5);
+  border-color:
+    rgba(255,117,139,.5);
 
-  color:var(--red);
+  color:
+    var(--red);
 
 }
+
 
 .name{
 
@@ -828,15 +890,18 @@ a{
 
 }
 
+
 .sub{
 
   margin-top:4px;
 
-  color:var(--muted);
+  color:
+    var(--muted);
 
   font-size:11px;
 
 }
+
 
 .price{
 
@@ -848,15 +913,18 @@ a{
 
 }
 
+
 .price small{
 
   font-size:11px;
 
-  color:var(--muted);
+  color:
+    var(--muted);
 
   font-weight:700;
 
 }
+
 
 .storeline{
 
@@ -868,6 +936,7 @@ a{
 
 }
 
+
 .buy{
 
   display:block;
@@ -876,7 +945,9 @@ a{
 
   text-align:center;
 
-  border:1px solid rgba(84,243,166,.5);
+  border:
+    1px solid
+    rgba(84,243,166,.5);
 
   border-radius:9px;
 
@@ -890,11 +961,14 @@ a{
 
 }
 
+
 .empty{
 
-  grid-column:1 / -1;
+  grid-column:1/-1;
 
-  border:1px dashed rgba(98,199,255,.25);
+  border:
+    1px dashed
+    rgba(98,199,255,.25);
 
   border-radius:12px;
 
@@ -902,9 +976,33 @@ a{
 
   text-align:center;
 
-  color:var(--muted);
+  color:
+    var(--muted);
 
 }
+
+
+.store-placeholder{
+
+  margin-top:12px;
+
+  border:
+    1px dashed
+    rgba(98,199,255,.25);
+
+  border-radius:12px;
+
+  padding:22px;
+
+  text-align:center;
+
+  color:
+    var(--muted);
+
+  line-height:1.5;
+
+}
+
 
 .hidden{
 
@@ -912,31 +1010,41 @@ a{
 
 }
 
-@media(max-width:760px){
+
+@media(
+  max-width:760px
+){
 
   .tabs{
 
-    grid-template-columns:repeat(2,1fr);
+    grid-template-columns:
+      repeat(2,1fr);
 
   }
+
 
   .tabs .tab:last-child{
 
-    grid-column:1 / -1;
+    grid-column:1/-1;
 
   }
+
 
   .schedule-grid{
 
-    grid-template-columns:1fr;
+    grid-template-columns:
+      1fr;
 
   }
+
 
   .products{
 
-    grid-template-columns:1fr;
+    grid-template-columns:
+      1fr;
 
   }
+
 
   .hero{
 
@@ -950,284 +1058,555 @@ a{
 
 </head>
 
+
 <body>
+
 
 <div class="app">
 
+
   <div class="hero"></div>
+
 
   <div class="status-wrap">
 
-    <div id="backendStatus" class="status-pill">
-
-      <span class="dot"></span>
-
-      <span>LIVE MONITOR CONNECTED</span>
-
-    </div>
-
-    <button
-      id="pushStatus"
-      class="status-pill"
-      type="button"
+    <div
+      id="backendStatus"
+      class="status-pill offline"
     >
 
       <span class="dot"></span>
 
-      <span>ENABLE NOTIFICATIONS</span>
+      <span>
+        CONNECTING...
+      </span>
 
-    </button>
+    </div>
+
+
+    <div
+      id="pushStatus"
+      class="status-pill warn"
+    >
+
+      <span class="dot"></span>
+
+      <span>
+        CHECKING ALERTS...
+      </span>
+
+    </div>
 
   </div>
+
 
   <section class="section">
 
     <div class="tabs">
 
-      <button class="tab active" data-retailer="walmart">
-
+      <button
+        class="tab active"
+        data-retailer="walmart"
+      >
         WALMART
-
       </button>
 
-      <button class="tab" data-retailer="target">
 
+      <button
+        class="tab"
+        data-retailer="target"
+      >
         TARGET
-
       </button>
 
-      <button class="tab" data-retailer="sams">
 
+      <button
+        class="tab"
+        data-retailer="sams"
+      >
         SAM'S CLUB
-
       </button>
 
-      <button class="tab" data-retailer="bestbuy">
 
+      <button
+        class="tab"
+        data-retailer="bestbuy"
+      >
         BEST BUY
-
       </button>
 
-      <button class="tab" data-retailer="costco">
 
+      <button
+        class="tab"
+        data-retailer="costco"
+      >
         COSTCO
-
       </button>
 
     </div>
 
   </section>
 
+
   <section class="section">
 
-    <div class="monitor-panel">
+
+    <div
+      id="retailerMonitor"
+      class="monitor-panel"
+    >
+
 
       <div class="panel-head">
 
-        <div id="monitorTitle" class="panel-title">
-
-          Walmart Monitor
-
+        <div
+          id="monitorTitle"
+          class="panel-title"
+        >
+          Walmart Drop Monitor
         </div>
 
-        <div id="monitorState" class="panel-status">
 
+        <div
+          id="monitorState"
+          class="panel-status"
+        >
           SCHEDULED
-
         </div>
 
       </div>
 
-      <div id="retailerMonitorBody"></div>
+
+      <div id="walmartDetails">
+
+
+        <div class="schedule-grid">
+
+
+          <div class="schedule-box">
+
+            <span>
+              Scan schedule
+            </span>
+
+            <strong id="walmartSchedule">
+              Loading…
+            </strong>
+
+          </div>
+
+
+          <div class="schedule-box">
+
+            <span>
+              Primary source
+            </span>
+
+            <strong id="walmartPrimary">
+              Loading…
+            </strong>
+
+          </div>
+
+
+          <div class="schedule-box">
+
+            <span>
+              Last scan
+            </span>
+
+            <strong id="walmartLastScan">
+              —
+            </strong>
+
+          </div>
+
+
+          <div class="schedule-box">
+
+            <span>
+              Next scan
+            </span>
+
+            <strong id="walmartNextScan">
+              —
+            </strong>
+
+          </div>
+
+
+        </div>
+
+
+        <div class="panel-actions">
+
+          <button
+            id="manualWalmartScan"
+            class="action-btn"
+          >
+            SCAN WALMART NOW
+          </button>
+
+
+          <button
+            id="forgetScanToken"
+            class="action-btn secondary"
+          >
+            RESET SCAN KEY
+          </button>
+
+        </div>
+
+
+        <div class="push-controls">
+
+          <button
+            id="enablePush"
+            class="push-btn primary"
+          >
+            ENABLE PHONE ALERTS
+          </button>
+
+
+          <button
+            id="testPush"
+            class="push-btn"
+          >
+            TEST ALERT
+          </button>
+
+        </div>
+
+
+        <div
+          id="walmartHealth"
+          class="healthline"
+        >
+          Provider health loading…
+        </div>
+
+
+        <div class="upcoming-wrap">
+
+          <div class="upcoming-title">
+            POKÉMON PRODUCT DISCOVERY
+          </div>
+
+
+          <div
+            id="upcomingList"
+            class="upcoming-list"
+          >
+
+            <div class="sub">
+              Loading Walmart watchlist…
+            </div>
+
+          </div>
+
+        </div>
+
+
+      </div>
+
+
+      <div
+        id="otherRetailerDetails"
+        class="hidden"
+      >
+
+        <div
+          id="otherRetailerMessage"
+          class="store-placeholder"
+        ></div>
+
+      </div>
+
 
     </div>
 
   </section>
-    <section class="section">
+
+
+  <section class="section">
+
 
     <div class="toolbar">
 
       <input
-
         id="search"
-
         placeholder="Search Walmart Pokémon products"
-
       >
 
+
       <button id="refresh">
-
         Refresh
-
       </button>
 
     </div>
 
+
     <div class="meta">
 
       <span id="visibleCount">
-
         0 products
-
       </span>
 
+
       <span id="lastUpdated">
-
         Not updated yet
-
       </span>
 
     </div>
 
+
   </section>
 
-  <main id="products" class="products"></main>
+
+  <main
+    id="products"
+    class="products"
+  ></main>
+
 
 </div>
 
+
 <script>
+
+
+/* ========================================
+   RETAILER CONFIG
+======================================== */
+
 
 const RETAILER_LABELS = {
 
-  walmart:"Walmart",
+  walmart:
+    "Walmart",
 
-  target:"Target",
+  target:
+    "Target",
 
-  sams:"Sam's Club",
+  sams:
+    "Sam's Club",
 
-  bestbuy:"Best Buy",
+  bestbuy:
+    "Best Buy",
 
-  costco:"Costco"
-
-};
-
-const RETAILER_TITLES = {
-
-  walmart:"Walmart Monitor",
-
-  target:"Target Monitor",
-
-  sams:"Sam's Club Monitor",
-
-  bestbuy:"Best Buy Monitor",
-
-  costco:"Costco Monitor"
+  costco:
+    "Costco"
 
 };
 
-const RETAILER_CHANNELS = {
 
-  walmart:"ONLINE",
+const RETAILER_MONITOR_NAMES = {
 
-  target:"ONLINE",
+  walmart:
+    "Walmart Monitor",
 
-  sams:"ONLINE + CLUBS",
+  target:
+    "Target Monitor",
 
-  bestbuy:"ONLINE + STORES",
+  sams:
+    "Sam's Club Monitor",
 
-  costco:"ONLINE + WAREHOUSES"
+  bestbuy:
+    "Best Buy Monitor",
+
+  costco:
+    "Costco Monitor"
 
 };
+
+
+/* ========================================
+   ELEMENTS
+======================================== */
+
 
 const productsEl =
-
   document.getElementById(
     "products"
   );
 
-const searchEl =
 
+const searchEl =
   document.getElementById(
     "search"
   );
 
-const refreshBtn =
 
+const refreshBtn =
   document.getElementById(
     "refresh"
   );
 
-const backendStatus =
 
+const backendStatus =
   document.getElementById(
     "backendStatus"
   );
 
-const pushStatus =
 
+const pushStatus =
   document.getElementById(
     "pushStatus"
   );
 
-const visibleCount =
 
+const visibleCount =
   document.getElementById(
     "visibleCount"
   );
 
-const lastUpdated =
 
+const lastUpdated =
   document.getElementById(
     "lastUpdated"
   );
 
-const monitorTitle =
 
+const manualWalmartScan =
+  document.getElementById(
+    "manualWalmartScan"
+  );
+
+
+const forgetScanToken =
+  document.getElementById(
+    "forgetScanToken"
+  );
+
+
+const enablePush =
+  document.getElementById(
+    "enablePush"
+  );
+
+
+const testPush =
+  document.getElementById(
+    "testPush"
+  );
+
+
+const walmartSchedule =
+  document.getElementById(
+    "walmartSchedule"
+  );
+
+
+const walmartPrimary =
+  document.getElementById(
+    "walmartPrimary"
+  );
+
+
+const walmartLastScan =
+  document.getElementById(
+    "walmartLastScan"
+  );
+
+
+const walmartNextScan =
+  document.getElementById(
+    "walmartNextScan"
+  );
+
+
+const walmartHealth =
+  document.getElementById(
+    "walmartHealth"
+  );
+
+
+const upcomingList =
+  document.getElementById(
+    "upcomingList"
+  );
+
+
+const monitorTitle =
   document.getElementById(
     "monitorTitle"
   );
 
-const monitorState =
 
+const monitorState =
   document.getElementById(
     "monitorState"
   );
 
-const retailerMonitorBody =
 
+const walmartDetails =
   document.getElementById(
-    "retailerMonitorBody"
+    "walmartDetails"
   );
+
+
+const otherRetailerDetails =
+  document.getElementById(
+    "otherRetailerDetails"
+  );
+
+
+const otherRetailerMessage =
+  document.getElementById(
+    "otherRetailerMessage"
+  );
+
+
+/* ========================================
+   STATE
+======================================== */
+
 
 let activeRetailer =
   "walmart";
 
+
 let currentProducts =
   [];
 
+
 let providerStates =
   [];
+
 
 let latestStatus =
   {};
 
 
 /* ========================================
-   BASIC HELPERS
+   HELPERS
 ======================================== */
+
 
 function esc(value){
 
   return String(
     value ?? ""
   ).replace(
-
     /[&<>"']/g,
-
     character => ({
 
-      "&":"&amp;",
+      "&":
+        "&amp;",
 
-      "<":"&lt;",
+      "<":
+        "&lt;",
 
-      ">":"&gt;",
+      ">":
+        "&gt;",
 
-      "\"":"&quot;",
+      "\"":
+        "&quot;",
 
-      "'":"&#39;"
+      "'":
+        "&#39;"
 
     })[character]
-
   );
 
 }
@@ -1238,22 +1617,17 @@ function money(value){
   const number =
     Number(value);
 
-  return Number.isFinite(
-    number
-  )
 
+  return Number.isFinite(number)
     ? new Intl.NumberFormat(
-
         "en-US",
-
         {
+          style:
+            "currency",
 
-          style:"currency",
-
-          currency:"USD"
-
+          currency:
+            "USD"
         }
-
       ).format(number)
 
     : "Price unavailable";
@@ -1264,38 +1638,61 @@ function money(value){
 function fallback(name){
 
   const label =
-
     esc(
       name ||
       "Pokémon product"
-    )
-      .slice(
-        0,
-        42
-      );
+    ).slice(
+      0,
+      42
+    );
+
 
   const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="700" height="520">
 
-    `<svg xmlns="http://www.w3.org/2000/svg" width="700" height="520">` +
+      <rect
+        width="100%"
+        height="100%"
+        fill="#071729"
+      />
 
-    `<rect width="100%" height="100%" fill="#071729"/>` +
+      <circle
+        cx="350"
+        cy="210"
+        r="110"
+        fill="#0d3151"
+      />
 
-    `<circle cx="350" cy="210" r="110" fill="#0d3151"/>` +
+      <text
+        x="350"
+        y="205"
+        text-anchor="middle"
+        fill="white"
+        font-size="28"
+        font-family="Arial"
+        font-weight="700"
+      >
+        ${label}
+      </text>
 
-    `<text x="350" y="205" text-anchor="middle" fill="white" font-size="28" font-family="Arial" font-weight="700">${label}</text>` +
+      <text
+        x="350"
+        y="340"
+        text-anchor="middle"
+        fill="#54f3a6"
+        font-size="22"
+        font-family="Arial"
+        font-weight="700"
+      >
+        REPRESENTATIVE IMAGE
+      </text>
 
-    `<text x="350" y="340" text-anchor="middle" fill="#54f3a6" font-size="22" font-family="Arial" font-weight="700">REPRESENTATIVE IMAGE</text>` +
+    </svg>`;
 
-    `<text x="350" y="375" text-anchor="middle" fill="#9aa9c1" font-size="16" font-family="Arial">Retailer image unavailable</text>` +
-
-    `</svg>`;
 
   return (
-
     "data:image/svg+xml;charset=UTF-8," +
-
     encodeURIComponent(svg)
-
   );
 
 }
@@ -1304,14 +1701,13 @@ function fallback(name){
 function statusBadge(status){
 
   const normalized =
-
     String(
       status ||
       "out"
     ).toLowerCase();
 
-  const cssClass =
 
+  const className =
     [
       "instock",
       "onhand"
@@ -1334,32 +1730,23 @@ function statusBadge(status){
 
         : "out";
 
+
   return (
-
-    `<span class="badge ${cssClass}">` +
-
-    `${esc(normalized)}` +
-
-    `</span>`
-
+    `<span class="badge ${className}">
+      ${esc(normalized)}
+    </span>`
   );
 
 }
 
 
-function providerFor(
-  retailer
-){
+function providerFor(retailer){
 
   return (
-
     providerStates.find(
-
       provider =>
-
         provider.retailer ===
-          retailer
-
+        retailer
     ) ||
 
     {
@@ -1372,1092 +1759,937 @@ function providerFor(
         ] ||
         retailer,
 
-      configured:false,
+      configured:
+        false,
 
-      running:false,
+      running:
+        false,
 
-      error:null,
+      error:
+        null,
 
-      itemCount:0,
+      itemCount:
+        0,
 
-      lastRun:null,
-
-      lastSuccess:null
+      lastRun:
+        null
 
     }
-
   );
 
 }
 
 
-function accordion(
-
-  id,
-
-  title,
-
-  count,
-
-  content
-
-){
-
-  return (
-
-    `<div class="accordion" id="${esc(id)}">` +
-
-      `<button class="accordion-button" data-accordion="${esc(id)}">` +
-
-        `<span>` +
-
-          `${esc(title)} (${Number(count || 0)})` +
-
-        `</span>` +
-
-        `<span>⌄</span>` +
-
-      `</button>` +
-
-      `<div class="accordion-content">` +
-
-        `${content}` +
-
-      `</div>` +
-
-    `</div>`
-
-  );
-
-}
+/* ========================================
+   PUSH HELPERS
+======================================== */
 
 
-function emptyAccordionMessage(
+function setPushState(
+  state,
   text
 ){
 
-  return (
+  pushStatus.classList.remove(
+    "offline",
+    "warn"
+  );
 
-    `<div class="accordion-item">` +
 
-      `<small>${esc(text)}</small>` +
+  if (
+    state === "offline"
+  ){
 
-    `</div>`
+    pushStatus.classList.add(
+      "offline"
+    );
 
+  }
+
+
+  if (
+    state === "warn"
+  ){
+
+    pushStatus.classList.add(
+      "warn"
+    );
+
+  }
+
+
+  pushStatus.querySelector(
+    "span:last-child"
+  ).textContent =
+    text;
+
+}
+
+
+function urlBase64ToUint8Array(
+  base64String
+){
+
+  const padding =
+    "=".repeat(
+      (
+        4 -
+        base64String.length % 4
+      ) % 4
+    );
+
+
+  const base64 =
+    (
+      base64String +
+      padding
+    )
+      .replace(
+        /-/g,
+        "+"
+      )
+      .replace(
+        /_/g,
+        "/"
+      );
+
+
+  const rawData =
+    window.atob(
+      base64
+    );
+
+
+  return Uint8Array.from(
+    [...rawData].map(
+      character =>
+        character.charCodeAt(0)
+    )
   );
 
 }
 
 
 /* ========================================
-   WALMART DISCOVERY
+   SERVICE WORKER
 ======================================== */
 
-function renderWalmartDiscovery(){
 
-  const discovery =
+async function registerServiceWorker(){
 
-    latestStatus
-      ?.walmartPokemonDiscovery ||
-
-    latestStatus
-      ?.walmart30thDiscovery ||
-
-    {};
-
-  const items =
-
-    Array.isArray(
-      discovery.items
+  if (
+    !(
+      "serviceWorker"
+      in navigator
     )
-
-      ? discovery.items
-
-      : [];
-
-  if (
-    discovery.lastError
   ){
 
-    return (
-
-      `<div class="retailer-message">` +
-
-      `Pokémon product discovery error: ${esc(discovery.lastError)}` +
-
-      `</div>`
-
+    setPushState(
+      "offline",
+      "PUSH NOT SUPPORTED"
     );
+
+    return null;
 
   }
 
-  if (
-    !discovery.lastRun
-  ){
 
-    return (
+  try {
 
-      `<div class="retailer-message">` +
+    const registration =
+      await navigator
+        .serviceWorker
+        .register(
+          "/sw.js",
+          {
+            scope:
+              "/"
+          }
+        );
 
-      `No sealed Pokémon discovery scan has run yet.` +
 
-      `</div>`
+    await navigator
+      .serviceWorker
+      .ready;
 
+
+    console.log(
+      "Service worker ready:",
+      registration
     );
+
+
+    return registration;
+
+  } catch (error) {
+
+    console.error(
+      "Service worker failed:",
+      error
+    );
+
+
+    setPushState(
+      "offline",
+      "SERVICE WORKER ERROR"
+    );
+
+
+    return null;
 
   }
 
-  if (
-    !items.length
-  ){
+}
 
-    return (
 
-      `<div class="retailer-message">` +
+/* ========================================
+   CURRENT PUSH STATUS
+======================================== */
 
-      `No matching Walmart-direct or GT Collectibles sealed Pokémon products were found in the latest scan.` +
 
-      `</div>`
+async function checkPushSubscription(){
 
-    );
+  const registration =
+    await registerServiceWorker();
+
+
+  if (!registration){
+
+    return false;
 
   }
 
-  return (
 
-    `<div class="discovery-list">` +
+  try {
 
-    items
+    const subscription =
+      await registration
+        .pushManager
+        .getSubscription();
 
-      .slice(
-        0,
-        24
-      )
 
-      .map(
+    if (subscription){
 
-        item => {
+      setPushState(
+        "online",
+        "PUSH ALERTS ACTIVE"
+      );
 
-          const state =
 
-            item.directSeller
+      enablePush.textContent =
+        "ALERTS ENABLED";
 
-              ? (
 
-                  item.inStock
+      return true;
 
-                    ? "WALMART DIRECT • AVAILABLE"
+    }
 
-                    : "WALMART DIRECT • WATCHING"
 
-                )
+    if (
+      Notification.permission ===
+      "denied"
+    ){
 
-              : item
-                  .approvedMarketplace
+      setPushState(
+        "offline",
+        "ALERTS BLOCKED"
+      );
 
-                ? (
 
-                    item.inStock
+      return false;
 
-                      ? "GT COLLECTIBLES • AVAILABLE"
+    }
 
-                      : "GT COLLECTIBLES • WATCHING"
 
-                  )
+    setPushState(
+      "warn",
+      "ENABLE PHONE ALERTS"
+    );
 
-                : "MARKETPLACE • NOT APPROVED";
 
-          const itemClass =
+    return false;
 
-            item.directSeller
+  } catch (error) {
 
-              ? ""
+    console.error(
+      "Push subscription check failed:",
+      error
+    );
 
-              : item
-                  .approvedMarketplace
 
-                ? "approved"
+    setPushState(
+      "offline",
+      "PUSH CHECK FAILED"
+    );
 
-                : "marketplace";
 
-          return (
+    return false;
 
-            `<a ` +
+  }
 
-              `class="discovery-item ${itemClass}" ` +
+}
 
-              `href="${esc(item.url || "#")}" ` +
 
-              `${
-                item.url
-                  ? 'target="_blank" rel="noopener noreferrer"'
-                  : ""
-              }` +
+/* ========================================
+   ENABLE PUSH
+======================================== */
 
-            `>` +
 
-              `<strong>${esc(item.name)}</strong>` +
+async function enablePhoneAlerts(){
 
-              `<small>` +
+  enablePush.disabled =
+    true;
 
-                `${esc(state)}` +
 
-                `${
-                  item.price != null
-                    ? ` • ${money(item.price)}`
-                    : ""
-                }` +
+  enablePush.textContent =
+    "CONNECTING…";
 
-                `${
-                  item.msrp != null
-                    ? ` • MSRP ${money(item.msrp)}`
-                    : ""
-                }` +
 
-                `${
-                  item.rawStatus
-                    ? ` • ${esc(item.rawStatus)}`
-                    : ""
-                }` +
+  try {
 
-              `</small>` +
+    const registration =
+      await registerServiceWorker();
 
-            `</a>`
 
-          );
+    if (!registration){
+
+      throw new Error(
+        "Service worker unavailable."
+      );
+
+    }
+
+
+    const permission =
+      await Notification
+        .requestPermission();
+
+
+    if (
+      permission !==
+      "granted"
+    ){
+
+      throw new Error(
+        "Notification permission was not granted."
+      );
+
+    }
+
+
+    const keyResponse =
+      await fetch(
+        "/api/push/public-key",
+        {
+          cache:
+            "no-store"
+        }
+      );
+
+
+    if (
+      !keyResponse.ok
+    ){
+
+      throw new Error(
+        "Push public key could not be loaded."
+      );
+
+    }
+
+
+    const keyData =
+      await keyResponse.json();
+
+
+    let subscription =
+      await registration
+        .pushManager
+        .getSubscription();
+
+
+    if (!subscription){
+
+      subscription =
+        await registration
+          .pushManager
+          .subscribe({
+
+            userVisibleOnly:
+              true,
+
+            applicationServerKey:
+              urlBase64ToUint8Array(
+                keyData.publicKey
+              )
+
+          });
+
+    }
+
+
+    const response =
+      await fetch(
+        "/api/push/subscribe",
+        {
+
+          method:
+            "POST",
+
+          headers:{
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify(
+              subscription
+            )
 
         }
+      );
 
-      )
 
-      .join("") +
+    const result =
+      await response.json();
 
-    `</div>`
 
-  );
+    if (!response.ok){
+
+      throw new Error(
+        result.error ||
+        "Subscription failed."
+      );
+
+    }
+
+
+    setPushState(
+      "online",
+      "PUSH ALERTS ACTIVE"
+    );
+
+
+    enablePush.textContent =
+      "ALERTS ENABLED";
+
+
+    alert(
+      "Phone alerts are connected."
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      error
+    );
+
+
+    setPushState(
+      "offline",
+      "PUSH SETUP FAILED"
+    );
+
+
+    alert(
+      error.message
+    );
+
+
+  } finally {
+
+    enablePush.disabled =
+      false;
+
+
+    if (
+      enablePush.textContent ===
+      "CONNECTING…"
+    ){
+
+      enablePush.textContent =
+        "ENABLE PHONE ALERTS";
+
+    }
+
+  }
 
 }
 
 
 /* ========================================
-   WALMART UPCOMING
+   TEST PUSH
 ======================================== */
 
-function renderWalmartUpcoming(){
+
+async function runPushTest(){
+
+  testPush.disabled =
+    true;
+
+
+  testPush.textContent =
+    "SENDING…";
+
+
+  try {
+
+    const response =
+      await fetch(
+        `/api/push/test?t=${Date.now()}`,
+        {
+          cache:
+            "no-store"
+        }
+      );
+
+
+    const result =
+      await response.json();
+
+
+    if (!response.ok){
+
+      throw new Error(
+        result.error ||
+        "Push test failed."
+      );
+
+    }
+
+
+    alert(
+      "Test notification sent."
+    );
+
+
+  } catch (error) {
+
+    alert(
+      error.message
+    );
+
+  } finally {
+
+    testPush.disabled =
+      false;
+
+
+    testPush.textContent =
+      "TEST ALERT";
+
+  }
+
+}
+
+
+/* ========================================
+   UPCOMING / WATCHLIST
+======================================== */
+
+
+function renderUpcoming(
+  watchData,
+  legacyItems = []
+){
 
   const detected =
-
     Array.isArray(
-
-      latestStatus
-        ?.walmartWatchlist
-        ?.detected
-
+      watchData?.detected
     )
+      ? watchData.detected
 
-      ? latestStatus
-          .walmartWatchlist
-          .detected
+      : Array.isArray(
+          legacyItems
+        )
+        ? legacyItems
 
+        : [];
+
+
+  const watching =
+    Array.isArray(
+      watchData?.watching
+    )
+      ? watchData.watching
       : [];
 
-  if (
-    !detected.length
+
+  const rows =
+    [];
+
+
+  for (
+    const item
+    of detected.slice(
+      0,
+      8
+    )
   ){
 
-    return emptyAccordionMessage(
+    rows.push(
 
-      "No upcoming Walmart products detected right now."
+      `<a
+        class="upcoming-item"
+        href="${esc(item.url || "#")}"
+        ${
+          item.url
+            ? 'target="_blank" rel="noopener noreferrer"'
+            : ""
+        }
+      >
 
-    );
+        <strong>
+          ${esc(item.name)}
+        </strong>
 
-  }
+        <small>
+          ${esc(
+            (
+              item.dropType ||
+              item.status ||
+              "upcoming"
+            ).toUpperCase()
+          )}
 
-  return detected
-
-    .map(
-
-      item =>
-
-        `<a ` +
-
-          `class="accordion-item" ` +
-
-          `href="${esc(item.url || "#")}" ` +
-
-          `${
-            item.url
-              ? 'target="_blank" rel="noopener noreferrer"'
+          ${
+            item.price != null
+              ? ` • ${money(item.price)}`
               : ""
-          }` +
+          }
 
-        `>` +
+        </small>
 
-          `<strong>${esc(item.name)}</strong>` +
-
-          `<small>` +
-
-            `${esc(
-              (
-                item.dropType ||
-                item.status ||
-                "upcoming"
-              ).toUpperCase()
-            )}` +
-
-            `${
-              item.price != null
-                ? ` • ${money(item.price)}`
-                : ""
-            }` +
-
-            `${
-              item.rawStatus
-                ? ` • ${esc(item.rawStatus)}`
-                : ""
-            }` +
-
-          `</small>` +
-
-        `</a>`
-
-    )
-
-    .join("");
-
-}
-
-
-/* ========================================
-   WALMART WATCHLIST
-======================================== */
-
-function renderWalmartWatchlist(){
-
-  const watching =
-
-    Array.isArray(
-
-      latestStatus
-        ?.walmartWatchlist
-        ?.watching
-
-    )
-
-      ? latestStatus
-          .walmartWatchlist
-          .watching
-
-      : [];
-
-  if (
-    !watching.length
-  ){
-
-    return emptyAccordionMessage(
-
-      "No Walmart watchlist items configured."
+      </a>`
 
     );
 
   }
 
-  return watching
 
-    .map(
-
-      item => {
-
-        const sellerLabel =
-
-          item.directSeller
-
-            ? "WALMART DIRECT"
-
-            : item
-                .approvedMarketplace
-
-              ? "GT COLLECTIBLES"
-
-              : "WATCHING";
-
-        return (
-
-          `<a ` +
-
-            `class="accordion-item" ` +
-
-            `href="${esc(item.url || "#")}" ` +
-
-            `${
-              item.url
-                ? 'target="_blank" rel="noopener noreferrer"'
-                : ""
-            }` +
-
-          `>` +
-
-            `<strong>${esc(item.name)}</strong>` +
-
-            `<small>` +
-
-              `${esc(sellerLabel)}` +
-
-              `${
-                item.price != null
-                  ? ` • ${money(item.price)}`
-                  : ""
-              }` +
-
-              `${
-                item.msrp != null
-                  ? ` • MSRP ${money(item.msrp)}`
-                  : ""
-              }` +
-
-            `</small>` +
-
-          `</a>`
-
-        );
-
-      }
-
+  for (
+    const item
+    of watching.slice(
+      0,
+      18
     )
+  ){
 
-    .join("");
+    rows.push(
+
+      `<a
+        class="upcoming-item watch"
+        href="${esc(item.url || "#")}"
+        ${
+          item.url
+            ? 'target="_blank" rel="noopener noreferrer"'
+            : ""
+        }
+      >
+
+        <strong>
+          ${esc(item.name)}
+        </strong>
+
+        <small>
+          WATCHING
+
+          ${
+            item.msrp != null
+              ? ` • MSRP ${money(item.msrp)}`
+              : ""
+          }
+        </small>
+
+      </a>`
+
+    );
+
+  }
+
+
+  upcomingList.innerHTML =
+    rows.length
+      ? rows.join("")
+      : `<div class="sub">
+          No Walmart watchlist items configured.
+        </div>`;
 
 }
 
 
 /* ========================================
-   WALMART MONITOR PANEL
+   MONITOR PANEL
 ======================================== */
 
-function renderWalmartMonitor(){
 
-  const schedule =
-
-    latestStatus
-      ?.walmartSchedule ||
-    {};
+function renderMonitor(){
 
   const provider =
-
-    latestStatus
-      ?.walmartProvider ||
-    {};
-
-  const hasData =
-
-    provider
-      ?.health
-      ?.hasdata ||
-    {};
-
-  const rapidApi =
-
-    provider
-      ?.health
-      ?.rapidapi ||
-    {};
-
-  const upcoming =
-
-    Array.isArray(
-
-      latestStatus
-        ?.walmartWatchlist
-        ?.detected
-
-    )
-
-      ? latestStatus
-          .walmartWatchlist
-          .detected
-
-      : [];
-
-  const watching =
-
-    Array.isArray(
-
-      latestStatus
-        ?.walmartWatchlist
-        ?.watching
-
-    )
-
-      ? latestStatus
-          .walmartWatchlist
-          .watching
-
-      : [];
-
-  monitorState.className =
-
-    "panel-status";
-
-  monitorState.textContent =
-
-    schedule.running
-
-      ? "SCANNING"
-
-      : schedule.activeWindow
-
-        ? "LIVE"
-
-        : "SCHEDULED";
-
-  retailerMonitorBody.innerHTML =
-
-    `<div class="schedule-grid">` +
-
-      `<div class="schedule-box">` +
-
-        `<span>Scan schedule</span>` +
-
-        `<strong>${esc(
-          schedule.scheduleLabel ||
-          "Continuous Walmart monitor"
-        )}</strong>` +
-
-      `</div>` +
-
-      `<div class="schedule-box">` +
-
-        `<span>Primary source</span>` +
-
-        `<strong>` +
-
-          `${
-
-            provider.primary
-
-              ? `${esc(
-                  String(
-                    provider.primary
-                  ).toUpperCase()
-                )}${
-                  provider
-                    .fallbackEnabled
-                    ? " → RAPIDAPI FALLBACK"
-                    : ""
-                }`
-
-              : "WALMART"
-
-          }` +
-
-        `</strong>` +
-
-      `</div>` +
-
-      `<div class="schedule-box">` +
-
-        `<span>Last scan</span>` +
-
-        `<strong>` +
-
-          `${
-
-            schedule.lastManualRun
-
-              ? esc(
-                  new Date(
-                    schedule.lastManualRun
-                  ).toLocaleString()
-                )
-
-              : schedule
-                  .lastScheduledRun
-
-                ? esc(
-                    new Date(
-                      schedule.lastScheduledRun
-                    ).toLocaleString()
-                  )
-
-                : "—"
-
-          }` +
-
-        `</strong>` +
-
-      `</div>` +
-
-      `<div class="schedule-box">` +
-
-        `<span>Next scan</span>` +
-
-        `<strong>${esc(
-          schedule.nextScanLabel ||
-          "—"
-        )}</strong>` +
-
-      `</div>` +
-
-    `</div>` +
-
-    `<div class="panel-actions">` +
-
-      `<button id="manualWalmartScan" class="action-btn">` +
-
-        `SCAN WALMART NOW` +
-
-      `</button>` +
-
-      `<button id="forgetScanToken" class="action-btn secondary">` +
-
-        `RESET SCAN KEY` +
-
-      `</button>` +
-
-    `</div>` +
-
-    `<div class="healthline">` +
-
-      `HasData: ${Number(hasData.successes || 0)} ok / ${Number(hasData.failures || 0)} failed` +
-
-      ` • RapidAPI: ${Number(rapidApi.successes || 0)} ok / ${Number(rapidApi.failures || 0)} failed` +
-
-      `${
-        hasData.lastError
-          ? ` • Last HasData error: ${esc(hasData.lastError)}`
-          : ""
-      }` +
-
-    `</div>` +
-
-    `<div class="section-title">` +
-
-      `POKÉMON PRODUCT DISCOVERY` +
-
-    `</div>` +
-
-    renderWalmartDiscovery() +
-
-    accordion(
-
-      "walmart-upcoming",
-
-      "UPCOMING",
-
-      upcoming.length,
-
-      renderWalmartUpcoming()
-
-    ) +
-
-    accordion(
-
-      "walmart-watchlist",
-
-      "WATCHLIST",
-
-      watching.length,
-
-      renderWalmartWatchlist()
-
-    );
-
-  const scanButton =
-
-    document.getElementById(
-      "manualWalmartScan"
-    );
-
-  const resetButton =
-
-    document.getElementById(
-      "forgetScanToken"
-    );
-
-  if (
-    scanButton
-  ){
-
-    scanButton.addEventListener(
-
-      "click",
-
-      runManualWalmartScan
-
-    );
-
-  }
-
-  if (
-    resetButton
-  ){
-
-    resetButton.addEventListener(
-
-      "click",
-
-      () => {
-
-        localStorage.removeItem(
-
-          "pokemonMonitorScanToken"
-
-        );
-
-        alert(
-
-          "Saved scan key cleared."
-
-        );
-
-      }
-
-    );
-
-  }
-
-}
-/* ========================================
-   OTHER RETAILER PANELS
-======================================== */
-
-function renderOtherRetailerMonitor(){
-
-  const provider =
-
     providerFor(
       activeRetailer
     );
 
-  const label =
-
-    RETAILER_LABELS[
-      activeRetailer
-    ];
-
-  monitorState.className =
-
-    provider.error
-
-      ? "panel-status off"
-
-      : provider.configured
-
-        ? (
-
-            provider.running
-
-              ? "panel-status warn"
-
-              : "panel-status"
-
-          )
-
-        : "panel-status off";
-
-  monitorState.textContent =
-
-    provider.error
-
-      ? "ERROR"
-
-      : provider.configured
-
-        ? (
-
-            provider.running
-
-              ? "SCANNING"
-
-              : "CONNECTED"
-
-          )
-
-        : "NOT CONFIGURED";
-
-  const statusMessage =
-
-    provider.configured
-
-      ? (
-
-          `${esc(label)} monitor is connected.` +
-
-          `<br>` +
-
-          `Live products: ${Number(provider.itemCount || 0)}` +
-
-          `<br>` +
-
-          `Last scan: ${
-            provider.lastRun
-              ? esc(
-                  new Date(
-                    provider.lastRun
-                  ).toLocaleString()
-                )
-              : "—"
-          }` +
-
-          `${
-            provider.error
-              ? `<br>Error: ${esc(provider.error)}`
-              : ""
-          }`
-
-        )
-
-      : (
-
-          `${esc(label)} is not connected yet.` +
-
-          `<br>` +
-
-          `No inventory is being fabricated for this retailer.`
-
-        );
-
-  retailerMonitorBody.innerHTML =
-
-    `<div class="schedule-grid">` +
-
-      `<div class="schedule-box">` +
-
-        `<span>Retailer</span>` +
-
-        `<strong>${esc(label)}</strong>` +
-
-      `</div>` +
-
-      `<div class="schedule-box">` +
-
-        `<span>Channel</span>` +
-
-        `<strong>${esc(
-          RETAILER_CHANNELS[
-            activeRetailer
-          ] ||
-          "ONLINE"
-        )}</strong>` +
-
-      `</div>` +
-
-      `<div class="schedule-box">` +
-
-        `<span>Last scan</span>` +
-
-        `<strong>${
-          provider.lastRun
-            ? esc(
-                new Date(
-                  provider.lastRun
-                ).toLocaleString()
-              )
-            : "—"
-        }</strong>` +
-
-      `</div>` +
-
-      `<div class="schedule-box">` +
-
-        `<span>Live products</span>` +
-
-        `<strong>${Number(provider.itemCount || 0)}</strong>` +
-
-      `</div>` +
-
-    `</div>` +
-
-    `<div class="retailer-message">` +
-
-      statusMessage +
-
-    `</div>` +
-
-    `<div class="section-title">` +
-
-      `AVAILABLE / DISCOVERED` +
-
-    `</div>` +
-
-    `<div class="retailer-message">` +
-
-      `${
-
-        provider.configured
-
-          ? `Current ${esc(label)} results appear below in this tab only.`
-
-          : `${esc(label)} discovery will appear here when its data source is connected.`
-
-      }` +
-
-    `</div>` +
-
-    accordion(
-
-      `${activeRetailer}-upcoming`,
-
-      "UPCOMING",
-
-      0,
-
-      emptyAccordionMessage(
-
-        provider.configured
-
-          ? `No ${label} upcoming products detected right now.`
-
-          : `${label} upcoming monitoring is not connected yet.`
-
-      )
-
-    ) +
-
-    accordion(
-
-      `${activeRetailer}-watchlist`,
-
-      "WATCHLIST",
-
-      0,
-
-      emptyAccordionMessage(
-
-        provider.configured
-
-          ? `No ${label} watchlist items are currently returned by the provider.`
-
-          : `${label} watchlist will appear here once its monitor is connected.`
-
-      )
-
-    );
-
-}
-
-
-/* ========================================
-   ACCORDIONS
-======================================== */
-
-function bindAccordions(){
-
-  document
-
-    .querySelectorAll(
-      "[data-accordion]"
-    )
-
-    .forEach(
-
-      button => {
-
-        button.addEventListener(
-
-          "click",
-
-          () => {
-
-            const id =
-
-              button
-                .dataset
-                .accordion;
-
-            const container =
-
-              document
-                .getElementById(
-                  id
-                );
-
-            if (
-              container
-            ){
-
-              container
-                .classList
-                .toggle(
-                  "open"
-                );
-
-            }
-
-          }
-
-        );
-
-      }
-
-    );
-
-}
-
-
-/* ========================================
-   MAIN PANEL RENDER
-======================================== */
-
-function renderMonitor(){
 
   monitorTitle.textContent =
-
-    RETAILER_TITLES[
+    RETAILER_MONITOR_NAMES[
       activeRetailer
     ] ||
+    `${RETAILER_LABELS[activeRetailer]} Monitor`;
 
-    `${
-      RETAILER_LABELS[
-        activeRetailer
-      ]
-    } Monitor`;
 
   searchEl.placeholder =
+    `Search ${RETAILER_LABELS[activeRetailer]} Pokémon products`;
 
-    `Search ${
-      RETAILER_LABELS[
-        activeRetailer
-      ]
-    } Pokémon products`;
 
   if (
     activeRetailer ===
     "walmart"
   ){
 
-    renderWalmartMonitor();
+    walmartDetails
+      .classList
+      .remove(
+        "hidden"
+      );
+
+
+    otherRetailerDetails
+      .classList
+      .add(
+        "hidden"
+      );
+
+
+    const schedule =
+      latestStatus
+        ?.walmartSchedule ||
+      {};
+
+
+    const walmartProvider =
+      latestStatus
+        ?.walmartProvider ||
+      {};
+
+
+    const hasDataHealth =
+      walmartProvider
+        ?.health
+        ?.hasdata ||
+      {};
+
+
+    const rapidApiHealth =
+      walmartProvider
+        ?.health
+        ?.rapidapi ||
+      {};
+
+
+    monitorState.className =
+      "panel-status";
+
+
+    monitorState.textContent =
+      schedule.activeWindow
+        ? "DROP WINDOW ACTIVE"
+        : "LIVE";
+
+
+    walmartSchedule.textContent =
+      schedule.scheduleLabel ||
+      (
+        latestStatus
+          ?.automaticScanning &&
+        latestStatus
+          ?.pollSeconds
+
+          ? `Every ${latestStatus.pollSeconds} seconds`
+
+          : "Scheduled monitoring"
+      );
+
+
+    walmartPrimary.textContent =
+      walmartProvider.primary
+
+        ? `${String(
+            walmartProvider.primary
+          ).toUpperCase()}${
+            walmartProvider
+              .fallbackEnabled
+              ? " → RAPIDAPI FALLBACK"
+              : ""
+          }`
+
+        : "WALMART";
+
+
+    walmartLastScan.textContent =
+      schedule.lastScheduledRun
+
+        ? new Date(
+            schedule
+              .lastScheduledRun
+          ).toLocaleString()
+
+        : latestStatus.lastRun
+
+          ? new Date(
+              latestStatus.lastRun
+            ).toLocaleString()
+
+          : "—";
+
+
+    walmartNextScan.textContent =
+      schedule.nextScanLabel ||
+      "Automatic";
+
+
+    walmartHealth.textContent =
+
+      `HasData: ${Number(
+        hasDataHealth.successes || 0
+      )} ok / ${Number(
+        hasDataHealth.failures || 0
+      )} failed • ` +
+
+      `RapidAPI: ${Number(
+        rapidApiHealth.successes || 0
+      )} ok / ${Number(
+        rapidApiHealth.failures || 0
+      )} failed`;
+
+
+    renderUpcoming(
+
+      latestStatus
+        ?.walmartWatchlist,
+
+      latestStatus
+        ?.upcoming ||
+      []
+
+    );
+
+
+    return;
 
   }
 
-  else{
 
-    renderOtherRetailerMonitor();
+  walmartDetails
+    .classList
+    .add(
+      "hidden"
+    );
+
+
+  otherRetailerDetails
+    .classList
+    .remove(
+      "hidden"
+    );
+
+
+  if (
+    provider.configured
+  ){
+
+    monitorState.className =
+      provider.error
+        ? "panel-status off"
+
+        : provider.running
+          ? "panel-status warn"
+
+          : "panel-status";
+
+
+    monitorState.textContent =
+      provider.error
+        ? "ERROR"
+
+        : provider.running
+          ? "SCANNING"
+
+          : "CONNECTED";
+
+
+    otherRetailerMessage.innerHTML =
+
+      `<strong>
+        ${esc(provider.label)} monitor connected.
+      </strong>
+
+      <br>
+
+      Live products:
+      ${Number(
+        provider.itemCount || 0
+      )}
+
+      <br>
+
+      Last scan:
+      ${
+        provider.lastRun
+          ? new Date(
+              provider.lastRun
+            ).toLocaleString()
+
+          : "—"
+      }
+
+      ${
+        provider.error
+          ? `<br>Error: ${esc(provider.error)}`
+          : ""
+      }`;
+
+  } else {
+
+    monitorState.className =
+      "panel-status off";
+
+
+    monitorState.textContent =
+      "NOT CONFIGURED";
+
+
+    otherRetailerMessage.innerHTML =
+
+      `<strong>
+        ${esc(provider.label)} is not connected yet.
+      </strong>
+
+      <br>
+
+      Inventory will appear here once its monitor is connected.`;
 
   }
-
-  bindAccordions();
 
 }
 
 
 /* ========================================
-   PRODUCT GRID
+   PRODUCTS
 ======================================== */
+
 
 function renderProducts(){
 
   const query =
-
-    searchEl
-      .value
+    searchEl.value
       .trim()
       .toLowerCase();
 
+
   const list =
-
     currentProducts.filter(
-
       product => {
 
         return (
@@ -2465,22 +2697,19 @@ function renderProducts(){
           !query ||
 
           String(
-            product.name ||
-            ""
+            product.name || ""
           )
             .toLowerCase()
             .includes(query) ||
 
           String(
-            product.seller ||
-            ""
+            product.seller || ""
           )
             .toLowerCase()
             .includes(query) ||
 
           String(
-            product.storeName ||
-            ""
+            product.storeName || ""
           )
             .toLowerCase()
             .includes(query)
@@ -2488,291 +2717,254 @@ function renderProducts(){
         );
 
       }
-
     );
 
-  visibleCount.textContent =
 
+  visibleCount.textContent =
     `${list.length} product${
       list.length === 1
         ? ""
         : "s"
     }`;
 
-  if (
-    !list.length
-  ){
+
+  if (!list.length){
 
     const provider =
-
       providerFor(
         activeRetailer
       );
 
+
     productsEl.innerHTML =
 
-      `<div class="empty">` +
+      `<div class="empty">
 
-      `${
-        provider.configured
+        ${
+          provider.configured
 
-          ? `No ${esc(provider.label)} inventory returned for this view right now.`
+            ? `No ${esc(provider.label)} inventory returned right now.`
 
-          : `${esc(provider.label)} is not connected yet. No inventory is being fabricated.`
+            : `${esc(provider.label)} is not connected yet.`
+        }
 
-      }` +
+      </div>`;
 
-      `</div>`;
 
     return;
 
   }
 
+
   productsEl.innerHTML =
+    list.map(
+      product => {
 
-    list
 
-      .map(
-
-        product => {
-
-          const fallbackImage =
-
-            fallback(
-              product.name
-            );
-
-          const image =
-
-            product.image ||
-            fallbackImage;
-
-          const channel =
-
-            product.channel ===
-              "store"
-
-              ? "IN-STORE"
-
-              : "ONLINE";
-
-          const store =
-
-            product.channel ===
-              "store"
-
-              ? (
-
-                  `<div class="storeline">` +
-
-                  `Store: ${
-                    esc(
-                      product.storeName ||
-                      "Unknown store"
-                    )
-                  }` +
-
-                  `${
-                    product.storeId
-                      ? ` • ID ${esc(product.storeId)}`
-                      : ""
-                  }` +
-
-                  `${
-                    product.quantity != null
-                      ? ` • Qty ${esc(product.quantity)}`
-                      : ""
-                  }` +
-
-                  `</div>`
-
-                )
-
-              : "";
-
-          const sellerBadge =
-
-            product
-              .directSeller ===
-              true
-
-              ? `<span class="badge good">WALMART DIRECT</span>`
-
-              : product
-                  .approvedMarketplace ===
-                  true
-
-                ? `<span class="badge good">GT COLLECTIBLES</span>`
-
-                : "";
-
-          return (
-
-            `<article class="card">` +
-
-              `<div class="image-wrap">` +
-
-                `<img ` +
-
-                  `src="${esc(image)}" ` +
-
-                  `alt="${esc(product.name)}" ` +
-
-                  `onerror="this.onerror=null;this.src='${fallbackImage}'"` +
-
-                `>` +
-
-                `<div class="image-note">` +
-
-                  `${
-                    product.image
-
-                      ? "RETAILER IMAGE"
-
-                      : "REPRESENTATIVE IMAGE"
-                  }` +
-
-                `</div>` +
-
-              `</div>` +
-
-              `<div class="body">` +
-
-                `<div class="badges">` +
-
-                  `${statusBadge(product.status)}` +
-
-                  `<span class="badge">` +
-
-                    `${channel}` +
-
-                  `</span>` +
-
-                  `<span class="badge">` +
-
-                    `${esc(
-
-                      product
-                        .retailerLabel ||
-
-                      RETAILER_LABELS[
-                        product.retailer
-                      ] ||
-
-                      product.retailer
-
-                    )}` +
-
-                  `</span>` +
-
-                  `${sellerBadge}` +
-
-                  `${
-                    product.stale
-
-                      ? '<span class="badge warn">STALE DISPLAY</span>'
-
-                      : ""
-                  }` +
-
-                `</div>` +
-
-                `<div class="name">` +
-
-                  `${esc(product.name)}` +
-
-                `</div>` +
-
-                `<div class="sub">` +
-
-                  `Seller: ${
-                    esc(
-                      product.seller ||
-                      "Not provided"
-                    )
-                  }` +
-
-                `</div>` +
-
-                `<div class="price">` +
-
-                  `${money(product.price)} ` +
-
-                  `<small>` +
-
-                    `${
-                      product.msrp != null
-
-                        ? `MSRP ${money(product.msrp)}`
-
-                        : ""
-                    }` +
-
-                  `</small>` +
-
-                `</div>` +
-
-                `${store}` +
-
-                `<div class="sub">` +
-
-                  `Checked: ${
-                    product.checkedAt
-
-                      ? new Date(
-                          product.checkedAt
-                        ).toLocaleTimeString()
-
-                      : "—"
-                  }` +
-
-                  `${
-                    product.rawStatus
-
-                      ? ` • Source status: ${esc(product.rawStatus)}`
-
-                      : ""
-                  }` +
-
-                `</div>` +
-
-                `${
-                  product.url
-
-                    ? `<a class="buy" href="${esc(product.url)}" target="_blank" rel="noopener noreferrer">OPEN PRODUCT</a>`
-
-                    : ""
-                }` +
-
-              `</div>` +
-
-            `</article>`
-
+        const fallbackImage =
+          fallback(
+            product.name
           );
 
-        }
 
-      )
+        const image =
+          product.image ||
+          fallbackImage;
 
-      .join("");
+
+        const channel =
+          product.channel ===
+          "store"
+
+            ? "IN-STORE"
+
+            : "ONLINE";
+
+
+        const store =
+          product.channel ===
+          "store"
+
+            ? `<div class="storeline">
+
+                Store:
+                ${esc(
+                  product.storeName ||
+                  "Unknown store"
+                )}
+
+                ${
+                  product.storeId
+                    ? ` • ID ${esc(product.storeId)}`
+                    : ""
+                }
+
+                ${
+                  product.quantity != null
+                    ? ` • Qty ${esc(product.quantity)}`
+                    : ""
+                }
+
+              </div>`
+
+            : "";
+
+
+        return (
+
+          `<article class="card">
+
+
+            <div class="image-wrap">
+
+
+              <img
+                src="${esc(image)}"
+                alt="${esc(product.name)}"
+
+                onerror="
+                  this.onerror=null;
+                  this.src='${fallbackImage}'
+                "
+              >
+
+
+              <div class="image-note">
+
+                ${
+                  product.image
+                    ? "PRODUCT IMAGE"
+                    : "REPRESENTATIVE IMAGE"
+                }
+
+              </div>
+
+
+            </div>
+
+
+            <div class="body">
+
+
+              <div class="badges">
+
+                ${statusBadge(
+                  product.status
+                )}
+
+                <span class="badge">
+                  ${channel}
+                </span>
+
+                <span class="badge">
+                  ${esc(
+                    product.retailerLabel ||
+                    RETAILER_LABELS[
+                      product.retailer
+                    ] ||
+                    product.retailer
+                  )}
+                </span>
+
+              </div>
+
+
+              <div class="name">
+
+                ${esc(
+                  product.name
+                )}
+
+              </div>
+
+
+              <div class="sub">
+
+                Seller:
+                ${esc(
+                  product.seller ||
+                  "Not provided"
+                )}
+
+              </div>
+
+
+              <div class="price">
+
+                ${money(
+                  product.price
+                )}
+
+                <small>
+
+                  ${
+                    product.msrp != null
+                      ? `MSRP ${money(product.msrp)}`
+                      : ""
+                  }
+
+                </small>
+
+              </div>
+
+
+              ${store}
+
+
+              <div class="sub">
+
+                Checked:
+
+                ${
+                  product.checkedAt
+                    ? new Date(
+                        product.checkedAt
+                      ).toLocaleTimeString()
+                    : "—"
+                }
+
+              </div>
+
+
+              ${
+                product.url
+
+                  ? `<a
+                      class="buy"
+                      href="${esc(product.url)}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      OPEN PRODUCT
+                    </a>`
+
+                  : ""
+              }
+
+
+            </div>
+
+
+          </article>`
+
+        );
+
+      }
+    ).join("");
 
 }
 
 
 /* ========================================
-   STATUS PILL HELPER
+   STATUS DISPLAY
 ======================================== */
 
+
 function setOnline(
-
   element,
-
   ok,
-
   onText,
-
   offText
-
 ){
 
   element
@@ -2782,339 +2974,146 @@ function setOnline(
       !ok
     );
 
-  element
 
+  element
     .querySelector(
       "span:last-child"
     )
-
     .textContent =
-
       ok
-
         ? onText
-
         : offText;
 
 }
 
 
 /* ========================================
-   RETAILER PRODUCT LOADER
+   FETCH PRODUCTS
 ======================================== */
+
 
 async function fetchRetailerProducts(){
 
   const response =
-
     await fetch(
 
-      `/api/products?retailer=${encodeURIComponent(activeRetailer)}&t=${Date.now()}`,
+      `/api/products?retailer=${encodeURIComponent(
+        activeRetailer
+      )}&t=${Date.now()}`,
 
       {
-        cache:"no-store"
+        cache:
+          "no-store"
       }
 
     );
 
-  if (
-    !response.ok
-  ){
+
+  if (!response.ok){
 
     throw new Error(
-
-      `${
-        RETAILER_LABELS[
-          activeRetailer
-        ]
-      } inventory request failed`
-
+      `${RETAILER_LABELS[activeRetailer]} inventory request failed`
     );
 
   }
 
-  const data =
 
+  const data =
     await response.json();
 
-  const providerProducts =
-
-    (
-
-      Array.isArray(
-        data.items
-      )
-
-        ? data.items
-
-        : []
-
-    )
-
-      .filter(
-
-        product =>
-
-          product.retailer ===
-            activeRetailer
-
-      );
-
-  if (
-    activeRetailer ===
-    "walmart"
-  ){
-
-    const discovery =
-
-      latestStatus
-        ?.walmartPokemonDiscovery ||
-
-      latestStatus
-        ?.walmart30thDiscovery ||
-
-      {};
-
-    const discoveredProducts =
-
-      (
-
-        Array.isArray(
-          discovery.items
-        )
-
-          ? discovery.items
-
-          : []
-
-      )
-
-        .filter(
-
-          product =>
-
-            product.retailer ===
-              "walmart" &&
-
-            (
-
-              product.directSeller ===
-                true ||
-
-              product
-                .approvedMarketplace ===
-                true
-
-            )
-
-        )
-
-        .map(
-
-          product => ({
-
-            ...product,
-
-            channel:
-              product.channel ||
-              "online",
-
-            retailerLabel:
-              product.retailerLabel ||
-              "Walmart"
-
-          })
-
-        );
-
-    const merged =
-
-      new Map();
-
-    for (
-      const product
-      of [
-        ...providerProducts,
-        ...discoveredProducts
-      ]
-    ){
-
-      const key =
-
-        product.walmartItemId
-
-          ? `item:${product.walmartItemId}`
-
-          : product.productId
-
-            ? `product:${product.productId}`
-
-            : product.url
-
-              ? `url:${product.url}`
-
-              : `name:${
-                  String(
-                    product.name ||
-                    ""
-                  ).toLowerCase()
-                }`;
-
-      const existing =
-
-        merged.get(key);
-
-      if (
-
-        !existing ||
-
-        product.inStock ===
-          true ||
-
-        (
-
-          existing.image ==
-            null &&
-
-          product.image
-
-        )
-
-      ){
-
-        merged.set(
-
-          key,
-
-          product
-
-        );
-
-      }
-
-    }
-
-    currentProducts =
-
-      Array.from(
-        merged.values()
-      );
-
-    return;
-
-  }
 
   currentProducts =
-
-    providerProducts;
+    Array.isArray(
+      data.items
+    )
+      ? data.items
+      : [];
 
 }
 
 
 /* ========================================
-   MAIN DATA LOAD
+   MAIN LOAD
 ======================================== */
+
 
 async function load(){
 
   refreshBtn.disabled =
-
     true;
 
-  try{
+
+  try {
+
 
     const [
-
       providersResponse,
-
       statusResponse
+    ] = await Promise.all([
 
-    ] =
+      fetch(
+        `/api/providers?t=${Date.now()}`,
+        {
+          cache:
+            "no-store"
+        }
+      ),
 
-      await Promise.all(
+      fetch(
+        `/api/status?t=${Date.now()}`,
+        {
+          cache:
+            "no-store"
+        }
+      )
 
-        [
+    ]);
 
-          fetch(
-
-            `/api/providers?t=${Date.now()}`,
-
-            {
-              cache:"no-store"
-            }
-
-          ),
-
-          fetch(
-
-            `/api/status?t=${Date.now()}`,
-
-            {
-              cache:"no-store"
-            }
-
-          )
-
-        ]
-
-      );
 
     if (
-
       !providersResponse.ok ||
-
       !statusResponse.ok
-
     ){
 
       throw new Error(
-
         "Backend request failed"
-
       );
 
     }
 
+
     const [
-
       providersData,
-
       statusData
+    ] = await Promise.all([
 
-    ] =
+      providersResponse.json(),
 
-      await Promise.all(
+      statusResponse.json()
 
-        [
+    ]);
 
-          providersResponse.json(),
-
-          statusResponse.json()
-
-        ]
-
-      );
 
     providerStates =
-
       Array.isArray(
         providersData.providers
       )
-
         ? providersData.providers
-
         : [];
 
-    latestStatus =
 
-      statusData ||
-      {};
+    latestStatus =
+      statusData || {};
+
 
     await fetchRetailerProducts();
 
+
     renderMonitor();
 
+
     renderProducts();
+
 
     setOnline(
 
@@ -3128,29 +3127,18 @@ async function load(){
 
     );
 
-    /*
-      IMPORTANT:
-
-      Push button state is controlled by the
-      actual browser subscription, not merely
-      by backend VAPID configuration.
-    */
-
-    await updatePushButton();
 
     lastUpdated.textContent =
+      `Updated ${new Date().toLocaleTimeString()}`;
 
-      `Updated ${
-        new Date()
-          .toLocaleTimeString()
-      }`;
 
-  }
-  catch(error){
+  } catch (error) {
+
 
     console.error(
       error
     );
+
 
     setOnline(
 
@@ -3164,12 +3152,13 @@ async function load(){
 
     );
 
-  }
-  finally{
+
+  } finally {
+
 
     refreshBtn.disabled =
-
       false;
+
 
   }
 
@@ -3177,53 +3166,51 @@ async function load(){
 
 
 /* ========================================
-   RETAILER SWITCH
+   SWITCH RETAILER
 ======================================== */
+
 
 async function switchRetailer(
   retailer
 ){
 
   activeRetailer =
-
     retailer;
 
-  searchEl.value =
 
+  searchEl.value =
     "";
 
-  document
 
+  document
     .querySelectorAll(
       ".tab"
     )
-
     .forEach(
-
       tab => {
 
-        tab
-          .classList
-          .toggle(
+        tab.classList.toggle(
 
-            "active",
+          "active",
 
-            tab.dataset.retailer ===
-              retailer
+          tab.dataset.retailer ===
+          retailer
 
-          );
+        );
 
       }
-
     );
 
-  currentProducts =
 
+  currentProducts =
     [];
+
 
   renderMonitor();
 
+
   renderProducts();
+
 
   await load();
 
@@ -3234,83 +3221,54 @@ async function switchRetailer(
    MANUAL WALMART SCAN
 ======================================== */
 
+
 async function runManualWalmartScan(){
 
   let token =
-
     localStorage.getItem(
-
       "pokemonMonitorScanToken"
+    ) || "";
 
-    ) ||
 
-    "";
-
-  if (
-    !token
-  ){
+  if (!token){
 
     token =
-
       prompt(
-
         "Enter your MANUAL_SCAN_TOKEN from Render:"
+      ) || "";
 
-      ) ||
 
-      "";
-
-    if (
-      !token
-    ){
-
+    if (!token){
       return;
-
     }
 
+
     localStorage.setItem(
-
       "pokemonMonitorScanToken",
-
       token
-
     );
 
   }
 
-  const button =
 
-    document.getElementById(
+  manualWalmartScan.disabled =
+    true;
 
-      "manualWalmartScan"
 
-    );
+  manualWalmartScan.textContent =
+    "SCANNING…";
 
-  if (
-    button
-  ){
 
-    button.disabled =
+  try {
 
-      true;
-
-    button.textContent =
-
-      "SCANNING…";
-
-  }
-
-  try{
 
     const response =
-
       await fetch(
-
         "/api/walmart/scan",
-
         {
 
-          method:"POST",
+          method:
+            "POST",
 
           headers:{
 
@@ -3322,15 +3280,16 @@ async function runManualWalmartScan(){
 
           },
 
-          body:"{}"
+          body:
+            "{}"
 
         }
-
       );
 
-    const data =
 
+    const data =
       await response.json();
+
 
     if (
       response.status ===
@@ -3338,36 +3297,35 @@ async function runManualWalmartScan(){
     ){
 
       localStorage.removeItem(
-
         "pokemonMonitorScanToken"
-
       );
+
 
       alert(
-
         "Scan key was rejected. Tap SCAN WALMART NOW and enter it again."
-
       );
+
 
       return;
 
     }
 
-    if (
-      !response.ok
-    ){
+
+    if (!response.ok){
 
       throw new Error(
 
         data.error ||
 
-        data.result?.reason ||
+        data.result
+          ?.reason ||
 
         "Manual scan failed"
 
       );
 
     }
+
 
     alert(
 
@@ -3379,858 +3337,137 @@ async function runManualWalmartScan(){
 
     );
 
+
     await load();
 
-  }
-  catch(error){
+
+  } catch (error) {
+
 
     alert(
       error.message
     );
 
-  }
-  finally{
 
-    const latestButton =
+  } finally {
 
-      document.getElementById(
 
-        "manualWalmartScan"
-
-      );
-
-    if (
-      latestButton
-    ){
-
-      latestButton.disabled =
-
-        false;
-
-      latestButton.textContent =
-
-        "SCAN WALMART NOW";
-
-    }
-
-  }
-
-}
-/* ========================================
-   PUSH NOTIFICATIONS
-======================================== */
-
-function urlBase64ToUint8Array(
-  base64String
-){
-
-  const padding =
-
-    "=".repeat(
-
-      (
-        4 -
-        base64String.length % 4
-      ) % 4
-
-    );
-
-  const base64 =
-
-    (
-      base64String +
-      padding
-    )
-
-      .replace(
-        /-/g,
-        "+"
-      )
-
-      .replace(
-        /_/g,
-        "/"
-      );
-
-  const rawData =
-
-    window.atob(
-      base64
-    );
-
-  return Uint8Array.from(
-
-    [...rawData].map(
-
-      character =>
-
-        character.charCodeAt(
-          0
-        )
-
-    )
-
-  );
-
-}
-
-
-/* ========================================
-   GET EXISTING SERVICE WORKER
-======================================== */
-
-async function getExistingPushRegistration(){
-
-  if (
-    !(
-      "serviceWorker" in navigator
-    )
-  ){
-
-    return null;
-
-  }
-
-  return navigator
-    .serviceWorker
-    .getRegistration(
-      "/"
-    );
-
-}
-
-
-/* ========================================
-   REGISTER SERVICE WORKER
-======================================== */
-
-async function getPushRegistration(){
-
-  if (
-    !(
-      "serviceWorker" in navigator
-    )
-  ){
-
-    throw new Error(
-
-      "Service workers are not supported on this device."
-
-    );
-
-  }
-
-  const registration =
-
-    await navigator
-      .serviceWorker
-      .register(
-
-        "/sw.js",
-
-        {
-          scope:"/"
-        }
-
-      );
-
-  await navigator
-    .serviceWorker
-    .ready;
-
-  return registration;
-
-}
-
-
-/* ========================================
-   CURRENT DEVICE SUBSCRIPTION
-======================================== */
-
-async function getCurrentSubscription(){
-
-  const registration =
-
-    await getExistingPushRegistration();
-
-  if (
-    !registration
-  ){
-
-    return null;
-
-  }
-
-  return registration
-    .pushManager
-    .getSubscription();
-
-}
-
-
-/* ========================================
-   UPDATE PUSH BUTTON
-======================================== */
-
-async function updatePushButton(){
-
-  const button =
-
-    document.getElementById(
-
-      "pushStatus"
-
-    );
-
-  if (
-    !button
-  ){
-
-    return;
-
-  }
-
-  const label =
-
-    button.querySelector(
-
-      "span:last-child"
-
-    );
-
-  if (
-
-    !(
-      "Notification" in window
-    ) ||
-
-    !(
-      "serviceWorker" in navigator
-    ) ||
-
-    !(
-      "PushManager" in window
-    )
-
-  ){
-
-    button.classList.add(
-
-      "offline"
-
-    );
-
-    label.textContent =
-
-      "PUSH NOT SUPPORTED";
-
-    return;
-
-  }
-
-  try{
-
-    const subscription =
-
-      await getCurrentSubscription();
-
-    const active =
-
-      Notification.permission ===
-        "granted" &&
-
-      Boolean(
-        subscription
-      );
-
-    button.classList.toggle(
-
-      "offline",
-
-      !active
-
-    );
-
-    label.textContent =
-
-      active
-
-        ? "NOTIFICATIONS ENABLED"
-
-        : "ENABLE NOTIFICATIONS";
-
-  }
-  catch(error){
-
-    console.error(
-
-      "Push status error:",
-
-      error
-
-    );
-
-    button.classList.add(
-
-      "offline"
-
-    );
-
-    label.textContent =
-
-      "ENABLE NOTIFICATIONS";
-
-  }
-
-}
-
-
-/* ========================================
-   ENABLE / DISABLE PUSH
-======================================== */
-
-async function enablePushNotifications(){
-
-  const button =
-
-    document.getElementById(
-
-      "pushStatus"
-
-    );
-
-  if (
-    !button
-  ){
-
-    return;
-
-  }
-
-  const label =
-
-    button.querySelector(
-
-      "span:last-child"
-
-    );
-
-  button.disabled =
-
-    true;
-
-  try{
-
-    if (
-
-      !(
-        "Notification" in window
-      ) ||
-
-      !(
-        "serviceWorker" in navigator
-      ) ||
-
-      !(
-        "PushManager" in window
-      )
-
-    ){
-
-      throw new Error(
-
-        "Push notifications are not supported here. Open the Pokémon Monitor from the icon on your Home Screen."
-
-      );
-
-    }
-
-
-    /*
-      Check whether this device is
-      already subscribed.
-    */
-
-    const existing =
-
-      await getCurrentSubscription();
-
-
-    /*
-      If this device is already subscribed,
-      tapping the button disables it.
-    */
-
-    if (
-
-      Notification.permission ===
-        "granted" &&
-
-      existing
-
-    ){
-
-      label.textContent =
-
-        "DISABLING…";
-
-      const endpoint =
-
-        existing.endpoint;
-
-      await existing.unsubscribe();
-
-      try{
-
-        await fetch(
-
-          "/api/push/unsubscribe",
-
-          {
-
-            method:"POST",
-
-            headers:{
-
-              "Content-Type":
-                "application/json"
-
-            },
-
-            body:
-              JSON.stringify({
-
-                endpoint
-
-              })
-
-          }
-
-        );
-
-      }
-      catch(error){
-
-        console.error(
-
-          "Server unsubscribe error:",
-
-          error
-
-        );
-
-      }
-
-      button.classList.add(
-
-        "offline"
-
-      );
-
-      label.textContent =
-
-        "ENABLE NOTIFICATIONS";
-
-      alert(
-
-        "Notifications have been disabled on this device."
-
-      );
-
-      return;
-
-    }
-
-
-    /*
-      iPhone / iPad requires this call
-      to happen from the user's tap.
-    */
-
-    const permission =
-
-      await Notification
-        .requestPermission();
-
-    if (
-      permission !==
-      "granted"
-    ){
-
-      if (
-        permission ===
-        "denied"
-      ){
-
-        throw new Error(
-
-          "Notifications are blocked for this app. Check this app under Settings → Notifications."
-
-        );
-
-      }
-
-      throw new Error(
-
-        "Notification permission was not granted."
-
-      );
-
-    }
-
-
-    /*
-      Register the service worker only
-      after the user has tapped Enable.
-    */
-
-    label.textContent =
-
-      "CONNECTING…";
-
-    const registration =
-
-      await getPushRegistration();
-
-
-    /*
-      Get the public VAPID key
-      already configured on the backend.
-    */
-
-    const keyResponse =
-
-      await fetch(
-
-        `/api/push/public-key?t=${Date.now()}`,
-
-        {
-          cache:"no-store"
-        }
-
-      );
-
-    if (
-      !keyResponse.ok
-    ){
-
-      throw new Error(
-
-        "Could not load the push notification public key."
-
-      );
-
-    }
-
-    const keyData =
-
-      await keyResponse.json();
-
-    if (
-      !keyData.publicKey
-    ){
-
-      throw new Error(
-
-        "The backend did not return a push public key."
-
-      );
-
-    }
-
-    const applicationServerKey =
-
-      urlBase64ToUint8Array(
-
-        keyData.publicKey
-
-      );
-
-
-    /*
-      Check again in case registration
-      already has a subscription.
-    */
-
-    let subscription =
-
-      await registration
-        .pushManager
-        .getSubscription();
-
-
-    /*
-      Create a fresh subscription
-      for THIS phone or tablet.
-    */
-
-    if (
-      !subscription
-    ){
-
-      subscription =
-
-        await registration
-          .pushManager
-          .subscribe({
-
-            userVisibleOnly:true,
-
-            applicationServerKey
-
-          });
-
-    }
-
-
-    /*
-      Save this device subscription
-      into the existing backend.
-    */
-
-    const saveResponse =
-
-      await fetch(
-
-        "/api/push/subscribe",
-
-        {
-
-          method:"POST",
-
-          headers:{
-
-            "Content-Type":
-              "application/json"
-
-          },
-
-          body:
-            JSON.stringify(
-              subscription
-            )
-
-        }
-
-      );
-
-    let saveData =
-
-      {};
-
-    try{
-
-      saveData =
-
-        await saveResponse.json();
-
-    }
-    catch(error){
-
-      console.error(
-
-        "Push subscription response parse error:",
-
-        error
-
-      );
-
-    }
-
-    if (
-      !saveResponse.ok
-    ){
-
-      throw new Error(
-
-        saveData.error ||
-
-        "Could not save this device's notification subscription."
-
-      );
-
-    }
-
-
-    /*
-      Confirm that this device really
-      has a browser subscription.
-    */
-
-    const confirmedSubscription =
-
-      await registration
-        .pushManager
-        .getSubscription();
-
-    if (
-      !confirmedSubscription
-    ){
-
-      throw new Error(
-
-        "The notification subscription was not created."
-
-      );
-
-    }
-
-    button.classList.remove(
-
-      "offline"
-
-    );
-
-    label.textContent =
-
-      "NOTIFICATIONS ENABLED";
-
-    alert(
-
-      "Notifications are enabled on this device."
-
-    );
-
-  }
-  catch(error){
-
-    console.error(
-
-      "Enable notifications failed:",
-
-      error
-
-    );
-
-    button.classList.add(
-
-      "offline"
-
-    );
-
-    label.textContent =
-
-      "ENABLE NOTIFICATIONS";
-
-    alert(
-
-      error.message ||
-
-      "Notifications could not be enabled."
-
-    );
-
-  }
-  finally{
-
-    button.disabled =
-
+    manualWalmartScan.disabled =
       false;
 
+
+    manualWalmartScan.textContent =
+      "SCAN WALMART NOW";
+
+
   }
 
 }
 
 
 /* ========================================
-   RETAILER TAB EVENTS
+   EVENTS
 ======================================== */
 
-document
 
+document
   .querySelectorAll(
     ".tab"
   )
-
   .forEach(
-
     button => {
 
       button.addEventListener(
-
         "click",
-
-        () =>
+        () => {
 
           switchRetailer(
-
             button.dataset.retailer
+          );
 
-          )
-
+        }
       );
 
     }
-
   );
 
 
-/* ========================================
-   SEARCH
-======================================== */
-
 searchEl.addEventListener(
-
   "input",
-
   renderProducts
-
 );
 
-
-/* ========================================
-   REFRESH
-======================================== */
 
 refreshBtn.addEventListener(
-
   "click",
-
   load
-
 );
 
 
-/* ========================================
-   PUSH BUTTON
-======================================== */
-
-pushStatus.addEventListener(
-
+manualWalmartScan.addEventListener(
   "click",
+  runManualWalmartScan
+);
 
-  enablePushNotifications
 
+forgetScanToken.addEventListener(
+  "click",
+  () => {
+
+    localStorage.removeItem(
+      "pokemonMonitorScanToken"
+    );
+
+
+    alert(
+      "Saved scan key cleared."
+    );
+
+  }
+);
+
+
+enablePush.addEventListener(
+  "click",
+  enablePhoneAlerts
+);
+
+
+testPush.addEventListener(
+  "click",
+  runPushTest
 );
 
 
 /* ========================================
-   INITIAL PUSH BUTTON STATE
+   START APP
 ======================================== */
 
-updatePushButton();
 
+registerServiceWorker()
+  .then(
+    () =>
+      checkPushSubscription()
+  )
+  .catch(
+    error =>
+      console.error(
+        error
+      )
+  );
 
-/* ========================================
-   AUTO REFRESH DASHBOARD
-======================================== */
-
-setInterval(
-
-  load,
-
-  15000
-
-);
-
-
-/* ========================================
-   INITIAL LOAD
-======================================== */
 
 load();
 
+
+setInterval(
+  load,
+  15000
+);
+
+
 </script>
+
 
 </body>
 
