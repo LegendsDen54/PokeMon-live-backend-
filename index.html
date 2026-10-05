@@ -1,9 +1,7 @@
 <!doctype html>
-
 <html lang="en">
 
 <head>
-
 <meta charset="utf-8">
 
 <meta
@@ -11,10 +9,7 @@
   content="width=device-width,initial-scale=1,viewport-fit=cover"
 >
 
-<meta
-  name="theme-color"
-  content="#020711"
->
+<meta name="theme-color" content="#020711">
 
 <meta
   name="apple-mobile-web-app-capable"
@@ -43,7 +38,8 @@
 
 <link
   rel="apple-touch-icon"
-  href="/hero.jpg"
+  sizes="512x512"
+  href="/app-icon.png"
 >
 
 <title>Pokémon Restock Monitor</title>
@@ -115,9 +111,7 @@ a{
       var(--bg) 100%
     ),
     url("/hero.jpg")
-      center top /
-      cover
-      no-repeat;
+    center top / cover no-repeat;
 }
 
 .status-wrap{
@@ -135,6 +129,7 @@ a{
   border:1px solid rgba(84,243,166,.55);
   border-radius:12px;
   background:rgba(8,44,37,.96);
+  color:white;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -142,6 +137,17 @@ a{
   font-size:12px;
   font-weight:900;
   text-align:center;
+  padding:8px;
+}
+
+button.status-pill{
+  width:100%;
+  appearance:none;
+  -webkit-appearance:none;
+}
+
+button.status-pill:active{
+  transform:scale(.98);
 }
 
 .status-pill.offline{
@@ -284,28 +290,6 @@ a{
 .action-btn.secondary{
   border-color:rgba(98,199,255,.35);
   background:#0a1b31;
-}
-
-.push-controls{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:8px;
-  margin-top:10px;
-}
-
-.push-btn{
-  border:1px solid rgba(98,199,255,.35);
-  background:#0a1b31;
-  color:white;
-  border-radius:10px;
-  padding:11px;
-  font-size:11px;
-  font-weight:900;
-}
-
-.push-btn.primary{
-  border-color:rgba(84,243,166,.5);
-  background:#0b2b25;
 }
 
 .push-debug{
@@ -566,9 +550,7 @@ a{
 }
 
 </style>
-
 </head>
-
 
 <body>
 
@@ -586,13 +568,14 @@ a{
       <span>CONNECTING...</span>
     </div>
 
-    <div
+    <button
       id="pushStatus"
       class="status-pill warn"
+      type="button"
     >
       <span class="dot"></span>
-      <span>CHECKING ALERTS...</span>
-    </div>
+      <span>ENABLE PHONE ALERTS</span>
+    </button>
 
   </div>
 
@@ -601,38 +584,23 @@ a{
 
     <div class="tabs">
 
-      <button
-        class="tab active"
-        data-retailer="walmart"
-      >
+      <button class="tab active" data-retailer="walmart">
         WALMART
       </button>
 
-      <button
-        class="tab"
-        data-retailer="target"
-      >
+      <button class="tab" data-retailer="target">
         TARGET
       </button>
 
-      <button
-        class="tab"
-        data-retailer="sams"
-      >
+      <button class="tab" data-retailer="sams">
         SAM'S CLUB
       </button>
 
-      <button
-        class="tab"
-        data-retailer="bestbuy"
-      >
+      <button class="tab" data-retailer="bestbuy">
         BEST BUY
       </button>
 
-      <button
-        class="tab"
-        data-retailer="costco"
-      >
+      <button class="tab" data-retailer="costco">
         COSTCO
       </button>
 
@@ -643,24 +611,15 @@ a{
 
   <section class="section">
 
-    <div
-      id="retailerMonitor"
-      class="monitor-panel"
-    >
+    <div class="monitor-panel">
 
       <div class="panel-head">
 
-        <div
-          id="monitorTitle"
-          class="panel-title"
-        >
+        <div id="monitorTitle" class="panel-title">
           Walmart Monitor
         </div>
 
-        <div
-          id="monitorState"
-          class="panel-status"
-        >
+        <div id="monitorState" class="panel-status">
           LIVE
         </div>
 
@@ -721,30 +680,11 @@ a{
         </div>
 
 
-        <div class="push-controls">
-
-          <button
-            id="enablePush"
-            class="push-btn primary"
-          >
-            ENABLE PHONE ALERTS
-          </button>
-
-          <button
-            id="testPush"
-            class="push-btn"
-          >
-            TEST ALERT
-          </button>
-
-        </div>
-
-
         <div
           id="pushDebug"
           class="push-debug"
         >
-          Push system checking…
+          Tap ENABLE PHONE ALERTS above to connect this device.
         </div>
 
 
@@ -780,12 +720,10 @@ a{
         id="otherRetailerDetails"
         class="hidden"
       >
-
         <div
           id="otherRetailerMessage"
           class="store-placeholder"
         ></div>
-
       </div>
 
     </div>
@@ -833,11 +771,6 @@ a{
 
 <script>
 
-
-/* ========================================
-   RETAILER CONFIG
-======================================== */
-
 const RETAILER_LABELS = {
   walmart:"Walmart",
   target:"Target",
@@ -854,46 +787,20 @@ const RETAILER_MONITOR_NAMES = {
   costco:"Costco Monitor"
 };
 
-
-/* ========================================
-   ELEMENTS
-======================================== */
-
-const productsEl =
-  document.getElementById("products");
-
-const searchEl =
-  document.getElementById("search");
-
-const refreshBtn =
-  document.getElementById("refresh");
-
-const backendStatus =
-  document.getElementById("backendStatus");
-
-const pushStatus =
-  document.getElementById("pushStatus");
-
-const pushDebug =
-  document.getElementById("pushDebug");
-
-const visibleCount =
-  document.getElementById("visibleCount");
-
-const lastUpdated =
-  document.getElementById("lastUpdated");
+const productsEl = document.getElementById("products");
+const searchEl = document.getElementById("search");
+const refreshBtn = document.getElementById("refresh");
+const backendStatus = document.getElementById("backendStatus");
+const pushStatus = document.getElementById("pushStatus");
+const pushDebug = document.getElementById("pushDebug");
+const visibleCount = document.getElementById("visibleCount");
+const lastUpdated = document.getElementById("lastUpdated");
 
 const manualWalmartScan =
   document.getElementById("manualWalmartScan");
 
 const forgetScanToken =
   document.getElementById("forgetScanToken");
-
-const enablePush =
-  document.getElementById("enablePush");
-
-const testPush =
-  document.getElementById("testPush");
 
 const walmartSchedule =
   document.getElementById("walmartSchedule");
@@ -929,32 +836,15 @@ const otherRetailerMessage =
   document.getElementById("otherRetailerMessage");
 
 
-/* ========================================
-   STATE
-======================================== */
+let activeRetailer = "walmart";
+let currentProducts = [];
+let providerStates = [];
+let latestStatus = {};
 
-let activeRetailer =
-  "walmart";
-
-let currentProducts =
-  [];
-
-let providerStates =
-  [];
-
-let latestStatus =
-  {};
-
-
-/* ========================================
-   HELPERS
-======================================== */
 
 function esc(value){
 
-  return String(
-    value ?? ""
-  ).replace(
+  return String(value ?? "").replace(
     /[&<>"']/g,
     character => ({
       "&":"&amp;",
@@ -974,7 +864,6 @@ function money(value){
     Number(value);
 
   return Number.isFinite(number)
-
     ? new Intl.NumberFormat(
         "en-US",
         {
@@ -982,7 +871,6 @@ function money(value){
           currency:"USD"
         }
       ).format(number)
-
     : "Price unavailable";
 
 }
@@ -1025,18 +913,14 @@ function statusBadge(status){
       "instock",
       "onhand"
     ].includes(normalized)
-
       ? "good"
-
       : [
           "transit",
           "ordered",
           "preorder",
           "watching"
         ].includes(normalized)
-
         ? "warn"
-
         : "out";
 
   return (
@@ -1053,8 +937,7 @@ function providerFor(retailer){
   return (
     providerStates.find(
       provider =>
-        provider.retailer ===
-        retailer
+        provider.retailer === retailer
     ) ||
     {
       retailer,
@@ -1072,10 +955,6 @@ function providerFor(retailer){
 }
 
 
-/* ========================================
-   PUSH HELPERS
-======================================== */
-
 function isStandalone(){
 
   return (
@@ -1088,29 +967,20 @@ function isStandalone(){
 }
 
 
-function setPushState(
-  state,
-  text
-){
+function setPushState(state,text){
 
   pushStatus.classList.remove(
     "offline",
     "warn"
   );
 
-  if (
-    state ===
-    "offline"
-  ){
+  if(state === "offline"){
     pushStatus.classList.add(
       "offline"
     );
   }
 
-  if (
-    state ===
-    "warn"
-  ){
+  if(state === "warn"){
     pushStatus.classList.add(
       "warn"
     );
@@ -1118,8 +988,7 @@ function setPushState(
 
   pushStatus.querySelector(
     "span:last-child"
-  ).textContent =
-    text;
+  ).textContent = text;
 
 }
 
@@ -1165,53 +1034,34 @@ function urlBase64ToUint8Array(
 }
 
 
-/* ========================================
-   SERVICE WORKER
-======================================== */
-
 async function registerServiceWorker(){
 
-  if (
-    !(
-      "serviceWorker"
-      in navigator
-    )
-  ){
+  if(!("serviceWorker" in navigator)){
     throw new Error(
       "Service workers are not supported on this device."
     );
   }
 
   const registration =
-    await navigator
-      .serviceWorker
-      .register(
-        "/sw.js",
-        {
-          scope:"/"
-        }
-      );
+    await navigator.serviceWorker.register(
+      "/sw.js",
+      {
+        scope:"/"
+      }
+    );
 
-  await navigator
-    .serviceWorker
-    .ready;
+  await navigator.serviceWorker.ready;
 
   return registration;
 
 }
 
 
-/* ========================================
-   CHECK PUSH
-======================================== */
-
 async function checkPushSubscription(){
 
-  try {
+  try{
 
-    if (
-      !window.isSecureContext
-    ){
+    if(!window.isSecureContext){
 
       setPushState(
         "offline",
@@ -1225,12 +1075,8 @@ async function checkPushSubscription(){
       return;
     }
 
-    if (
-      !(
-        "Notification"
-        in window
-      )
-    ){
+
+    if(!("Notification" in window)){
 
       setPushState(
         "offline",
@@ -1238,37 +1084,25 @@ async function checkPushSubscription(){
       );
 
       setPushDebug(
-        "Notification API is unavailable in this browser."
+        "Open the installed Pokémon Monitor from your iPhone Home Screen."
       );
 
       return;
     }
 
-    if (
-      !(
-        "serviceWorker"
-        in navigator
-      )
-    ){
+
+    if(!("serviceWorker" in navigator)){
 
       setPushState(
         "offline",
         "SERVICE WORKER UNSUPPORTED"
       );
 
-      setPushDebug(
-        "Service workers are unavailable."
-      );
-
       return;
     }
 
-    if (
-      !(
-        "PushManager"
-        in window
-      )
-    ){
+
+    if(!("PushManager" in window)){
 
       setPushState(
         "offline",
@@ -1278,11 +1112,12 @@ async function checkPushSubscription(){
       setPushDebug(
         isStandalone()
           ? "PushManager is unavailable on this installation."
-          : "Open the monitor from the Home Screen icon before enabling alerts."
+          : "Open this app from its Home Screen icon."
       );
 
       return;
     }
+
 
     const registration =
       await registerServiceWorker();
@@ -1292,26 +1127,23 @@ async function checkPushSubscription(){
         .pushManager
         .getSubscription();
 
-    if (
-      subscription
-    ){
+
+    if(subscription){
 
       setPushState(
         "online",
         "PUSH ALERTS ACTIVE"
       );
 
-      enablePush.textContent =
-        "ALERTS ENABLED";
-
       setPushDebug(
-        "Push subscription found on this device."
+        "This iPhone is subscribed to Pokémon alerts."
       );
 
       return;
     }
 
-    if (
+
+    if(
       Notification.permission ===
       "denied"
     ){
@@ -1322,11 +1154,12 @@ async function checkPushSubscription(){
       );
 
       setPushDebug(
-        "Notification permission is blocked for this web app."
+        "Notification permission is blocked."
       );
 
       return;
     }
+
 
     setPushState(
       "warn",
@@ -1334,16 +1167,12 @@ async function checkPushSubscription(){
     );
 
     setPushDebug(
-      isStandalone()
-        ? "Home Screen mode detected. Tap ENABLE PHONE ALERTS."
-        : "Open this monitor from the Home Screen icon, then tap ENABLE PHONE ALERTS."
+      "Tap ENABLE PHONE ALERTS above."
     );
 
-  } catch (error){
+  }catch(error){
 
-    console.error(
-      error
-    );
+    console.error(error);
 
     setPushState(
       "offline",
@@ -1359,90 +1188,60 @@ async function checkPushSubscription(){
 }
 
 
-/* ========================================
-   ENABLE PUSH
-======================================== */
-
 async function enablePhoneAlerts(){
 
-  enablePush.disabled =
-    true;
+  pushStatus.disabled = true;
 
-  enablePush.textContent =
-    "CONNECTING…";
-
-  setPushDebug(
-    "Starting notification permission request…"
+  setPushState(
+    "warn",
+    "CONNECTING..."
   );
 
-  try {
+  setPushDebug(
+    "Starting push notification setup..."
+  );
 
-    if (
-      !window.isSecureContext
-    ){
+  try{
+
+    if(!window.isSecureContext){
       throw new Error(
-        "This page must be opened over HTTPS."
+        "This page must use HTTPS."
       );
     }
 
-    if (
-      !(
-        "Notification"
-        in window
-      )
-    ){
+    if(!("Notification" in window)){
       throw new Error(
-        "Notifications are not supported here."
+        "Notifications are unavailable here. Open the app from your iPhone Home Screen."
       );
     }
 
-    if (
-      !(
-        "serviceWorker"
-        in navigator
-      )
-    ){
+    if(!("serviceWorker" in navigator)){
       throw new Error(
-        "Service workers are not supported."
+        "Service workers are unavailable."
       );
     }
 
-    if (
-      !(
-        "PushManager"
-        in window
-      )
-    ){
+    if(!("PushManager" in window)){
       throw new Error(
-        isStandalone()
-          ? "PushManager is unavailable on this iPhone."
-          : "Open the Pokémon Monitor from its Home Screen icon first."
+        "Push notifications are unavailable in this browser."
       );
     }
+
 
     const permission =
-      await Notification
-        .requestPermission();
+      await Notification.requestPermission();
 
-    setPushDebug(
-      `Notification permission: ${permission}`
-    );
 
-    if (
-      permission !==
-      "granted"
-    ){
+    if(permission !== "granted"){
       throw new Error(
         `Notification permission is ${permission}.`
       );
     }
 
+
     const registration =
       await registerServiceWorker();
 
-    setPushDebug(
-      "Service worker ready. Loading push key…"
-    );
 
     const keyResponse =
       await fetch(
@@ -1455,23 +1254,22 @@ async function enablePhoneAlerts(){
     const keyData =
       await keyResponse.json();
 
-    if (
-      !keyResponse.ok
-    ){
+
+    if(!keyResponse.ok){
       throw new Error(
         keyData.error ||
-        "Push public key could not be loaded."
+        "Push key could not be loaded."
       );
     }
+
 
     let subscription =
       await registration
         .pushManager
         .getSubscription();
 
-    if (
-      !subscription
-    ){
+
+    if(!subscription){
 
       subscription =
         await registration
@@ -1485,6 +1283,7 @@ async function enablePhoneAlerts(){
           });
 
     }
+
 
     const response =
       await fetch(
@@ -1504,35 +1303,29 @@ async function enablePhoneAlerts(){
         }
       );
 
+
     const result =
       await response.json();
 
-    if (
-      !response.ok
-    ){
+
+    if(!response.ok){
       throw new Error(
         result.error ||
         "Push subscription failed."
       );
     }
 
+
     setPushState(
       "online",
       "PUSH ALERTS ACTIVE"
     );
 
-    enablePush.textContent =
-      "ALERTS ENABLED";
-
     setPushDebug(
-      "SUCCESS: This iPhone is subscribed to Pokémon push alerts."
+      "SUCCESS: This iPhone is subscribed to Pokémon alerts."
     );
 
-    alert(
-      "Phone alerts are connected."
-    );
-
-  } catch (error){
+  }catch(error){
 
     console.error(
       "Push setup failed:",
@@ -1545,103 +1338,17 @@ async function enablePhoneAlerts(){
     );
 
     setPushDebug(
-      `ERROR: ${error.message}`
-    );
-
-    alert(
       error.message
     );
 
-  } finally {
+  }finally{
 
-    enablePush.disabled =
-      false;
-
-    if (
-      enablePush.textContent ===
-      "CONNECTING…"
-    ){
-      enablePush.textContent =
-        "ENABLE PHONE ALERTS";
-    }
+    pushStatus.disabled = false;
 
   }
 
 }
 
-
-/* ========================================
-   TEST PUSH
-======================================== */
-
-async function runPushTest(){
-
-  testPush.disabled =
-    true;
-
-  testPush.textContent =
-    "SENDING…";
-
-  setPushDebug(
-    "Sending test alert from backend…"
-  );
-
-  try {
-
-    const response =
-      await fetch(
-        `/api/push/test?t=${Date.now()}`,
-        {
-          cache:"no-store"
-        }
-      );
-
-    const result =
-      await response.json();
-
-    if (
-      !response.ok
-    ){
-      throw new Error(
-        result.error ||
-        "Push test failed."
-      );
-    }
-
-    setPushDebug(
-      `Test request succeeded: ${JSON.stringify(result)}`
-    );
-
-    alert(
-      "Test notification requested."
-    );
-
-  } catch (error){
-
-    setPushDebug(
-      `TEST ERROR: ${error.message}`
-    );
-
-    alert(
-      error.message
-    );
-
-  } finally {
-
-    testPush.disabled =
-      false;
-
-    testPush.textContent =
-      "TEST ALERT";
-
-  }
-
-}
-
-
-/* ========================================
-   WATCHLIST
-======================================== */
 
 function renderUpcoming(
   watchData,
@@ -1666,10 +1373,10 @@ function renderUpcoming(
       ? watchData.watching
       : [];
 
-  const rows =
-    [];
+  const rows = [];
 
-  for (
+
+  for(
     const item
     of detected.slice(0,8)
   ){
@@ -1687,6 +1394,7 @@ function renderUpcoming(
         <strong>
           ${esc(item.name)}
         </strong>
+
         <small>
           ${esc(
             (
@@ -1706,7 +1414,8 @@ function renderUpcoming(
 
   }
 
-  for (
+
+  for(
     const item
     of watching.slice(0,18)
   ){
@@ -1724,6 +1433,7 @@ function renderUpcoming(
         <strong>
           ${esc(item.name)}
         </strong>
+
         <small>
           WATCHING
           ${
@@ -1737,6 +1447,7 @@ function renderUpcoming(
 
   }
 
+
   upcomingList.innerHTML =
     rows.length
       ? rows.join("")
@@ -1744,10 +1455,6 @@ function renderUpcoming(
 
 }
 
-
-/* ========================================
-   MONITOR PANEL
-======================================== */
 
 function renderMonitor(){
 
@@ -1765,10 +1472,8 @@ function renderMonitor(){
   searchEl.placeholder =
     `Search ${RETAILER_LABELS[activeRetailer]} Pokémon products`;
 
-  if (
-    activeRetailer ===
-    "walmart"
-  ){
+
+  if(activeRetailer === "walmart"){
 
     walmartDetails
       .classList
@@ -1777,6 +1482,7 @@ function renderMonitor(){
     otherRetailerDetails
       .classList
       .add("hidden");
+
 
     const schedule =
       latestStatus?.walmartSchedule ||
@@ -1798,6 +1504,7 @@ function renderMonitor(){
         ?.rapidapi ||
       {};
 
+
     monitorState.className =
       "panel-status";
 
@@ -1806,44 +1513,37 @@ function renderMonitor(){
         ? "DROP WINDOW ACTIVE"
         : "LIVE";
 
+
     walmartSchedule.textContent =
       schedule.scheduleLabel ||
-      (
-        latestStatus?.automaticScanning &&
-        latestStatus?.pollSeconds
-          ? `Every ${latestStatus.pollSeconds} seconds`
-          : "Scheduled monitoring"
-      );
+      "Scheduled monitoring";
+
 
     walmartPrimary.textContent =
       walmartProvider.primary
-        ? `${String(
+        ? String(
             walmartProvider.primary
-          ).toUpperCase()}${
-            walmartProvider.fallbackEnabled
-              ? " → RAPIDAPI FALLBACK"
-              : ""
-          }`
+          ).toUpperCase()
         : "WALMART";
+
 
     walmartLastScan.textContent =
       schedule.lastScheduledRun
         ? new Date(
             schedule.lastScheduledRun
           ).toLocaleString()
-        : latestStatus.lastRun
-          ? new Date(
-              latestStatus.lastRun
-            ).toLocaleString()
-          : "—";
+        : "—";
+
 
     walmartNextScan.textContent =
       schedule.nextScanLabel ||
       "Automatic";
 
+
     walmartHealth.textContent =
       `HasData: ${Number(hd.successes || 0)} ok / ${Number(hd.failures || 0)} failed • ` +
       `RapidAPI: ${Number(ra.successes || 0)} ok / ${Number(ra.failures || 0)} failed`;
+
 
     renderUpcoming(
       latestStatus?.walmartWatchlist,
@@ -1851,9 +1551,10 @@ function renderMonitor(){
       []
     );
 
-    return;
 
+    return;
   }
+
 
   walmartDetails
     .classList
@@ -1863,9 +1564,8 @@ function renderMonitor(){
     .classList
     .remove("hidden");
 
-  if (
-    provider.configured
-  ){
+
+  if(provider.configured){
 
     monitorState.className =
       provider.error
@@ -1881,6 +1581,7 @@ function renderMonitor(){
           ? "SCANNING"
           : "CONNECTED";
 
+
     otherRetailerMessage.innerHTML =
       `<strong>${esc(provider.label)} monitor connected.</strong><br>` +
       `Live products: ${Number(provider.itemCount || 0)}<br>` +
@@ -1890,13 +1591,9 @@ function renderMonitor(){
               provider.lastRun
             ).toLocaleString()
           : "—"
-      }${
-        provider.error
-          ? `<br>Error: ${esc(provider.error)}`
-          : ""
       }`;
 
-  } else {
+  }else{
 
     monitorState.className =
       "panel-status off";
@@ -1905,17 +1602,12 @@ function renderMonitor(){
       "NOT CONFIGURED";
 
     otherRetailerMessage.innerHTML =
-      `<strong>${esc(provider.label)} is not connected yet.</strong><br>` +
-      `Inventory will appear here once its monitor is connected.`;
+      `<strong>${esc(provider.label)} is not connected yet.</strong>`;
 
   }
 
 }
 
-
-/* ========================================
-   PRODUCTS
-======================================== */
 
 function renderProducts(){
 
@@ -1950,6 +1642,7 @@ function renderProducts(){
       }
     );
 
+
   visibleCount.textContent =
     `${list.length} product${
       list.length === 1
@@ -1957,9 +1650,8 @@ function renderProducts(){
         : "s"
     }`;
 
-  if (
-    !list.length
-  ){
+
+  if(!list.length){
 
     const provider =
       providerFor(
@@ -1974,8 +1666,8 @@ function renderProducts(){
       }</div>`;
 
     return;
-
   }
+
 
   productsEl.innerHTML =
     list.map(
@@ -2013,6 +1705,7 @@ function renderProducts(){
                 }
               </div>`
             : "";
+
 
         return (
           `<article class="card">
@@ -2057,12 +1750,6 @@ function renderProducts(){
                   )}
                 </span>
 
-                ${
-                  product.stale
-                    ? '<span class="badge warn">STALE DISPLAY</span>'
-                    : ""
-                }
-
               </div>
 
               <div class="name">
@@ -2093,22 +1780,6 @@ function renderProducts(){
 
               ${store}
 
-              <div class="sub">
-                Checked:
-                ${
-                  product.checkedAt
-                    ? new Date(
-                        product.checkedAt
-                      ).toLocaleTimeString()
-                    : "—"
-                }
-                ${
-                  product.rawStatus
-                    ? ` • Source status: ${esc(product.rawStatus)}`
-                    : ""
-                }
-              </div>
-
               ${
                 product.url
                   ? `<a
@@ -2133,10 +1804,6 @@ function renderProducts(){
 }
 
 
-/* ========================================
-   STATUS DISPLAY
-======================================== */
-
 function setOnline(
   element,
   ok,
@@ -2159,10 +1826,6 @@ function setOnline(
 }
 
 
-/* ========================================
-   FETCH PRODUCTS
-======================================== */
-
 async function fetchRetailerProducts(){
 
   const response =
@@ -2175,16 +1838,17 @@ async function fetchRetailerProducts(){
       }
     );
 
-  if (
-    !response.ok
-  ){
+
+  if(!response.ok){
     throw new Error(
       `${RETAILER_LABELS[activeRetailer]} inventory request failed`
     );
   }
 
+
   const data =
     await response.json();
+
 
   currentProducts =
     Array.isArray(
@@ -2196,16 +1860,12 @@ async function fetchRetailerProducts(){
 }
 
 
-/* ========================================
-   MAIN LOAD
-======================================== */
-
 async function load(){
 
   refreshBtn.disabled =
     true;
 
-  try {
+  try{
 
     const [
       providersResponse,
@@ -2228,7 +1888,8 @@ async function load(){
 
     ]);
 
-    if (
+
+    if(
       !providersResponse.ok ||
       !statusResponse.ok
     ){
@@ -2236,6 +1897,7 @@ async function load(){
         "Backend request failed"
       );
     }
+
 
     const [
       providersData,
@@ -2245,6 +1907,7 @@ async function load(){
       statusResponse.json()
     ]);
 
+
     providerStates =
       Array.isArray(
         providersData.providers
@@ -2252,15 +1915,19 @@ async function load(){
         ? providersData.providers
         : [];
 
+
     latestStatus =
       statusData ||
       {};
 
+
     await fetchRetailerProducts();
+
 
     renderMonitor();
 
     renderProducts();
+
 
     setOnline(
       backendStatus,
@@ -2269,14 +1936,13 @@ async function load(){
       "MONITOR CONNECTION ERROR"
     );
 
+
     lastUpdated.textContent =
       `Updated ${new Date().toLocaleTimeString()}`;
 
-  } catch (error){
+  }catch(error){
 
-    console.error(
-      error
-    );
+    console.error(error);
 
     setOnline(
       backendStatus,
@@ -2285,7 +1951,7 @@ async function load(){
       "MONITOR CONNECTION ERROR"
     );
 
-  } finally {
+  }finally{
 
     refreshBtn.disabled =
       false;
@@ -2294,10 +1960,6 @@ async function load(){
 
 }
 
-
-/* ========================================
-   SWITCH RETAILER
-======================================== */
 
 async function switchRetailer(
   retailer
@@ -2308,6 +1970,7 @@ async function switchRetailer(
 
   searchEl.value =
     "";
+
 
   document
     .querySelectorAll(
@@ -2325,8 +1988,10 @@ async function switchRetailer(
       }
     );
 
+
   currentProducts =
     [];
+
 
   renderMonitor();
 
@@ -2337,10 +2002,6 @@ async function switchRetailer(
 }
 
 
-/* ========================================
-   MANUAL WALMART SCAN
-======================================== */
-
 async function runManualWalmartScan(){
 
   let token =
@@ -2348,20 +2009,19 @@ async function runManualWalmartScan(){
       "pokemonMonitorScanToken"
     ) || "";
 
-  if (
-    !token
-  ){
+
+  if(!token){
 
     token =
       prompt(
         "Enter your MANUAL_SCAN_TOKEN from Render:"
       ) || "";
 
-    if (
-      !token
-    ){
+
+    if(!token){
       return;
     }
+
 
     localStorage.setItem(
       "pokemonMonitorScanToken",
@@ -2370,58 +2030,63 @@ async function runManualWalmartScan(){
 
   }
 
+
   manualWalmartScan.disabled =
     true;
 
   manualWalmartScan.textContent =
     "SCANNING…";
 
-  try {
+
+  try{
 
     const response =
       await fetch(
         "/api/walmart/scan",
         {
           method:"POST",
+
           headers:{
             "Content-Type":
               "application/json",
+
             "x-monitor-token":
               token
           },
+
           body:"{}"
         }
       );
 
+
     const data =
       await response.json();
 
-    if (
-      response.status ===
-      401
-    ){
+
+    if(response.status === 401){
 
       localStorage.removeItem(
         "pokemonMonitorScanToken"
       );
 
       alert(
-        "Scan key was rejected. Tap SCAN WALMART NOW and enter it again."
+        "Scan key was rejected."
       );
 
       return;
-
     }
 
-    if (
-      !response.ok
-    ){
+
+    if(!response.ok){
+
       throw new Error(
         data.error ||
         data.result?.reason ||
         "Manual scan failed"
       );
+
     }
+
 
     alert(
       data.result?.skipped
@@ -2429,15 +2094,16 @@ async function runManualWalmartScan(){
         : "Walmart scan completed."
     );
 
+
     await load();
 
-  } catch (error){
+  }catch(error){
 
     alert(
       error.message
     );
 
-  } finally {
+  }finally{
 
     manualWalmartScan.disabled =
       false;
@@ -2449,10 +2115,6 @@ async function runManualWalmartScan(){
 
 }
 
-
-/* ========================================
-   EVENTS
-======================================== */
 
 document
   .querySelectorAll(
@@ -2472,20 +2134,24 @@ document
     }
   );
 
+
 searchEl.addEventListener(
   "input",
   renderProducts
 );
+
 
 refreshBtn.addEventListener(
   "click",
   load
 );
 
+
 manualWalmartScan.addEventListener(
   "click",
   runManualWalmartScan
 );
+
 
 forgetScanToken.addEventListener(
   "click",
@@ -2502,20 +2168,12 @@ forgetScanToken.addEventListener(
   }
 );
 
-enablePush.addEventListener(
+
+pushStatus.addEventListener(
   "click",
   enablePhoneAlerts
 );
 
-testPush.addEventListener(
-  "click",
-  runPushTest
-);
-
-
-/* ========================================
-   START
-======================================== */
 
 load();
 
@@ -2526,9 +2184,7 @@ setInterval(
   15000
 );
 
-
 </script>
 
 </body>
-
 </html>
