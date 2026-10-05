@@ -32,6 +32,13 @@ function normalize(value) {
     .trim();
 }
 
+function normalizeProductName(value) {
+  return normalize(value)
+    .replace(/\btcg\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function parsePrice(value) {
   if (
     value === null ||
@@ -41,9 +48,7 @@ function parsePrice(value) {
     return null;
   }
 
-  if (
-    typeof value === "number"
-  ) {
+  if (typeof value === "number") {
     return Number.isFinite(value)
       ? value
       : null;
@@ -81,9 +86,7 @@ function decodeHtml(value) {
    OFFICIAL SEALED FILTER
 ======================================== */
 
-function isOfficialPokemonProduct(
-  value
-) {
+function isOfficialPokemonProduct(value) {
   const text =
     normalize(value);
 
@@ -298,8 +301,7 @@ function determineStatus(item) {
   }
 
   if (
-    item?.showDrawCTA ===
-    true
+    item?.showDrawCTA === true
   ) {
     return "detected";
   }
@@ -320,8 +322,7 @@ function findDate(
   }
 
   if (
-    typeof value ===
-    "string"
+    typeof value === "string"
   ) {
     if (
       !/20[0-9]{2}/
@@ -360,8 +361,7 @@ function findDate(
   }
 
   if (
-    typeof value ===
-    "object"
+    typeof value === "object"
   ) {
     const preferred = [
       "drawingStartTime",
@@ -376,8 +376,7 @@ function findDate(
       const key of preferred
     ) {
       if (
-        value[key] !==
-        undefined
+        value[key] !== undefined
       ) {
         const found =
           findDate(
@@ -449,7 +448,7 @@ function extractJsonScripts(html) {
         JSON.parse(text)
       );
     } catch {
-      // Ignore non-JSON script tags.
+      // Not a JSON script.
     }
   }
 
@@ -461,11 +460,8 @@ function extractJsonScripts(html) {
    RECURSIVE PRODUCT DISCOVERY
 ======================================== */
 
-function collectProductsFromJson(
-  root
-) {
+function collectProductsFromJson(root) {
   const candidates = [];
-
   const visited =
     new Set();
 
@@ -482,8 +478,7 @@ function collectProductsFromJson(
     }
 
     if (
-      typeof value !==
-      "object"
+      typeof value !== "object"
     ) {
       return;
     }
@@ -516,9 +511,7 @@ function collectProductsFromJson(
     const children =
       Array.isArray(value)
         ? value
-        : Object.values(
-            value
-          );
+        : Object.values(value);
 
     for (
       const child of children
@@ -545,9 +538,7 @@ function normalizeRaffle(item) {
     getName(item);
 
   if (
-    !isOfficialPokemonProduct(
-      name
-    )
+    !isOfficialPokemonProduct(name)
   ) {
     return null;
   }
@@ -562,7 +553,7 @@ function normalizeRaffle(item) {
     productId:
       itemId
         ? `walmart-raffle-${itemId}`
-        : `walmart-raffle-${normalize(
+        : `walmart-raffle-${normalizeProductName(
             name
           ).replace(/\s+/g, "-")}`,
 
@@ -612,9 +603,7 @@ function normalizeRaffle(item) {
    HTML FALLBACK
 ======================================== */
 
-function extractClosedFromHtml(
-  html
-) {
+function extractFromHtml(html) {
   const text =
     decodeHtml(
       String(html || "")
@@ -631,10 +620,7 @@ function extractClosedFromHtml(
           "\n"
         )
     )
-      .replace(
-        /\s+/g,
-        " "
-      );
+      .replace(/\s+/g, " ");
 
   const matches = [];
 
@@ -657,75 +643,149 @@ function extractClosedFromHtml(
         .slice(0, 220);
 
     if (
-      isOfficialPokemonProduct(
-        name
-      )
+      !isOfficialPokemonProduct(name)
     ) {
-      matches.push({
-        productId:
-          `walmart-raffle-${normalize(
-            name
-          ).replace(/\s+/g, "-")}`,
-
-        walmartItemId:
-          null,
-
-        retailer:
-          "walmart",
-
-        retailerLabel:
-          "Walmart",
-
-        raffle:
-          true,
-
-        name,
-
-        price:
-          null,
-
-        image:
-          null,
-
-        url:
-          DRAW_URL,
-
-        raffleStatus:
-          /ended/i.test(
-            match[0]
-          )
-            ? "closed"
-            : /enter drawing/i.test(
-                match[0]
-              )
-              ? "live"
-              : "upcoming",
-
-        status:
-          /ended/i.test(
-            match[0]
-          )
-            ? "closed"
-            : /enter drawing/i.test(
-                match[0]
-              )
-              ? "live"
-              : "upcoming",
-
-        startsAt:
-          null,
-
-        checkedAt:
-          new Date()
-            .toISOString(),
-
-        source:
-          "walmart-public-draw-html"
-      });
+      continue;
     }
+
+    const status =
+      /ended/i.test(match[0])
+        ? "closed"
+        : /enter drawing/i.test(
+            match[0]
+          )
+          ? "live"
+          : "upcoming";
+
+    matches.push({
+      productId:
+        `walmart-raffle-${normalizeProductName(
+          name
+        ).replace(/\s+/g, "-")}`,
+
+      walmartItemId:
+        null,
+
+      retailer:
+        "walmart",
+
+      retailerLabel:
+        "Walmart",
+
+      raffle:
+        true,
+
+      name,
+
+      price:
+        null,
+
+      image:
+        null,
+
+      url:
+        DRAW_URL,
+
+      raffleStatus:
+        status,
+
+      status,
+
+      startsAt:
+        null,
+
+      checkedAt:
+        new Date()
+          .toISOString(),
+
+      source:
+        "walmart-public-draw-html"
+    });
   }
 
   return matches;
+}
+
+
+/* ========================================
+   DEDUPE
+======================================== */
+
+function richnessScore(item) {
+  let score = 0;
+
+  if (item.walmartItemId) {
+    score += 10;
+  }
+
+  if (
+    item.url &&
+    item.url !== DRAW_URL
+  ) {
+    score += 8;
+  }
+
+  if (item.image) {
+    score += 5;
+  }
+
+  if (item.price != null) {
+    score += 4;
+  }
+
+  if (item.startsAt) {
+    score += 3;
+  }
+
+  if (
+    item.source ===
+    "walmart-public-draw-page"
+  ) {
+    score += 2;
+  }
+
+  return score;
+}
+
+function dedupeRaffles(items) {
+  const groups =
+    new Map();
+
+  for (
+    const item of items
+  ) {
+    /*
+      Name-based key intentionally merges
+      HTML fallback with the richer JSON
+      product record for the same raffle.
+    */
+    const key =
+      normalizeProductName(
+        item.name
+      );
+
+    if (!key) {
+      continue;
+    }
+
+    const existing =
+      groups.get(key);
+
+    if (
+      !existing ||
+      richnessScore(item) >
+      richnessScore(existing)
+    ) {
+      groups.set(
+        key,
+        item
+      );
+    }
+  }
+
+  return Array.from(
+    groups.values()
+  );
 }
 
 
@@ -777,9 +837,7 @@ async function fetchDrawPage() {
     return await response.text();
 
   } finally {
-    clearTimeout(
-      timer
-    );
+    clearTimeout(timer);
   }
 }
 
@@ -798,15 +856,12 @@ async function scan() {
       await fetchDrawPage();
 
     const jsonScripts =
-      extractJsonScripts(
-        html
-      );
+      extractJsonScripts(html);
 
     const rawCandidates = [];
 
     for (
-      const json of
-      jsonScripts
+      const json of jsonScripts
     ) {
       rawCandidates.push(
         ...collectProductsFromJson(
@@ -817,66 +872,19 @@ async function scan() {
 
     const normalized =
       rawCandidates
-        .map(
-          normalizeRaffle
-        )
+        .map(normalizeRaffle)
         .filter(Boolean);
 
-    /*
-      HTML fallback helps if Walmart
-      renders draw labels outside the
-      product object itself.
-    */
     normalized.push(
-      ...extractClosedFromHtml(
-        html
-      )
+      ...extractFromHtml(html)
     );
 
-    const unique =
-      new Map();
-
-    for (
-      const item of normalized
-    ) {
-      const key =
-        String(
-          item.walmartItemId ||
-          item.url ||
-          item.name
-        );
-
-      const existing =
-        unique.get(key);
-
-      /*
-        Prefer the richer item.
-      */
-      if (
-        !existing ||
-        (
-          item.walmartItemId &&
-          !existing.walmartItemId
-        ) ||
-        (
-          item.image &&
-          !existing.image
-        )
-      ) {
-        unique.set(
-          key,
-          item
-        );
-      }
-    }
-
     const items =
-      Array.from(
-        unique.values()
+      dedupeRaffles(
+        normalized
       )
         .sort(
           (a, b) => {
-
             const order = {
               live: 0,
               upcoming: 1,
@@ -926,8 +934,7 @@ async function scan() {
     state = {
       ...state,
 
-      ok:
-        false,
+      ok: false,
 
       lastChecked:
         state.lastChecked,
