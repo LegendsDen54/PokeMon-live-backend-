@@ -21,11 +21,14 @@ const crypto = require("crypto");
    - sitemap changes
    - Queue / waiting-room signals
 
-   States:
-   NORMAL
-   BACKEND ACTIVITY
-   DROP LIKELY
-   LIVE
+   Also records source-by-source diagnostics:
+   - HTTP status
+   - final URL
+   - content type
+   - response size
+   - redirect result
+   - queue detection
+   - timeout / fetch error
 ========================================================= */
 
 
@@ -40,12 +43,6 @@ const BASE_URL =
     );
 
 
-/*
-  NORMAL scanning.
-
-  Pokémon Center gets priority over
-  the slower retailer monitors.
-*/
 const NORMAL_SCAN_MS =
   Math.max(
     15000,
@@ -56,10 +53,6 @@ const NORMAL_SCAN_MS =
   );
 
 
-/*
-  When backend activity is detected,
-  temporarily switch into faster HOT mode.
-*/
 const HOT_SCAN_MS =
   Math.max(
     5000,
@@ -120,12 +113,6 @@ const MAX_TRACKED_PRODUCTS =
   );
 
 
-/*
-  Public Pokémon Center surfaces.
-
-  We do NOT attempt protected/internal
-  endpoints or bypass queue/CAPTCHA systems.
-*/
 const SOURCE_URLS = [
   `${BASE_URL}/`,
   `${BASE_URL}/category/new-releases`,
@@ -168,6 +155,10 @@ let lastAlertFingerprint =
 
 
 const sourceFingerprints =
+  new Map();
+
+
+const sourceHealth =
   new Map();
 
 
@@ -229,6 +220,9 @@ let state = {
 
   sourceCount:
     SOURCE_URLS.length,
+
+  sourceHealth:
+    [],
 
   trackedProductCount:
     0,
@@ -335,14 +329,13 @@ function absoluteUrl(
 
     const url =
       new URL(
-        String(value),
+        String(
+          value
+        ),
         `${BASE_URL}/`
       );
 
 
-    /*
-      Only keep Pokémon Center URLs.
-    */
     if(
       url.hostname !==
       new URL(
@@ -500,6 +493,122 @@ function queueSignals(
 
 
 /* =========================================================
+   SOURCE HEALTH
+========================================================= */
+
+function recordSourceHealth(
+  url,
+  data
+) {
+
+  sourceHealth.set(
+    url,
+    {
+
+      url,
+
+      checkedAt:
+        nowIso(),
+
+      ok:
+        Boolean(
+          data?.ok
+        ),
+
+      status:
+        data?.status ??
+        null,
+
+      finalUrl:
+        data?.finalUrl ||
+        data?.url ||
+        null,
+
+      contentType:
+        data?.contentType ||
+        null,
+
+      responseBytes:
+        Number(
+          data?.responseBytes ||
+          0
+        ),
+
+      queueActive:
+        Boolean(
+          data?.queueActive
+        ),
+
+      queueMarkers:
+        Array.isArray(
+          data?.queueMarkers
+        )
+          ? data.queueMarkers
+          : [],
+
+      redirected:
+        Boolean(
+          data?.redirected
+        ),
+
+      error:
+        data?.error ||
+        null
+
+    }
+  );
+
+}
+
+
+function getSourceHealth(){
+
+  return SOURCE_URLS.map(
+    url =>
+      sourceHealth.get(
+        url
+      ) ||
+      {
+
+        url,
+
+        checkedAt:
+          null,
+
+        ok:
+          false,
+
+        status:
+          null,
+
+        finalUrl:
+          null,
+
+        contentType:
+          null,
+
+        responseBytes:
+          0,
+
+        queueActive:
+          false,
+
+        queueMarkers:
+          [],
+
+        redirected:
+          false,
+
+        error:
+          "Not checked yet"
+
+      }
+  );
+
+}
+
+
+/* =========================================================
    NETWORK
 ========================================================= */
 
@@ -566,7 +675,14 @@ async function fetchText(
         .text();
 
 
-    return {
+    const queue =
+      queueSignals(
+        response,
+        text
+      );
+
+
+    const result = {
 
       ok:
         response.ok,
@@ -577,6 +693,15 @@ async function fetchText(
       url:
         response.url ||
         url,
+
+      finalUrl:
+        response.url ||
+        url,
+
+      redirected:
+        Boolean(
+          response.redirected
+        ),
 
       contentType:
         response.headers.get(
@@ -596,15 +721,109 @@ async function fetchText(
         ) ||
         null,
 
+      responseBytes:
+        Buffer.byteLength(
+          text,
+          "utf8"
+        ),
+
       text,
 
-      queue:
-        queueSignals(
-          response,
-          text
-        )
+      queue
 
     };
+
+
+    recordSourceHealth(
+      url,
+      {
+
+        ok:
+          result.ok,
+
+        status:
+          result.status,
+
+        finalUrl:
+          result.finalUrl,
+
+        contentType:
+          result.contentType,
+
+        responseBytes:
+          result.responseBytes,
+
+        queueActive:
+          result.queue.active,
+
+        queueMarkers:
+          result.queue.markers,
+
+        redirected:
+          result.redirected,
+
+        error:
+          null
+
+      }
+    );
+
+
+    return result;
+
+
+  }catch(error){
+
+    const message =
+      error?.name ===
+        "AbortError"
+        ? `Timed out after ${REQUEST_TIMEOUT_MS}ms`
+        : (
+            error?.message ||
+            String(
+              error
+            )
+          );
+
+
+    recordSourceHealth(
+      url,
+      {
+
+        ok:
+          false,
+
+        status:
+          null,
+
+        finalUrl:
+          null,
+
+        contentType:
+          null,
+
+        responseBytes:
+          0,
+
+        queueActive:
+          false,
+
+        queueMarkers:
+          [],
+
+        redirected:
+          false,
+
+        error:
+          message
+
+      }
+    );
+
+
+    throw new Error(
+      message
+    );
 
 
   }finally{
@@ -1263,7 +1482,7 @@ function extractJsonScriptObjects(
       }catch{
 
         /*
-          Script isn't plain JSON.
+          Script is not plain JSON.
         */
 
       }
@@ -2608,7 +2827,13 @@ async function scanSource(
         result.status,
 
       queue:
-        result.queue.active
+        result.queue.active,
+
+      finalUrl:
+        result.url,
+
+      responseBytes:
+        result.responseBytes
 
     };
 
@@ -2620,11 +2845,14 @@ async function scanSource(
       ok:
         false,
 
-      error:
-        error.message,
+      status:
+        null,
 
       queue:
-        false
+        false,
+
+      error:
+        error.message
 
     };
 
@@ -2920,8 +3148,8 @@ async function scanProductPage(
   }catch{
 
     /*
-      A single product failure should not
-      interrupt the rest of the monitor.
+      A single product page failure
+      does not interrupt the monitor.
     */
 
   }
@@ -2966,6 +3194,9 @@ function publicState(){
     JSON.stringify({
 
       ...state,
+
+      sourceHealth:
+        getSourceHealth(),
 
       trackedProductCount:
         trackedProductUrls.size,
@@ -3040,10 +3271,6 @@ async function scan(){
 
   try{
 
-    /*
-      FIRST:
-      Scan all high-priority public sources.
-    */
     const sourceResults =
       await mapLimit(
 
@@ -3060,6 +3287,14 @@ async function scan(){
       );
 
 
+    const successfulSources =
+      sourceResults.filter(
+        result =>
+          result?.ok ===
+          true
+      );
+
+
     const queueActive =
       sourceResults.some(
         result =>
@@ -3068,10 +3303,6 @@ async function scan(){
       );
 
 
-    /*
-      If activity is already happening,
-      scan more tracked products per cycle.
-    */
     const hot =
       Date.now() <
         hotUntil ||
@@ -3120,10 +3351,6 @@ async function scan(){
       );
 
 
-    /*
-      Any backend movement enables
-      fast HOT scanning.
-    */
     if(
       levelRank(
         level
@@ -3149,15 +3376,34 @@ async function scan(){
       productList();
 
 
+    const health =
+      getSourceHealth();
+
+
+    const failureSummary =
+      health
+        .filter(
+          item =>
+            !item.ok
+        )
+        .map(
+          item =>
+            item.status
+              ? `${item.url} => HTTP ${item.status}`
+              : `${item.url} => ${item.error || "failed"}`
+        )
+        .join(
+          " | "
+        );
+
+
     state = {
 
       ...state,
 
       ok:
-        sourceResults.some(
-          result =>
-            result?.ok
-        ),
+        successfulSources.length >
+        0,
 
       running:
         false,
@@ -3175,34 +3421,25 @@ async function scan(){
         nowIso(),
 
       lastSuccess:
-        sourceResults.some(
-          result =>
-            result?.ok
-        )
+        successfulSources.length >
+        0
           ? nowIso()
           : state.lastSuccess,
 
       lastError:
-        sourceResults.every(
-          result =>
-            !result?.ok
-        )
-          ? sourceResults
-              .map(
-                result =>
-                  result?.error
-              )
-              .filter(
-                Boolean
-              )
-              .join(
-                " | "
-              ) ||
-            "All public Pokémon Center sources failed"
+        successfulSources.length ===
+        0
+          ? (
+              failureSummary ||
+              "All public Pokémon Center sources failed"
+            )
           : null,
 
       sourceCount:
         SOURCE_URLS.length,
+
+      sourceHealth:
+        health,
 
       trackedProductCount:
         trackedProductUrls.size,
@@ -3237,11 +3474,6 @@ async function scan(){
     };
 
 
-    /*
-      First successful cycle establishes
-      baseline without blasting alerts
-      for existing products.
-    */
     if(
       !baselineReady
     ){
@@ -3295,7 +3527,10 @@ async function scan(){
         nowIso(),
 
       lastError:
-        error.message
+        error.message,
+
+      sourceHealth:
+        getSourceHealth()
 
     };
 
