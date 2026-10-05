@@ -1,6 +1,7 @@
 require("dotenv").config();
 
 const { Pool } = require("pg");
+const verifiedCatalog = require("./products.json");
 
 
 /* ========================================
@@ -38,6 +39,25 @@ const RAPIDAPI_TIMEOUT_MS =
   );
 
 
+/*
+  Existing rule:
+  up to 50% above verified MSRP.
+
+  $1 cushion prevents a tiny rounding /
+  price-feed difference from causing
+  an otherwise acceptable product to
+  disappear.
+
+  Tax is NOT displayed or added to
+  the product card.
+*/
+const PRICE_MULTIPLIER =
+  1.50;
+
+const PRICE_CUSHION_DOLLARS =
+  1.00;
+
+
 const pool =
   new Pool({
 
@@ -68,6 +88,10 @@ function normalize(value){
     )
     .replace(
       /[^a-z0-9]+/g,
+      " "
+    )
+    .replace(
+      /\s+/g,
       " "
     )
     .trim();
@@ -124,11 +148,13 @@ function getSellerName(item){
     return item.sellerName;
   }
 
+
   if(
     item?.sellerDisplayName
   ){
     return item.sellerDisplayName;
   }
+
 
   if(
     typeof item?.seller ===
@@ -137,17 +163,21 @@ function getSellerName(item){
     return item.seller;
   }
 
+
   if(
     item?.seller &&
     typeof item.seller ===
     "object"
   ){
+
     return (
       item.seller.name ||
       item.seller.displayName ||
       null
     );
+
   }
+
 
   if(
     item?.sellerInfo?.name
@@ -155,13 +185,14 @@ function getSellerName(item){
     return item.sellerInfo.name;
   }
 
+
   return null;
 
 }
 
 
 /* ========================================
-   ITEM HELPERS
+   BASIC ITEM HELPERS
 ======================================== */
 
 function getItemId(item){
@@ -201,18 +232,22 @@ function getImage(item){
     const first =
       item.images[0];
 
+
     if(
       first &&
       typeof first ===
       "object"
     ){
+
       return (
         first.url ||
         first.imageUrl ||
         first.thumbnailUrl ||
         null
       );
+
     }
+
 
     return first;
 
@@ -276,7 +311,7 @@ function getPrice(item){
       typeof candidate ===
       "object"
         ? Number(
-            candidate.price ||
+            candidate.price ??
             candidate.value
           )
         : Number(candidate);
@@ -284,7 +319,7 @@ function getPrice(item){
 
     if(
       Number.isFinite(value) &&
-      value >= 0
+      value > 0
     ){
       return value;
     }
@@ -300,13 +335,21 @@ function getPrice(item){
 function getAvailability(item){
 
   return String(
+
     item?.availabilityStatus ||
+
     item?.availability ||
+
     item?.stockStatus ||
+
     item?.fulfillmentStatus ||
+
     item?.status ||
+
     item?.inventoryStatus ||
+
     ""
+
   ).trim();
 
 }
@@ -360,10 +403,10 @@ function normalizeAvailability(value){
       "out of stock"
     ) ||
     text.includes(
-      "unavailable"
+      "sold out"
     ) ||
     text.includes(
-      "sold out"
+      "unavailable"
     )
   ){
     return "outofstock";
@@ -395,23 +438,37 @@ function getUrl(item){
     getItemId(item);
 
 
-  return (
+  const url =
     item?.canonicalUrl ||
     item?.productUrl ||
     item?.url ||
     item?.canonicalURL ||
-    (
-      itemId
-        ? `https://www.walmart.com/ip/${itemId}`
-        : null
-    )
-  );
+    null;
+
+
+  if(url){
+    return url;
+  }
+
+
+  if(itemId){
+
+    return (
+      `https://www.walmart.com/ip/${encodeURIComponent(
+        String(itemId)
+      )}`
+    );
+
+  }
+
+
+  return null;
 
 }
 
 
 /* ========================================
-   SET CLASSIFICATION
+   PRODUCT CLASSIFICATION
 ======================================== */
 
 function classifySet(name){
@@ -485,10 +542,6 @@ function classifySet(name){
 }
 
 
-/* ========================================
-   PRODUCT TYPE CLASSIFICATION
-======================================== */
-
 function classifyProductType(name){
 
   const text =
@@ -523,6 +576,33 @@ function classifyProductType(name){
     )
   ){
     return "Booster Box";
+  }
+
+
+  if(
+    text.includes(
+      "super premium"
+    )
+  ){
+    return "Super-Premium Collection";
+  }
+
+
+  if(
+    text.includes(
+      "premium figure"
+    )
+  ){
+    return "Premium Figure Collection";
+  }
+
+
+  if(
+    text.includes(
+      "premium collection"
+    )
+  ){
+    return "Premium Collection";
   }
 
 
@@ -568,24 +648,6 @@ function classifyProductType(name){
     )
   ){
     return "Battle Deck";
-  }
-
-
-  if(
-    text.includes(
-      "premium collection"
-    )
-  ){
-    return "Premium Collection";
-  }
-
-
-  if(
-    text.includes(
-      "collection box"
-    )
-  ){
-    return "Collection Box";
   }
 
 
@@ -639,17 +701,20 @@ function classifyProductType(name){
 
 function looksLikePokemonTCG(item){
 
-  const name =
-    getItemName(item);
-
   const text =
     normalize(
       [
-        name,
+
+        getItemName(item),
+
         item?.shortDescription,
+
         item?.description,
+
         item?.brand,
+
         item?.category
+
       ].join(" ")
     );
 
@@ -664,10 +729,8 @@ function looksLikePokemonTCG(item){
 
 
   /*
-    Exclude obvious singles,
-    graded cards and accessories.
+    Things we do NOT want.
   */
-
   const blocked = [
 
     /\bpsa\s*[0-9]+\b/,
@@ -700,7 +763,11 @@ function looksLikePokemonTCG(item){
 
     /\bcard stand\b/,
 
-    /\bstorage box\b/
+    /\bstorage box\b/,
+
+    /\bbinder pages\b/,
+
+    /\bempty box\b/
 
   ];
 
@@ -745,11 +812,13 @@ function looksLikePokemonTCG(item){
 
     "premium collection",
 
+    "super premium",
+
     "poster",
 
     "bundle",
 
-    "box"
+    "display box"
 
   ];
 
@@ -757,6 +826,420 @@ function looksLikePokemonTCG(item){
   return sealedSignals.some(
     signal =>
       text.includes(signal)
+  );
+
+}
+
+
+/* ========================================
+   VERIFIED MSRP
+======================================== */
+
+/*
+  IMPORTANT:
+
+  MSRP is NEVER taken from Walmart's live
+  search result and is NEVER guessed.
+
+  It must match a product already present
+  in products.json with a verified MSRP.
+
+  This prevents an arbitrary Walmart
+  search/list price from being mistaken
+  for MSRP.
+*/
+
+function getCatalogProductType(product){
+
+  return normalize(
+    product?.productType ||
+    classifyProductType(
+      [
+        product?.name,
+        product?.searchTerm
+      ]
+        .filter(Boolean)
+        .join(" ")
+    )
+  );
+
+}
+
+
+function getCatalogSet(product){
+
+  return normalize(
+    product?.set ||
+    classifySet(
+      [
+        product?.name,
+        product?.searchTerm
+      ]
+        .filter(Boolean)
+        .join(" ")
+    )
+  );
+
+}
+
+
+function meaningfulWords(value){
+
+  const ignored =
+    new Set([
+
+      "pokemon",
+      "tcg",
+      "the",
+      "and",
+      "trading",
+      "card",
+      "game",
+      "box",
+      "collection"
+
+    ]);
+
+
+  return normalize(value)
+    .split(" ")
+    .filter(
+      word =>
+        word.length > 2 &&
+        !ignored.has(word)
+    );
+
+}
+
+
+function nameSimilarity(
+  left,
+  right
+){
+
+  const leftWords =
+    meaningfulWords(left);
+
+  const rightText =
+    normalize(right);
+
+
+  if(
+    !leftWords.length ||
+    !rightText
+  ){
+    return 0;
+  }
+
+
+  const matching =
+    leftWords.filter(
+      word =>
+        rightText.includes(word)
+    ).length;
+
+
+  return (
+    matching /
+    leftWords.length
+  );
+
+}
+
+
+function findVerifiedCatalogMatch(
+  itemId,
+  name,
+  setName,
+  productType
+){
+
+  const id =
+    itemId
+      ? String(itemId)
+      : null;
+
+
+  /*
+    Strongest possible match:
+    known Walmart item ID.
+  */
+  if(id){
+
+    const idMatch =
+      verifiedCatalog.find(
+        product =>
+
+          product.enabled !==
+            false &&
+
+          product.walmartItemId &&
+
+          String(
+            product.walmartItemId
+          ) === id &&
+
+          Number.isFinite(
+            Number(
+              product.msrp
+            )
+          )
+
+      );
+
+
+    if(idMatch){
+      return idMatch;
+    }
+
+  }
+
+
+  const normalizedName =
+    normalize(name);
+
+  const normalizedSet =
+    normalize(setName);
+
+  const normalizedType =
+    normalize(productType);
+
+
+  /*
+    Exact verified product name /
+    search term match.
+  */
+  const exact =
+    verifiedCatalog.find(
+      product => {
+
+        if(
+          product.enabled ===
+          false
+        ){
+          return false;
+        }
+
+
+        const msrp =
+          Number(
+            product.msrp
+          );
+
+
+        if(
+          !Number.isFinite(msrp) ||
+          msrp <= 0
+        ){
+          return false;
+        }
+
+
+        return (
+
+          normalize(
+            product.name
+          ) ===
+            normalizedName
+
+          ||
+
+          normalize(
+            product.searchTerm
+          ) ===
+            normalizedName
+
+        );
+
+      }
+    );
+
+
+  if(exact){
+    return exact;
+  }
+
+
+  /*
+    Careful fuzzy match.
+
+    It MUST match both the known set
+    and product type before MSRP can
+    be inherited.
+  */
+  const candidates =
+    verifiedCatalog.filter(
+      product => {
+
+        if(
+          product.enabled ===
+          false
+        ){
+          return false;
+        }
+
+
+        const msrp =
+          Number(
+            product.msrp
+          );
+
+
+        if(
+          !Number.isFinite(msrp) ||
+          msrp <= 0
+        ){
+          return false;
+        }
+
+
+        const catalogSet =
+          getCatalogSet(
+            product
+          );
+
+
+        const catalogType =
+          getCatalogProductType(
+            product
+          );
+
+
+        if(
+          normalizedSet &&
+          normalizedSet !==
+            "other pokemon tcg" &&
+          catalogSet !==
+            normalizedSet
+        ){
+          return false;
+        }
+
+
+        if(
+          normalizedType &&
+          catalogType !==
+            normalizedType
+        ){
+          return false;
+        }
+
+
+        const score =
+          Math.max(
+
+            nameSimilarity(
+              product.name,
+              name
+            ),
+
+            nameSimilarity(
+              product.searchTerm,
+              name
+            )
+
+          );
+
+
+        return (
+          score >=
+          0.80
+        );
+
+      }
+    );
+
+
+  if(
+    candidates.length ===
+    1
+  ){
+    return candidates[0];
+  }
+
+
+  return null;
+
+}
+
+
+function getVerifiedMsrp(
+  itemId,
+  name,
+  setName,
+  productType
+){
+
+  const product =
+    findVerifiedCatalogMatch(
+      itemId,
+      name,
+      setName,
+      productType
+    );
+
+
+  if(!product){
+    return null;
+  }
+
+
+  const msrp =
+    Number(
+      product.msrp
+    );
+
+
+  if(
+    !Number.isFinite(msrp) ||
+    msrp <= 0
+  ){
+    return null;
+  }
+
+
+  return msrp;
+
+}
+
+
+/* ========================================
+   PRICE RULE
+======================================== */
+
+function withinApprovedPrice(
+  price,
+  msrp
+){
+
+  const live =
+    Number(price);
+
+  const verified =
+    Number(msrp);
+
+
+  if(
+    !Number.isFinite(live) ||
+    live <= 0 ||
+    !Number.isFinite(verified) ||
+    verified <= 0
+  ){
+    return false;
+  }
+
+
+  const maximum =
+    (
+      verified *
+      PRICE_MULTIPLIER
+    ) +
+    PRICE_CUSHION_DOLLARS;
+
+
+  return (
+    live <=
+    maximum
   );
 
 }
@@ -804,6 +1287,8 @@ async function initializeDiscoveryDatabase(){
 
       approved_marketplace BOOLEAN NOT NULL DEFAULT FALSE,
 
+      display_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+
       enabled BOOLEAN NOT NULL DEFAULT TRUE,
 
       first_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -823,7 +1308,6 @@ async function initializeDiscoveryDatabase(){
   await pool.query(`
 
     ALTER TABLE discovered_products
-
     ADD COLUMN IF NOT EXISTS
     live_price NUMERIC
 
@@ -833,7 +1317,6 @@ async function initializeDiscoveryDatabase(){
   await pool.query(`
 
     ALTER TABLE discovered_products
-
     ADD COLUMN IF NOT EXISTS
     raw_status TEXT
 
@@ -843,7 +1326,6 @@ async function initializeDiscoveryDatabase(){
   await pool.query(`
 
     ALTER TABLE discovered_products
-
     ADD COLUMN IF NOT EXISTS
     normalized_status TEXT
 
@@ -853,7 +1335,6 @@ async function initializeDiscoveryDatabase(){
   await pool.query(`
 
     ALTER TABLE discovered_products
-
     ADD COLUMN IF NOT EXISTS
     in_stock BOOLEAN
     NOT NULL
@@ -865,9 +1346,19 @@ async function initializeDiscoveryDatabase(){
   await pool.query(`
 
     ALTER TABLE discovered_products
-
     ADD COLUMN IF NOT EXISTS
     approved_marketplace BOOLEAN
+    NOT NULL
+    DEFAULT FALSE
+
+  `);
+
+
+  await pool.query(`
+
+    ALTER TABLE discovered_products
+    ADD COLUMN IF NOT EXISTS
+    display_eligible BOOLEAN
     NOT NULL
     DEFAULT FALSE
 
@@ -882,7 +1373,7 @@ async function initializeDiscoveryDatabase(){
 
 
 /* ========================================
-   GENERIC FETCH
+   FETCH HELPER
 ======================================== */
 
 async function fetchJson(
@@ -911,6 +1402,7 @@ async function fetchJson(
         url,
         {
           ...options,
+
           signal:
             controller.signal
         }
@@ -926,8 +1418,10 @@ async function fetchJson(
           `${label} returned ${response.status}`
         );
 
+
       error.status =
         response.status;
+
 
       throw error;
 
@@ -1064,6 +1558,15 @@ async function hasDataSearch(
   }
 
 
+  if(
+    Array.isArray(
+      data?.products
+    )
+  ){
+    return data.products;
+  }
+
+
   return [];
 
 }
@@ -1194,6 +1697,11 @@ async function searchProvider(
     null;
 
 
+  /*
+    HasData stays primary because your
+    existing Walmart batch scans are
+    successfully using HasData.
+  */
   if(
     HASDATA_API_KEY
   ){
@@ -1208,9 +1716,12 @@ async function searchProvider(
 
 
       return {
+
         source:
           "hasdata",
+
         results
+
       };
 
 
@@ -1218,6 +1729,7 @@ async function searchProvider(
 
       hasDataError =
         error;
+
 
       console.error(
         `HasData discovery failed for "${keyword}" page ${page}:`,
@@ -1229,6 +1741,9 @@ async function searchProvider(
   }
 
 
+  /*
+    RapidAPI remains fallback only.
+  */
   if(
     RAPIDAPI_KEY
   ){
@@ -1243,9 +1758,12 @@ async function searchProvider(
 
 
       return {
+
         source:
           "rapidapi",
+
         results
+
       };
 
 
@@ -1314,6 +1832,52 @@ function normalizeDiscoveryItem(
   const price =
     getPrice(item);
 
+  const url =
+    getUrl(item);
+
+  const setName =
+    classifySet(name);
+
+  const productType =
+    classifyProductType(name);
+
+  const msrp =
+    getVerifiedMsrp(
+      itemId,
+      name,
+      setName,
+      productType
+    );
+
+  const approvedSeller =
+    isApprovedSeller(
+      seller
+    );
+
+  const available =
+    isAvailableStatus(
+      status
+    );
+
+  const priceApproved =
+    withinApprovedPrice(
+      price,
+      msrp
+    );
+
+  const displayEligible =
+    (
+      looksLikePokemonTCG(
+        item
+      ) &&
+      approvedSeller &&
+      available &&
+      price !== null &&
+      Boolean(url) &&
+      msrp !== null &&
+      priceApproved
+    );
+
 
   return {
 
@@ -1336,10 +1900,9 @@ function normalizeDiscoveryItem(
     name,
 
     set:
-      classifySet(name),
+      setName,
 
-    productType:
-      classifyProductType(name),
+    productType,
 
     searchTerm:
       name,
@@ -1349,14 +1912,14 @@ function normalizeDiscoveryItem(
     rawStatus,
 
     inStock:
-      isAvailableStatus(
-        status
-      ),
+      available,
 
     price,
 
-    msrp:
-      null,
+    msrp,
+
+    withinPriceRule:
+      priceApproved,
 
     seller:
       seller ||
@@ -1375,8 +1938,7 @@ function normalizeDiscoveryItem(
     image:
       getImage(item),
 
-    url:
-      getUrl(item),
+    url,
 
     checkedAt:
       new Date()
@@ -1391,12 +1953,15 @@ function normalizeDiscoveryItem(
     autoDiscovered:
       true,
 
-    /*
-      This route does NOT create
-      a restock alert by itself.
+    displayEligible,
 
-      Existing monitor rules remain
-      responsible for qualification.
+    /*
+      Discovery itself never fires
+      the alert.
+
+      Your existing monitoring / alert
+      paths remain responsible for
+      notifications.
     */
     alertEligible:
       false
@@ -1424,28 +1989,12 @@ async function saveDiscoveredProduct(
   ){
 
     return {
+
       saved:false,
+
       reason:
         "missing-item-id"
-    };
 
-  }
-
-
-  const seller =
-    getSellerName(item);
-
-
-  if(
-    !isApprovedSeller(
-      seller
-    )
-  ){
-
-    return {
-      saved:false,
-      reason:
-        "seller-not-approved"
     };
 
   }
@@ -1458,9 +2007,38 @@ async function saveDiscoveredProduct(
   ){
 
     return {
+
       saved:false,
+
       reason:
         "not-sealed-pokemon-tcg"
+
+    };
+
+  }
+
+
+  const seller =
+    getSellerName(item);
+
+
+  /*
+    Completely reject sellers other than
+    Walmart / GT Collectibles.
+  */
+  if(
+    !isApprovedSeller(
+      seller
+    )
+  ){
+
+    return {
+
+      saved:false,
+
+      reason:
+        "seller-not-approved"
+
     };
 
   }
@@ -1510,6 +2088,8 @@ async function saveDiscoveredProduct(
 
         approved_marketplace,
 
+        display_eligible,
+
         enabled,
 
         first_seen,
@@ -1532,8 +2112,6 @@ async function saveDiscoveredProduct(
 
         $5,
 
-        NULL,
-
         $6,
 
         $7,
@@ -1549,6 +2127,10 @@ async function saveDiscoveredProduct(
         $12,
 
         $13,
+
+        $14,
+
+        $15,
 
         TRUE,
 
@@ -1577,6 +2159,9 @@ async function saveDiscoveredProduct(
         set_name =
           EXCLUDED.set_name,
 
+        msrp =
+          EXCLUDED.msrp,
+
         live_price =
           EXCLUDED.live_price,
 
@@ -1601,6 +2186,9 @@ async function saveDiscoveredProduct(
         approved_marketplace =
           EXCLUDED.approved_marketplace,
 
+        display_eligible =
+          EXCLUDED.display_eligible,
+
         last_seen =
           NOW()
 
@@ -1622,6 +2210,8 @@ async function saveDiscoveredProduct(
 
         normalized.set,
 
+        normalized.msrp,
+
         normalized.price,
 
         normalized.url,
@@ -1636,7 +2226,9 @@ async function saveDiscoveredProduct(
 
         normalized.inStock,
 
-        normalized.approvedMarketplace
+        normalized.approvedMarketplace,
+
+        normalized.displayEligible
 
       ]
 
@@ -1647,6 +2239,9 @@ async function saveDiscoveredProduct(
 
     saved:true,
 
+    displayEligible:
+      normalized.displayEligible,
+
     product:
       result.rows[0]
 
@@ -1656,7 +2251,7 @@ async function saveDiscoveredProduct(
 
 
 /* ========================================
-   ALL-POKEMON DISCOVERY SEARCH TERMS
+   BROAD POKEMON SEARCH QUERIES
 ======================================== */
 
 function buildDiscoveryQueries(){
@@ -1695,7 +2290,7 @@ function buildDiscoveryQueries(){
 
     {
       keyword:
-        "Pokemon collection box",
+        "Pokemon super premium collection",
       pages:2
     },
 
@@ -1707,7 +2302,19 @@ function buildDiscoveryQueries(){
 
     {
       keyword:
+        "Pokemon collection",
+      pages:2
+    },
+
+    {
+      keyword:
         "Pokemon tin",
+      pages:2
+    },
+
+    {
+      keyword:
+        "Pokemon mini tin",
       pages:2
     },
 
@@ -1719,21 +2326,9 @@ function buildDiscoveryQueries(){
 
     {
       keyword:
-        "Pokemon battle deck",
-      pages:2
-    },
-
-    {
-      keyword:
         "Pokemon booster pack",
       pages:2
     },
-
-    /*
-      Keep known / upcoming sets too,
-      but these are no longer the only
-      things being discovered.
-    */
 
     {
       keyword:
@@ -1777,7 +2372,7 @@ function buildDiscoveryQueries(){
 
 
 /* ========================================
-   AUTOMATIC WALMART DISCOVERY
+   WALMART DISCOVERY
 ======================================== */
 
 async function discoverWalmartProducts(){
@@ -1790,6 +2385,12 @@ async function discoverWalmartProducts(){
     0;
 
   let saved =
+    0;
+
+  let displayEligible =
+    0;
+
+  let hiddenUnverified =
     0;
 
   let walmartDirect =
@@ -1868,12 +2469,12 @@ async function discoverWalmartProducts(){
           }
 
 
-          if(
-            itemId
-          ){
+          if(itemId){
+
             seenItemIds.add(
               String(itemId)
             );
+
           }
 
 
@@ -1889,40 +2490,59 @@ async function discoverWalmartProducts(){
 
 
           if(
-            result.saved
+            !result.saved
           ){
 
-            saved +=
+            rejected +=
               1;
 
+            continue;
 
-            const seller =
-              getSellerName(item);
-
-
-            if(
-              isWalmartSeller(
-                seller
-              )
-            ){
-              walmartDirect +=
-                1;
-            }
+          }
 
 
-            if(
-              isGTCollectiblesSeller(
-                seller
-              )
-            ){
-              approvedMarketplace +=
-                1;
-            }
+          saved +=
+            1;
 
+
+          if(
+            result.displayEligible
+          ){
+
+            displayEligible +=
+              1;
 
           }else{
 
-            rejected +=
+            hiddenUnverified +=
+              1;
+
+          }
+
+
+          const seller =
+            getSellerName(item);
+
+
+          if(
+            isWalmartSeller(
+              seller
+            )
+          ){
+
+            walmartDirect +=
+              1;
+
+          }
+
+
+          if(
+            isGTCollectiblesSeller(
+              seller
+            )
+          ){
+
+            approvedMarketplace +=
               1;
 
           }
@@ -1949,7 +2569,7 @@ async function discoverWalmartProducts(){
 
 
   console.log(
-    `All-Pokemon Walmart discovery finished. Inspected=${inspected}, saved/updated=${saved}, rejected=${rejected}`
+    `Filtered Walmart discovery finished. Inspected=${inspected}, saved=${saved}, visible=${displayEligible}, hidden-unverified=${hiddenUnverified}, rejected=${rejected}`
   );
 
 
@@ -1958,7 +2578,7 @@ async function discoverWalmartProducts(){
     ok:true,
 
     mode:
-      "all-pokemon-tcg",
+      "all-pokemon-filtered",
 
     searchesCompleted,
 
@@ -1966,11 +2586,15 @@ async function discoverWalmartProducts(){
 
     inspected,
 
+    saved,
+
+    displayEligible,
+
+    hiddenUnverified,
+
     walmartDirect,
 
     approvedMarketplace,
-
-    saved,
 
     rejected
 
@@ -1980,10 +2604,19 @@ async function discoverWalmartProducts(){
 
 
 /* ========================================
-   LOAD DISCOVERED PRODUCTS
+   PRODUCTS EXPOSED TO APP / MONITOR
 ======================================== */
 
 async function getDiscoveredProducts(){
+
+  /*
+    THIS QUERY IS THE IMPORTANT PART.
+
+    We can discover lots of potential
+    Pokémon listings internally, but the
+    app only receives listings that have
+    passed all of your standards.
+  */
 
   const result =
     await pool.query(`
@@ -1992,147 +2625,178 @@ async function getDiscoveredProducts(){
 
       FROM discovered_products
 
-      WHERE enabled = TRUE
+      WHERE
+        enabled = TRUE
 
-      AND retailer = 'walmart'
+      AND
+        retailer = 'walmart'
 
-      ORDER BY last_seen DESC
+      AND
+        display_eligible = TRUE
+
+      AND
+        in_stock = TRUE
+
+      AND
+        live_price IS NOT NULL
+
+      AND
+        live_price > 0
+
+      AND
+        msrp IS NOT NULL
+
+      AND
+        msrp > 0
+
+      AND
+        url IS NOT NULL
+
+      AND
+        seller IS NOT NULL
+
+      ORDER BY
+        last_seen DESC
 
     `);
 
 
-  return result.rows.map(
-    row => {
+  return result.rows
+    .filter(
+      row =>
+        isApprovedSeller(
+          row.seller
+        )
+    )
+    .filter(
+      row =>
+        withinApprovedPrice(
+          row.live_price,
+          row.msrp
+        )
+    )
+    .map(
+      row => {
 
-      const seller =
-        row.seller ||
-        "Unknown Seller";
+        const seller =
+          row.seller;
 
 
-      const approved =
-        row.approved_marketplace ===
-        true ||
-        isGTCollectiblesSeller(
-          seller
-        );
+        return {
 
+          id:
+            `walmart-auto-${row.retailer_item_id}`,
 
-      return {
+          productId:
+            `walmart-auto-${row.retailer_item_id}`,
 
-        id:
-          `walmart-auto-${row.retailer_item_id}`,
+          name:
+            row.name,
 
-        productId:
-          `walmart-auto-${row.retailer_item_id}`,
+          set:
+            row.set_name ||
+            "Pokemon TCG",
 
-        name:
-          row.name,
+          productType:
+            row.product_type ||
+            "Pokemon TCG",
 
-        set:
-          row.set_name ||
-          "Auto Discovered",
+          searchTerm:
+            row.search_term ||
+            row.name,
 
-        productType:
-          row.product_type ||
-          "Pokemon TCG",
+          walmartItemId:
+            row.retailer_item_id,
 
-        searchTerm:
-          row.search_term ||
-          row.name,
+          retailers:[
+            "walmart"
+          ],
 
-        walmartItemId:
-          row.retailer_item_id,
+          retailer:
+            "walmart",
 
-        retailers:[
-          "walmart"
-        ],
+          retailerLabel:
+            "Walmart",
 
-        retailer:
-          "walmart",
+          channel:
+            "online",
 
-        retailerLabel:
-          "Walmart",
+          msrp:
+            Number(
+              row.msrp
+            ),
 
-        channel:
-          "online",
+          price:
+            Number(
+              row.live_price
+            ),
 
-        msrp:
-          row.msrp == null
-            ? null
-            : Number(
-                row.msrp
-              ),
+          discoveredPrice:
+            Number(
+              row.live_price
+            ),
 
-        price:
-          row.live_price == null
-            ? null
-            : Number(
-                row.live_price
-              ),
+          seller,
 
-        discoveredPrice:
-          row.live_price == null
-            ? null
-            : Number(
-                row.live_price
-              ),
+          directSeller:
+            isWalmartSeller(
+              seller
+            ),
 
-        seller,
+          approvedMarketplace:
+            isGTCollectiblesSeller(
+              seller
+            ),
 
-        directSeller:
-          isWalmartSeller(
-            seller
-          ),
+          withinPriceRule:
+            true,
 
-        approvedMarketplace:
-          approved,
+          status:
+            row.normalized_status ||
+            "instock",
 
-        status:
-          row.normalized_status ||
-          "discovered",
+          rawStatus:
+            row.raw_status ||
+            "",
 
-        rawStatus:
-          row.raw_status ||
-          "",
+          inStock:
+            row.in_stock ===
+            true,
 
-        inStock:
-          row.in_stock ===
-          true,
+          image:
+            row.image ||
+            null,
 
-        image:
-          row.image ||
-          null,
+          url:
+            row.url,
 
-        url:
-          row.url ||
-          (
-            row.retailer_item_id
-              ? `https://www.walmart.com/ip/${row.retailer_item_id}`
-              : null
-          ),
+          checkedAt:
+            row.last_seen,
 
-        checkedAt:
-          row.last_seen,
+          autoDiscovered:
+            true,
 
-        /*
-          This tells monitor.js to fail
-          closed when MSRP is unknown.
-          Existing alert qualification
-          remains unchanged.
-        */
-        autoDiscovered:
-          true,
+          discoveryOnly:
+            true,
 
-        discoveryOnly:
-          true,
+          displayEligible:
+            true,
 
-        enabled:
-          row.enabled
+          /*
+            Keep alert control with your
+            existing scanner / approved
+            marketplace alert paths.
+          */
+          alertEligible:
+            false,
 
-      };
+          enabled:
+            row.enabled
 
-    }
-  );
+        };
+
+      }
+    );
 
 }
 
