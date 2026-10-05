@@ -103,6 +103,9 @@ a{
   overflow:hidden;
 }
 
+
+/* HERO */
+
 .hero{
   height:285px;
   position:relative;
@@ -118,6 +121,9 @@ a{
     url("/hero.jpg")
     center top / cover no-repeat;
 }
+
+
+/* STATUS */
 
 .connection-row{
   display:grid;
@@ -146,8 +152,8 @@ a{
   display:flex;
   align-items:center;
   justify-content:center;
-
   gap:10px;
+
   padding:10px;
 
   text-align:left;
@@ -190,23 +196,15 @@ a{
 .status-dot{
   width:17px;
   height:17px;
-
   flex:none;
-
   border-radius:50%;
   background:var(--green);
-
-  box-shadow:
-    0 0 16px
-    var(--green);
+  box-shadow:0 0 16px var(--green);
 }
 
 .offline .status-dot{
   background:var(--red);
-
-  box-shadow:
-    0 0 16px
-    var(--red);
+  box-shadow:0 0 16px var(--red);
 }
 
 .status-icon{
@@ -227,6 +225,9 @@ a{
   color:rgba(255,255,255,.68);
   font-weight:750;
 }
+
+
+/* STORE TABS */
 
 .store-tabs{
   display:grid;
@@ -291,6 +292,9 @@ a{
 .sams-logo{color:#41a8ff}
 .bestbuy-logo{color:#ffe23f}
 .costco-logo{color:#ff6575}
+
+
+/* MONITOR */
 
 .monitor-wrap{
   padding:0 14px 14px;
@@ -373,15 +377,13 @@ a{
 .live-dot{
   width:8px;
   height:8px;
-
   border-radius:50%;
-
   background:var(--green);
-
-  box-shadow:
-    0 0 8px
-    var(--green);
+  box-shadow:0 0 8px var(--green);
 }
+
+
+/* STATS */
 
 .stats-grid{
   display:grid;
@@ -424,6 +426,9 @@ a{
   line-height:1.3;
 }
 
+
+/* ACTIONS */
+
 .monitor-actions{
   display:grid;
   grid-template-columns:1fr 1fr;
@@ -449,7 +454,8 @@ a{
 }
 
 .monitor-action.primary{
-  border-color:rgba(84,243,166,.55);
+  border-color:
+    rgba(84,243,166,.55);
 
   background:
     linear-gradient(
@@ -460,13 +466,11 @@ a{
 }
 
 .monitor-action:disabled{
-  opacity:.65;
+  opacity:.6;
 }
 
-.scan-status{
+.push-debug{
   margin-top:9px;
-
-  min-height:42px;
 
   padding:9px 10px;
 
@@ -485,20 +489,8 @@ a{
   line-height:1.5;
 }
 
-.scan-status.running{
-  color:var(--blue);
-  border-color:rgba(98,199,255,.32);
-}
 
-.scan-status.success{
-  color:var(--green);
-  border-color:rgba(84,243,166,.30);
-}
-
-.scan-status.error{
-  color:var(--red);
-  border-color:rgba(255,117,139,.30);
-}
+/* SECTION HEADERS */
 
 .section-heading{
   margin-top:18px;
@@ -521,12 +513,17 @@ a{
   font-weight:900;
 }
 
+
+/* DISCOVERY */
+
 .discovery-grid{
   display:flex;
   overflow-x:auto;
   gap:8px;
+
   margin-top:9px;
   padding-bottom:6px;
+
   scroll-snap-type:x mandatory;
 }
 
@@ -548,6 +545,7 @@ a{
     );
 
   overflow:hidden;
+
   scroll-snap-align:start;
 }
 
@@ -615,8 +613,11 @@ a{
 
 .discovery-open{
   display:block;
+
   margin-top:7px;
+
   padding:7px;
+
   text-align:center;
 
   border-radius:7px;
@@ -632,6 +633,9 @@ a{
   font-size:9px;
   font-weight:900;
 }
+
+
+/* ALL PRODUCTS */
 
 .all-products-section{
   margin-top:16px;
@@ -685,10 +689,16 @@ a{
   display:flex;
   justify-content:space-between;
   gap:10px;
+
   margin-top:8px;
+
   color:var(--muted);
+
   font-size:9px;
 }
+
+
+/* PRODUCT CARDS */
 
 .products{
   display:grid;
@@ -742,6 +752,7 @@ a{
 
 .badge{
   display:inline-flex;
+
   padding:4px 7px;
 
   border-radius:999px;
@@ -773,6 +784,7 @@ a{
 
 .product-name{
   margin-top:8px;
+
   font-size:14px;
   font-weight:950;
   line-height:1.25;
@@ -780,12 +792,15 @@ a{
 
 .product-seller{
   margin-top:4px;
+
   color:var(--muted);
+
   font-size:9px;
 }
 
 .product-price{
   margin-top:8px;
+
   font-size:19px;
   font-weight:950;
 }
@@ -794,6 +809,7 @@ a{
   display:block;
 
   margin-top:9px;
+
   padding:9px;
 
   text-align:center;
@@ -812,6 +828,7 @@ a{
 
 .empty{
   grid-column:1/-1;
+
   width:100%;
 
   padding:30px 15px;
@@ -829,8 +846,12 @@ a{
   font-size:11px;
 }
 
+
+/* BOTTOM NAV */
+
 .bottom-nav{
   position:fixed;
+
   left:0;
   right:0;
   bottom:0;
@@ -843,7 +864,9 @@ a{
   max-width:1100px;
 
   display:grid;
-  grid-template-columns:repeat(6,1fr);
+
+  grid-template-columns:
+    repeat(6,1fr);
 
   background:
     rgba(3,13,27,.97);
@@ -852,8 +875,11 @@ a{
     1px solid
     rgba(98,199,255,.22);
 
-  backdrop-filter:blur(18px);
-  -webkit-backdrop-filter:blur(18px);
+  backdrop-filter:
+    blur(18px);
+
+  -webkit-backdrop-filter:
+    blur(18px);
 
   padding-bottom:
     env(safe-area-inset-bottom);
@@ -861,8 +887,11 @@ a{
 
 .nav-btn{
   min-height:65px;
+
   border:0;
+
   background:transparent;
+
   color:#e8f4ff;
 
   display:flex;
@@ -887,6 +916,9 @@ a{
   font-size:21px;
   line-height:1;
 }
+
+
+/* MOBILE */
 
 @media(max-width:760px){
 
@@ -977,27 +1009,46 @@ a{
 
   <div class="store-tabs">
 
-    <button class="store-tab active" data-retailer="walmart">
+    <button
+      class="store-tab active"
+      data-retailer="walmart"
+    >
       <span class="store-logo walmart-logo">✦</span>
       WALMART
     </button>
 
-    <button class="store-tab" data-retailer="target">
+
+    <button
+      class="store-tab"
+      data-retailer="target"
+    >
       <span class="store-logo target-logo">⦿</span>
       TARGET
     </button>
 
-    <button class="store-tab" data-retailer="sams">
+
+    <button
+      class="store-tab"
+      data-retailer="sams"
+    >
       <span class="store-logo sams-logo">◇</span>
       SAM'S CLUB
     </button>
 
-    <button class="store-tab" data-retailer="bestbuy">
+
+    <button
+      class="store-tab"
+      data-retailer="bestbuy"
+    >
       <span class="store-logo bestbuy-logo">▰</span>
       BEST BUY
     </button>
 
-    <button class="store-tab" data-retailer="costco">
+
+    <button
+      class="store-tab"
+      data-retailer="costco"
+    >
       <span class="store-logo costco-logo">C</span>
       COSTCO
     </button>
@@ -1047,17 +1098,23 @@ a{
 
           <div class="stat-card">
             <span>Scan schedule</span>
-            <strong id="scanSchedule">Loading…</strong>
+            <strong id="scanSchedule">
+              Loading…
+            </strong>
           </div>
 
           <div class="stat-card">
             <span>Last scan</span>
-            <strong id="lastScan">—</strong>
+            <strong id="lastScan">
+              —
+            </strong>
           </div>
 
           <div class="stat-card">
             <span>Next scan</span>
-            <strong id="nextScan">—</strong>
+            <strong id="nextScan">
+              —
+            </strong>
           </div>
 
         </div>
@@ -1083,10 +1140,10 @@ a{
 
 
         <div
-          id="scanStatus"
-          class="scan-status"
+          id="pushDebug"
+          class="push-debug"
         >
-          Walmart monitor ready.
+          Checking phone alert status…
         </div>
 
 
@@ -1096,7 +1153,7 @@ a{
             POKÉMON PRODUCT DISCOVERY
           </strong>
 
-          <span id="discoveryCount">
+          <span>
             LIVE
           </span>
 
@@ -1129,7 +1186,7 @@ a{
             <input
               id="search"
               class="search-box"
-              placeholder="Search Walmart Pokémon products..."
+              placeholder="Search Pokémon products..."
             >
 
             <button
@@ -1173,32 +1230,55 @@ a{
 
 <nav class="bottom-nav">
 
-  <button id="homeNav" class="nav-btn active">
+  <button
+    id="homeNav"
+    class="nav-btn active"
+  >
     <span class="nav-icon">⌂</span>
     HOME
   </button>
 
-  <button class="nav-btn retailer-nav" data-retailer="walmart">
+
+  <button
+    class="nav-btn retailer-nav"
+    data-retailer="walmart"
+  >
     <span class="nav-icon walmart-logo">✦</span>
     Walmart
   </button>
 
-  <button class="nav-btn retailer-nav" data-retailer="target">
+
+  <button
+    class="nav-btn retailer-nav"
+    data-retailer="target"
+  >
     <span class="nav-icon target-logo">⦿</span>
     Target
   </button>
 
-  <button class="nav-btn retailer-nav" data-retailer="sams">
+
+  <button
+    class="nav-btn retailer-nav"
+    data-retailer="sams"
+  >
     <span class="nav-icon sams-logo">◇</span>
     Sam's Club
   </button>
 
-  <button class="nav-btn retailer-nav" data-retailer="bestbuy">
+
+  <button
+    class="nav-btn retailer-nav"
+    data-retailer="bestbuy"
+  >
     <span class="nav-icon bestbuy-logo">▰</span>
     Best Buy
   </button>
 
-  <button class="nav-btn retailer-nav" data-retailer="costco">
+
+  <button
+    class="nav-btn retailer-nav"
+    data-retailer="costco"
+  >
     <span class="nav-icon costco-logo">C</span>
     Costco
   </button>
@@ -1258,6 +1338,11 @@ const pushStatusSub =
     "pushStatusSub"
   );
 
+const pushDebug =
+  document.getElementById(
+    "pushDebug"
+  );
+
 const monitorTitle =
   document.getElementById(
     "monitorTitle"
@@ -1298,19 +1383,9 @@ const secondaryAction =
     "secondaryAction"
   );
 
-const scanStatus =
-  document.getElementById(
-    "scanStatus"
-  );
-
 const discoveryGrid =
   document.getElementById(
     "discoveryGrid"
-  );
-
-const discoveryCount =
-  document.getElementById(
-    "discoveryCount"
   );
 
 const productsEl =
@@ -1355,28 +1430,12 @@ let activeRetailer =
 let currentProducts =
   [];
 
-let scannerProducts =
-  [];
-
-let discoveredProducts =
-  [];
-
 let providers =
   [];
 
 let statusData =
   {};
 
-let manualScanRunning =
-  false;
-
-let discoveryRunning =
-  false;
-
-
-/* ========================================
-   HELPERS
-======================================== */
 
 function escapeHtml(value){
 
@@ -1434,7 +1493,7 @@ function formatDate(value){
       date.getTime()
     )
   ){
-    return String(value);
+    return "—";
   }
 
   return date.toLocaleString();
@@ -1495,102 +1554,7 @@ function getProvider(retailer){
 }
 
 
-function productKey(product){
-
-  return String(
-    product.walmartItemId ||
-    product.productId ||
-    product.id ||
-    product.url ||
-    product.name ||
-    ""
-  );
-
-}
-
-
-function mergeProducts(
-  scanned,
-  discovered
-){
-
-  const map =
-    new Map();
-
-
-  for(
-    const product
-    of discovered
-  ){
-
-    map.set(
-      productKey(product),
-      {
-        ...product,
-        discoveryOnly:true
-      }
-    );
-
-  }
-
-
-  for(
-    const product
-    of scanned
-  ){
-
-    const key =
-      productKey(product);
-
-    const discoveredVersion =
-      map.get(key);
-
-
-    map.set(
-      key,
-      {
-        ...(discoveredVersion || {}),
-        ...product,
-        discoveryOnly:false
-      }
-    );
-
-  }
-
-
-  return Array.from(
-    map.values()
-  );
-
-}
-
-
-function setScanMessage(
-  message,
-  state=""
-){
-
-  scanStatus.classList.remove(
-    "running",
-    "success",
-    "error"
-  );
-
-  if(state){
-    scanStatus.classList.add(
-      state
-    );
-  }
-
-  scanStatus.textContent =
-    message;
-
-}
-
-
-/* ========================================
-   PUSH
-======================================== */
+/* PUSH */
 
 function isStandalone(){
 
@@ -1639,6 +1603,14 @@ function setPushState(
 
   pushStatusSub.textContent =
     subtitle;
+
+}
+
+
+function setPushDebug(text){
+
+  pushDebug.textContent =
+    text;
 
 }
 
@@ -1722,6 +1694,10 @@ async function checkPush(){
         "OPEN THE SECURE APP"
       );
 
+      setPushDebug(
+        "Push alerts require HTTPS."
+      );
+
       return;
     }
 
@@ -1739,6 +1715,10 @@ async function checkPush(){
         "OPEN FROM HOME SCREEN"
       );
 
+      setPushDebug(
+        "Open the installed Pokémon Monitor from your iPhone Home Screen."
+      );
+
       return;
     }
 
@@ -1753,9 +1733,13 @@ async function checkPush(){
       setPushState(
         "offline",
         "PUSH NOT AVAILABLE",
+        "OPEN FROM HOME SCREEN"
+      );
+
+      setPushDebug(
         isStandalone()
-          ? "PUSHMANAGER UNAVAILABLE"
-          : "OPEN FROM HOME SCREEN"
+          ? "PushManager is unavailable."
+          : "Open the app from its Home Screen icon."
       );
 
       return;
@@ -1779,6 +1763,10 @@ async function checkPush(){
         "THIS IPHONE IS SUBSCRIBED"
       );
 
+      setPushDebug(
+        "SUCCESS: This iPhone is subscribed to Pokémon alerts."
+      );
+
       return;
     }
 
@@ -1794,6 +1782,10 @@ async function checkPush(){
         "ENABLE IN IPHONE SETTINGS"
       );
 
+      setPushDebug(
+        "Notification permission is blocked."
+      );
+
       return;
     }
 
@@ -1802,6 +1794,10 @@ async function checkPush(){
       "ready",
       "ENABLE PHONE ALERTS",
       "TAP TO SUBSCRIBE THIS IPHONE"
+    );
+
+    setPushDebug(
+      "Tap ENABLE PHONE ALERTS above."
     );
 
 
@@ -1813,6 +1809,10 @@ async function checkPush(){
       "offline",
       "PUSH CHECK FAILED",
       "TAP TO TRY AGAIN"
+    );
+
+    setPushDebug(
+      error.message
     );
 
   }
@@ -1841,6 +1841,10 @@ async function enablePhoneAlerts(){
         "THIS IPHONE IS SUBSCRIBED"
       );
 
+      setPushDebug(
+        "SUCCESS: This iPhone is already subscribed to Pokémon alerts."
+      );
+
       return;
     }
 
@@ -1850,6 +1854,20 @@ async function enablePhoneAlerts(){
       "CONNECTING...",
       "SETTING UP THIS IPHONE"
     );
+
+
+    if(
+      !(
+        "Notification"
+        in window
+      )
+    ){
+
+      throw new Error(
+        "Notifications are unavailable here. Open the installed app from your Home Screen."
+      );
+
+    }
 
 
     const permission =
@@ -1879,10 +1897,13 @@ async function enablePhoneAlerts(){
 
 
     const keyData =
-      await keyResponse.json();
+      await keyResponse
+        .json();
 
 
-    if(!keyResponse.ok){
+    if(
+      !keyResponse.ok
+    ){
 
       throw new Error(
         keyData.error ||
@@ -1898,7 +1919,6 @@ async function enablePhoneAlerts(){
         .subscribe(
           {
             userVisibleOnly:true,
-
             applicationServerKey:
               urlBase64ToUint8Array(
                 keyData.publicKey
@@ -1912,12 +1932,10 @@ async function enablePhoneAlerts(){
         "/api/push/subscribe",
         {
           method:"POST",
-
           headers:{
             "Content-Type":
               "application/json"
           },
-
           body:
             JSON.stringify(
               subscription.toJSON
@@ -1929,10 +1947,13 @@ async function enablePhoneAlerts(){
 
 
     const result =
-      await response.json();
+      await response
+        .json();
 
 
-    if(!response.ok){
+    if(
+      !response.ok
+    ){
 
       throw new Error(
         result.error ||
@@ -1948,6 +1969,10 @@ async function enablePhoneAlerts(){
       "THIS IPHONE IS SUBSCRIBED"
     );
 
+    setPushDebug(
+      "SUCCESS: This iPhone is subscribed to Pokémon alerts."
+    );
+
 
   }catch(error){
 
@@ -1959,14 +1984,16 @@ async function enablePhoneAlerts(){
       "TAP TO TRY AGAIN"
     );
 
+    setPushDebug(
+      error.message
+    );
+
   }
 
 }
 
 
-/* ========================================
-   PRODUCT STATUS
-======================================== */
+/* PRODUCT STATUS */
 
 function statusClass(status){
 
@@ -1975,7 +2002,6 @@ function statusClass(status){
       status ||
       ""
     ).toLowerCase();
-
 
   if(
     [
@@ -1988,7 +2014,6 @@ function statusClass(status){
     return "good";
   }
 
-
   if(
     [
       "preorder",
@@ -1996,13 +2021,11 @@ function statusClass(status){
       "ordered",
       "lowstock",
       "low stock",
-      "watching",
-      "discovered"
+      "watching"
     ].includes(normalized)
   ){
     return "warn";
   }
-
 
   return "out";
 
@@ -2017,14 +2040,12 @@ function prettyStatus(status){
       ""
     ).toLowerCase();
 
-
   if(
     normalized ===
     "instock"
   ){
     return "IN STOCK";
   }
-
 
   if(
     normalized ===
@@ -2033,7 +2054,6 @@ function prettyStatus(status){
     return "ON HAND";
   }
 
-
   if(
     normalized ===
     "preorder"
@@ -2041,24 +2061,26 @@ function prettyStatus(status){
     return "PREORDER";
   }
 
+  if(
+    normalized ===
+    "transit"
+  ){
+    return "IN TRANSIT";
+  }
 
   if(
     normalized ===
-    "lowstock"
+    "ordered"
   ){
-    return "LOW STOCK";
+    return "ORDERED";
   }
-
 
   if(
     normalized ===
-    "discovered" ||
-    normalized ===
-    "unknown"
+    "watching"
   ){
-    return "DISCOVERED";
+    return "WATCHING";
   }
-
 
   return (
     status
@@ -2069,32 +2091,15 @@ function prettyStatus(status){
 }
 
 
-/* ========================================
-   DISCOVERY CARDS
-======================================== */
+/* DISCOVERY */
 
 function renderDiscovery(){
 
-  let items =
-    discoveredProducts.length
-      ? discoveredProducts
-      : currentProducts;
+  const items =
+    currentProducts.slice(0,8);
 
 
-  items =
-    items.slice(
-      0,
-      12
-    );
-
-
-  discoveryCount.textContent =
-    `${discoveredProducts.length} FOUND`;
-
-
-  if(
-    !items.length
-  ){
+  if(!items.length){
 
     discoveryGrid.innerHTML =
       `<div class="empty">
@@ -2102,11 +2107,10 @@ function renderDiscovery(){
           RETAILERS[
             activeRetailer
           ].label
-        )} Pokémon products discovered yet.
+        )} products returned right now.
       </div>`;
 
     return;
-
   }
 
 
@@ -2124,7 +2128,6 @@ function renderDiscovery(){
           statusClass(
             product.status
           );
-
 
         return (
           `<article class="discovery-card">
@@ -2157,8 +2160,7 @@ function renderDiscovery(){
 
               <div class="discovery-price">
                 ${money(
-                  product.price ??
-                  product.discoveredPrice
+                  product.price
                 )}
               </div>
 
@@ -2186,9 +2188,7 @@ function renderDiscovery(){
 }
 
 
-/* ========================================
-   PRODUCT LIST
-======================================== */
+/* ALL PRODUCTS */
 
 function renderProducts(){
 
@@ -2206,12 +2206,9 @@ function renderProducts(){
           return true;
         }
 
-
         return (
-
           String(
-            product.name ||
-            ""
+            product.name || ""
           )
             .toLowerCase()
             .includes(query)
@@ -2219,8 +2216,7 @@ function renderProducts(){
           ||
 
           String(
-            product.set ||
-            ""
+            product.seller || ""
           )
             .toLowerCase()
             .includes(query)
@@ -2228,21 +2224,10 @@ function renderProducts(){
           ||
 
           String(
-            product.productType ||
-            ""
+            product.storeName || ""
           )
             .toLowerCase()
             .includes(query)
-
-          ||
-
-          String(
-            product.seller ||
-            ""
-          )
-            .toLowerCase()
-            .includes(query)
-
         );
 
       }
@@ -2257,25 +2242,24 @@ function renderProducts(){
     }`;
 
 
-  if(
-    !filtered.length
-  ){
+  if(!filtered.length){
+
+    const provider =
+      getProvider(
+        activeRetailer
+      );
 
     productsEl.innerHTML =
       `<div class="empty">
-
         ${
-          query &&
-          activeRetailer ===
-          "walmart"
-            ? `No loaded match for "${escapeHtml(searchEl.value)}". Tap SEARCH WALMART to run fresh discovery.`
-            : "No products returned for this view."
+          provider.configured ||
+          activeRetailer === "walmart"
+            ? `No ${escapeHtml(RETAILERS[activeRetailer].label)} inventory is currently being returned.`
+            : `${escapeHtml(provider.label)} is not connected to a live inventory provider yet.`
         }
-
       </div>`;
 
     return;
-
   }
 
 
@@ -2293,22 +2277,6 @@ function renderProducts(){
           statusClass(
             product.status
           );
-
-
-        const seller =
-          product.seller ||
-          (
-            product.directSeller
-              ? "Walmart"
-              : "Not provided"
-          );
-
-
-        const sellerLabel =
-          product.approvedMarketplace
-            ? `${seller} • APPROVED SELLER`
-            : seller;
-
 
         return (
           `<article class="product-card">
@@ -2336,17 +2304,15 @@ function renderProducts(){
                 </span>
 
                 <span class="badge">
-                  ONLINE
+                  ${
+                    product.channel ===
+                    "store"
+                      ? "IN STORE"
+                      : "ONLINE"
+                  }
                 </span>
 
-                ${
-                  product.discoveryOnly
-                    ? `<span class="badge warn">DISCOVERED</span>`
-                    : ""
-                }
-
               </div>
-
 
               <div class="product-name">
                 ${escapeHtml(
@@ -2354,32 +2320,19 @@ function renderProducts(){
                 )}
               </div>
 
-
               <div class="product-seller">
-                Seller:
-                ${escapeHtml(
-                  sellerLabel
-                )}
+                ${
+                  product.seller
+                    ? `Seller: ${escapeHtml(product.seller)}`
+                    : ""
+                }
               </div>
-
 
               <div class="product-price">
                 ${money(
-                  product.price ??
-                  product.discoveredPrice
+                  product.price
                 )}
               </div>
-
-
-              ${
-                product.msrp == null &&
-                product.discoveryOnly
-                  ? `<div class="product-seller">
-                       MSRP not verified yet — discovery does not bypass your alert price rule.
-                     </div>`
-                  : ""
-              }
-
 
               ${
                 product.url
@@ -2405,138 +2358,7 @@ function renderProducts(){
 }
 
 
-/* ========================================
-   LOAD DISCOVERED CATALOG
-======================================== */
-
-async function loadDiscoveredProducts(){
-
-  if(
-    activeRetailer !==
-    "walmart"
-  ){
-
-    discoveredProducts =
-      [];
-
-    return;
-
-  }
-
-
-  const response =
-    await fetch(
-      `/api/discovery/products?t=${Date.now()}`,
-      {
-        cache:"no-store"
-      }
-    );
-
-
-  if(
-    !response.ok
-  ){
-
-    throw new Error(
-      "Walmart discovery catalog request failed"
-    );
-
-  }
-
-
-  const data =
-    await response.json();
-
-
-  discoveredProducts =
-    Array.isArray(
-      data.items
-    )
-      ? data.items
-      : [];
-
-}
-
-
-/* ========================================
-   RETAILER DATA
-======================================== */
-
-async function loadRetailerProducts(){
-
-  if(
-    activeRetailer ===
-    "walmart"
-  ){
-
-    scannerProducts =
-      Array.isArray(
-        statusData.items
-      )
-        ? statusData.items.filter(
-            item =>
-              item.retailer ===
-              "walmart"
-          )
-        : [];
-
-
-    await loadDiscoveredProducts();
-
-
-    currentProducts =
-      mergeProducts(
-        scannerProducts,
-        discoveredProducts
-      );
-
-
-    return;
-
-  }
-
-
-  discoveredProducts =
-    [];
-
-
-  const response =
-    await fetch(
-      `/api/products?retailer=${encodeURIComponent(activeRetailer)}&t=${Date.now()}`,
-      {
-        cache:"no-store"
-      }
-    );
-
-
-  if(
-    !response.ok
-  ){
-
-    throw new Error(
-      `${RETAILERS[activeRetailer].label} inventory request failed`
-    );
-
-  }
-
-
-  const data =
-    await response.json();
-
-
-  currentProducts =
-    Array.isArray(
-      data.items
-    )
-      ? data.items
-      : [];
-
-}
-
-
-/* ========================================
-   PANEL
-======================================== */
+/* RETAILER PANEL */
 
 function renderRetailer(){
 
@@ -2574,11 +2396,9 @@ function renderRetailer(){
         ?.walmartSchedule ||
       {};
 
-
     scanSchedule.textContent =
       schedule.scheduleLabel ||
       "Scheduled monitoring";
-
 
     lastScan.textContent =
       formatDate(
@@ -2586,57 +2406,42 @@ function renderRetailer(){
         statusData.lastRun
       );
 
-
     nextScan.textContent =
-      schedule.nextRun ||
-      schedule.nextScan ||
-      schedule.nextScanLabel ||
-      "Automatic";
-
+      schedule.nextScanLabel
+        ? formatDate(
+            schedule.nextScanLabel
+          )
+        : "Automatic";
 
     monitorState.innerHTML =
       `<span class="live-dot"></span>
        <span>${
-         statusData.running
-           ? "SCANNING"
-           : discoveryRunning
-             ? "DISCOVERING"
-             : "LIVE"
+         schedule.activeWindow
+           ? "LIVE"
+           : "SCHEDULED"
        }</span>`;
 
-
     primaryAction.textContent =
-      manualScanRunning
-        ? "SCANNING…"
-        : "SCAN WALMART NOW";
-
+      "SCAN WALMART NOW";
 
     primaryAction.disabled =
-      manualScanRunning ||
-      discoveryRunning;
-
+      false;
 
     secondaryAction.textContent =
       "RESET SCAN KEY";
 
-
     secondaryAction.disabled =
-      manualScanRunning ||
-      discoveryRunning;
-
+      false;
 
     retailerStatus.textContent =
-      `${scannerProducts.length} scanned • ${discoveredProducts.length} discovered • ${currentProducts.length} catalog items`;
-
+      `${currentProducts.length} Walmart products loaded`;
 
   }else{
-
 
     scanSchedule.textContent =
       provider.configured
         ? "Live monitoring"
         : "Not connected";
-
 
     lastScan.textContent =
       provider.lastRun
@@ -2645,12 +2450,10 @@ function renderRetailer(){
           )
         : "—";
 
-
     nextScan.textContent =
       provider.configured
         ? "Automatic"
         : "—";
-
 
     monitorState.innerHTML =
       `<span class="live-dot"></span>
@@ -2664,24 +2467,19 @@ function renderRetailer(){
                : "OFFLINE"
        }</span>`;
 
-
     primaryAction.textContent =
       `REFRESH ${retailer.label.toUpperCase()}`;
 
-
     primaryAction.disabled =
       false;
-
 
     secondaryAction.textContent =
       provider.configured
         ? "MONITOR CONNECTED"
         : "NOT CONFIGURED";
 
-
     secondaryAction.disabled =
       true;
-
 
     retailerStatus.textContent =
       provider.error
@@ -2693,8 +2491,6 @@ function renderRetailer(){
   }
 
 
-  updateSearchButton();
-
   renderDiscovery();
 
   renderProducts();
@@ -2702,9 +2498,43 @@ function renderRetailer(){
 }
 
 
-/* ========================================
-   MAIN LOAD
-======================================== */
+/* FETCH PRODUCTS */
+
+async function fetchProducts(){
+
+  const response =
+    await fetch(
+      `/api/products?retailer=${encodeURIComponent(activeRetailer)}&t=${Date.now()}`,
+      {
+        cache:"no-store"
+      }
+    );
+
+
+  if(!response.ok){
+
+    throw new Error(
+      `${RETAILERS[activeRetailer].label} inventory request failed`
+    );
+
+  }
+
+
+  const data =
+    await response.json();
+
+
+  currentProducts =
+    Array.isArray(
+      data.items
+    )
+      ? data.items
+      : [];
+
+}
+
+
+/* LOAD */
 
 async function load(){
 
@@ -2717,24 +2547,23 @@ async function load(){
     const [
       providersResponse,
       statusResponse
-    ] =
-      await Promise.all([
+    ] = await Promise.all([
 
-        fetch(
-          `/api/providers?t=${Date.now()}`,
-          {
-            cache:"no-store"
-          }
-        ),
+      fetch(
+        `/api/providers?t=${Date.now()}`,
+        {
+          cache:"no-store"
+        }
+      ),
 
-        fetch(
-          `/api/status?t=${Date.now()}`,
-          {
-            cache:"no-store"
-          }
-        )
+      fetch(
+        `/api/status?t=${Date.now()}`,
+        {
+          cache:"no-store"
+        }
+      )
 
-      ]);
+    ]);
 
 
     if(
@@ -2752,14 +2581,13 @@ async function load(){
     const [
       providersData,
       currentStatus
-    ] =
-      await Promise.all([
+    ] = await Promise.all([
 
-        providersResponse.json(),
+      providersResponse.json(),
 
-        statusResponse.json()
+      statusResponse.json()
 
-      ]);
+    ]);
 
 
     providers =
@@ -2775,7 +2603,7 @@ async function load(){
       {};
 
 
-    await loadRetailerProducts();
+    await fetchProducts();
 
 
     renderRetailer();
@@ -2810,7 +2638,6 @@ async function load(){
 
   }catch(error){
 
-
     console.error(error);
 
 
@@ -2843,413 +2670,15 @@ async function load(){
 
   }finally{
 
-
     refreshBtn.disabled =
       false;
 
-
-    updateSearchButton();
-
   }
 
 }
 
 
-/* ========================================
-   FRESH WALMART DISCOVERY / MANUAL SEARCH
-======================================== */
-
-async function runWalmartDiscoverySearch(){
-
-  if(
-    discoveryRunning
-  ){
-    return;
-  }
-
-
-  const query =
-    searchEl.value
-      .trim();
-
-
-  discoveryRunning =
-    true;
-
-
-  refreshBtn.disabled =
-    true;
-
-
-  primaryAction.disabled =
-    true;
-
-
-  setScanMessage(
-    query
-      ? `Searching Walmart's Pokémon catalog for "${query}"…`
-      : "Running fresh all-Pokémon Walmart discovery…",
-    "running"
-  );
-
-
-  renderRetailer();
-
-
-  try{
-
-
-    const response =
-      await fetch(
-        `/api/discovery/run?t=${Date.now()}`,
-        {
-          cache:"no-store"
-        }
-      );
-
-
-    const data =
-      await response.json();
-
-
-    if(
-      !response.ok
-    ){
-
-      throw new Error(
-        data.error ||
-        "Walmart discovery failed."
-      );
-
-    }
-
-
-    await load();
-
-
-    const matches =
-      currentProducts.filter(
-        product => {
-
-          if(!query){
-            return true;
-          }
-
-
-          const needle =
-            query.toLowerCase();
-
-
-          return (
-
-            String(
-              product.name ||
-              ""
-            )
-              .toLowerCase()
-              .includes(
-                needle
-              )
-
-            ||
-
-            String(
-              product.set ||
-              ""
-            )
-              .toLowerCase()
-              .includes(
-                needle
-              )
-
-            ||
-
-            String(
-              product.productType ||
-              ""
-            )
-              .toLowerCase()
-              .includes(
-                needle
-              )
-
-          );
-
-        }
-      );
-
-
-    setScanMessage(
-      query
-        ? `Walmart search complete. ${matches.length} catalog match${matches.length === 1 ? "" : "es"} for "${query}".`
-        : `Discovery complete. ${discoveredProducts.length} Pokémon products are in the discovered catalog.`,
-      "success"
-    );
-
-
-    renderProducts();
-
-
-  }catch(error){
-
-
-    console.error(error);
-
-
-    setScanMessage(
-      error.message,
-      "error"
-    );
-
-
-  }finally{
-
-
-    discoveryRunning =
-      false;
-
-
-    refreshBtn.disabled =
-      false;
-
-
-    primaryAction.disabled =
-      false;
-
-
-    updateSearchButton();
-
-  }
-
-}
-
-
-/* ========================================
-   MANUAL WALMART SCAN
-======================================== */
-
-async function runWalmartScan(){
-
-  if(
-    manualScanRunning
-  ){
-    return;
-  }
-
-
-  let token =
-    localStorage.getItem(
-      "pokemonMonitorScanToken"
-    ) ||
-    "";
-
-
-  if(!token){
-
-    token =
-      prompt(
-        "Enter your MANUAL_SCAN_TOKEN from Render:"
-      ) ||
-      "";
-
-
-    if(!token){
-      return;
-    }
-
-
-    localStorage.setItem(
-      "pokemonMonitorScanToken",
-      token
-    );
-
-  }
-
-
-  manualScanRunning =
-    true;
-
-
-  primaryAction.disabled =
-    true;
-
-
-  secondaryAction.disabled =
-    true;
-
-
-  primaryAction.textContent =
-    "SCANNING…";
-
-
-  setScanMessage(
-    "Walmart scan started. Waiting for the backend to finish checking monitored products…",
-    "running"
-  );
-
-
-  try{
-
-
-    const response =
-      await fetch(
-        "/api/walmart/scan",
-        {
-
-          method:"POST",
-
-          headers:{
-
-            "Content-Type":
-              "application/json",
-
-            "x-monitor-token":
-              token
-
-          },
-
-          body:"{}"
-
-        }
-      );
-
-
-    let data =
-      {};
-
-
-    try{
-
-      data =
-        await response.json();
-
-    }catch{
-
-      data =
-        {};
-
-    }
-
-
-    if(
-      response.status ===
-      401
-    ){
-
-      localStorage.removeItem(
-        "pokemonMonitorScanToken"
-      );
-
-
-      throw new Error(
-        "Scan key was rejected. Tap SCAN WALMART NOW and enter the correct key."
-      );
-
-    }
-
-
-    if(!response.ok){
-
-      throw new Error(
-        data.error ||
-        data.result?.reason ||
-        `Manual scan failed with HTTP ${response.status}.`
-      );
-
-    }
-
-
-    if(
-      data.result?.skipped
-    ){
-
-      setScanMessage(
-        data.result.reason ||
-        "The Walmart scan was skipped.",
-        "error"
-      );
-
-
-    }else{
-
-
-      await load();
-
-
-      setScanMessage(
-        `Walmart scan completed. ${scannerProducts.length} scanned products and ${discoveredProducts.length} discovered Pokémon products loaded.`,
-        "success"
-      );
-
-    }
-
-
-  }catch(error){
-
-
-    console.error(error);
-
-
-    setScanMessage(
-      error.message,
-      "error"
-    );
-
-
-  }finally{
-
-
-    manualScanRunning =
-      false;
-
-
-    primaryAction.disabled =
-      false;
-
-
-    secondaryAction.disabled =
-      false;
-
-
-    primaryAction.textContent =
-      "SCAN WALMART NOW";
-
-
-    renderRetailer();
-
-  }
-
-}
-
-
-/* ========================================
-   SEARCH BUTTON
-======================================== */
-
-function updateSearchButton(){
-
-  if(
-    activeRetailer ===
-    "walmart" &&
-    searchEl.value.trim()
-  ){
-
-    refreshBtn.textContent =
-      "SEARCH WALMART";
-
-  }else{
-
-    refreshBtn.textContent =
-      "REFRESH";
-
-  }
-
-}
-
-
-/* ========================================
-   SWITCH RETAILER
-======================================== */
+/* SWITCH RETAILER */
 
 async function switchRetailer(
   retailer
@@ -3257,7 +2686,6 @@ async function switchRetailer(
 
   activeRetailer =
     retailer;
-
 
   searchEl.value =
     "";
@@ -3315,12 +2743,7 @@ async function switchRetailer(
     [];
 
 
-  scannerProducts =
-    [];
-
-
-  discoveredProducts =
-    [];
+  renderRetailer();
 
 
   await load();
@@ -3328,137 +2751,181 @@ async function switchRetailer(
 }
 
 
-/* ========================================
-   EVENTS
-======================================== */
+/* WALMART SCAN */
 
-primaryAction
-  .addEventListener(
-    "click",
-    async () => {
+async function runWalmartScan(){
 
-      if(
-        activeRetailer ===
-        "walmart"
-      ){
+  let token =
+    localStorage.getItem(
+      "pokemonMonitorScanToken"
+    ) || "";
 
-        await runWalmartScan();
 
-      }else{
+  if(!token){
 
-        await load();
+    token =
+      prompt(
+        "Enter your MANUAL_SCAN_TOKEN from Render:"
+      ) || "";
 
-      }
 
+    if(!token){
+      return;
     }
-  );
 
 
-secondaryAction
-  .addEventListener(
-    "click",
-    () => {
+    localStorage.setItem(
+      "pokemonMonitorScanToken",
+      token
+    );
 
-      if(
-        activeRetailer !==
-        "walmart" ||
-        manualScanRunning
-      ){
-        return;
-      }
+  }
 
+
+  primaryAction.disabled =
+    true;
+
+  primaryAction.textContent =
+    "SCANNING…";
+
+
+  try{
+
+    const response =
+      await fetch(
+        "/api/walmart/scan",
+        {
+          method:"POST",
+
+          headers:{
+            "Content-Type":
+              "application/json",
+
+            "x-monitor-token":
+              token
+          },
+
+          body:"{}"
+        }
+      );
+
+
+    const data =
+      await response.json();
+
+
+    if(
+      response.status ===
+      401
+    ){
 
       localStorage.removeItem(
         "pokemonMonitorScanToken"
       );
 
-
-      setScanMessage(
-        "Saved Walmart scan key cleared.",
-        "success"
+      throw new Error(
+        "Scan key rejected. Tap scan again and enter the correct key."
       );
 
     }
-  );
 
 
-refreshBtn
-  .addEventListener(
-    "click",
-    async () => {
+    if(!response.ok){
 
-      if(
-        activeRetailer ===
-        "walmart" &&
-        searchEl.value.trim()
-      ){
+      throw new Error(
+        data.error ||
+        data.result?.reason ||
+        "Walmart scan failed."
+      );
 
-        await runWalmartDiscoverySearch();
+    }
 
-        return;
 
-      }
+    await load();
 
+
+  }catch(error){
+
+    alert(
+      error.message
+    );
+
+
+  }finally{
+
+    primaryAction.disabled =
+      false;
+
+    primaryAction.textContent =
+      "SCAN WALMART NOW";
+
+  }
+
+}
+
+
+/* EVENTS */
+
+primaryAction.addEventListener(
+  "click",
+  async () => {
+
+    if(
+      activeRetailer ===
+      "walmart"
+    ){
+
+      await runWalmartScan();
+
+    }else{
 
       await load();
 
-
-      if(
-        activeRetailer ===
-        "walmart"
-      ){
-
-        setScanMessage(
-          `Refresh complete. ${currentProducts.length} Walmart Pokémon catalog items loaded.`,
-          "success"
-        );
-
-      }
-
     }
-  );
+
+  }
+);
 
 
-searchEl
-  .addEventListener(
-    "input",
-    () => {
+secondaryAction.addEventListener(
+  "click",
+  () => {
 
-      updateSearchButton();
-
-      renderProducts();
-
+    if(
+      activeRetailer !==
+      "walmart"
+    ){
+      return;
     }
-  );
+
+    localStorage.removeItem(
+      "pokemonMonitorScanToken"
+    );
+
+    alert(
+      "Saved scan key cleared."
+    );
+
+  }
+);
 
 
-searchEl
-  .addEventListener(
-    "keydown",
-    event => {
-
-      if(
-        event.key ===
-        "Enter" &&
-        activeRetailer ===
-        "walmart"
-      ){
-
-        event.preventDefault();
-
-        runWalmartDiscoverySearch();
-
-      }
-
-    }
-  );
+refreshBtn.addEventListener(
+  "click",
+  load
+);
 
 
-pushStatus
-  .addEventListener(
-    "click",
-    enablePhoneAlerts
-  );
+searchEl.addEventListener(
+  "input",
+  renderProducts
+);
+
+
+pushStatus.addEventListener(
+  "click",
+  enablePhoneAlerts
+);
 
 
 document
@@ -3468,17 +2935,16 @@ document
   .forEach(
     button => {
 
-      button
-        .addEventListener(
-          "click",
-          () => {
+      button.addEventListener(
+        "click",
+        () => {
 
-            switchRetailer(
-              button.dataset.retailer
-            );
+          switchRetailer(
+            button.dataset.retailer
+          );
 
-          }
-        );
+        }
+      );
 
     }
   );
@@ -3491,17 +2957,16 @@ document
   .forEach(
     button => {
 
-      button
-        .addEventListener(
-          "click",
-          () => {
+      button.addEventListener(
+        "click",
+        () => {
 
-            switchRetailer(
-              button.dataset.retailer
-            );
+          switchRetailer(
+            button.dataset.retailer
+          );
 
-          }
-        );
+        }
+      );
 
     }
   );
@@ -3524,21 +2989,14 @@ document
           "active"
         );
 
-
-      window.scrollTo(
-        {
-          top:0,
-          behavior:"smooth"
-        }
-      );
+      window.scrollTo({
+        top:0,
+        behavior:"smooth"
+      });
 
     }
   );
 
-
-/* ========================================
-   START
-======================================== */
 
 load();
 
@@ -3546,21 +3004,11 @@ checkPush();
 
 
 setInterval(
-  () => {
-
-    if(
-      !manualScanRunning &&
-      !discoveryRunning
-    ){
-      load();
-    }
-
-  },
+  load,
   15000
 );
 
 </script>
 
 </body>
-
 </html>
