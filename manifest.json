@@ -1,0 +1,12 @@
+{
+  "id": "/pokemon-monitor",
+  "name": "Pokémon Restock Monitor",
+  "short_name": "Pokémon Monitor",
+  "description": "Live Pokémon restock monitoring and push alerts.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#020711",
+  "theme_color": "#020711"
+}
