@@ -1,51 +1,14 @@
 <!doctype html>
 <html lang="en">
-
 <head>
 <meta charset="utf-8">
-
-<meta
-  name="viewport"
-  content="width=device-width,initial-scale=1,viewport-fit=cover"
->
-
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#020711">
-
-<meta
-  name="apple-mobile-web-app-capable"
-  content="yes"
->
-
-<meta
-  name="mobile-web-app-capable"
-  content="yes"
->
-
-<meta
-  name="apple-mobile-web-app-status-bar-style"
-  content="black-translucent"
->
-
-<meta
-  name="apple-mobile-web-app-title"
-  content="Pokémon Monitor"
->
-
-<link
-  rel="manifest"
-  href="/manifest.webmanifest"
->
-
-<link
-  rel="apple-touch-icon"
-  sizes="512x512"
-  href="/app-icon.png"
->
-
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Pokémon Restock Monitor</title>
 
 <style>
-
 :root{
   --bg:#020711;
   --panel:#071326;
@@ -67,18 +30,12 @@ body{
   margin:0;
   background:var(--bg);
   color:var(--text);
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    Arial,
-    sans-serif;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
 }
 
 body{
   min-height:100vh;
-  padding-bottom:max(90px,env(safe-area-inset-bottom));
+  padding-bottom:max(24px,env(safe-area-inset-bottom));
 }
 
 button,
@@ -96,888 +53,422 @@ a{
 }
 
 .app{
-  width:100%;
-  max-width:1100px;
+  max-width:980px;
   margin:auto;
   overflow:hidden;
 }
 
-
-/* ========================================
-   HERO
-======================================== */
-
 .hero{
-  height:285px;
-  position:relative;
-
+  height:360px;
   background:
     linear-gradient(
       to bottom,
-      rgba(2,7,17,.03) 0%,
-      rgba(2,7,17,.12) 55%,
-      rgba(2,7,17,.88) 92%,
-      #020711 100%
+      rgba(2,7,17,0) 58%,
+      rgba(2,7,17,.35) 76%,
+      var(--bg) 100%
     ),
-    url("/hero.jpg")
-    center top / cover no-repeat;
+    url("hero.jpg") center top/cover no-repeat;
 }
 
-
-/* ========================================
-   TOP STATUS
-======================================== */
-
-.connection-row{
+.status-wrap{
   display:grid;
   grid-template-columns:1fr 1fr;
-  gap:10px;
-  padding:0 14px;
-  margin-top:-16px;
-  position:relative;
-  z-index:5;
-}
-
-.connection-card{
-  min-height:68px;
-
-  border:
-    1px solid
-    rgba(84,243,166,.55);
-
-  border-radius:15px;
-
-  background:
-    linear-gradient(
-      135deg,
-      rgba(6,52,43,.98),
-      rgba(4,32,34,.98)
-    );
-
-  color:white;
-
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:10px;
-
-  padding:10px;
-  text-align:left;
-}
-
-.connection-card.push{
-  border-color:
-    rgba(255,199,107,.55);
-
-  background:
-    linear-gradient(
-      135deg,
-      rgba(67,48,14,.98),
-      rgba(43,32,13,.98)
-    );
-
-  appearance:none;
-  -webkit-appearance:none;
-}
-
-.connection-card.push.active{
-  border-color:
-    rgba(84,243,166,.55);
-
-  background:
-    linear-gradient(
-      135deg,
-      rgba(6,52,43,.98),
-      rgba(4,32,34,.98)
-    );
-}
-
-.connection-card.offline{
-  border-color:
-    rgba(255,117,139,.55);
-
-  background:
-    rgba(57,19,29,.97);
-}
-
-.connection-card:active{
-  transform:scale(.985);
-}
-
-.status-dot{
-  width:17px;
-  height:17px;
-  flex:none;
-  border-radius:50%;
-  background:var(--green);
-  box-shadow:0 0 16px var(--green);
-}
-
-.offline .status-dot{
-  background:var(--red);
-  box-shadow:0 0 16px var(--red);
-}
-
-.status-icon{
-  font-size:27px;
-  flex:none;
-}
-
-.connection-copy strong{
-  display:block;
-  font-size:12px;
-  font-weight:950;
-}
-
-.connection-copy small{
-  display:block;
-  margin-top:3px;
-  font-size:9px;
-  color:rgba(255,255,255,.68);
-  font-weight:750;
-}
-
-
-/* ========================================
-   STORE TABS
-======================================== */
-
-.store-tabs{
-  display:grid;
-  grid-template-columns:repeat(5,minmax(0,1fr));
-  gap:7px;
-  padding:12px 14px;
-}
-
-.store-tab{
-  min-height:61px;
-
-  border:
-    1px solid
-    rgba(98,199,255,.25);
-
-  border-radius:12px;
-
-  background:
-    linear-gradient(
-      180deg,
-      #0a1930,
-      #071326
-    );
-
-  color:#e8f4ff;
-
-  padding:8px 5px;
-
-  font-size:10px;
-  font-weight:950;
-
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:5px;
-}
-
-.store-tab.active{
-  border-color:var(--blue);
-
-  background:
-    linear-gradient(
-      180deg,
-      #0c3152,
-      #09223b
-    );
-
-  box-shadow:
-    0 0 18px
-    rgba(98,199,255,.16);
-}
-
-.store-logo{
-  font-size:18px;
-  line-height:1;
-}
-
-.walmart-logo{color:#ffd84a}
-.target-logo{color:#ff4055}
-.sams-logo{color:#41a8ff}
-.bestbuy-logo{color:#ffe23f}
-.costco-logo{color:#ff6575}
-
-
-/* ========================================
-   MONITOR
-======================================== */
-
-.monitor-wrap{
-  padding:0 14px 14px;
-}
-
-.monitor-panel{
-  border:
-    1px solid
-    rgba(98,199,255,.30);
-
-  border-radius:17px;
-
-  background:
-    linear-gradient(
-      180deg,
-      rgba(8,31,56,.98),
-      rgba(5,19,36,.98)
-    );
-
-  overflow:hidden;
-}
-
-.monitor-inner{
-  padding:15px;
-}
-
-.monitor-head{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:10px;
-}
-
-.monitor-name-wrap{
-  display:flex;
-  align-items:center;
   gap:9px;
+  padding:0 14px;
+  margin-top:-28px;
+  position:relative;
+  z-index:2;
 }
 
-.monitor-store-icon{
-  width:34px;
-  height:34px;
-  border-radius:10px;
-
+.status-pill{
+  min-height:46px;
+  cursor:pointer;
+  border:1px solid rgba(84,243,166,.55);
+  border-radius:12px;
+  background:rgba(8,44,37,.96);
   display:flex;
   align-items:center;
   justify-content:center;
-
-  background:
-    rgba(98,199,255,.08);
-
-  font-size:23px;
+  gap:7px;
+  font-size:12px;
+  font-weight:900;
 }
 
-.monitor-title{
-  font-size:22px;
-  font-weight:950;
+.status-pill.offline{
+  border-color:rgba(255,117,139,.55);
+  background:rgba(57,19,29,.96);
 }
 
-.live-pill{
-  display:flex;
-  align-items:center;
-  gap:6px;
-
-  border:
-    1px solid
-    rgba(84,243,166,.4);
-
-  border-radius:999px;
-  padding:7px 11px;
-
-  font-size:10px;
-  font-weight:950;
-
-  color:var(--green);
-
-  background:
-    rgba(8,44,37,.72);
-}
-
-.live-dot{
+.dot{
   width:8px;
   height:8px;
-
   border-radius:50%;
   background:var(--green);
   box-shadow:0 0 8px var(--green);
 }
 
+.offline .dot{
+  background:var(--red);
+  box-shadow:0 0 8px var(--red);
+}
 
-/* ========================================
-   STATS
-======================================== */
+.section{
+  padding:12px 14px;
+}
 
-.stats-grid{
+.tabs{
   display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:8px;
-  margin-top:14px;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:7px;
 }
 
-.stat-card{
-  min-height:78px;
-
-  border:
-    1px solid
-    rgba(98,199,255,.22);
-
-  border-radius:12px;
-
-  background:
-    linear-gradient(
-      180deg,
-      #091a30,
-      #071326
-    );
-
-  padding:11px;
-}
-
-.stat-card span{
-  display:block;
-
-  color:var(--muted);
-
-  font-size:9px;
-  font-weight:800;
-
-  text-transform:uppercase;
-}
-
-.stat-card strong{
-  display:block;
-  margin-top:6px;
-  font-size:12px;
-  line-height:1.3;
-}
-
-
-/* ========================================
-   ACTIONS
-======================================== */
-
-.monitor-actions{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:9px;
-  margin-top:10px;
-}
-
-.monitor-action{
-  min-height:48px;
-  border-radius:11px;
-
-  border:
-    1px solid
-    rgba(98,199,255,.36);
-
-  background:#09203a;
-  color:white;
-
+.tab{
+  border:1px solid rgba(98,199,255,.25);
+  border-radius:10px;
+  background:var(--panel);
+  color:#dcecff;
+  padding:11px 6px;
   font-size:11px;
-  font-weight:950;
+  font-weight:900;
 }
 
-.monitor-action.primary{
-  border-color:
-    rgba(84,243,166,.55);
-
-  background:
-    linear-gradient(
-      180deg,
-      #12a954,
-      #08753f
-    );
+.tab.active{
+  border-color:var(--green);
+  background:#0d2f2a;
+  color:white;
 }
 
-.monitor-action:disabled{
-  opacity:.6;
+.monitor-panel{
+  border:1px solid rgba(98,199,255,.24);
+  border-radius:14px;
+  background:linear-gradient(180deg,#0b1d34,#071326);
+  padding:14px;
 }
 
-.scan-message{
-  margin-top:9px;
-
-  padding:9px 10px;
-
-  border-radius:9px;
-
-  border:
-    1px solid
-    rgba(98,199,255,.13);
-
-  color:var(--muted);
-
-  background:
-    rgba(2,12,23,.72);
-
-  font-size:9px;
-  line-height:1.5;
-}
-
-.scan-message.success{
-  border-color:rgba(84,243,166,.3);
-  color:var(--green);
-}
-
-.scan-message.error{
-  border-color:rgba(255,117,139,.3);
-  color:var(--red);
-}
-
-.scan-message.running{
-  border-color:rgba(98,199,255,.3);
-  color:var(--blue);
-}
-
-
-/* ========================================
-   SECTION HEADERS
-======================================== */
-
-.section-heading{
-  margin-top:18px;
-
+.panel-head{
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:10px;
 }
 
-.section-heading strong{
-  font-size:12px;
-  font-weight:950;
-}
-
-.section-heading span{
-  color:var(--blue);
-  font-size:10px;
+.panel-title{
+  font-size:14px;
   font-weight:900;
 }
 
-
-/* ========================================
-   DISCOVERY
-======================================== */
-
-.discovery-grid{
-  display:flex;
-  overflow-x:auto;
-  gap:8px;
-
-  margin-top:9px;
-  padding-bottom:6px;
-
-  scroll-snap-type:x mandatory;
-}
-
-.discovery-card{
-  flex:0 0 155px;
-  min-width:155px;
-
-  border:
-    1px solid
-    rgba(98,199,255,.18);
-
-  border-radius:11px;
-
-  background:
-    linear-gradient(
-      180deg,
-      #091a30,
-      #06111f
-    );
-
-  overflow:hidden;
-  scroll-snap-align:start;
-}
-
-.discovery-image{
-  height:120px;
-
-  background:#07101c;
-
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.discovery-image img{
-  width:100%;
-  height:100%;
-  object-fit:contain;
-}
-
-.discovery-body{
-  padding:9px;
-}
-
-.discovery-status{
-  display:inline-flex;
-
-  border:
-    1px solid
-    rgba(84,243,166,.5);
-
+.panel-status{
+  font-size:10px;
+  font-weight:900;
+  padding:5px 8px;
   border-radius:999px;
-  padding:3px 6px;
-
+  border:1px solid rgba(84,243,166,.35);
   color:var(--green);
-
-  font-size:8px;
-  font-weight:950;
 }
 
-.discovery-status.warn{
-  border-color:
-    rgba(255,199,107,.5);
-
+.panel-status.warn{
+  border-color:rgba(255,199,107,.4);
   color:var(--gold);
 }
 
-.discovery-name{
-  margin-top:6px;
-  height:38px;
-  overflow:hidden;
-
-  font-size:10px;
-  line-height:1.25;
-  font-weight:900;
+.panel-status.off{
+  border-color:rgba(255,117,139,.4);
+  color:var(--red);
 }
 
-.discovery-price{
-  margin-top:6px;
-  font-size:15px;
-  font-weight:950;
+.schedule-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  margin-top:10px;
 }
 
-.discovery-open{
+.schedule-box{
+  background:#06111f;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;
+  padding:10px;
+}
+
+.schedule-box span{
   display:block;
-
-  margin-top:7px;
-  padding:7px;
-
-  text-align:center;
-  border-radius:7px;
-
-  border:
-    1px solid
-    rgba(98,199,255,.5);
-
-  background:#0a3153;
-  color:white;
-
+  color:var(--muted);
   font-size:9px;
-  font-weight:900;
+  text-transform:uppercase;
+  font-weight:800;
 }
 
-
-/* ========================================
-   ALL PRODUCTS
-======================================== */
-
-.all-products-section{
-  margin-top:16px;
-  padding-top:14px;
-
-  border-top:
-    1px solid
-    rgba(98,199,255,.14);
+.schedule-box strong{
+  display:block;
+  margin-top:4px;
+  font-size:12px;
 }
 
-.search-row{
+.panel-actions{
   display:flex;
   gap:8px;
-  margin-top:9px;
+  margin-top:10px;
 }
 
-.search-box{
+.action-btn{
+  flex:1;
+  border:1px solid rgba(84,243,166,.45);
+  background:#0b2b25;
+  color:white;
+  border-radius:10px;
+  padding:11px;
+  font-weight:900;
+}
+
+.action-btn.secondary{
+  border-color:rgba(98,199,255,.35);
+  background:#0a1b31;
+}
+
+.upcoming-wrap{
+  margin-top:12px;
+}
+
+.upcoming-title{
+  font-size:11px;
+  font-weight:900;
+  color:#dcecff;
+}
+
+.upcoming-list{
+  display:grid;
+  gap:7px;
+  margin-top:7px;
+}
+
+.upcoming-item{
+  border:1px solid rgba(255,199,107,.28);
+  border-radius:9px;
+  padding:9px;
+  background:#17140c;
+}
+
+.upcoming-item strong{
+  font-size:11px;
+}
+
+.upcoming-item small{
+  display:block;
+  margin-top:3px;
+  color:var(--muted);
+}
+
+.upcoming-item.watch{
+  border-color:rgba(98,199,255,.25);
+  background:#081522;
+}
+
+.healthline{
+  margin-top:9px;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.5;
+}
+
+.toolbar{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+
+.toolbar input{
   flex:1;
   min-width:0;
-
-  border:
-    1px solid
-    rgba(98,199,255,.28);
-
-  background:#061426;
-
-  border-radius:10px;
+  background:var(--panel);
+  border:1px solid rgba(98,199,255,.25);
   color:white;
-
-  padding:11px 12px;
+  border-radius:10px;
+  padding:12px;
 }
 
-.filter-button{
-  border:
-    1px solid
-    rgba(98,199,255,.3);
-
+.toolbar button{
+  border:1px solid rgba(84,243,166,.45);
+  background:#0b2b25;
+  color:#e9fff5;
   border-radius:10px;
-  color:white;
-
-  background:#0a1930;
-
-  padding:10px 15px;
-  font-weight:850;
+  padding:12px 16px;
+  font-weight:900;
 }
 
-.meta-row{
+.meta{
   display:flex;
   justify-content:space-between;
   gap:10px;
-
   margin-top:8px;
-
   color:var(--muted);
-  font-size:9px;
+  font-size:11px;
 }
-
-
-/* ========================================
-   PRODUCT CARDS
-======================================== */
 
 .products{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:10px;
-  margin-top:12px;
+  gap:12px;
+  padding:4px 14px 20px;
 }
 
-.product-card{
-  border:
-    1px solid
-    rgba(98,199,255,.17);
-
-  border-radius:12px;
-
-  background:
-    linear-gradient(
-      180deg,
-      #09192d,
-      #06111f
-    );
-
+.card{
+  border:1px solid rgba(98,199,255,.18);
+  border-radius:14px;
+  background:linear-gradient(180deg,#09192d,#06111f);
   overflow:hidden;
 }
 
-.product-image{
-  height:190px;
-
-  background:#07101c;
-
+.image-wrap{
+  aspect-ratio:1.35/1;
+  background:#08111e;
   display:flex;
-  justify-content:center;
   align-items:center;
+  justify-content:center;
+  position:relative;
 }
 
-.product-image img{
+.image-wrap img{
   width:100%;
   height:100%;
   object-fit:contain;
 }
 
-.product-body{
-  padding:11px;
+.image-note{
+  position:absolute;
+  bottom:7px;
+  left:7px;
+  background:rgba(2,7,17,.8);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:6px;
+  padding:4px 6px;
+  font-size:9px;
+  font-weight:900;
+}
+
+.body{
+  padding:12px;
 }
 
 .badges{
   display:flex;
   flex-wrap:wrap;
-  gap:5px;
+  gap:6px;
 }
 
 .badge{
   display:inline-flex;
-
-  padding:4px 7px;
-
   border-radius:999px;
-
-  border:
-    1px solid
-    rgba(255,255,255,.16);
-
-  font-size:8px;
-  font-weight:950;
-
+  border:1px solid rgba(255,255,255,.18);
+  padding:4px 7px;
+  font-size:9px;
+  font-weight:900;
   text-transform:uppercase;
 }
 
 .badge.good{
+  border-color:rgba(84,243,166,.5);
   color:var(--green);
-  border-color:rgba(84,243,166,.45);
 }
 
 .badge.warn{
+  border-color:rgba(255,199,107,.5);
   color:var(--gold);
-  border-color:rgba(255,199,107,.45);
 }
 
 .badge.out{
+  border-color:rgba(255,117,139,.5);
   color:var(--red);
-  border-color:rgba(255,117,139,.45);
 }
 
-.product-name{
-  margin-top:8px;
-
-  font-size:14px;
-  font-weight:950;
-  line-height:1.25;
-}
-
-.product-seller{
-  margin-top:4px;
-
-  color:var(--muted);
-  font-size:9px;
-}
-
-.product-price{
-  margin-top:8px;
-
-  font-size:19px;
-  font-weight:950;
-}
-
-.product-price.unavailable{
-  color:var(--muted);
-  font-size:12px;
-}
-
-.open-product{
-  display:block;
-
+.name{
   margin-top:9px;
-  padding:9px;
-
-  text-align:center;
-
-  border:
-    1px solid
-    rgba(98,199,255,.45);
-
-  border-radius:8px;
-
-  background:#0a3153;
-
-  font-size:10px;
-  font-weight:950;
+  font-size:15px;
+  font-weight:900;
+  line-height:1.3;
 }
 
-.empty{
-  grid-column:1/-1;
-  width:100%;
-
-  padding:30px 15px;
-
-  border:
-    1px dashed
-    rgba(98,199,255,.24);
-
-  border-radius:12px;
-
-  text-align:center;
-
+.sub{
+  margin-top:4px;
   color:var(--muted);
   font-size:11px;
 }
 
-
-/* ========================================
-   BOTTOM NAV
-======================================== */
-
-.bottom-nav{
-  position:fixed;
-
-  left:0;
-  right:0;
-  bottom:0;
-
-  z-index:30;
-
-  margin:auto;
-
-  width:100%;
-  max-width:1100px;
-
-  display:grid;
-  grid-template-columns:repeat(6,1fr);
-
-  background:
-    rgba(3,13,27,.97);
-
-  border-top:
-    1px solid
-    rgba(98,199,255,.22);
-
-  backdrop-filter:blur(18px);
-  -webkit-backdrop-filter:blur(18px);
-
-  padding-bottom:
-    env(safe-area-inset-bottom);
-}
-
-.nav-btn{
-  min-height:65px;
-
-  border:0;
-  background:transparent;
-
-  color:#e8f4ff;
-
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-
-  gap:4px;
-
-  font-size:8px;
-  font-weight:850;
-}
-
-.nav-btn.active{
-  background:
-    rgba(20,115,180,.13);
-
-  color:var(--blue);
-}
-
-.nav-icon{
+.price{
+  margin-top:10px;
   font-size:21px;
-  line-height:1;
+  font-weight:900;
 }
 
+.price small{
+  font-size:11px;
+  color:var(--muted);
+  font-weight:700;
+}
 
-/* ========================================
-   MOBILE
-======================================== */
+.storeline{
+  margin-top:8px;
+  color:#dcecff;
+  font-size:11px;
+}
+
+.buy{
+  display:block;
+  margin-top:11px;
+  text-align:center;
+  border:1px solid rgba(84,243,166,.5);
+  border-radius:9px;
+  background:#0c3128;
+  padding:10px;
+  font-size:11px;
+  font-weight:900;
+}
+
+.empty{
+  grid-column:1/-1;
+  border:1px dashed rgba(98,199,255,.25);
+  border-radius:12px;
+  padding:28px;
+  text-align:center;
+  color:var(--muted);
+}
+
+.store-placeholder{
+  margin-top:12px;
+  border:1px dashed rgba(98,199,255,.25);
+  border-radius:12px;
+  padding:22px;
+  text-align:center;
+  color:var(--muted);
+  line-height:1.5;
+}
+
+.hidden{
+  display:none!important;
+}
 
 @media(max-width:760px){
+  .tabs{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .tabs .tab:last-child{
+    grid-column:1/-1;
+  }
+
+  .schedule-grid{
+    grid-template-columns:1fr;
+  }
 
   .products{
     grid-template-columns:1fr;
   }
 
+  .hero{
+    height:320px;
+  }
 }
-
-@media(max-width:390px){
-
-  .connection-row{
-    grid-template-columns:1fr;
-  }
-
-  .stats-grid{
-    grid-template-columns:1fr;
-  }
-
-  .monitor-actions{
-    grid-template-columns:1fr;
-  }
-
-}
-
 </style>
 </head>
-
 
 <body>
 
@@ -985,1046 +476,1115 @@ a{
 
   <div class="hero"></div>
 
+  <div class="status-wrap">
 
-  <div class="connection-row">
+    <div id="backendStatus" class="status-pill">
+      <span class="dot"></span>
+      <span>LIVE MONITOR CONNECTED</span>
+    </div>
 
     <div
-      id="backendStatus"
-      class="connection-card offline"
+      id="pushStatus"
+      class="status-pill offline"
+      role="button"
+      tabindex="0"
+      aria-label="Enable push alerts"
     >
+      <span class="dot"></span>
+      <span>CHECKING PUSH ALERTS…</span>
+    </div>
 
-      <span class="status-dot"></span>
+  </div>
 
-      <div class="connection-copy">
+  <section class="section">
 
-        <strong>
-          CONNECTING...
-        </strong>
+    <div class="tabs">
 
-        <small>
-          MONITOR STATUS
-        </small>
+      <button class="tab active" data-retailer="walmart">
+        WALMART
+      </button>
 
-      </div>
+      <button class="tab" data-retailer="target">
+        TARGET
+      </button>
+
+      <button class="tab" data-retailer="sams">
+        SAM'S CLUB
+      </button>
+
+      <button class="tab" data-retailer="bestbuy">
+        BEST BUY
+      </button>
+
+      <button class="tab" data-retailer="costco">
+        COSTCO
+      </button>
 
     </div>
 
+  </section>
 
-    <button
-      id="pushStatus"
-      class="connection-card push"
-      type="button"
-    >
+  <section class="section">
 
-      <span class="status-icon">
-        🔔
-      </span>
+    <div id="retailerMonitor" class="monitor-panel">
 
-      <div class="connection-copy">
+      <div class="panel-head">
 
-        <strong id="pushStatusText">
-          CHECKING ALERTS...
-        </strong>
+        <div id="monitorTitle" class="panel-title">
+          Walmart Drop Monitor
+        </div>
 
-        <small id="pushStatusSub">
-          CHECKING THIS IPHONE
-        </small>
+        <div id="monitorState" class="panel-status">
+          SCHEDULED
+        </div>
 
       </div>
 
-    </button>
+      <div id="walmartDetails">
 
-  </div>
+        <div class="schedule-grid">
 
-
-  <div class="store-tabs">
-
-    <button
-      class="store-tab active"
-      data-retailer="walmart"
-    >
-      <span class="store-logo walmart-logo">✦</span>
-      WALMART
-    </button>
-
-
-    <button
-      class="store-tab"
-      data-retailer="target"
-    >
-      <span class="store-logo target-logo">⦿</span>
-      TARGET
-    </button>
-
-
-    <button
-      class="store-tab"
-      data-retailer="sams"
-    >
-      <span class="store-logo sams-logo">◇</span>
-      SAM'S CLUB
-    </button>
-
-
-    <button
-      class="store-tab"
-      data-retailer="bestbuy"
-    >
-      <span class="store-logo bestbuy-logo">▰</span>
-      BEST BUY
-    </button>
-
-
-    <button
-      class="store-tab"
-      data-retailer="costco"
-    >
-      <span class="store-logo costco-logo">C</span>
-      COSTCO
-    </button>
-
-  </div>
-
-
-  <div class="monitor-wrap">
-
-    <div class="monitor-panel">
-
-      <div class="monitor-inner">
-
-        <div class="monitor-head">
-
-          <div class="monitor-name-wrap">
-
-            <div
-              id="monitorStoreIcon"
-              class="monitor-store-icon"
-            >
-              ✦
-            </div>
-
-            <div
-              id="monitorTitle"
-              class="monitor-title"
-            >
-              Walmart Monitor
-            </div>
-
+          <div class="schedule-box">
+            <span>Drop window</span>
+            <strong id="walmartSchedule">Loading…</strong>
           </div>
 
+          <div class="schedule-box">
+            <span>Primary source</span>
+            <strong id="walmartPrimary">Loading…</strong>
+          </div>
 
-          <div
-            id="monitorState"
-            class="live-pill"
-          >
-            <span class="live-dot"></span>
-            <span>LIVE</span>
+          <div class="schedule-box">
+            <span>Last scheduled scan</span>
+            <strong id="walmartLastScan">—</strong>
+          </div>
+
+          <div class="schedule-box">
+            <span>Next scan</span>
+            <strong id="walmartNextScan">—</strong>
           </div>
 
         </div>
 
+        <div class="panel-actions">
 
-        <div class="stats-grid">
-
-          <div class="stat-card">
-
-            <span>
-              Scan schedule
-            </span>
-
-            <strong id="scanSchedule">
-              Loading…
-            </strong>
-
-          </div>
-
-
-          <div class="stat-card">
-
-            <span>
-              Last scan
-            </span>
-
-            <strong id="lastScan">
-              —
-            </strong>
-
-          </div>
-
-
-          <div class="stat-card">
-
-            <span>
-              Next scan
-            </span>
-
-            <strong id="nextScan">
-              —
-            </strong>
-
-          </div>
-
-        </div>
-
-
-        <div class="monitor-actions">
-
-          <button
-            id="primaryAction"
-            class="monitor-action primary"
-          >
+          <button id="manualWalmartScan" class="action-btn">
             SCAN WALMART NOW
           </button>
 
-          <button
-            id="secondaryAction"
-            class="monitor-action"
-          >
+          <button id="forgetScanToken" class="action-btn secondary">
             RESET SCAN KEY
           </button>
 
         </div>
 
-
-        <div
-          id="scanMessage"
-          class="scan-message"
-        >
-          Walmart monitoring is connected to the existing backend.
+        <div id="walmartHealth" class="healthline">
+          Provider health loading…
         </div>
 
+        <div class="upcoming-wrap">
 
-        <div class="section-heading">
-
-          <strong>
-            POKÉMON PRODUCT DISCOVERY
-          </strong>
-
-          <span>
-            LIVE
-          </span>
-
-        </div>
-
-
-        <div
-          id="discoveryGrid"
-          class="discovery-grid"
-        ></div>
-
-
-        <div class="all-products-section">
-
-          <div class="section-heading">
-
-            <strong id="allItemsTitle">
-              ALL MONITORED ITEMS
-            </strong>
-
-            <span id="visibleCount">
-              0 ITEMS
-            </span>
-
+          <div class="upcoming-title">
+            DETECTED UPCOMING + WATCHLIST
           </div>
 
-
-          <div class="search-row">
-
-            <input
-              id="search"
-              class="search-box"
-              placeholder="Search Pokémon products..."
-            >
-
-            <button
-              id="refresh"
-              class="filter-button"
-            >
-              REFRESH
-            </button>
-
+          <div id="upcomingList" class="upcoming-list">
+            <div class="sub">
+              Loading Walmart watchlist…
+            </div>
           </div>
-
-
-          <div class="meta-row">
-
-            <span id="retailerStatus">
-              Connecting…
-            </span>
-
-            <span id="lastUpdated">
-              Not updated yet
-            </span>
-
-          </div>
-
-
-          <div
-            id="products"
-            class="products"
-          ></div>
 
         </div>
 
       </div>
 
+      <div id="otherRetailerDetails" class="hidden">
+
+        <div
+          id="otherRetailerMessage"
+          class="store-placeholder"
+        ></div>
+
+      </div>
+
     </div>
 
-  </div>
+  </section>
+
+  <section class="section">
+
+    <div class="toolbar">
+
+      <input
+        id="search"
+        placeholder="Search Walmart Pokémon products"
+      >
+
+      <button id="refresh">
+        Refresh
+      </button>
+
+    </div>
+
+    <div class="meta">
+
+      <span id="visibleCount">
+        0 products
+      </span>
+
+      <span id="lastUpdated">
+        Not updated yet
+      </span>
+
+    </div>
+
+  </section>
+
+  <main
+    id="products"
+    class="products"
+  ></main>
 
 </div>
 
-
-<nav class="bottom-nav">
-
-  <button
-    id="homeNav"
-    class="nav-btn active"
-  >
-    <span class="nav-icon">⌂</span>
-    HOME
-  </button>
-
-
-  <button
-    class="nav-btn retailer-nav"
-    data-retailer="walmart"
-  >
-    <span class="nav-icon walmart-logo">✦</span>
-    Walmart
-  </button>
-
-
-  <button
-    class="nav-btn retailer-nav"
-    data-retailer="target"
-  >
-    <span class="nav-icon target-logo">⦿</span>
-    Target
-  </button>
-
-
-  <button
-    class="nav-btn retailer-nav"
-    data-retailer="sams"
-  >
-    <span class="nav-icon sams-logo">◇</span>
-    Sam's Club
-  </button>
-
-
-  <button
-    class="nav-btn retailer-nav"
-    data-retailer="bestbuy"
-  >
-    <span class="nav-icon bestbuy-logo">▰</span>
-    Best Buy
-  </button>
-
-
-  <button
-    class="nav-btn retailer-nav"
-    data-retailer="costco"
-  >
-    <span class="nav-icon costco-logo">C</span>
-    Costco
-  </button>
-
-</nav>
-
-
 <script>
 
-/* ========================================
-   RETAILERS
-======================================== */
-
-const RETAILERS = {
-
-  walmart:{
-    label:"Walmart",
-    icon:"✦"
-  },
-
-  target:{
-    label:"Target",
-    icon:"⦿"
-  },
-
-  sams:{
-    label:"Sam's Club",
-    icon:"◇"
-  },
-
-  bestbuy:{
-    label:"Best Buy",
-    icon:"▰"
-  },
-
-  costco:{
-    label:"Costco",
-    icon:"C"
-  }
-
+const RETAILER_LABELS={
+  walmart:"Walmart",
+  target:"Target",
+  sams:"Sam's Club",
+  bestbuy:"Best Buy",
+  costco:"Costco"
 };
 
+const RETAILER_MONITOR_NAMES={
+  walmart:"Walmart Drop Monitor",
+  target:"Target Online Monitor",
+  sams:"Sam's Club Monitor",
+  bestbuy:"Best Buy Monitor",
+  costco:"Costco Monitor"
+};
 
-/* ========================================
-   ELEMENTS
-======================================== */
+const productsEl=
+  document.getElementById("products");
 
-const backendStatus =
-  document.getElementById(
-    "backendStatus"
-  );
+const searchEl=
+  document.getElementById("search");
 
-const pushStatus =
-  document.getElementById(
-    "pushStatus"
-  );
+const refreshBtn=
+  document.getElementById("refresh");
 
-const pushStatusText =
-  document.getElementById(
-    "pushStatusText"
-  );
+const backendStatus=
+  document.getElementById("backendStatus");
 
-const pushStatusSub =
-  document.getElementById(
-    "pushStatusSub"
-  );
+const pushStatus=
+  document.getElementById("pushStatus");
 
-const monitorTitle =
-  document.getElementById(
-    "monitorTitle"
-  );
+const visibleCount=
+  document.getElementById("visibleCount");
 
-const monitorStoreIcon =
-  document.getElementById(
-    "monitorStoreIcon"
-  );
+const lastUpdated=
+  document.getElementById("lastUpdated");
 
-const monitorState =
-  document.getElementById(
-    "monitorState"
-  );
+const manualWalmartScan=
+  document.getElementById("manualWalmartScan");
 
-const scanSchedule =
-  document.getElementById(
-    "scanSchedule"
-  );
+const forgetScanToken=
+  document.getElementById("forgetScanToken");
 
-const lastScan =
-  document.getElementById(
-    "lastScan"
-  );
+const walmartSchedule=
+  document.getElementById("walmartSchedule");
 
-const nextScan =
-  document.getElementById(
-    "nextScan"
-  );
+const walmartPrimary=
+  document.getElementById("walmartPrimary");
 
-const primaryAction =
-  document.getElementById(
-    "primaryAction"
-  );
+const walmartLastScan=
+  document.getElementById("walmartLastScan");
 
-const secondaryAction =
-  document.getElementById(
-    "secondaryAction"
-  );
+const walmartNextScan=
+  document.getElementById("walmartNextScan");
 
-const scanMessage =
-  document.getElementById(
-    "scanMessage"
-  );
+const walmartHealth=
+  document.getElementById("walmartHealth");
 
-const discoveryGrid =
-  document.getElementById(
-    "discoveryGrid"
-  );
+const upcomingList=
+  document.getElementById("upcomingList");
 
-const productsEl =
-  document.getElementById(
-    "products"
-  );
+const monitorTitle=
+  document.getElementById("monitorTitle");
 
-const searchEl =
-  document.getElementById(
-    "search"
-  );
+const monitorState=
+  document.getElementById("monitorState");
 
-const refreshBtn =
-  document.getElementById(
-    "refresh"
-  );
+const walmartDetails=
+  document.getElementById("walmartDetails");
 
-const visibleCount =
-  document.getElementById(
-    "visibleCount"
-  );
+const otherRetailerDetails=
+  document.getElementById("otherRetailerDetails");
 
-const retailerStatus =
-  document.getElementById(
-    "retailerStatus"
-  );
+const otherRetailerMessage=
+  document.getElementById("otherRetailerMessage");
 
-const lastUpdated =
-  document.getElementById(
-    "lastUpdated"
-  );
-
-const allItemsTitle =
-  document.getElementById(
-    "allItemsTitle"
-  );
+let activeRetailer="walmart";
+let currentProducts=[];
+let providerStates=[];
+let latestStatus={};
 
 
 /* ========================================
-   STATE
+   BASIC HELPERS
 ======================================== */
 
-let activeRetailer =
-  "walmart";
+function esc(value){
 
-let currentProducts =
-  [];
+  return String(value??"")
+    .replace(/[&<>"']/g,c=>({
 
-let providers =
-  [];
-
-let statusData =
-  {};
-
-let manualScanRunning =
-  false;
-
-
-/* ========================================
-   HELPERS
-======================================== */
-
-function escapeHtml(value){
-
-  return String(
-    value ?? ""
-  ).replace(
-    /[&<>"']/g,
-    character => ({
       "&":"&amp;",
       "<":"&lt;",
       ">":"&gt;",
       "\"":"&quot;",
       "'":"&#39;"
-    })[character]
-  );
+
+    })[c]);
 
 }
 
 
 function money(value){
 
-  const number =
-    Number(value);
+  const n=Number(value);
 
-  if(
-    !Number.isFinite(number) ||
-    number <= 0
-  ){
-    return null;
-  }
-
-  return new Intl.NumberFormat(
-    "en-US",
-    {
-      style:"currency",
-      currency:"USD"
-    }
-  ).format(number);
+  return Number.isFinite(n)
+    ?new Intl.NumberFormat(
+        "en-US",
+        {
+          style:"currency",
+          currency:"USD"
+        }
+      ).format(n)
+    :"Price unavailable";
 
 }
 
 
-function formatDate(value){
+/*
+  Formats backend ISO dates such as:
+
+  2026-10-05T15:40:00.000Z
+
+  into the iPhone/browser's local time, such as:
+
+  10/5/2026, 10:40:00 AM
+*/
+function formatDateTime(value){
 
   if(!value){
     return "—";
   }
 
-  const date =
-    new Date(value);
+  const date=new Date(value);
 
-  if(
-    Number.isNaN(
-      date.getTime()
-    )
-  ){
+  if(Number.isNaN(date.getTime())){
     return String(value);
   }
 
-  return date.toLocaleString();
-
-}
-
-
-function fallbackImage(name){
-
-  const safe =
-    escapeHtml(
-      name ||
-      "Pokémon Product"
-    ).slice(
-      0,
-      40
-    );
-
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="700" height="500">
-      <rect width="100%" height="100%" fill="#061426"/>
-      <circle cx="350" cy="210" r="110" fill="#0d3151"/>
-      <text x="350" y="205" text-anchor="middle" fill="#fff" font-size="26" font-family="Arial" font-weight="700">${safe}</text>
-      <text x="350" y="345" text-anchor="middle" fill="#62c7ff" font-size="18" font-family="Arial" font-weight="700">POKÉMON MONITOR</text>
-    </svg>`;
-
-  return (
-    "data:image/svg+xml;charset=UTF-8," +
-    encodeURIComponent(svg)
-  );
-
-}
-
-
-function getProvider(retailer){
-
-  return (
-    providers.find(
-      item =>
-        item.retailer ===
-        retailer
-    ) ||
+  return date.toLocaleString(
+    "en-US",
     {
-      retailer,
-      label:
-        RETAILERS[
-          retailer
-        ]?.label ||
-        retailer,
-      configured:false,
-      running:false,
-      error:null,
-      itemCount:0,
-      lastRun:null
+      month:"numeric",
+      day:"numeric",
+      year:"numeric",
+      hour:"numeric",
+      minute:"2-digit",
+      second:"2-digit"
     }
   );
 
 }
 
 
-/* ========================================
-   WALMART DISPLAY FILTER
+function fallback(name){
 
-   IMPORTANT:
-   This DOES NOT create the seller/MSRP
-   rules. The backend still owns those.
+  const label=
+    esc(name||"Pokémon product")
+      .slice(0,42);
 
-   This only prevents random marketplace
-   preview results from being presented
-   as valid Walmart products.
-======================================== */
+  const svg=
+    `<svg xmlns="http://www.w3.org/2000/svg" width="700" height="520">
+      <rect width="100%" height="100%" fill="#071729"/>
+      <circle cx="350" cy="210" r="110" fill="#0d3151"/>
+      <text
+        x="350"
+        y="205"
+        text-anchor="middle"
+        fill="white"
+        font-size="28"
+        font-family="Arial"
+        font-weight="700"
+      >${label}</text>
+      <text
+        x="350"
+        y="340"
+        text-anchor="middle"
+        fill="#54f3a6"
+        font-size="22"
+        font-family="Arial"
+        font-weight="700"
+      >REPRESENTATIVE IMAGE</text>
+      <text
+        x="350"
+        y="375"
+        text-anchor="middle"
+        fill="#9aa9c1"
+        font-size="16"
+        font-family="Arial"
+      >Retailer image unavailable</text>
+    </svg>`;
 
-function walmartDisplayAllowed(
-  product
-){
+  return "data:image/svg+xml;charset=UTF-8,"+
+    encodeURIComponent(svg);
 
-  if(
-    !product ||
-    product.retailer !==
-      "walmart"
-  ){
-    return true;
-  }
-
-
-  if(
-    product.approvedMarketplace ===
-    true
-  ){
-    return true;
-  }
-
-
-  if(
-    product.directSeller ===
-    true
-  ){
-    return true;
-  }
-
-
-  /*
-    Keep monitored/watchlist products
-    that currently do not have an active
-    seller attached.
-
-    These are still genuine products the
-    backend is monitoring.
-  */
-  if(
-    !product.seller &&
-    product.marketplaceOnly !==
-      true
-  ){
-    return true;
-  }
+}
 
 
-  /*
-    Explicit random marketplace result:
-    don't present it as one of our offers.
-  */
-  if(
-    product.marketplaceOnly ===
-    true
-  ){
-    return false;
-  }
+function statusBadge(status){
+
+  const n=
+    String(status||"out")
+      .toLowerCase();
+
+  const cls=
+    ["instock","onhand"].includes(n)
+      ?"good"
+      :[
+          "transit",
+          "ordered",
+          "preorder",
+          "watching"
+        ].includes(n)
+        ?"warn"
+        :"out";
+
+  return `
+    <span class="badge ${cls}">
+      ${esc(n)}
+    </span>
+  `;
+
+}
 
 
-  const seller =
-    String(
-      product.seller ||
-      ""
-    )
-      .toLowerCase()
-      .replace(
-        /[^a-z0-9]+/g,
-        " "
-      )
-      .trim();
+function providerFor(retailer){
 
+  return providerStates.find(
+    p=>p.retailer===retailer
+  )||{
 
-  if(!seller){
-    return true;
-  }
+    retailer,
 
+    label:
+      RETAILER_LABELS[retailer]||
+      retailer,
 
-  return (
-    seller === "walmart" ||
-    seller === "walmart com" ||
-    seller.includes(
-      "gt collectibles"
-    )
-  );
+    configured:false,
+    running:false,
+    error:null,
+    itemCount:0,
+    lastRun:null
+
+  };
 
 }
 
 
 /* ========================================
-   PUSH
+   UPCOMING / WATCHLIST
 ======================================== */
 
-function isStandalone(){
+function renderUpcoming(
+  watchData,
+  legacyItems=[]
+){
 
-  return (
-    window.matchMedia(
-      "(display-mode: standalone)"
-    ).matches ||
-    window.navigator
-      .standalone === true
+  const detected=
+    Array.isArray(watchData?.detected)
+      ?watchData.detected
+      :(Array.isArray(legacyItems)
+        ?legacyItems
+        :[]);
+
+  const watching=
+    Array.isArray(watchData?.watching)
+      ?watchData.watching
+      :[];
+
+  const rows=[];
+
+
+  for(
+    const item of detected.slice(0,8)
+  ){
+
+    rows.push(`
+      <a
+        class="upcoming-item"
+        href="${esc(item.url||'#')}"
+        ${
+          item.url
+            ?'target="_blank" rel="noopener noreferrer"'
+            :''
+        }
+      >
+        <strong>
+          ${esc(item.name)}
+        </strong>
+
+        <small>
+          ${
+            esc(
+              (
+                item.dropType||
+                item.status||
+                "upcoming"
+              ).toUpperCase()
+            )
+          }
+          ${
+            item.price!=null
+              ?` • ${money(item.price)}`
+              :""
+          }
+          ${
+            item.rawStatus
+              ?` • ${esc(item.rawStatus)}`
+              :""
+          }
+        </small>
+      </a>
+    `);
+
+  }
+
+
+  for(
+    const item of watching.slice(0,18)
+  ){
+
+    rows.push(`
+      <a
+        class="upcoming-item watch"
+        href="${esc(item.url||'#')}"
+        ${
+          item.url
+            ?'target="_blank" rel="noopener noreferrer"'
+            :''
+        }
+      >
+        <strong>
+          ${esc(item.name)}
+        </strong>
+
+        <small>
+          WATCHING • Not claiming live availability
+          ${
+            item.msrp!=null
+              ?` • MSRP ${money(item.msrp)}`
+              :""
+          }
+        </small>
+      </a>
+    `);
+
+  }
+
+
+  upcomingList.innerHTML=
+    rows.length
+      ?rows.join("")
+      :`
+        <div class="sub">
+          No Walmart watchlist items configured.
+        </div>
+      `;
+
+}
+
+
+/* ========================================
+   RETAIL MONITOR
+======================================== */
+
+function renderMonitor(){
+
+  const provider=
+    providerFor(activeRetailer);
+
+  monitorTitle.textContent=
+    RETAILER_MONITOR_NAMES[activeRetailer]||
+    `${RETAILER_LABELS[activeRetailer]} Monitor`;
+
+  searchEl.placeholder=
+    `Search ${RETAILER_LABELS[activeRetailer]} Pokémon products`;
+
+
+  if(activeRetailer==="walmart"){
+
+    walmartDetails
+      .classList
+      .remove("hidden");
+
+    otherRetailerDetails
+      .classList
+      .add("hidden");
+
+
+    const schedule=
+      latestStatus?.walmartSchedule||{};
+
+    const walmartProvider=
+      latestStatus?.walmartProvider||{};
+
+    const hd=
+      walmartProvider?.health?.hasdata||{};
+
+    const ra=
+      walmartProvider?.health?.rapidapi||{};
+
+
+    monitorState.className=
+      "panel-status";
+
+    monitorState.textContent=
+      schedule.activeWindow
+        ?"DROP WINDOW ACTIVE"
+        :"SCHEDULED";
+
+
+    walmartSchedule.textContent=
+      schedule.scheduleLabel||
+      "Wednesday drop window";
+
+
+    walmartPrimary.textContent=
+      walmartProvider.primary
+        ?`${String(
+            walmartProvider.primary
+          ).toUpperCase()}${
+            walmartProvider.fallbackEnabled
+              ?" → RAPIDAPI FALLBACK"
+              :""
+          }`
+        :"WALMART";
+
+
+    /*
+      LAST SCAN
+      Now always goes through the same formatter.
+    */
+    walmartLastScan.textContent=
+      formatDateTime(
+        schedule.lastScheduledRun
+      );
+
+
+    /*
+      NEXT SCAN FIX
+
+      Backend can return nextScanLabel as:
+      2026-10-05T15:40:00.000Z
+
+      This converts it into the phone's
+      local timezone before displaying it.
+    */
+    walmartNextScan.textContent=
+      formatDateTime(
+        schedule.nextScanLabel||
+        schedule.nextScan||
+        schedule.nextScheduledRun
+      );
+
+
+    walmartHealth.textContent=
+      `HasData: ${
+        Number(hd.successes||0)
+      } ok / ${
+        Number(hd.failures||0)
+      } failed • RapidAPI: ${
+        Number(ra.successes||0)
+      } ok / ${
+        Number(ra.failures||0)
+      } failed`+
+      (
+        hd.lastError
+          ?` • Last HasData error: ${
+              hd.lastError
+            }`
+          :""
+      )+
+      (
+        ra.lastError
+          ?` • Last RapidAPI error: ${
+              ra.lastError
+            }`
+          :""
+      );
+
+
+    renderUpcoming(
+      latestStatus?.walmartWatchlist,
+      latestStatus?.upcoming||[]
+    );
+
+    return;
+
+  }
+
+
+  walmartDetails
+    .classList
+    .add("hidden");
+
+  otherRetailerDetails
+    .classList
+    .remove("hidden");
+
+
+  if(provider.configured){
+
+    monitorState.className=
+      provider.error
+        ?"panel-status off"
+        :provider.running
+          ?"panel-status warn"
+          :"panel-status";
+
+    monitorState.textContent=
+      provider.error
+        ?"ERROR"
+        :provider.running
+          ?"SCANNING"
+          :"CONNECTED";
+
+
+    otherRetailerMessage.innerHTML=
+      `<strong>${esc(provider.label)} monitor connected.</strong><br>`+
+      `Live products: ${Number(provider.itemCount||0)}<br>`+
+      `Last scan: ${
+        provider.lastRun
+          ?formatDateTime(provider.lastRun)
+          :"—"
+      }`+
+      (
+        provider.error
+          ?`<br>Error: ${esc(provider.error)}`
+          :""
+      );
+
+  }else{
+
+    monitorState.className=
+      "panel-status off";
+
+    monitorState.textContent=
+      "NOT CONFIGURED";
+
+    otherRetailerMessage.innerHTML=
+      `<strong>${esc(provider.label)} is not connected yet.</strong><br>`+
+      `This tab is intentionally separate so ${esc(provider.label)} inventory will only appear here once its monitor is connected.`;
+
+  }
+
+}
+
+
+/* ========================================
+   PRODUCT CARDS
+======================================== */
+
+function renderProducts(){
+
+  const query=
+    searchEl.value
+      .trim()
+      .toLowerCase();
+
+
+  const list=
+    currentProducts.filter(
+      product=>{
+
+        return (
+          !query||
+          String(product.name||"")
+            .toLowerCase()
+            .includes(query)||
+          String(product.seller||"")
+            .toLowerCase()
+            .includes(query)||
+          String(product.storeName||"")
+            .toLowerCase()
+            .includes(query)
+        );
+
+      }
+    );
+
+
+  visibleCount.textContent=
+    `${list.length} product${
+      list.length===1
+        ?""
+        :"s"
+    }`;
+
+
+  if(!list.length){
+
+    const provider=
+      providerFor(activeRetailer);
+
+    productsEl.innerHTML=
+      `<div class="empty">${
+        provider.configured
+          ?`No ${esc(provider.label)} inventory returned for this view right now.`
+          :`${esc(provider.label)} is not connected yet. No inventory is being fabricated.`
+      }</div>`;
+
+    return;
+
+  }
+
+
+  productsEl.innerHTML=
+    list.map(
+      product=>{
+
+        const fallbackImage=
+          fallback(product.name);
+
+        const image=
+          product.image||
+          fallbackImage;
+
+        const channel=
+          product.channel==="store"
+            ?"IN-STORE"
+            :"ONLINE";
+
+        const store=
+          product.channel==="store"
+            ?`
+              <div class="storeline">
+                Store:
+                ${esc(product.storeName||"Unknown store")}
+                ${
+                  product.storeId
+                    ?` • ID ${esc(product.storeId)}`
+                    :""
+                }
+                ${
+                  product.quantity!=null
+                    ?` • Qty ${esc(product.quantity)}`
+                    :""
+                }
+              </div>
+            `
+            :"";
+
+
+        return `
+          <article class="card">
+
+            <div class="image-wrap">
+
+              <img
+                src="${esc(image)}"
+                alt="${esc(product.name)}"
+                onerror="
+                  this.onerror=null;
+                  this.src='${fallbackImage}'
+                "
+              >
+
+              <div class="image-note">
+                ${
+                  product.image
+                    ?"RETAILER IMAGE"
+                    :"REPRESENTATIVE IMAGE"
+                }
+              </div>
+
+            </div>
+
+
+            <div class="body">
+
+              <div class="badges">
+
+                ${statusBadge(product.status)}
+
+                <span class="badge">
+                  ${channel}
+                </span>
+
+                <span class="badge">
+                  ${
+                    esc(
+                      product.retailerLabel||
+                      RETAILER_LABELS[
+                        product.retailer
+                      ]||
+                      product.retailer
+                    )
+                  }
+                </span>
+
+                ${
+                  product.stale
+                    ?'<span class="badge warn">STALE DISPLAY</span>'
+                    :''
+                }
+
+              </div>
+
+
+              <div class="name">
+                ${esc(product.name)}
+              </div>
+
+
+              <div class="sub">
+                Seller:
+                ${esc(
+                  product.seller||
+                  "Not provided"
+                )}
+              </div>
+
+
+              <div class="price">
+
+                ${money(product.price)}
+
+                <small>
+                  ${
+                    product.msrp!=null
+                      ?`MSRP ${money(product.msrp)}`
+                      :""
+                  }
+                </small>
+
+              </div>
+
+
+              ${store}
+
+
+              <div class="sub">
+
+                Checked:
+                ${
+                  product.checkedAt
+                    ?new Date(
+                        product.checkedAt
+                      ).toLocaleTimeString()
+                    :"—"
+                }
+
+                ${
+                  product.rawStatus
+                    ?` • Source status: ${esc(product.rawStatus)}`
+                    :""
+                }
+
+              </div>
+
+
+              ${
+                product.url
+                  ?`
+                    <a
+                      class="buy"
+                      href="${esc(product.url)}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      OPEN PRODUCT
+                    </a>
+                  `
+                  :""
+              }
+
+            </div>
+
+          </article>
+        `;
+
+      }
+    ).join("");
+
+}
+
+
+/* ========================================
+   CONNECTION STATUS
+======================================== */
+
+function setOnline(
+  element,
+  ok,
+  onText,
+  offText
+){
+
+  element.classList.toggle(
+    "offline",
+    !ok
+  );
+
+  element
+    .querySelector("span:last-child")
+    .textContent=
+      ok
+        ?onText
+        :offText;
+
+}
+
+
+/* ========================================
+   PUSH NOTIFICATIONS
+======================================== */
+
+function urlBase64ToUint8Array(
+  base64String
+){
+
+  const padding=
+    "=".repeat(
+      (
+        4-base64String.length%4
+      )%4
+    );
+
+  const base64=
+    (base64String+padding)
+      .replace(/-/g,"+")
+      .replace(/_/g,"/");
+
+  const raw=
+    atob(base64);
+
+  return Uint8Array.from(
+    [...raw].map(
+      ch=>ch.charCodeAt(0)
+    )
   );
 
 }
 
 
 function setPushState(
-  state,
-  title,
-  subtitle
+  ok,
+  text
 ){
 
-  pushStatus.classList.remove(
+  pushStatus.classList.toggle(
     "offline",
-    "active"
+    !ok
   );
 
-
-  if(
-    state ===
-    "offline"
-  ){
-    pushStatus.classList.add(
-      "offline"
-    );
-  }
-
-
-  if(
-    state ===
-    "online"
-  ){
-    pushStatus.classList.add(
-      "active"
-    );
-  }
-
-
-  pushStatusText.textContent =
-    title;
-
-
-  pushStatusSub.textContent =
-    subtitle;
+  pushStatus
+    .querySelector("span:last-child")
+    .textContent=
+      text;
 
 }
 
 
-function urlBase64ToUint8Array(
-  base64String
+async function ensurePushSubscription(
+  requestPermission=false
 ){
 
-  const padding =
-    "=".repeat(
-      (
-        4 -
-        base64String.length % 4
-      ) % 4
+  if(
+    !("serviceWorker" in navigator)||
+    !("PushManager" in window)||
+    !("Notification" in window)
+  ){
+
+    setPushState(
+      false,
+      "PUSH NOT SUPPORTED"
     );
 
+    return false;
 
-  const base64 =
-    (
-      base64String +
-      padding
-    )
-      .replace(/-/g,"+")
-      .replace(/_/g,"/");
+  }
 
-
-  const rawData =
-    window.atob(base64);
-
-
-  return Uint8Array.from(
-    [...rawData].map(
-      character =>
-        character.charCodeAt(0)
-    )
-  );
-
-}
-
-
-async function registerServiceWorker(){
 
   if(
-    !(
-      "serviceWorker"
-      in navigator
-    )
+    requestPermission &&
+    Notification.permission==="default"
   ){
-    throw new Error(
-      "Service workers are unavailable."
-    );
-  }
 
-
-  const registration =
-    await navigator
-      .serviceWorker
-      .register(
-        "/sw.js",
-        {
-          scope:"/"
-        }
-      );
-
-
-  await navigator
-    .serviceWorker
-    .ready;
-
-
-  return registration;
-
-}
-
-
-async function checkPush(){
-
-  try{
-
-    if(
-      !window.isSecureContext
-    ){
-
-      setPushState(
-        "offline",
-        "HTTPS REQUIRED",
-        "OPEN THE SECURE APP"
-      );
-
-      return;
-    }
-
-
-    if(
-      !(
-        "Notification"
-        in window
-      )
-    ){
-
-      setPushState(
-        "offline",
-        "NOTIFICATIONS UNSUPPORTED",
-        "OPEN FROM HOME SCREEN"
-      );
-
-      return;
-    }
-
-
-    if(
-      !(
-        "PushManager"
-        in window
-      )
-    ){
-
-      setPushState(
-        "offline",
-        "PUSH NOT AVAILABLE",
-        "OPEN FROM HOME SCREEN"
-      );
-
-      return;
-    }
-
-
-    const registration =
-      await registerServiceWorker();
-
-
-    const subscription =
-      await registration
-        .pushManager
-        .getSubscription();
-
-
-    if(subscription){
-
-      setPushState(
-        "online",
-        "PUSH ALERTS ACTIVE",
-        "THIS IPHONE IS SUBSCRIBED"
-      );
-
-      return;
-    }
-
-
-    if(
-      Notification.permission ===
-      "denied"
-    ){
-
-      setPushState(
-        "offline",
-        "ALERTS BLOCKED",
-        "ENABLE IN IPHONE SETTINGS"
-      );
-
-      return;
-    }
-
-
-    setPushState(
-      "ready",
-      "ENABLE PHONE ALERTS",
-      "TAP TO SUBSCRIBE THIS IPHONE"
-    );
-
-
-  }catch(error){
-
-    console.error(error);
-
-
-    setPushState(
-      "offline",
-      "PUSH CHECK FAILED",
-      "TAP TO TRY AGAIN"
-    );
-
-  }
-
-}
-
-
-async function enablePhoneAlerts(){
-
-  try{
-
-    const registration =
-      await registerServiceWorker();
-
-
-    const existing =
-      await registration
-        .pushManager
-        .getSubscription();
-
-
-    if(existing){
-
-      setPushState(
-        "online",
-        "PUSH ALERTS ACTIVE",
-        "THIS IPHONE IS SUBSCRIBED"
-      );
-
-      return;
-    }
-
-
-    setPushState(
-      "ready",
-      "CONNECTING...",
-      "SETTING UP THIS IPHONE"
-    );
-
-
-    if(
-      !(
-        "Notification"
-        in window
-      )
-    ){
-
-      throw new Error(
-        "Notifications are unavailable here. Open the installed app from your Home Screen."
-      );
-
-    }
-
-
-    const permission =
+    const permission=
       await Notification
         .requestPermission();
 
+    if(permission!=="granted"){
 
-    if(
-      permission !==
-      "granted"
-    ){
-
-      throw new Error(
-        `Notification permission is ${permission}.`
+      setPushState(
+        false,
+        "PUSH PERMISSION NEEDED"
       );
+
+      return false;
 
     }
 
+  }
 
-    const keyResponse =
+
+  if(
+    Notification.permission!=="granted"
+  ){
+
+    setPushState(
+      false,
+      "TAP TO ENABLE ALERTS"
+    );
+
+    return false;
+
+  }
+
+
+  try{
+
+    setPushState(
+      false,
+      "CONNECTING ALERTS…"
+    );
+
+
+    const registration=
+      await navigator
+        .serviceWorker
+        .register(
+          "/sw.js",
+          {
+            scope:"/"
+          }
+        );
+
+
+    await navigator
+      .serviceWorker
+      .ready;
+
+
+    const keyResponse=
       await fetch(
         `/api/push/public-key?t=${Date.now()}`,
         {
@@ -2033,39 +1593,49 @@ async function enablePhoneAlerts(){
       );
 
 
-    const keyData =
-      await keyResponse.json();
-
-
     if(!keyResponse.ok){
 
       throw new Error(
-        keyData.error ||
-        "Push key could not be loaded."
+        "Push key unavailable"
       );
 
     }
 
 
-    const subscription =
+    const keyData=
+      await keyResponse.json();
+
+
+    let subscription=
       await registration
         .pushManager
-        .subscribe(
-          {
+        .getSubscription();
+
+
+    if(!subscription){
+
+      subscription=
+        await registration
+          .pushManager
+          .subscribe({
+
             userVisibleOnly:true,
 
             applicationServerKey:
               urlBase64ToUint8Array(
                 keyData.publicKey
               )
-          }
-        );
+
+          });
+
+    }
 
 
-    const response =
+    const saveResponse=
       await fetch(
         "/api/push/subscribe",
         {
+
           method:"POST",
 
           headers:{
@@ -2075,879 +1645,98 @@ async function enablePhoneAlerts(){
 
           body:
             JSON.stringify(
-              subscription.toJSON
-                ? subscription.toJSON()
-                : subscription
+              subscription
             )
+
         }
       );
 
 
-    const result =
-      await response.json();
+    if(!saveResponse.ok){
 
-
-    if(!response.ok){
+      const details=
+        await saveResponse
+          .json()
+          .catch(()=>({}));
 
       throw new Error(
-        result.error ||
-        "Push subscription failed."
+        details.error||
+        "Push subscription save failed"
       );
 
     }
 
 
     setPushState(
-      "online",
-      "PUSH ALERTS ACTIVE",
-      "THIS IPHONE IS SUBSCRIBED"
+      true,
+      "PUSH ALERTS ACTIVE"
     );
 
+    return true;
 
   }catch(error){
 
-    console.error(error);
-
+    console.error(
+      "Push setup failed:",
+      error
+    );
 
     setPushState(
-      "offline",
-      "PUSH SETUP FAILED",
-      "TAP TO TRY AGAIN"
+      false,
+      "TAP TO RETRY ALERTS"
     );
 
-  }
-
-}
-
-
-/* ========================================
-   PRODUCT STATUS
-======================================== */
-
-function normalizedStatus(
-  product
-){
-
-  return String(
-    product?.status ||
-    ""
-  )
-    .toLowerCase()
-    .trim();
-
-}
-
-
-function statusClass(
-  status
-){
-
-  const normalized =
-    String(
-      status ||
-      ""
-    ).toLowerCase();
-
-
-  if(
-    [
-      "instock",
-      "in stock",
-      "onhand",
-      "available"
-    ].includes(
-      normalized
-    )
-  ){
-    return "good";
-  }
-
-
-  if(
-    [
-      "preorder",
-      "transit",
-      "ordered",
-      "lowstock",
-      "low stock",
-      "watching"
-    ].includes(
-      normalized
-    )
-  ){
-    return "warn";
-  }
-
-
-  return "out";
-
-}
-
-
-function prettyStatus(
-  status
-){
-
-  const normalized =
-    String(
-      status ||
-      ""
-    ).toLowerCase();
-
-
-  if(
-    normalized ===
-    "instock"
-  ){
-    return "IN STOCK";
-  }
-
-
-  if(
-    normalized ===
-    "onhand"
-  ){
-    return "ON HAND";
-  }
-
-
-  if(
-    normalized ===
-    "preorder"
-  ){
-    return "PREORDER";
-  }
-
-
-  if(
-    normalized ===
-    "transit"
-  ){
-    return "IN TRANSIT";
-  }
-
-
-  if(
-    normalized ===
-    "ordered"
-  ){
-    return "ORDERED";
-  }
-
-
-  if(
-    normalized ===
-    "lowstock"
-  ){
-    return "LOW STOCK";
-  }
-
-
-  if(
-    normalized ===
-    "watching"
-  ){
-    return "WATCHING";
-  }
-
-
-  if(
-    normalized ===
-    "out"
-  ){
-    return "OUT OF STOCK";
-  }
-
-
-  return (
-    status
-      ? String(
-          status
-        ).toUpperCase()
-      : "WATCHING"
-  );
-
-}
-
-
-/* ========================================
-   ACTIONABLE PRODUCT
-======================================== */
-
-function isActionableProduct(
-  product
-){
-
-  if(
-    !product ||
-    !walmartDisplayAllowed(
-      product
-    )
-  ){
     return false;
+
   }
-
-
-  const price =
-    Number(
-      product.price
-    );
-
-
-  const status =
-    normalizedStatus(
-      product
-    );
-
-
-  const available =
-    product.inStock ===
-      true ||
-
-    [
-      "instock",
-      "in stock",
-      "available",
-      "onhand",
-      "lowstock",
-      "low stock",
-      "preorder"
-    ].includes(
-      status
-    );
-
-
-  return (
-    available &&
-    Number.isFinite(
-      price
-    ) &&
-    price > 0 &&
-    Boolean(
-      product.url
-    )
-  );
 
 }
 
 
-/* ========================================
-   DISCOVERY CAROUSEL
-
-   Only actual actionable live offers
-   are shown here.
-======================================== */
-
-function renderDiscovery(){
-
-  const items =
-    currentProducts
-      .filter(
-        product =>
-          activeRetailer !==
-            "walmart" ||
-          isActionableProduct(
-            product
-          )
-      )
-      .slice(
-        0,
-        8
-      );
-
-
-  if(!items.length){
-
-    discoveryGrid.innerHTML =
-      `<div class="empty">
-        ${
-          activeRetailer ===
-            "walmart"
-            ? "No qualifying live Walmart / GT Collectibles offers are available right now. Monitoring continues in the background."
-            : `No ${escapeHtml(RETAILERS[activeRetailer].label)} live products returned right now.`
-        }
-      </div>`;
-
-    return;
-  }
-
-
-  discoveryGrid.innerHTML =
-    items.map(
-      product => {
-
-        const image =
-          product.image ||
-          fallbackImage(
-            product.name
-          );
-
-
-        const state =
-          statusClass(
-            product.status
-          );
-
-
-        const price =
-          money(
-            product.price
-          );
-
-
-        return (
-          `<article class="discovery-card">
-
-            <div class="discovery-image">
-
-              <img
-                src="${escapeHtml(image)}"
-                alt="${escapeHtml(product.name)}"
-                onerror="this.onerror=null;this.src='${fallbackImage(product.name)}'"
-              >
-
-            </div>
-
-            <div class="discovery-body">
-
-              <span class="discovery-status ${state}">
-                ${escapeHtml(
-                  prettyStatus(
-                    product.status
-                  )
-                )}
-              </span>
-
-              <div class="discovery-name">
-                ${escapeHtml(
-                  product.name
-                )}
-              </div>
-
-              <div class="discovery-price">
-                ${escapeHtml(
-                  price ||
-                  "PRICE UNAVAILABLE"
-                )}
-              </div>
-
-              ${
-                product.url &&
-                price
-                  ? `<a
-                      class="discovery-open"
-                      href="${escapeHtml(product.url)}"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      VIEW PRODUCT
-                    </a>`
-                  : ""
-              }
-
-            </div>
-
-          </article>`
-        );
-
-      }
-    ).join("");
-
-}
-
-
-/* ========================================
-   ALL MONITORED ITEMS
-
-   This area still shows products that the
-   original backend is monitoring.
-
-   It never converts missing prices into
-   $0.00 and never invents MSRP/live price.
-======================================== */
-
-function renderProducts(){
-
-  const query =
-    searchEl.value
-      .trim()
-      .toLowerCase();
-
-
-  let baseProducts =
-    currentProducts;
-
+async function initializePush(){
 
   if(
-    activeRetailer ===
-    "walmart"
+    Notification.permission==="granted"
   ){
 
-    baseProducts =
-      baseProducts.filter(
-        walmartDisplayAllowed
-      );
-
-  }
-
-
-  const filtered =
-    baseProducts.filter(
-      product => {
-
-        if(!query){
-          return true;
-        }
-
-
-        return (
-          String(
-            product.name ||
-            ""
-          )
-            .toLowerCase()
-            .includes(
-              query
-            )
-
-          ||
-
-          String(
-            product.set ||
-            ""
-          )
-            .toLowerCase()
-            .includes(
-              query
-            )
-
-          ||
-
-          String(
-            product.productType ||
-            ""
-          )
-            .toLowerCase()
-            .includes(
-              query
-            )
-
-          ||
-
-          String(
-            product.seller ||
-            ""
-          )
-            .toLowerCase()
-            .includes(
-              query
-            )
-        );
-
-      }
+    await ensurePushSubscription(
+      false
     );
 
-
-  visibleCount.textContent =
-    `${filtered.length} ITEM${
-      filtered.length ===
-      1
-        ? ""
-        : "S"
-    }`;
-
-
-  if(!filtered.length){
-
-    const provider =
-      getProvider(
-        activeRetailer
-      );
-
-
-    productsEl.innerHTML =
-      `<div class="empty">
-        ${
-          activeRetailer ===
-            "walmart"
-            ? (
-                query
-                  ? `No monitored Walmart Pokémon products match "${escapeHtml(searchEl.value.trim())}".`
-                  : "No Walmart monitor results are loaded yet."
-              )
-            : provider.configured
-              ? `No ${escapeHtml(provider.label)} inventory is currently being returned.`
-              : `${escapeHtml(provider.label)} is not connected to a live provider yet.`
-        }
-      </div>`;
-
-    return;
-  }
-
-
-  productsEl.innerHTML =
-    filtered.map(
-      product => {
-
-        const image =
-          product.image ||
-          fallbackImage(
-            product.name
-          );
-
-
-        const state =
-          statusClass(
-            product.status
-          );
-
-
-        const price =
-          money(
-            product.price
-          );
-
-
-        const actionable =
-          activeRetailer ===
-            "walmart"
-            ? isActionableProduct(
-                product
-              )
-            : (
-                Boolean(
-                  product.url
-                ) &&
-                Boolean(
-                  price
-                )
-              );
-
-
-        const seller =
-          product.approvedMarketplace ===
-            true
-            ? (
-                product.seller ||
-                "GT Collectibles"
-              )
-            : product.directSeller ===
-                true
-              ? (
-                  product.seller ||
-                  "Walmart"
-                )
-              : (
-                  product.seller ||
-                  ""
-                );
-
-
-        return (
-          `<article class="product-card">
-
-            <div class="product-image">
-
-              <img
-                src="${escapeHtml(image)}"
-                alt="${escapeHtml(product.name)}"
-                onerror="this.onerror=null;this.src='${fallbackImage(product.name)}'"
-              >
-
-            </div>
-
-            <div class="product-body">
-
-              <div class="badges">
-
-                <span class="badge ${state}">
-                  ${escapeHtml(
-                    prettyStatus(
-                      product.status
-                    )
-                  )}
-                </span>
-
-                <span class="badge">
-                  ${
-                    product.channel ===
-                    "store"
-                      ? "IN STORE"
-                      : "ONLINE"
-                  }
-                </span>
-
-                ${
-                  product.approvedMarketplace ===
-                    true
-                    ? `<span class="badge good">GT APPROVED</span>`
-                    : ""
-                }
-
-              </div>
-
-
-              <div class="product-name">
-                ${escapeHtml(
-                  product.name
-                )}
-              </div>
-
-
-              ${
-                seller
-                  ? `<div class="product-seller">
-                       Seller: ${escapeHtml(seller)}
-                     </div>`
-                  : ""
-              }
-
-
-              ${
-                price
-                  ? `<div class="product-price">
-                       ${escapeHtml(price)}
-                     </div>`
-                  : `<div class="product-price unavailable">
-                       LIVE PRICE NOT AVAILABLE
-                     </div>`
-              }
-
-
-              ${
-                actionable
-                  ? `<a
-                      class="open-product"
-                      href="${escapeHtml(product.url)}"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      OPEN PRODUCT
-                    </a>`
-                  : ""
-              }
-
-            </div>
-
-          </article>`
-        );
-
-      }
-    ).join("");
-
-}
-
-
-/* ========================================
-   RETAILER PANEL
-======================================== */
-
-function renderRetailer(){
-
-  const retailer =
-    RETAILERS[
-      activeRetailer
-    ];
-
-
-  const provider =
-    getProvider(
-      activeRetailer
-    );
-
-
-  monitorTitle.textContent =
-    `${retailer.label} Monitor`;
-
-
-  monitorStoreIcon.textContent =
-    retailer.icon;
-
-
-  allItemsTitle.textContent =
-    `ALL MONITORED ITEMS (${retailer.label.toUpperCase()})`;
-
-
-  searchEl.placeholder =
-    `Search ${retailer.label} Pokémon products...`;
-
-
-  if(
-    activeRetailer ===
-    "walmart"
+  }else if(
+    Notification.permission==="denied"
   ){
 
-    const schedule =
-      statusData
-        ?.walmartSchedule ||
-      {};
-
-
-    scanSchedule.textContent =
-      schedule.scheduleLabel ||
-      "Scheduled monitoring";
-
-
-    lastScan.textContent =
-      formatDate(
-        schedule.lastScheduledRun ||
-        statusData.lastRun
-      );
-
-
-    nextScan.textContent =
-      formatDate(
-        schedule.nextRun ||
-        schedule.nextScan ||
-        schedule.nextScanLabel
-      );
-
-
-    monitorState.innerHTML =
-      `<span class="live-dot"></span>
-       <span>${
-         manualScanRunning ||
-         statusData.running
-           ? "SCANNING"
-           : "LIVE"
-       }</span>`;
-
-
-    primaryAction.textContent =
-      manualScanRunning
-        ? "SCANNING…"
-        : "SCAN WALMART NOW";
-
-
-    primaryAction.disabled =
-      manualScanRunning;
-
-
-    secondaryAction.textContent =
-      "RESET SCAN KEY";
-
-
-    secondaryAction.disabled =
-      manualScanRunning;
-
-
-    const actionableCount =
-      currentProducts.filter(
-        isActionableProduct
-      ).length;
-
-
-    retailerStatus.textContent =
-      `${currentProducts.length} monitored • ${actionableCount} live qualifying offer${actionableCount === 1 ? "" : "s"}`;
-
+    setPushState(
+      false,
+      "PUSH BLOCKED IN SETTINGS"
+    );
 
   }else{
 
-
-    scanSchedule.textContent =
-      provider.configured
-        ? "Live monitoring"
-        : "Not connected";
-
-
-    lastScan.textContent =
-      provider.lastRun
-        ? formatDate(
-            provider.lastRun
-          )
-        : "—";
-
-
-    nextScan.textContent =
-      provider.configured
-        ? "Automatic"
-        : "—";
-
-
-    monitorState.innerHTML =
-      `<span class="live-dot"></span>
-       <span>${
-         provider.error
-           ? "ERROR"
-           : provider.running
-             ? "SCANNING"
-             : provider.configured
-               ? "LIVE"
-               : "OFFLINE"
-       }</span>`;
-
-
-    primaryAction.textContent =
-      `REFRESH ${retailer.label.toUpperCase()}`;
-
-
-    primaryAction.disabled =
-      false;
-
-
-    secondaryAction.textContent =
-      provider.configured
-        ? "MONITOR CONNECTED"
-        : "NOT CONFIGURED";
-
-
-    secondaryAction.disabled =
-      true;
-
-
-    retailerStatus.textContent =
-      provider.error
-        ? provider.error
-        : provider.configured
-          ? `${retailer.label} monitor connected`
-          : `${retailer.label} provider not configured`;
+    setPushState(
+      false,
+      "TAP TO ENABLE ALERTS"
+    );
 
   }
-
-
-  renderDiscovery();
-
-  renderProducts();
 
 }
 
 
 /* ========================================
-   LOAD RETAILER PRODUCTS
-
-   Walmart reads the EXISTING scanner
-   result from /api/status.
-
-   No discovery database is merged into
-   the visible Walmart product list here.
+   FETCH RETAILER PRODUCTS
 ======================================== */
 
-async function loadRetailerProducts(){
+async function fetchRetailerProducts(){
 
-  if(
-    activeRetailer ===
-    "walmart"
-  ){
-
-    currentProducts =
-      Array.isArray(
-        statusData.items
-      )
-        ? statusData.items.filter(
-            item =>
-              item.retailer ===
-              "walmart"
-          )
-        : [];
-
-
-    return;
-  }
-
-
-  const response =
+  const response=
     await fetch(
-      `/api/products?retailer=${encodeURIComponent(activeRetailer)}&t=${Date.now()}`,
+      `/api/products?retailer=${
+        encodeURIComponent(
+          activeRetailer
+        )
+      }&t=${Date.now()}`,
       {
         cache:"no-store"
       }
@@ -2957,34 +1746,35 @@ async function loadRetailerProducts(){
   if(!response.ok){
 
     throw new Error(
-      `${RETAILERS[activeRetailer].label} inventory request failed`
+      `${
+        RETAILER_LABELS[
+          activeRetailer
+        ]
+      } inventory request failed`
     );
 
   }
 
 
-  const data =
+  const data=
     await response.json();
 
 
-  currentProducts =
-    Array.isArray(
-      data.items
-    )
-      ? data.items
-      : [];
+  currentProducts=
+    Array.isArray(data.items)
+      ?data.items
+      :[];
 
 }
 
 
 /* ========================================
-   MAIN LOAD
+   MAIN DASHBOARD LOAD
 ======================================== */
 
 async function load(){
 
-  refreshBtn.disabled =
-    true;
+  refreshBtn.disabled=true;
 
 
   try{
@@ -2992,7 +1782,7 @@ async function load(){
     const [
       providersResponse,
       statusResponse
-    ] =
+    ]=
       await Promise.all([
 
         fetch(
@@ -3013,7 +1803,7 @@ async function load(){
 
 
     if(
-      !providersResponse.ok ||
+      !providersResponse.ok||
       !statusResponse.ok
     ){
 
@@ -3026,61 +1816,58 @@ async function load(){
 
     const [
       providersData,
-      currentStatus
-    ] =
+      statusData
+    ]=
       await Promise.all([
 
         providersResponse.json(),
-
         statusResponse.json()
 
       ]);
 
 
-    providers =
+    providerStates=
       Array.isArray(
         providersData.providers
       )
-        ? providersData.providers
-        : [];
+        ?providersData.providers
+        :[];
 
 
-    statusData =
-      currentStatus ||
-      {};
+    latestStatus=
+      statusData||{};
 
 
-    await loadRetailerProducts();
+    await fetchRetailerProducts();
 
 
-    renderRetailer();
+    renderMonitor();
+    renderProducts();
 
 
-    backendStatus
-      .classList
-      .remove(
-        "offline"
+    setOnline(
+      backendStatus,
+      true,
+      "LIVE MONITOR CONNECTED",
+      "MONITOR CONNECTION ERROR"
+    );
+
+
+    if(!statusData?.push?.configured){
+
+      setPushState(
+        false,
+        "PUSH SERVER NOT CONFIGURED"
       );
 
-
-    backendStatus
-      .querySelector(
-        "strong"
-      )
-      .textContent =
-      "BACKEND ONLINE";
+    }
 
 
-    backendStatus
-      .querySelector(
-        "small"
-      )
-      .textContent =
-      "MONITOR ACTIVE";
-
-
-    lastUpdated.textContent =
-      `Updated ${new Date().toLocaleTimeString()}`;
+    lastUpdated.textContent=
+      `Updated ${
+        new Date()
+          .toLocaleTimeString()
+      }`;
 
 
   }catch(error){
@@ -3088,37 +1875,17 @@ async function load(){
     console.error(error);
 
 
-    backendStatus
-      .classList
-      .add(
-        "offline"
-      );
-
-
-    backendStatus
-      .querySelector(
-        "strong"
-      )
-      .textContent =
-      "BACKEND OFFLINE";
-
-
-    backendStatus
-      .querySelector(
-        "small"
-      )
-      .textContent =
-      "CONNECTION ERROR";
-
-
-    retailerStatus.textContent =
-      error.message;
+    setOnline(
+      backendStatus,
+      false,
+      "LIVE MONITOR CONNECTED",
+      "MONITOR CONNECTION ERROR"
+    );
 
 
   }finally{
 
-    refreshBtn.disabled =
-      false;
+    refreshBtn.disabled=false;
 
   }
 
@@ -3126,72 +1893,38 @@ async function load(){
 
 
 /* ========================================
-   SWITCH RETAILER
+   RETAILER SWITCHING
 ======================================== */
 
 async function switchRetailer(
   retailer
 ){
 
-  activeRetailer =
+  activeRetailer=
     retailer;
 
-
-  searchEl.value =
-    "";
+  searchEl.value="";
 
 
   document
-    .querySelectorAll(
-      ".store-tab"
-    )
+    .querySelectorAll(".tab")
     .forEach(
-      button => {
+      tab=>{
 
-        button
-          .classList
-          .toggle(
-            "active",
-            button.dataset.retailer ===
+        tab.classList.toggle(
+          "active",
+          tab.dataset.retailer===
             retailer
-          );
+        );
 
       }
     );
 
 
-  document
-    .querySelectorAll(
-      ".retailer-nav"
-    )
-    .forEach(
-      button => {
+  currentProducts=[];
 
-        button
-          .classList
-          .toggle(
-            "active",
-            button.dataset.retailer ===
-            retailer
-          );
-
-      }
-    );
-
-
-  document
-    .getElementById(
-      "homeNav"
-    )
-    .classList
-    .remove(
-      "active"
-    );
-
-
-  currentProducts =
-    [];
-
+  renderMonitor();
+  renderProducts();
 
   await load();
 
@@ -3199,47 +1932,23 @@ async function switchRetailer(
 
 
 /* ========================================
-   WALMART MANUAL SCAN
+   MANUAL WALMART SCAN
 ======================================== */
 
-function setScanMessage(
-  message,
-  type=""
-){
+async function runManualWalmartScan(){
 
-  scanMessage.className =
-    `scan-message ${type}`.trim();
-
-
-  scanMessage.textContent =
-    message;
-
-}
-
-
-async function runWalmartScan(){
-
-  if(
-    manualScanRunning
-  ){
-    return;
-  }
-
-
-  let token =
+  let token=
     localStorage.getItem(
       "pokemonMonitorScanToken"
-    ) ||
-    "";
+    )||"";
 
 
   if(!token){
 
-    token =
+    token=
       prompt(
         "Enter your MANUAL_SCAN_TOKEN from Render:"
-      ) ||
-      "";
+      )||"";
 
 
     if(!token){
@@ -3255,36 +1964,15 @@ async function runWalmartScan(){
   }
 
 
-  manualScanRunning =
-    true;
+  manualWalmartScan.disabled=true;
 
-
-  primaryAction.disabled =
-    true;
-
-
-  secondaryAction.disabled =
-    true;
-
-
-  primaryAction.textContent =
+  manualWalmartScan.textContent=
     "SCANNING…";
-
-
-  monitorState.innerHTML =
-    `<span class="live-dot"></span>
-     <span>SCANNING</span>`;
-
-
-  setScanMessage(
-    "Walmart scan started. Waiting for the existing backend scanner to finish…",
-    "running"
-  );
 
 
   try{
 
-    const response =
+    const response=
       await fetch(
         "/api/walmart/scan",
         {
@@ -3292,13 +1980,11 @@ async function runWalmartScan(){
           method:"POST",
 
           headers:{
-
             "Content-Type":
               "application/json",
 
             "x-monitor-token":
               token
-
           },
 
           body:"{}"
@@ -3307,36 +1993,22 @@ async function runWalmartScan(){
       );
 
 
-    let data =
-      {};
+    const data=
+      await response.json();
 
 
-    try{
-
-      data =
-        await response.json();
-
-    }catch{
-
-      data =
-        {};
-
-    }
-
-
-    if(
-      response.status ===
-      401
-    ){
+    if(response.status===401){
 
       localStorage.removeItem(
         "pokemonMonitorScanToken"
       );
 
 
-      throw new Error(
-        "Scan key was rejected. Tap SCAN WALMART NOW and enter the correct key."
+      alert(
+        "Scan key was rejected. Tap SCAN WALMART NOW and enter it again."
       );
+
+      return;
 
     }
 
@@ -3344,95 +2016,35 @@ async function runWalmartScan(){
     if(!response.ok){
 
       throw new Error(
-        data.error ||
-        data.result?.reason ||
-        `Manual scan failed with HTTP ${response.status}.`
+        data.error||
+        data.result?.reason||
+        "Manual scan failed"
       );
 
     }
 
 
-    if(
+    alert(
       data.result?.skipped
-    ){
-
-      const reason =
-        data.result?.reason ||
-        "The Walmart scan was skipped by the scheduler.";
+        ?data.result.reason
+        :"Walmart scan completed."
+    );
 
 
-      setScanMessage(
-        reason,
-        "error"
-      );
-
-
-      alert(
-        reason
-      );
-
-
-    }else{
-
-
-      setScanMessage(
-        "Walmart scan completed. Refreshing the existing monitor results…",
-        "success"
-      );
-
-
-      await load();
-
-
-      const actionableCount =
-        currentProducts.filter(
-          isActionableProduct
-        ).length;
-
-
-      setScanMessage(
-        `Walmart scan completed. ${currentProducts.length} products monitored and ${actionableCount} qualifying live offer${actionableCount === 1 ? "" : "s"} available.`,
-        "success"
-      );
-
-    }
+    await load();
 
 
   }catch(error){
 
-    console.error(error);
-
-
-    setScanMessage(
-      error.message,
-      "error"
-    );
-
-
-    alert(
-      error.message
-    );
+    alert(error.message);
 
 
   }finally{
 
-    manualScanRunning =
-      false;
+    manualWalmartScan.disabled=false;
 
-
-    primaryAction.disabled =
-      false;
-
-
-    secondaryAction.disabled =
-      false;
-
-
-    primaryAction.textContent =
+    manualWalmartScan.textContent=
       "SCAN WALMART NOW";
-
-
-    renderRetailer();
 
   }
 
@@ -3440,193 +2052,96 @@ async function runWalmartScan(){
 
 
 /* ========================================
-   EVENTS
+   EVENT LISTENERS
 ======================================== */
 
-primaryAction
-  .addEventListener(
-    "click",
-    async () => {
-
-      if(
-        activeRetailer ===
-        "walmart"
-      ){
-
-        await runWalmartScan();
-
-      }else{
-
-        await load();
-
-      }
-
-    }
-  );
-
-
-secondaryAction
-  .addEventListener(
-    "click",
-    () => {
-
-      if(
-        activeRetailer !==
-        "walmart" ||
-        manualScanRunning
-      ){
-        return;
-      }
-
-
-      localStorage.removeItem(
-        "pokemonMonitorScanToken"
-      );
-
-
-      setScanMessage(
-        "Saved Walmart scan key cleared.",
-        "success"
-      );
-
-    }
-  );
-
-
-refreshBtn
-  .addEventListener(
-    "click",
-    async () => {
-
-      await load();
-
-
-      if(
-        activeRetailer ===
-        "walmart"
-      ){
-
-        setScanMessage(
-          "Display refreshed from the existing Walmart monitor. No scan rules were changed.",
-          "success"
-        );
-
-      }
-
-    }
-  );
-
-
-searchEl
-  .addEventListener(
-    "input",
-    renderProducts
-  );
-
-
-pushStatus
-  .addEventListener(
-    "click",
-    enablePhoneAlerts
-  );
-
-
 document
-  .querySelectorAll(
-    ".store-tab"
-  )
+  .querySelectorAll(".tab")
   .forEach(
-    button => {
+    button=>{
 
-      button
-        .addEventListener(
-          "click",
-          () => {
-
-            switchRetailer(
-              button.dataset.retailer
-            );
-
-          }
-        );
-
-    }
-  );
-
-
-document
-  .querySelectorAll(
-    ".retailer-nav"
-  )
-  .forEach(
-    button => {
-
-      button
-        .addEventListener(
-          "click",
-          () => {
-
-            switchRetailer(
-              button.dataset.retailer
-            );
-
-          }
-        );
-
-    }
-  );
-
-
-document
-  .getElementById(
-    "homeNav"
-  )
-  .addEventListener(
-    "click",
-    () => {
-
-      document
-        .getElementById(
-          "homeNav"
+      button.addEventListener(
+        "click",
+        ()=>switchRetailer(
+          button.dataset.retailer
         )
-        .classList
-        .add(
-          "active"
-        );
-
-
-      window.scrollTo(
-        {
-          top:0,
-          behavior:"smooth"
-        }
       );
 
     }
   );
+
+
+searchEl.addEventListener(
+  "input",
+  renderProducts
+);
+
+
+refreshBtn.addEventListener(
+  "click",
+  load
+);
+
+
+manualWalmartScan.addEventListener(
+  "click",
+  runManualWalmartScan
+);
+
+
+forgetScanToken.addEventListener(
+  "click",
+  ()=>{
+
+    localStorage.removeItem(
+      "pokemonMonitorScanToken"
+    );
+
+    alert(
+      "Saved scan key cleared."
+    );
+
+  }
+);
+
+
+pushStatus.addEventListener(
+  "click",
+  ()=>ensurePushSubscription(true)
+);
+
+
+pushStatus.addEventListener(
+  "keydown",
+  event=>{
+
+    if(
+      event.key==="Enter"||
+      event.key===" "
+    ){
+
+      event.preventDefault();
+
+      ensurePushSubscription(true);
+
+    }
+
+  }
+);
 
 
 /* ========================================
-   START
+   AUTO REFRESH
 ======================================== */
 
-load();
-
-checkPush();
-
-
 setInterval(
-  () => {
-
-    if(
-      !manualScanRunning
-    ){
-      load();
-    }
-
-  },
+  load,
   15000
 );
+
+
+load();
+initializePush();
 
 </script>
 
