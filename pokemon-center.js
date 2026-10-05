@@ -4,61 +4,154 @@ const crypto = require("crypto");
 
 
 /* =========================================================
-   POKÉMON CENTER HIGH-PRIORITY ACTIVITY MONITOR
+   POKÉMON CENTER PRIORITY SIGNAL ENGINE
 
-   PUBLIC SURFACES ONLY.
+   PURPOSE
 
-   Watches for:
-   - new product URLs
-   - new product records
-   - product-name changes
-   - SKU / product-ID changes
+   This module is the "brain" for Pokémon Center.
+
+   It does NOT try to defeat Pokémon Center anti-bot,
+   CAPTCHA, queue, authentication, or access controls.
+
+   Instead it combines:
+
+   - browser-sensor signals
+   - official support/preorder-page changes
+   - queue signals
+   - product names
+   - product URLs
+   - SKU/product IDs
    - image changes
    - price changes
    - availability changes
-   - preorder / Add-to-Cart transitions
-   - category/catalog changes
-   - sitemap changes
-   - Queue / waiting-room signals
+   - DOM/backend-visible changes
+   - historical Tuesday-Thursday weighting
+   - sensor heartbeat health
+   - duplicate suppression
+   - confidence scoring
+   - readiness-window estimates
+   - multi-device push broadcasts
 
-   Also records source-by-source diagnostics:
-   - HTTP status
-   - final URL
-   - content type
-   - response size
-   - redirect result
-   - queue detection
-   - timeout / fetch error
+   STATES
+
+   NORMAL
+   BACKEND ACTIVITY
+   DROP LIKELY
+   LIVE
+
 ========================================================= */
 
 
-const BASE_URL =
-  String(
-    process.env.POKEMON_CENTER_BASE_URL ||
-    "https://www.pokemoncenter.com"
-  )
-    .replace(
-      /\/$/,
-      ""
-    );
+/* =========================================================
+   CONFIG
+========================================================= */
+
+const TIME_ZONE =
+  process.env.POKEMON_CENTER_TIME_ZONE ||
+  "America/Chicago";
 
 
-const NORMAL_SCAN_MS =
+/*
+  Main Pokémon Center watch window.
+
+  Tuesday morning through Thursday night.
+*/
+const ACTIVE_START_HOUR =
   Math.max(
-    15000,
+    0,
+    Math.min(
+      23,
+      Number(
+        process.env.POKEMON_CENTER_ACTIVE_START_HOUR ||
+        6
+      )
+    )
+  );
+
+
+const ACTIVE_END_HOUR =
+  Math.max(
+    0,
+    Math.min(
+      23,
+      Number(
+        process.env.POKEMON_CENTER_ACTIVE_END_HOUR ||
+        23
+      )
+    )
+  );
+
+
+/*
+  Chicago-time peak window.
+
+  This roughly corresponds to
+  10 AM - 3 PM Eastern.
+
+  During this time, confidence weighting
+  gets a small readiness boost.
+*/
+const PEAK_START_HOUR =
+  Math.max(
+    0,
+    Math.min(
+      23,
+      Number(
+        process.env.POKEMON_CENTER_PEAK_START_HOUR ||
+        9
+      )
+    )
+  );
+
+
+const PEAK_END_HOUR =
+  Math.max(
+    0,
+    Math.min(
+      23,
+      Number(
+        process.env.POKEMON_CENTER_PEAK_END_HOUR ||
+        14
+      )
+    )
+  );
+
+
+/*
+  Cloud fallback scan timing.
+
+  Browser-sensor events are still processed
+  instantly when received.
+
+  These timers only control cloud-side
+  support/preorder sentinel checks.
+*/
+const ACTIVE_SCAN_MS =
+  Math.max(
+    30000,
     Number(
-      process.env.POKEMON_CENTER_SCAN_SECONDS ||
-      20
+      process.env.POKEMON_CENTER_ACTIVE_SCAN_SECONDS ||
+      120
     ) * 1000
+  );
+
+
+const OFF_WINDOW_SCAN_MS =
+  Math.max(
+    5 * 60 * 1000,
+    Number(
+      process.env.POKEMON_CENTER_SENTINEL_MINUTES ||
+      15
+    ) * 60 * 1000
   );
 
 
 const HOT_SCAN_MS =
   Math.max(
-    5000,
+    15000,
     Number(
       process.env.POKEMON_CENTER_HOT_SCAN_SECONDS ||
-      8
+      30
     ) * 1000
   );
 
@@ -68,7 +161,7 @@ const HOT_HOLD_MS =
     5 * 60 * 1000,
     Number(
       process.env.POKEMON_CENTER_HOT_MINUTES ||
-      15
+      20
     ) * 60 * 1000
   );
 
@@ -78,106 +171,137 @@ const REQUEST_TIMEOUT_MS =
     4000,
     Number(
       process.env.POKEMON_CENTER_TIMEOUT_MS ||
-      9000
+      10000
     )
   );
 
 
-const NORMAL_DEEP_SCAN_LIMIT =
+const SENSOR_STALE_MS =
   Math.max(
-    2,
+    2 * 60 * 1000,
     Number(
-      process.env.POKEMON_CENTER_DEEP_PAGES ||
-      6
-    )
+      process.env.POKEMON_CENTER_SENSOR_STALE_MINUTES ||
+      5
+    ) * 60 * 1000
   );
 
 
-const HOT_DEEP_SCAN_LIMIT =
+const MAX_EVENTS =
   Math.max(
-    NORMAL_DEEP_SCAN_LIMIT,
+    100,
     Number(
-      process.env.POKEMON_CENTER_HOT_DEEP_PAGES ||
-      12
+      process.env.POKEMON_CENTER_MAX_EVENTS ||
+      500
     )
   );
 
 
-const MAX_TRACKED_PRODUCTS =
+const MAX_PRODUCTS =
   Math.max(
-    250,
+    100,
     Number(
       process.env.POKEMON_CENTER_MAX_PRODUCTS ||
-      2500
+      1500
     )
   );
 
 
-const SOURCE_URLS = [
-  `${BASE_URL}/`,
-  `${BASE_URL}/category/new-releases`,
-  `${BASE_URL}/category/trading-card-game`,
-  `${BASE_URL}/sitemap.xml`,
-  `${BASE_URL}/robots.txt`
+/*
+  Public official support surfaces.
+
+  These are fallback intelligence sources.
+
+  Direct pokemoncenter.com storefront requests
+  are intentionally NOT the primary source
+  because Render has already shown HTTP 403.
+*/
+const SUPPORT_URLS = [
+  "https://support.pokemoncenter.com/hc/en-us/articles/4407702295572-Estimated-Preorder-Release-Dates",
+  "https://support.pokemoncenter.com/hc/en-us/articles/360000247014-How-often-are-new-products-added-to-Pok%C3%A9mon-Center",
+  "https://support.pokemoncenter.com/hc/en-us/articles/37286495522452-Pok%C3%A9mon-Center-Virtual-Queue"
 ];
 
 
+const POKEMON_CENTER_HOME =
+  "https://www.pokemoncenter.com/";
+
+
+const APP_ICON =
+  "https://pokemon-live-backend.onrender.com/app-icon.png";
+
+
 const USER_AGENT =
-  "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) " +
-  "AppleWebKit/605.1.15 (KHTML, like Gecko) " +
-  "Version/18.0 Mobile/15E148 Safari/604.1";
+  "Mozilla/5.0 (compatible; PokemonRestockMonitor/2.0; +https://pokemon-live-backend.onrender.com/)";
 
 
 /* =========================================================
-   STATE
+   RUNTIME STATE
 ========================================================= */
-
-let running =
-  false;
 
 let started =
   false;
 
+
+let scanRunning =
+  false;
+
+
 let timer =
   null;
+
 
 let alertHandler =
   null;
 
-let baselineReady =
-  false;
 
 let hotUntil =
   0;
+
 
 let lastAlertFingerprint =
   null;
 
 
-const sourceFingerprints =
+let lastBrowserHeartbeat =
+  null;
+
+
+let lastBrowserSensorId =
+  null;
+
+
+let lastBrowserSensorVersion =
+  null;
+
+
+let lastBrowserUserAgent =
+  null;
+
+
+const supportFingerprints =
   new Map();
 
 
-const sourceHealth =
+const supportHealth =
   new Map();
 
 
-const productSnapshots =
+const products =
   new Map();
 
 
-const trackedProductUrls =
-  new Map();
-
-
-const activityLog =
+const events =
   [];
+
+
+const recentSignalFingerprints =
+  new Map();
 
 
 let state = {
 
   ok:
-    false,
+    true,
 
   running:
     false,
@@ -188,23 +312,29 @@ let state = {
   level:
     "normal",
 
+  confidence:
+    0,
+
+  confidenceLabel:
+    "LOW",
+
   queueActive:
     false,
 
   hotMode:
     false,
 
-  normalScanSeconds:
-    Math.round(
-      NORMAL_SCAN_MS /
-      1000
-    ),
+  activeWindow:
+    false,
 
-  hotScanSeconds:
-    Math.round(
-      HOT_SCAN_MS /
-      1000
-    ),
+  peakWindow:
+    false,
+
+  readinessWindow:
+    null,
+
+  predictedProduct:
+    null,
 
   lastChecked:
     null,
@@ -218,19 +348,28 @@ let state = {
   lastError:
     null,
 
-  sourceCount:
-    SOURCE_URLS.length,
+  lastMeaningfulActivity:
+    null,
 
-  sourceHealth:
-    [],
+  browserSensorOnline:
+    false,
+
+  browserSensorLastHeartbeat:
+    null,
+
+  browserSensorId:
+    null,
+
+  browserSensorVersion:
+    null,
+
+  supportSourceCount:
+    SUPPORT_URLS.length,
 
   trackedProductCount:
     0,
 
-  changedProductCount:
-    0,
-
-  liveProductCount:
+  eventCount:
     0,
 
   latestEvents:
@@ -254,12 +393,33 @@ function nowIso() {
 }
 
 
+function hash(
+  value
+) {
+
+  return crypto
+    .createHash(
+      "sha256"
+    )
+    .update(
+      String(
+        value ??
+        ""
+      )
+    )
+    .digest(
+      "hex"
+    );
+
+}
+
+
 function normalizeText(
   value
 ) {
 
   return String(
-    value ||
+    value ??
     ""
   )
     .replace(
@@ -268,7 +428,7 @@ function normalizeText(
     )
     .replace(
       /&quot;/gi,
-      '"'
+      "\""
     )
     .replace(
       /&#39;/gi,
@@ -291,96 +451,192 @@ function normalizeText(
 }
 
 
-function hash(
+function normalizeKey(
   value
 ) {
 
-  return crypto
-    .createHash(
-      "sha256"
+  return normalizeText(
+    value
+  )
+    .toLowerCase()
+    .replace(
+      /[^a-z0-9]+/g,
+      "-"
     )
-    .update(
-      String(
-        value ||
-        ""
-      )
-    )
-    .digest(
-      "hex"
+    .replace(
+      /^-+|-+$/g,
+      ""
     );
 
 }
 
 
-function absoluteUrl(
-  value
+function boundedNumber(
+  value,
+  min,
+  max,
+  fallback
 ) {
 
-  if(
-    !value
-  ){
-
-    return null;
-
-  }
-
-
-  try{
-
-    const url =
-      new URL(
-        String(
-          value
-        ),
-        `${BASE_URL}/`
-      );
-
-
-    if(
-      url.hostname !==
-      new URL(
-        BASE_URL
-      ).hostname
-    ){
-
-      return null;
-
-    }
-
-
-    url.hash =
-      "";
-
-
-    return url
-      .toString();
-
-
-  }catch{
-
-    return null;
-
-  }
-
-}
-
-
-/* =========================================================
-   PRODUCT URL DETECTION
-========================================================= */
-
-function looksLikeProductUrl(
-  value
-) {
-
-  const url =
-    absoluteUrl(
+  const number =
+    Number(
       value
     );
 
 
   if(
-    !url
+    !Number.isFinite(
+      number
+    )
+  ){
+
+    return fallback;
+
+  }
+
+
+  return Math.max(
+    min,
+    Math.min(
+      max,
+      number
+    )
+  );
+
+}
+
+
+/* =========================================================
+   TIME HELPERS
+========================================================= */
+
+function zonedParts(
+  date =
+    new Date()
+) {
+
+  const formatter =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+
+        timeZone:
+          TIME_ZONE,
+
+        weekday:
+          "short",
+
+        hour:
+          "2-digit",
+
+        minute:
+          "2-digit",
+
+        second:
+          "2-digit",
+
+        hourCycle:
+          "h23"
+
+      }
+    );
+
+
+  const parts =
+    Object.fromEntries(
+      formatter
+        .formatToParts(
+          date
+        )
+        .map(
+          part => [
+            part.type,
+            part.value
+          ]
+        )
+    );
+
+
+  return {
+
+    weekday:
+      parts.weekday,
+
+    hour:
+      Number(
+        parts.hour
+      ),
+
+    minute:
+      Number(
+        parts.minute
+      ),
+
+    second:
+      Number(
+        parts.second
+      )
+
+  };
+
+}
+
+
+function dayIndex(
+  weekday
+) {
+
+  return {
+
+    Sun:
+      0,
+
+    Mon:
+      1,
+
+    Tue:
+      2,
+
+    Wed:
+      3,
+
+    Thu:
+      4,
+
+    Fri:
+      5,
+
+    Sat:
+      6
+
+  }[weekday] ??
+  -1;
+
+}
+
+
+function isActiveWindow(
+  date =
+    new Date()
+) {
+
+  const parts =
+    zonedParts(
+      date
+    );
+
+
+  const day =
+    dayIndex(
+      parts.weekday
+    );
+
+
+  if(
+    day <
+      2 ||
+    day >
+      4
   ){
 
     return false;
@@ -388,32 +644,64 @@ function looksLikeProductUrl(
   }
 
 
-  const path =
-    new URL(
-      url
+  if(
+    day ===
+      2 &&
+    parts.hour <
+      ACTIVE_START_HOUR
+  ){
+
+    return false;
+
+  }
+
+
+  if(
+    day ===
+      4 &&
+    parts.hour >
+      ACTIVE_END_HOUR
+  ){
+
+    return false;
+
+  }
+
+
+  return true;
+
+}
+
+
+function isPeakWindow(
+  date =
+    new Date()
+) {
+
+  if(
+    !isActiveWindow(
+      date
     )
-      .pathname
-      .toLowerCase();
+  ){
+
+    return false;
+
+  }
+
+
+  const parts =
+    zonedParts(
+      date
+    );
 
 
   return (
 
-    path.includes(
-      "/product/"
-    ) ||
+    parts.hour >=
+      PEAK_START_HOUR &&
 
-    path.includes(
-      "/products/"
-    ) ||
-
-    path.includes(
-      "/item/"
-    ) ||
-
-    /\/[^/]+-\d{4,}(?:\/|$)/
-      .test(
-        path
-      )
+    parts.hour <=
+      PEAK_END_HOUR
 
   );
 
@@ -421,71 +709,1609 @@ function looksLikeProductUrl(
 
 
 /* =========================================================
-   QUEUE DETECTION
+   SENSOR HEALTH
 ========================================================= */
 
-function queueSignals(
-  response,
-  body
+function sensorOnline() {
+
+  if(
+    !lastBrowserHeartbeat
+  ){
+
+    return false;
+
+  }
+
+
+  const age =
+    Date.now() -
+    new Date(
+      lastBrowserHeartbeat
+    )
+      .getTime();
+
+
+  return (
+    Number.isFinite(
+      age
+    ) &&
+    age <=
+      SENSOR_STALE_MS
+  );
+
+}
+
+
+/* =========================================================
+   PRODUCT HELPERS
+========================================================= */
+
+function productKey(
+  signal
 ) {
 
-  const finalUrl =
-    String(
-      response?.url ||
-      ""
-    )
-      .toLowerCase();
+  return String(
+
+    signal?.sku ||
+
+    signal?.productId ||
+
+    signal?.url ||
+
+    signal?.name ||
+
+    ""
+
+  )
+    .trim()
+    .toLowerCase();
+
+}
 
 
-  const text =
-    String(
-      body ||
-      ""
-    )
-      .toLowerCase();
+function mergeProduct(
+  signal
+) {
 
-
-  const markers = [
-
-    "queue-it",
-
-    "queueit",
-
-    "virtual queue",
-
-    "waiting room",
-
-    "you are in line",
-
-    "queueittoken",
-
-    "queue id",
-
-    "queue-id"
-
-  ];
-
-
-  const matched =
-    markers.filter(
-      marker =>
-        finalUrl.includes(
-          marker
-        ) ||
-        text.includes(
-          marker
-        )
+  const key =
+    productKey(
+      signal
     );
+
+
+  if(
+    !key
+  ){
+
+    return null;
+
+  }
+
+
+  const existing =
+    products.get(
+      key
+    ) ||
+    {};
+
+
+  const merged = {
+
+    key,
+
+    name:
+      signal.name ||
+      existing.name ||
+      null,
+
+    sku:
+      signal.sku ||
+      signal.productId ||
+      existing.sku ||
+      null,
+
+    url:
+      signal.url ||
+      existing.url ||
+      null,
+
+    image:
+      signal.image ||
+      existing.image ||
+      null,
+
+    price:
+      signal.price ??
+      existing.price ??
+      null,
+
+    availability:
+      signal.availability ||
+      existing.availability ||
+      null,
+
+    live:
+      signal.live ===
+        true ||
+      existing.live ===
+        true,
+
+    firstSeen:
+      existing.firstSeen ||
+      nowIso(),
+
+    lastSeen:
+      nowIso(),
+
+    source:
+      signal.source ||
+      existing.source ||
+      "unknown",
+
+    lastSignalType:
+      signal.type ||
+      existing.lastSignalType ||
+      null
+
+  };
+
+
+  products.set(
+    key,
+    merged
+  );
+
+
+  trimProducts();
+
+
+  return merged;
+
+}
+
+
+function trimProducts() {
+
+  if(
+    products.size <=
+    MAX_PRODUCTS
+  ){
+
+    return;
+
+  }
+
+
+  const sorted =
+    Array
+      .from(
+        products.entries()
+      )
+      .sort(
+        (a,b) =>
+          new Date(
+            a[1].lastSeen ||
+            0
+          ) -
+          new Date(
+            b[1].lastSeen ||
+            0
+          )
+      );
+
+
+  const removeCount =
+    products.size -
+    MAX_PRODUCTS;
+
+
+  for(
+    const [
+      key
+    ] of
+    sorted.slice(
+      0,
+      removeCount
+    )
+  ){
+
+    products.delete(
+      key
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   EVENT LOG
+========================================================= */
+
+function addEvent(
+  event
+) {
+
+  const entry = {
+
+    id:
+      hash(
+        [
+          event.type,
+          event.name,
+          event.sku,
+          event.url,
+          event.detail,
+          event.at ||
+          nowIso()
+        ]
+          .join(
+            "|"
+          )
+      ),
+
+    at:
+      event.at ||
+      nowIso(),
+
+    priority:
+      event.priority ||
+      "important",
+
+    source:
+      event.source ||
+      "pokemon-center",
+
+    ...event
+
+  };
+
+
+  events.unshift(
+    entry
+  );
+
+
+  if(
+    events.length >
+    MAX_EVENTS
+  ){
+
+    events.length =
+      MAX_EVENTS;
+
+  }
+
+
+  state.lastMeaningfulActivity =
+    entry.at;
+
+
+  return entry;
+
+}
+
+
+/* =========================================================
+   DUPLICATE SUPPRESSION
+========================================================= */
+
+function signalFingerprint(
+  signal
+) {
+
+  return hash(
+    JSON.stringify({
+
+      type:
+        signal.type ||
+        null,
+
+      name:
+        signal.name ||
+        null,
+
+      sku:
+        signal.sku ||
+        signal.productId ||
+        null,
+
+      url:
+        signal.url ||
+        null,
+
+      image:
+        signal.image ||
+        null,
+
+      price:
+        signal.price ??
+        null,
+
+      availability:
+        signal.availability ||
+        null,
+
+      queueActive:
+        signal.queueActive ===
+        true,
+
+      detail:
+        signal.detail ||
+        null
+
+    })
+  );
+
+}
+
+
+function isDuplicateSignal(
+  signal,
+  ttlMs =
+    3 * 60 * 1000
+) {
+
+  const fingerprint =
+    signalFingerprint(
+      signal
+    );
+
+
+  const previous =
+    recentSignalFingerprints.get(
+      fingerprint
+    );
+
+
+  const now =
+    Date.now();
+
+
+  recentSignalFingerprints.set(
+    fingerprint,
+    now
+  );
+
+
+  for(
+    const [
+      key,
+      timestamp
+    ] of
+    recentSignalFingerprints
+  ){
+
+    if(
+      now -
+      timestamp >
+      30 * 60 * 1000
+    ){
+
+      recentSignalFingerprints.delete(
+        key
+      );
+
+    }
+
+  }
+
+
+  return (
+
+    previous !=
+      null &&
+
+    now -
+      previous <
+    ttlMs
+
+  );
+
+}
+
+
+/* =========================================================
+   SIGNAL SCORING
+========================================================= */
+
+function baseScoreForType(
+  type
+) {
+
+  return {
+
+    HEARTBEAT:
+      0,
+
+    SOURCE_CHANGE:
+      8,
+
+    PAGE_CHANGE:
+      12,
+
+    DOM_CHANGE:
+      15,
+
+    IMAGE_CHANGE:
+      18,
+
+    PRICE_CHANGE:
+      20,
+
+    PRODUCT_NAME_CHANGE:
+      22,
+
+    CATEGORY_CHANGE:
+      22,
+
+    AVAILABILITY_CHANGE:
+      30,
+
+    NEW_PRODUCT_NAME:
+      34,
+
+    NEW_IMAGE:
+      35,
+
+    NEW_PRODUCT_URL:
+      42,
+
+    SKU_CHANGE:
+      44,
+
+    NEW_SKU:
+      48,
+
+    NEW_PRODUCT:
+      50,
+
+    SUPPORT_PREORDER_CHANGE:
+      42,
+
+    QUEUE_SIGNAL:
+      55,
+
+    QUEUE_ACTIVE:
+      65,
+
+    PRODUCT_LIVE:
+      100,
+
+    PREORDER_LIVE:
+      100
+
+  }[
+    String(
+      type ||
+      ""
+    )
+      .toUpperCase()
+  ] ??
+  10;
+
+}
+
+
+function scoreSignal(
+  signal
+) {
+
+  let score =
+    baseScoreForType(
+      signal.type
+    );
+
+
+  if(
+    signal.name
+  ){
+
+    score +=
+      6;
+
+  }
+
+
+  if(
+    signal.sku ||
+    signal.productId
+  ){
+
+    score +=
+      8;
+
+  }
+
+
+  if(
+    signal.url
+  ){
+
+    score +=
+      7;
+
+  }
+
+
+  if(
+    signal.image
+  ){
+
+    score +=
+      5;
+
+  }
+
+
+  if(
+    signal.queueActive ===
+    true
+  ){
+
+    score +=
+      20;
+
+  }
+
+
+  if(
+    signal.live ===
+    true
+  ){
+
+    score =
+      100;
+
+  }
+
+
+  if(
+    isPeakWindow()
+  ){
+
+    score +=
+      6;
+
+  }
+
+
+  if(
+    isActiveWindow()
+  ){
+
+    score +=
+      4;
+
+  }
+
+
+  return boundedNumber(
+    score,
+    0,
+    100,
+    0
+  );
+
+}
+
+
+/* =========================================================
+   CORRELATION
+========================================================= */
+
+function recentMeaningfulEvents(
+  minutes =
+    20
+) {
+
+  const cutoff =
+    Date.now() -
+    minutes *
+    60 *
+    1000;
+
+
+  return events.filter(
+    event =>
+      new Date(
+        event.at
+      )
+        .getTime() >=
+      cutoff
+  );
+
+}
+
+
+function correlatedScore(
+  signalScore
+) {
+
+  const recent =
+    recentMeaningfulEvents(
+      20
+    );
+
+
+  let score =
+    signalScore;
+
+
+  const types =
+    new Set(
+      recent.map(
+        event =>
+          event.type
+      )
+    );
+
+
+  const productIdentifiers =
+    recent.filter(
+      event =>
+        event.name ||
+        event.sku ||
+        event.url
+    )
+      .length;
+
+
+  if(
+    types.has(
+      "QUEUE_ACTIVE"
+    ) ||
+    types.has(
+      "QUEUE_SIGNAL"
+    )
+  ){
+
+    score +=
+      15;
+
+  }
+
+
+  if(
+    types.has(
+      "NEW_SKU"
+    ) ||
+    types.has(
+      "SKU_CHANGE"
+    )
+  ){
+
+    score +=
+      10;
+
+  }
+
+
+  if(
+    types.has(
+      "NEW_PRODUCT_URL"
+    )
+  ){
+
+    score +=
+      10;
+
+  }
+
+
+  if(
+    types.has(
+      "NEW_IMAGE"
+    ) ||
+    types.has(
+      "IMAGE_CHANGE"
+    )
+  ){
+
+    score +=
+      7;
+
+  }
+
+
+  if(
+    types.has(
+      "AVAILABILITY_CHANGE"
+    )
+  ){
+
+    score +=
+      10;
+
+  }
+
+
+  if(
+    productIdentifiers >=
+      2
+  ){
+
+    score +=
+      8;
+
+  }
+
+
+  if(
+    recent.length >=
+      3
+  ){
+
+    score +=
+      8;
+
+  }
+
+
+  if(
+    recent.length >=
+      5
+  ){
+
+    score +=
+      7;
+
+  }
+
+
+  return boundedNumber(
+    score,
+    0,
+    100,
+    0
+  );
+
+}
+
+
+/* =========================================================
+   LEVEL / CONFIDENCE
+========================================================= */
+
+function levelFromScore(
+  score,
+  signal
+) {
+
+  if(
+    signal?.live ===
+      true ||
+
+    signal?.type ===
+      "PRODUCT_LIVE" ||
+
+    signal?.type ===
+      "PREORDER_LIVE"
+  ){
+
+    return "live";
+
+  }
+
+
+  if(
+    score >=
+      70
+  ){
+
+    return "drop_likely";
+
+  }
+
+
+  if(
+    score >=
+      20
+  ){
+
+    return "backend_activity";
+
+  }
+
+
+  return "normal";
+
+}
+
+
+function confidenceLabel(
+  score
+) {
+
+  if(
+    score >=
+      85
+  ){
+
+    return "VERY HIGH";
+
+  }
+
+
+  if(
+    score >=
+      70
+  ){
+
+    return "HIGH";
+
+  }
+
+
+  if(
+    score >=
+      45
+  ){
+
+    return "MEDIUM";
+
+  }
+
+
+  return "LOW";
+
+}
+
+
+/* =========================================================
+   READINESS WINDOW
+========================================================= */
+
+function readinessWindowFor(
+  score,
+  signal
+) {
+
+  if(
+    signal?.live ===
+      true ||
+
+    signal?.type ===
+      "PRODUCT_LIVE" ||
+
+    signal?.type ===
+      "PREORDER_LIVE"
+  ){
+
+    return {
+
+      label:
+        "LIVE NOW",
+
+      minMinutes:
+        0,
+
+      maxMinutes:
+        0,
+
+      confidence:
+        "confirmed"
+
+    };
+
+  }
+
+
+  if(
+    score >=
+      90
+  ){
+
+    return {
+
+      label:
+        "Be ready now — possible movement within 5–30 min",
+
+      minMinutes:
+        5,
+
+      maxMinutes:
+        30,
+
+      confidence:
+        "estimated"
+
+    };
+
+  }
+
+
+  if(
+    score >=
+      75
+  ){
+
+    return {
+
+      label:
+        "Be ready — possible movement within 10–60 min",
+
+      minMinutes:
+        10,
+
+      maxMinutes:
+        60,
+
+      confidence:
+        "estimated"
+
+    };
+
+  }
+
+
+  if(
+    score >=
+      55
+  ){
+
+    return {
+
+      label:
+        "Watch closely — possible movement within 30–120 min",
+
+      minMinutes:
+        30,
+
+      maxMinutes:
+        120,
+
+      confidence:
+        "estimated"
+
+    };
+
+  }
+
+
+  if(
+    score >=
+      30
+  ){
+
+    return {
+
+      label:
+        "Early activity — no reliable drop window yet",
+
+      minMinutes:
+        null,
+
+      maxMinutes:
+        null,
+
+      confidence:
+        "low"
+
+    };
+
+  }
+
+
+  return null;
+
+}
+
+
+/* =========================================================
+   BEST PRODUCT GUESS
+========================================================= */
+
+function bestProductFromRecentEvents(){
+
+  const recent =
+    recentMeaningfulEvents(
+      60
+    );
+
+
+  const candidates =
+    new Map();
+
+
+  for(
+    const event of
+    recent
+  ){
+
+    const key =
+      String(
+        event.sku ||
+        event.productId ||
+        event.url ||
+        event.name ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
+
+
+    if(
+      !key
+    ){
+
+      continue;
+
+    }
+
+
+    const current =
+      candidates.get(
+        key
+      ) ||
+      {
+
+        name:
+          event.name ||
+          null,
+
+        sku:
+          event.sku ||
+          event.productId ||
+          null,
+
+        url:
+          event.url ||
+          null,
+
+        image:
+          event.image ||
+          null,
+
+        score:
+          0,
+
+        signals:
+          0
+
+      };
+
+
+    current.score +=
+      Number(
+        event.score ||
+        0
+      );
+
+
+    current.signals +=
+      1;
+
+
+    current.name =
+      event.name ||
+      current.name;
+
+
+    current.sku =
+      event.sku ||
+      event.productId ||
+      current.sku;
+
+
+    current.url =
+      event.url ||
+      current.url;
+
+
+    current.image =
+      event.image ||
+      current.image;
+
+
+    candidates.set(
+      key,
+      current
+    );
+
+  }
+
+
+  return Array
+    .from(
+      candidates.values()
+    )
+    .sort(
+      (a,b) =>
+        (
+          b.score +
+          b.signals * 10
+        ) -
+        (
+          a.score +
+          a.signals * 10
+        )
+    )[0] ||
+    null;
+
+}
+
+
+/* =========================================================
+   PUSH ALERT
+========================================================= */
+
+async function sendPushForEvent(
+  event,
+  score,
+  level
+) {
+
+  if(
+    typeof alertHandler !==
+      "function"
+  ){
+
+    return;
+
+  }
+
+
+  const readiness =
+    readinessWindowFor(
+      score,
+      event
+    );
+
+
+  const predicted =
+    bestProductFromRecentEvents();
+
+
+  const title =
+    level ===
+      "live"
+      ? "🔥 POKÉMON CENTER LIVE"
+      : level ===
+          "drop_likely"
+        ? "🚨 POKÉMON CENTER DROP LIKELY"
+        : "⚡ POKÉMON CENTER BACKEND ACTIVITY";
+
+
+  const productName =
+    event.name ||
+    predicted?.name ||
+    "Pokémon Center activity";
+
+
+  const details =
+    [];
+
+
+  if(
+    event.sku ||
+    event.productId
+  ){
+
+    details.push(
+      `SKU ${
+        event.sku ||
+        event.productId
+      }`
+    );
+
+  }
+
+
+  details.push(
+    `Confidence ${
+      confidenceLabel(
+        score
+      )
+    }`
+  );
+
+
+  if(
+    readiness?.label
+  ){
+
+    details.push(
+      readiness.label
+    );
+
+  }
+
+
+  const body =
+    `${productName} • ${details.join(" • ")}`;
+
+
+  const url =
+    event.url ||
+    predicted?.url ||
+    POKEMON_CENTER_HOME;
+
+
+  const fingerprint =
+    hash(
+      JSON.stringify({
+
+        title,
+
+        productName,
+
+        url,
+
+        level,
+
+        confidence:
+          confidenceLabel(
+            score
+          ),
+
+        readiness:
+          readiness?.label ||
+          null
+
+      })
+    );
+
+
+  if(
+    fingerprint ===
+    lastAlertFingerprint
+  ){
+
+    return;
+
+  }
+
+
+  lastAlertFingerprint =
+    fingerprint;
+
+
+  await alertHandler({
+
+    title,
+
+    body,
+
+    url,
+
+    icon:
+      event.image ||
+      predicted?.image ||
+      APP_ICON,
+
+    badge:
+      APP_ICON,
+
+    tag:
+      `pokemon-center-${level}-${fingerprint.slice(0,12)}`
+
+  });
+
+}
+
+
+/* =========================================================
+   PROCESS SIGNAL
+========================================================= */
+
+async function processSignal(
+  rawSignal = {}
+) {
+
+  const type =
+    String(
+      rawSignal.type ||
+      "PAGE_CHANGE"
+    )
+      .trim()
+      .toUpperCase();
+
+
+  const signal = {
+
+    type,
+
+    source:
+      rawSignal.source ||
+      "browser-sensor",
+
+    sensorId:
+      rawSignal.sensorId ||
+      null,
+
+    name:
+      normalizeText(
+        rawSignal.name ||
+        rawSignal.productName ||
+        ""
+      ) ||
+      null,
+
+    sku:
+      normalizeText(
+        rawSignal.sku ||
+        rawSignal.productId ||
+        ""
+      ) ||
+      null,
+
+    productId:
+      normalizeText(
+        rawSignal.productId ||
+        rawSignal.sku ||
+        ""
+      ) ||
+      null,
+
+    url:
+      rawSignal.url ||
+      rawSignal.productUrl ||
+      null,
+
+    image:
+      rawSignal.image ||
+      rawSignal.imageUrl ||
+      null,
+
+    price:
+      rawSignal.price ??
+      null,
+
+    availability:
+      normalizeText(
+        rawSignal.availability ||
+        rawSignal.status ||
+        ""
+      ) ||
+      null,
+
+    live:
+      rawSignal.live ===
+        true,
+
+    queueActive:
+      rawSignal.queueActive ===
+        true,
+
+    detail:
+      normalizeText(
+        rawSignal.detail ||
+        rawSignal.message ||
+        ""
+      ) ||
+      null,
+
+    at:
+      rawSignal.at ||
+      nowIso()
+
+  };
+
+
+  if(
+    type ===
+      "HEARTBEAT"
+  ){
+
+    lastBrowserHeartbeat =
+      nowIso();
+
+
+    lastBrowserSensorId =
+      rawSignal.sensorId ||
+      lastBrowserSensorId;
+
+
+    lastBrowserSensorVersion =
+      rawSignal.version ||
+      lastBrowserSensorVersion;
+
+
+    lastBrowserUserAgent =
+      rawSignal.userAgent ||
+      lastBrowserUserAgent;
+
+
+    refreshState();
+
+
+    return {
+
+      ok:
+        true,
+
+      heartbeat:
+        true,
+
+      state:
+        getState()
+
+    };
+
+  }
+
+
+  if(
+    isDuplicateSignal(
+      signal
+    )
+  ){
+
+    return {
+
+      ok:
+        true,
+
+      duplicate:
+        true,
+
+      state:
+        getState()
+
+    };
+
+  }
+
+
+  /*
+    Browser signal received means sensor
+    is alive even if it was not a heartbeat.
+  */
+  if(
+    signal.source ===
+      "browser-sensor" ||
+    signal.sensorId
+  ){
+
+    lastBrowserHeartbeat =
+      nowIso();
+
+
+    lastBrowserSensorId =
+      signal.sensorId ||
+      lastBrowserSensorId;
+
+  }
+
+
+  if(
+    signal.queueActive ===
+      true &&
+    signal.type !==
+      "QUEUE_ACTIVE"
+  ){
+
+    signal.type =
+      "QUEUE_ACTIVE";
+
+  }
+
+
+  const initialScore =
+    scoreSignal(
+      signal
+    );
+
+
+  const score =
+    correlatedScore(
+      initialScore
+    );
+
+
+  const level =
+    levelFromScore(
+      score,
+      signal
+    );
+
+
+  const event =
+    addEvent({
+
+      ...signal,
+
+      score,
+
+      level,
+
+      confidence:
+        confidenceLabel(
+          score
+        ),
+
+      readinessWindow:
+        readinessWindowFor(
+          score,
+          signal
+        )
+
+    });
+
+
+  mergeProduct(
+    event
+  );
+
+
+  if(
+    level ===
+      "backend_activity" ||
+
+    level ===
+      "drop_likely" ||
+
+    level ===
+      "live"
+  ){
+
+    hotUntil =
+      Date.now() +
+      HOT_HOLD_MS;
+
+  }
+
+
+  if(
+    signal.type ===
+      "QUEUE_ACTIVE"
+  ){
+
+    state.queueActive =
+      true;
+
+  }
+
+
+  refreshState(
+    event
+  );
+
+
+  /*
+    Every meaningful Pokémon Center signal
+    is important enough to notify.
+
+    Duplicate suppression prevents the
+    exact same alert from repeating.
+  */
+  if(
+    score >=
+      20
+  ){
+
+    try{
+
+      await sendPushForEvent(
+        event,
+        score,
+        level
+      );
+
+
+    }catch(error){
+
+      state.lastAlertError =
+        error.message;
+
+    }
+
+  }
 
 
   return {
 
-    active:
-      matched.length >
-      0,
+    ok:
+      true,
 
-    markers:
-      matched
+    duplicate:
+      false,
+
+    event,
+
+    state:
+      getState()
 
   };
 
@@ -493,123 +2319,7 @@ function queueSignals(
 
 
 /* =========================================================
-   SOURCE HEALTH
-========================================================= */
-
-function recordSourceHealth(
-  url,
-  data
-) {
-
-  sourceHealth.set(
-    url,
-    {
-
-      url,
-
-      checkedAt:
-        nowIso(),
-
-      ok:
-        Boolean(
-          data?.ok
-        ),
-
-      status:
-        data?.status ??
-        null,
-
-      finalUrl:
-        data?.finalUrl ||
-        data?.url ||
-        null,
-
-      contentType:
-        data?.contentType ||
-        null,
-
-      responseBytes:
-        Number(
-          data?.responseBytes ||
-          0
-        ),
-
-      queueActive:
-        Boolean(
-          data?.queueActive
-        ),
-
-      queueMarkers:
-        Array.isArray(
-          data?.queueMarkers
-        )
-          ? data.queueMarkers
-          : [],
-
-      redirected:
-        Boolean(
-          data?.redirected
-        ),
-
-      error:
-        data?.error ||
-        null
-
-    }
-  );
-
-}
-
-
-function getSourceHealth(){
-
-  return SOURCE_URLS.map(
-    url =>
-      sourceHealth.get(
-        url
-      ) ||
-      {
-
-        url,
-
-        checkedAt:
-          null,
-
-        ok:
-          false,
-
-        status:
-          null,
-
-        finalUrl:
-          null,
-
-        contentType:
-          null,
-
-        responseBytes:
-          0,
-
-        queueActive:
-          false,
-
-        queueMarkers:
-          [],
-
-        redirected:
-          false,
-
-        error:
-          "Not checked yet"
-
-      }
-  );
-
-}
-
-
-/* =========================================================
-   NETWORK
+   OFFICIAL SUPPORT FETCH
 ========================================================= */
 
 async function fetchText(
@@ -635,14 +2345,8 @@ async function fetchText(
         url,
         {
 
-          method:
-            "GET",
-
           redirect:
             "follow",
-
-          cache:
-            "no-store",
 
           signal:
             controller.signal,
@@ -653,15 +2357,12 @@ async function fetchText(
               USER_AGENT,
 
             "accept":
-              "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+              "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
 
             "accept-language":
               "en-US,en;q=0.9",
 
             "cache-control":
-              "no-cache",
-
-            "pragma":
               "no-cache"
 
           }
@@ -675,14 +2376,7 @@ async function fetchText(
         .text();
 
 
-    const queue =
-      queueSignals(
-        response,
-        text
-      );
-
-
-    const result = {
+    return {
 
       ok:
         response.ok,
@@ -690,140 +2384,36 @@ async function fetchText(
       status:
         response.status,
 
-      url:
-        response.url ||
-        url,
-
       finalUrl:
         response.url ||
         url,
 
-      redirected:
-        Boolean(
-          response.redirected
-        ),
+      text,
 
-      contentType:
-        response.headers.get(
-          "content-type"
-        ) ||
-        "",
-
-      etag:
-        response.headers.get(
-          "etag"
-        ) ||
-        null,
-
-      lastModified:
-        response.headers.get(
-          "last-modified"
-        ) ||
-        null,
-
-      responseBytes:
+      bytes:
         Buffer.byteLength(
           text,
           "utf8"
-        ),
-
-      text,
-
-      queue
+        )
 
     };
 
 
-    recordSourceHealth(
-      url,
-      {
-
-        ok:
-          result.ok,
-
-        status:
-          result.status,
-
-        finalUrl:
-          result.finalUrl,
-
-        contentType:
-          result.contentType,
-
-        responseBytes:
-          result.responseBytes,
-
-        queueActive:
-          result.queue.active,
-
-        queueMarkers:
-          result.queue.markers,
-
-        redirected:
-          result.redirected,
-
-        error:
-          null
-
-      }
-    );
-
-
-    return result;
-
-
   }catch(error){
 
-    const message =
+    if(
       error?.name ===
         "AbortError"
-        ? `Timed out after ${REQUEST_TIMEOUT_MS}ms`
-        : (
-            error?.message ||
-            String(
-              error
-            )
-          );
+    ){
+
+      throw new Error(
+        `Timed out after ${REQUEST_TIMEOUT_MS}ms`
+      );
+
+    }
 
 
-    recordSourceHealth(
-      url,
-      {
-
-        ok:
-          false,
-
-        status:
-          null,
-
-        finalUrl:
-          null,
-
-        contentType:
-          null,
-
-        responseBytes:
-          0,
-
-        queueActive:
-          false,
-
-        queueMarkers:
-          [],
-
-        redirected:
-          false,
-
-        error:
-          message
-
-      }
-    );
-
-
-    throw new Error(
-      message
-    );
+    throw error;
 
 
   }finally{
@@ -838,1982 +2428,344 @@ async function fetchText(
 
 
 /* =========================================================
-   URL EXTRACTION
+   SUPPORT PAGE NORMALIZATION
 ========================================================= */
 
-function extractSitemapUrls(
-  text
+function supportPageSignalText(
+  html
 ) {
 
-  const output =
-    [];
-
-
-  const regex =
-    /<loc>\s*([^<]+)\s*<\/loc>/gi;
-
-
-  let match;
-
-
-  while(
-    (
-      match =
-        regex.exec(
-          String(
-            text ||
-            ""
-          )
-        )
+  return normalizeText(
+    String(
+      html ||
+      ""
     )
-  ){
-
-    const url =
-      absoluteUrl(
-        match[1]
-      );
-
-
-    if(
-      url
-    ){
-
-      output.push(
-        url
-      );
-
-    }
-
-  }
-
-
-  return output;
-
-}
-
-
-function extractHrefUrls(
-  text
-) {
-
-  const output =
-    [];
-
-
-  const regex =
-    /href\s*=\s*["']([^"']+)["']/gi;
-
-
-  let match;
-
-
-  while(
-    (
-      match =
-        regex.exec(
-          String(
-            text ||
-            ""
-          )
-        )
-    )
-  ){
-
-    const url =
-      absoluteUrl(
-        match[1]
-      );
-
-
-    if(
-      url
-    ){
-
-      output.push(
-        url
-      );
-
-    }
-
-  }
-
-
-  return output;
+      .replace(
+        /<script\b[^>]*>[\s\S]*?<\/script>/gi,
+        " "
+      )
+      .replace(
+        /<style\b[^>]*>[\s\S]*?<\/style>/gi,
+        " "
+      )
+      .replace(
+        /<[^>]+>/g,
+        " "
+      )
+  );
 
 }
 
 
 /* =========================================================
-   IMAGE EXTRACTION
+   KNOWN PRODUCT-NAME EXTRACTION
 ========================================================= */
 
-function extractImageUrls(
+function extractInterestingProductNames(
   text
 ) {
 
-  const output =
+  const names =
     new Set();
 
 
   const source =
-    String(
-      text ||
-      ""
+    normalizeText(
+      text
     );
 
 
-  const regex =
-    /(?:src|srcset|image|imageUrl|imageURL)["'\s:=]+["']?([^"'\s,}<>]+\.(?:png|jpe?g|webp)(?:\?[^"'\s,}<>]*)?)/gi;
+  const patterns = [
 
+    /Pok[eé]mon TCG:[^.]{5,120}/gi,
 
-  let match;
+    /Mega Evolution[^.]{0,100}/gi,
 
+    /Delta Reign[^.]{0,100}/gi,
 
-  while(
-    (
-      match =
-        regex.exec(
-          source
-        )
-    )
-  ){
+    /30th Celebration[^.]{0,100}/gi,
 
-    try{
+    /Prismatic Evolutions[^.]{0,100}/gi,
 
-      const value =
-        new URL(
-          match[1],
-          `${BASE_URL}/`
-        )
-          .toString();
+    /Destined Rivals[^.]{0,100}/gi,
 
+    /Ascended Heroes[^.]{0,100}/gi
 
-      output.add(
-        value
-      );
-
-
-    }catch{
-
-      /*
-        Ignore malformed image URLs.
-      */
-
-    }
-
-  }
-
-
-  return Array
-    .from(
-      output
-    )
-    .slice(
-      0,
-      200
-    );
-
-}
-
-
-/* =========================================================
-   PRICE
-========================================================= */
-
-function parsePrice(
-  value
-) {
-
-  if(
-    value ===
-      null ||
-    value ===
-      undefined
-  ){
-
-    return null;
-
-  }
-
-
-  const match =
-    String(
-      value
-    )
-      .replace(
-        /,/g,
-        ""
-      )
-      .match(
-        /\d+(?:\.\d{1,2})?/
-      );
-
-
-  if(
-    !match
-  ){
-
-    return null;
-
-  }
-
-
-  const number =
-    Number(
-      match[0]
-    );
-
-
-  return Number.isFinite(
-    number
-  )
-    ? number
-    : null;
-
-}
-
-
-/* =========================================================
-   STRUCTURED DATA HELPERS
-========================================================= */
-
-function arrayValue(
-  value
-) {
-
-  if(
-    Array.isArray(
-      value
-    )
-  ){
-
-    return value;
-
-  }
-
-
-  if(
-    value ===
-      null ||
-    value ===
-      undefined
-  ){
-
-    return [];
-
-  }
-
-
-  return [
-    value
   ];
 
-}
-
-
-function firstString(
-  ...values
-) {
 
   for(
-    const value of
-    values.flatMap(
-      arrayValue
-    )
+    const pattern of
+    patterns
   ){
 
-    if(
-      typeof value ===
-        "string" &&
-      value.trim()
-    ){
-
-      return normalizeText(
-        value
-      );
-
-    }
-
-  }
-
-
-  return null;
-
-}
-
-
-/* =========================================================
-   STRUCTURED PRODUCT WALKER
-========================================================= */
-
-function walkStructured(
-  value,
-  output,
-  depth = 0
-) {
-
-  if(
-    !value ||
-    depth >
-      12
-  ){
-
-    return;
-
-  }
-
-
-  if(
-    Array.isArray(
-      value
-    )
-  ){
-
-    for(
-      const item of
-      value
-    ){
-
-      walkStructured(
-        item,
-        output,
-        depth + 1
-      );
-
-    }
-
-
-    return;
-
-  }
-
-
-  if(
-    typeof value !==
-    "object"
-  ){
-
-    return;
-
-  }
-
-
-  const type =
-    firstString(
-      value["@type"],
-      value.type
-    );
-
-
-  const name =
-    firstString(
-      value.name,
-      value.productName,
-      value.title,
-      value.displayName
-    );
-
-
-  const sku =
-    firstString(
-      value.sku,
-      value.SKU,
-      value.productId,
-      value.productID,
-      value.itemId,
-      value.id
-    );
-
-
-  const url =
-    absoluteUrl(
-      firstString(
-        value.url,
-        value.productUrl,
-        value.canonicalUrl
-      )
-    );
-
-
-  const image =
-    firstString(
-      value.image,
-      value.imageUrl,
-      value.imageURL,
-      value.primaryImage,
-      value.thumbnail
-    );
-
-
-  let offers =
-    value.offers ||
-    value.offer ||
-    null;
-
-
-  if(
-    Array.isArray(
-      offers
-    )
-  ){
-
-    offers =
-      offers[0] ||
-      null;
-
-  }
-
-
-  const price =
-    parsePrice(
-
-      offers?.price ??
-
-      offers?.lowPrice ??
-
-      value.price ??
-
-      value.salePrice ??
-
-      value.currentPrice
-
-    );
-
-
-  const availability =
-    firstString(
-      offers?.availability,
-      value.availability,
-      value.inventoryStatus,
-      value.stockStatus,
-      value.status
-    );
-
-
-  const productish =
-
-    String(
-      type ||
-      ""
-    )
-      .toLowerCase()
-      .includes(
-        "product"
+    const matches =
+      source.match(
+        pattern
       ) ||
-
-    Boolean(
-      sku &&
-      name
-    ) ||
-
-    Boolean(
-      url &&
-      looksLikeProductUrl(
-        url
-      )
-    );
-
-
-  if(
-    productish &&
-    (
-      name ||
-      sku ||
-      url
-    )
-  ){
-
-    output.push({
-
-      name,
-
-      sku,
-
-      url,
-
-      image:
-        image ||
-        null,
-
-      price,
-
-      availability,
-
-      rawType:
-        type ||
-        null
-
-    });
-
-  }
-
-
-  for(
-    const child of
-    Object.values(
-      value
-    )
-  ){
-
-    if(
-      child &&
-      typeof child ===
-        "object"
-    ){
-
-      walkStructured(
-        child,
-        output,
-        depth + 1
-      );
-
-    }
-
-  }
-
-}
-
-
-/* =========================================================
-   JSON SCRIPT EXTRACTION
-========================================================= */
-
-function extractJsonScriptObjects(
-  html
-) {
-
-  const objects =
-    [];
-
-
-  const source =
-    String(
-      html ||
-      ""
-    );
-
-
-  const scriptRegex =
-    /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
-
-
-  let match;
-
-
-  while(
-    (
-      match =
-        scriptRegex.exec(
-          source
-        )
-    )
-  ){
-
-    const body =
-      String(
-        match[1] ||
-        ""
-      )
-        .trim();
-
-
-    if(
-      !body ||
-      body.length >
-        8000000
-    ){
-
-      continue;
-
-    }
-
-
-    const candidates =
       [];
 
 
-    if(
-      body.startsWith(
-        "{"
-      ) ||
-      body.startsWith(
-        "["
-      )
-    ){
-
-      candidates.push(
-        body
-      );
-
-    }
-
-
-    const assignment =
-      body.match(
-        /=\s*({[\s\S]*}|\[[\s\S]*\])\s*;?\s*$/
-      );
-
-
-    if(
-      assignment?.[1]
-    ){
-
-      candidates.push(
-        assignment[1]
-      );
-
-    }
-
-
     for(
-      const candidate of
-      candidates
+      const match of
+      matches
     ){
 
-      try{
-
-        objects.push(
-          JSON.parse(
-            candidate
-          )
-        );
-
-
-      }catch{
-
-        /*
-          Script is not plain JSON.
-        */
-
-      }
-
-    }
-
-  }
-
-
-  return objects;
-
-}
-
-
-/* =========================================================
-   PRODUCT EXTRACTION
-========================================================= */
-
-function extractProducts(
-  html,
-  pageUrl
-) {
-
-  const products =
-    [];
-
-
-  for(
-    const object of
-    extractJsonScriptObjects(
-      html
-    )
-  ){
-
-    walkStructured(
-      object,
-      products
-    );
-
-  }
-
-
-  const source =
-    String(
-      html ||
-      ""
-    );
-
-
-  const nameMatch =
-    source.match(
-      /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i
-    );
-
-
-  const imageMatch =
-    source.match(
-      /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i
-    );
-
-
-  const skuMatch =
-    source.match(
-      /(?:"sku"|SKU|sku)\s*[:=]\s*["']([^"']+)["']/i
-    );
-
-
-  const priceMatch =
-    source.match(
-      /(?:"price"|price)\s*[:=]\s*["']?\$?([0-9]+(?:\.[0-9]{1,2})?)/i
-    );
-
-
-  if(
-    looksLikeProductUrl(
-      pageUrl
-    ) &&
-    (
-      nameMatch ||
-      skuMatch
-    )
-  ){
-
-    products.push({
-
-      name:
-        nameMatch
-          ? normalizeText(
-              nameMatch[1]
-            )
-          : null,
-
-      sku:
-        skuMatch
-          ? normalizeText(
-              skuMatch[1]
-            )
-          : null,
-
-      url:
-        pageUrl,
-
-      image:
-        imageMatch
-          ? imageMatch[1]
-          : null,
-
-      price:
-        priceMatch
-          ? parsePrice(
-              priceMatch[1]
-            )
-          : null,
-
-      availability:
-        null,
-
-      rawType:
-        "page-meta"
-
-    });
-
-  }
-
-
-  const unique =
-    new Map();
-
-
-  for(
-    const item of
-    products
-  ){
-
-    const url =
-      absoluteUrl(
-        item.url ||
-        pageUrl
-      );
-
-
-    const key =
-      String(
-
-        item.sku ||
-
-        url ||
-
-        item.name ||
-
-        ""
-
-      )
-        .toLowerCase();
-
-
-    if(
-      !key
-    ){
-
-      continue;
-
-    }
-
-
-    const current =
-      unique.get(
-        key
-      ) ||
-      {};
-
-
-    unique.set(
-      key,
-      {
-
-        name:
-          item.name ||
-          current.name ||
-          null,
-
-        sku:
-          item.sku ||
-          current.sku ||
-          null,
-
-        url:
-          url ||
-          current.url ||
-          null,
-
-        image:
-          item.image ||
-          current.image ||
-          null,
-
-        price:
-          item.price ??
-          current.price ??
-          null,
-
-        availability:
-          item.availability ||
-          current.availability ||
-          null,
-
-        rawType:
-          item.rawType ||
-          current.rawType ||
-          null
-
-      }
-    );
-
-  }
-
-
-  return Array.from(
-    unique.values()
-  );
-
-}
-
-
-/* =========================================================
-   LIVE PRODUCT DETECTION
-========================================================= */
-
-function isLiveProduct(
-  product,
-  pageText = ""
-) {
-
-  const availability =
-    String(
-      product?.availability ||
-      ""
-    )
-      .toLowerCase();
-
-
-  const text =
-    String(
-      pageText ||
-      ""
-    )
-      .toLowerCase();
-
-
-  if(
-    availability.includes(
-      "instock"
-    ) ||
-
-    availability.includes(
-      "in stock"
-    ) ||
-
-    availability.includes(
-      "preorder"
-    ) ||
-
-    availability.includes(
-      "pre-order"
-    )
-  ){
-
-    return true;
-
-  }
-
-
-  return (
-
-    /\badd to cart\b/
-      .test(
-        text
-      ) ||
-
-    /\bpreorder:\s*add to (?:cart|basket)\b/
-      .test(
-        text
-      ) ||
-
-    /\bpre-order:\s*add to (?:cart|basket)\b/
-      .test(
-        text
-      )
-
-  );
-
-}
-
-
-/* =========================================================
-   PRODUCT SNAPSHOTS
-========================================================= */
-
-function snapshotForProduct(
-  product,
-  pageText = ""
-) {
-
-  const images =
-    extractImageUrls(
-      pageText
-    );
-
-
-  const snapshot = {
-
-    name:
-      product?.name ||
-      null,
-
-    sku:
-      product?.sku ||
-      null,
-
-    url:
-      absoluteUrl(
-        product?.url
-      ),
-
-    image:
-      product?.image ||
-      images[0] ||
-      null,
-
-    images:
-      images.slice(
-        0,
-        25
-      ),
-
-    price:
-      product?.price ??
-      null,
-
-    availability:
-      product?.availability ||
-      null,
-
-    live:
-      isLiveProduct(
-        product,
-        pageText
-      ),
-
-    checkedAt:
-      nowIso()
-
-  };
-
-
-  snapshot.fingerprint =
-    hash(
-      JSON.stringify({
-
-        name:
-          snapshot.name,
-
-        sku:
-          snapshot.sku,
-
-        url:
-          snapshot.url,
-
-        image:
-          snapshot.image,
-
-        images:
-          snapshot.images,
-
-        price:
-          snapshot.price,
-
-        availability:
-          snapshot.availability,
-
-        live:
-          snapshot.live
-
-      })
-    );
-
-
-  return snapshot;
-
-}
-
-
-/* =========================================================
-   CHANGE DETECTION
-========================================================= */
-
-function describeProductChanges(
-  previous,
-  current
-) {
-
-  const fields = [
-
-    "name",
-
-    "sku",
-
-    "url",
-
-    "image",
-
-    "price",
-
-    "availability",
-
-    "live"
-
-  ];
-
-
-  const changed =
-    [];
-
-
-  for(
-    const field of
-    fields
-  ){
-
-    if(
-      JSON.stringify(
-        previous?.[field] ??
-        null
-      ) !==
-      JSON.stringify(
-        current?.[field] ??
-        null
-      )
-    ){
-
-      changed.push(
-        field
-      );
-
-    }
-
-  }
-
-
-  if(
-    JSON.stringify(
-      previous?.images ||
-      []
-    ) !==
-    JSON.stringify(
-      current?.images ||
-      []
-    )
-  ){
-
-    changed.push(
-      "images"
-    );
-
-  }
-
-
-  return changed;
-
-}
-
-
-/* =========================================================
-   TRACK PRODUCT URL
-========================================================= */
-
-function rememberProductUrl(
-  url,
-  source =
-    "discovered"
-) {
-
-  const normalized =
-    absoluteUrl(
-      url
-    );
-
-
-  if(
-    !normalized ||
-    !looksLikeProductUrl(
-      normalized
-    )
-  ){
-
-    return false;
-
-  }
-
-
-  const existing =
-    trackedProductUrls.get(
-      normalized
-    );
-
-
-  trackedProductUrls.set(
-    normalized,
-    {
-
-      url:
-        normalized,
-
-      source:
-        existing?.source ||
-        source,
-
-      discoveredAt:
-        existing?.discoveredAt ||
-        nowIso(),
-
-      lastSeen:
-        nowIso(),
-
-      lastScanned:
-        existing?.lastScanned ||
-        null
-
-    }
-  );
-
-
-  if(
-    trackedProductUrls.size >
-    MAX_TRACKED_PRODUCTS
-  ){
-
-    const oldest =
-      Array
-        .from(
-          trackedProductUrls.values()
+      const cleaned =
+        normalizeText(
+          match
         )
-        .sort(
-          (a,b) =>
-            new Date(
-              a.lastSeen
-            ) -
-            new Date(
-              b.lastSeen
-            )
-        )
-        .slice(
-          0,
-          trackedProductUrls.size -
-          MAX_TRACKED_PRODUCTS
-        );
-
-
-    for(
-      const entry of
-      oldest
-    ){
-
-      trackedProductUrls.delete(
-        entry.url
-      );
-
-
-      productSnapshots.delete(
-        entry.url
-      );
-
-    }
-
-  }
-
-
-  return !existing;
-
-}
-
-
-/* =========================================================
-   ACTIVITY LOG
-========================================================= */
-
-function addActivity(
-  event
-) {
-
-  const full = {
-
-    id:
-      hash(
-        `${
-          event.type
-        }|${
-          event.url ||
-          ""
-        }|${
-          event.name ||
-          ""
-        }|${
-          event.at ||
-          nowIso()
-        }|${
-          activityLog.length
-        }`
-      ),
-
-    at:
-      event.at ||
-      nowIso(),
-
-    priority:
-      event.priority ||
-      "important",
-
-    ...event
-
-  };
-
-
-  activityLog.unshift(
-    full
-  );
-
-
-  if(
-    activityLog.length >
-    150
-  ){
-
-    activityLog.length =
-      150;
-
-  }
-
-
-  return full;
-
-}
-
-
-/* =========================================================
-   PUBLIC PAGE FINGERPRINT
-========================================================= */
-
-function pageSignalFingerprint(
-  result
-) {
-
-  const links =
-    extractHrefUrls(
-      result.text
-    )
-      .filter(
-        looksLikeProductUrl
-      )
-      .sort();
-
-
-  const sitemap =
-    extractSitemapUrls(
-      result.text
-    )
-      .filter(
-        looksLikeProductUrl
-      )
-      .sort();
-
-
-  const products =
-    extractProducts(
-      result.text,
-      result.url
-    )
-      .map(
-        item => ({
-
-          name:
-            item.name,
-
-          sku:
-            item.sku,
-
-          url:
-            item.url,
-
-          image:
-            item.image,
-
-          price:
-            item.price,
-
-          availability:
-            item.availability
-
-        })
-      )
-      .sort(
-        (a,b) =>
-          String(
-            a.url ||
-            a.sku ||
-            a.name
-          )
-            .localeCompare(
-              String(
-                b.url ||
-                b.sku ||
-                b.name
-              )
-            )
-      );
-
-
-  return {
-
-    fingerprint:
-      hash(
-        JSON.stringify({
-
-          status:
-            result.status,
-
-          finalUrl:
-            result.url,
-
-          etag:
-            result.etag,
-
-          lastModified:
-            result.lastModified,
-
-          queue:
-            result.queue,
-
-          links,
-
-          sitemap,
-
-          products
-
-        })
-      ),
-
-    links:
-      Array.from(
-        new Set([
-          ...links,
-          ...sitemap
-        ])
-      ),
-
-    products
-
-  };
-
-}
-
-
-/* =========================================================
-   DEEP SCAN QUEUE
-========================================================= */
-
-function chooseDeepScanUrls(
-  limit
-) {
-
-  return Array
-    .from(
-      trackedProductUrls.values()
-    )
-    .sort(
-      (a,b) => {
-
-        if(
-          !a.lastScanned &&
-          b.lastScanned
-        ){
-
-          return -1;
-
-        }
-
-
-        if(
-          a.lastScanned &&
-          !b.lastScanned
-        ){
-
-          return 1;
-
-        }
-
-
-        return (
-          new Date(
-            a.lastScanned ||
-            0
-          ) -
-          new Date(
-            b.lastScanned ||
-            0
-          )
-        );
-
-      }
-    )
-    .slice(
-      0,
-      limit
-    )
-    .map(
-      item =>
-        item.url
-    );
-
-}
-
-
-/* =========================================================
-   CONCURRENCY HELPER
-========================================================= */
-
-async function mapLimit(
-  values,
-  limit,
-  worker
-) {
-
-  if(
-    !values.length
-  ){
-
-    return [];
-
-  }
-
-
-  const output =
-    new Array(
-      values.length
-    );
-
-
-  let next =
-    0;
-
-
-  async function run(){
-
-    while(
-      true
-    ){
-
-      const index =
-        next++;
+          .slice(
+            0,
+            160
+          );
 
 
       if(
-        index >=
-        values.length
+        cleaned.length >=
+        5
       ){
 
-        return;
+        names.add(
+          cleaned
+        );
 
       }
-
-
-      output[index] =
-        await worker(
-          values[index],
-          index
-        );
 
     }
 
   }
 
 
-  await Promise.all(
-
-    Array.from(
-      {
-        length:
-          Math.min(
-            limit,
-            values.length
-          )
-      },
-
-      () =>
-        run()
+  return Array
+    .from(
+      names
     )
-
-  );
-
-
-  return output;
-
-}
-
-
-/* =========================================================
-   SIGNAL LEVELS
-========================================================= */
-
-function levelRank(
-  level
-) {
-
-  return ({
-
-    normal:
+    .slice(
       0,
-
-    backend_activity:
-      1,
-
-    drop_likely:
-      2,
-
-    live:
-      3
-
-  })[level] ??
-  0;
-
-}
-
-
-function deriveLevel(
-  events,
-  queueActive
-) {
-
-  if(
-    events.some(
-      event =>
-        event.type ===
-        "PRODUCT_LIVE"
-    )
-  ){
-
-    return "live";
-
-  }
-
-
-  const strong =
-    events.filter(
-      event =>
-        [
-
-          "QUEUE_ACTIVE",
-
-          "NEW_PRODUCT",
-
-          "NEW_PRODUCT_URL",
-
-          "PRODUCT_CHANGED"
-
-        ]
-          .includes(
-            event.type
-          )
+      40
     );
-
-
-  if(
-    queueActive ||
-    strong.length >=
-    2
-  ){
-
-    return "drop_likely";
-
-  }
-
-
-  if(
-    events.length
-  ){
-
-    return "backend_activity";
-
-  }
-
-
-  return "normal";
 
 }
 
 
 /* =========================================================
-   PUSH ALERTS
+   SUPPORT SCAN
 ========================================================= */
 
-async function sendAlert(
-  level,
-  events
+async function scanSupportSource(
+  url
 ) {
 
-  if(
-    !alertHandler ||
-    !events.length
-  ){
+  const checkedAt =
+    nowIso();
 
-    return;
-
-  }
-
-
-  const important =
-    events
-      .filter(
-        event =>
-          event.type !==
-          "SOURCE_CHANGED"
-      )
-      .slice(
-        0,
-        5
-      );
-
-
-  const visible =
-    important.length
-      ? important
-      : events.slice(
-          0,
-          3
-        );
-
-
-  const names =
-    visible
-      .map(
-        event =>
-          event.name ||
-          event.detail ||
-          event.type
-      )
-      .filter(
-        Boolean
-      );
-
-
-  const fingerprint =
-    hash(
-      JSON.stringify({
-
-        level,
-
-        names,
-
-        types:
-          visible.map(
-            event =>
-              event.type
-          ),
-
-        urls:
-          visible.map(
-            event =>
-              event.url ||
-              null
-          )
-
-      })
-    );
-
-
-  if(
-    fingerprint ===
-    lastAlertFingerprint
-  ){
-
-    return;
-
-  }
-
-
-  lastAlertFingerprint =
-    fingerprint;
-
-
-  let title =
-    "⚡ Pokémon Center Backend Activity";
-
-
-  if(
-    level ===
-    "drop_likely"
-  ){
-
-    title =
-      "🚨 POKÉMON CENTER DROP LIKELY";
-
-  }
-
-
-  if(
-    level ===
-    "live"
-  ){
-
-    title =
-      "🔥 POKÉMON CENTER LIVE";
-
-  }
-
-
-  const body =
-    names.length
-      ? names
-          .slice(
-            0,
-            3
-          )
-          .join(
-            " • "
-          )
-      : "New Pokémon Center activity was detected.";
-
-
-  const target =
-    visible.find(
-      event =>
-        event.url
-    )
-      ?.url ||
-    BASE_URL;
-
-
-  await alertHandler({
-
-    title,
-
-    body,
-
-    url:
-      target,
-
-    icon:
-      "https://pokemon-live-backend.onrender.com/app-icon.png",
-
-    badge:
-      "https://pokemon-live-backend.onrender.com/app-icon.png",
-
-    tag:
-      `pokemon-center-${level}-${fingerprint.slice(0,12)}`
-
-  });
-
-}
-
-
-/* =========================================================
-   PUBLIC SOURCE SCAN
-========================================================= */
-
-async function scanSource(
-  url,
-  events
-) {
 
   try{
 
-    const result =
+    const response =
       await fetchText(
         url
       );
 
 
-    if(
-      result.queue.active
-    ){
-
-      events.push(
-        addActivity({
-
-          type:
-            "QUEUE_ACTIVE",
-
-          priority:
-            "critical",
-
-          url:
-            result.url,
-
-          detail:
-            `Queue signal detected: ${
-              result.queue.markers.join(
-                ", "
-              )
-            }`
-
-        })
-      );
-
-    }
-
-
-    if(
-      result.status ===
-      429
-    ){
-
-      events.push(
-        addActivity({
-
-          type:
-            "RATE_LIMITED",
-
-          priority:
-            "important",
-
-          url,
-
-          detail:
-            "Pokémon Center returned HTTP 429. Scanner will not attempt to bypass the limit."
-
-        })
-      );
-
-    }
-
-
-    const signals =
-      pageSignalFingerprint(
-        result
+    const signalText =
+      supportPageSignalText(
+        response.text
       );
 
 
-    const previousFingerprint =
-      sourceFingerprints.get(
+    const fingerprint =
+      hash(
+        signalText
+      );
+
+
+    const previous =
+      supportFingerprints.get(
         url
       );
 
 
+    supportHealth.set(
+      url,
+      {
+
+        url,
+
+        ok:
+          response.ok,
+
+        status:
+          response.status,
+
+        finalUrl:
+          response.finalUrl,
+
+        bytes:
+          response.bytes,
+
+        checkedAt,
+
+        error:
+          null
+
+      }
+    );
+
+
+    supportFingerprints.set(
+      url,
+      {
+
+        fingerprint,
+
+        text:
+          signalText,
+
+        names:
+          extractInterestingProductNames(
+            signalText
+          )
+
+      }
+    );
+
+
+    /*
+      First read establishes baseline only.
+    */
     if(
-      baselineReady &&
-      previousFingerprint &&
-      previousFingerprint !==
-        signals.fingerprint
+      !previous
     ){
 
-      events.push(
-        addActivity({
+      return {
+
+        ok:
+          response.ok,
+
+        changed:
+          false
+
+      };
+
+    }
+
+
+    if(
+      previous.fingerprint ===
+      fingerprint
+    ){
+
+      return {
+
+        ok:
+          response.ok,
+
+        changed:
+          false
+
+      };
+
+    }
+
+
+    const previousNames =
+      new Set(
+        previous.names ||
+        []
+      );
+
+
+    const currentNames =
+      extractInterestingProductNames(
+        signalText
+      );
+
+
+    const newNames =
+      currentNames.filter(
+        name =>
+          !previousNames.has(
+            name
+          )
+      );
+
+
+    if(
+      url.includes(
+        "Estimated-Preorder-Release-Dates"
+      )
+    ){
+
+      if(
+        newNames.length
+      ){
+
+        for(
+          const name of
+          newNames.slice(
+            0,
+            8
+          )
+        ){
+
+          await processSignal({
+
+            type:
+              "SUPPORT_PREORDER_CHANGE",
+
+            source:
+              "pokemon-center-support",
+
+            name,
+
+            url,
+
+            detail:
+              "Official Pokémon Center preorder/release information changed."
+
+          });
+
+        }
+
+
+      }else{
+
+        await processSignal({
 
           type:
-            "SOURCE_CHANGED",
+            "SOURCE_CHANGE",
 
-          priority:
-            "important",
+          source:
+            "pokemon-center-support",
 
           url,
 
           detail:
-            `Public Pokémon Center source changed (${result.status}).`
+            "Official Pokémon Center preorder/release page changed."
 
-        })
-      );
-
-    }
-
-
-    sourceFingerprints.set(
-      url,
-      signals.fingerprint
-    );
-
-
-    for(
-      const productUrl of
-      signals.links
-    ){
-
-      const isNew =
-        rememberProductUrl(
-          productUrl,
-          url
-        );
-
-
-      if(
-        baselineReady &&
-        isNew
-      ){
-
-        events.push(
-          addActivity({
-
-            type:
-              "NEW_PRODUCT_URL",
-
-            priority:
-              "critical",
-
-            url:
-              productUrl,
-
-            detail:
-              "New Pokémon Center product URL became publicly discoverable."
-
-          })
-        );
+        });
 
       }
 
-    }
 
+    }else{
 
-    for(
-      const product of
-      signals.products
-    ){
+      await processSignal({
 
-      if(
-        product.url
-      ){
+        type:
+          "SOURCE_CHANGE",
 
-        rememberProductUrl(
-          product.url,
-          url
-        );
+        source:
+          "pokemon-center-support",
 
-      }
+        url,
+
+        detail:
+          "Official Pokémon Center support information changed."
+
+      });
 
     }
 
@@ -2821,34 +2773,51 @@ async function scanSource(
     return {
 
       ok:
-        result.ok,
+        response.ok,
 
-      status:
-        result.status,
+      changed:
+        true,
 
-      queue:
-        result.queue.active,
-
-      finalUrl:
-        result.url,
-
-      responseBytes:
-        result.responseBytes
+      newNames
 
     };
 
 
   }catch(error){
 
+    supportHealth.set(
+      url,
+      {
+
+        url,
+
+        ok:
+          false,
+
+        status:
+          null,
+
+        finalUrl:
+          null,
+
+        bytes:
+          0,
+
+        checkedAt,
+
+        error:
+          error.message
+
+      }
+    );
+
+
     return {
 
       ok:
         false,
 
-      status:
-        null,
-
-      queue:
+      changed:
         false,
 
       error:
@@ -2862,373 +2831,18 @@ async function scanSource(
 
 
 /* =========================================================
-   PRODUCT PAGE SCAN
-========================================================= */
-
-async function scanProductPage(
-  url,
-  events
-) {
-
-  const tracked =
-    trackedProductUrls.get(
-      url
-    );
-
-
-  if(
-    tracked
-  ){
-
-    tracked.lastScanned =
-      nowIso();
-
-  }
-
-
-  try{
-
-    const result =
-      await fetchText(
-        url
-      );
-
-
-    if(
-      result.queue.active
-    ){
-
-      events.push(
-        addActivity({
-
-          type:
-            "QUEUE_ACTIVE",
-
-          priority:
-            "critical",
-
-          url:
-            result.url,
-
-          detail:
-            `Queue signal detected while checking product page: ${
-              result.queue.markers.join(
-                ", "
-              )
-            }`
-
-        })
-      );
-
-    }
-
-
-    const extracted =
-      extractProducts(
-        result.text,
-        result.url
-      );
-
-
-    const product =
-      extracted[0] ||
-      {
-
-        name:
-          null,
-
-        sku:
-          null,
-
-        url:
-          result.url,
-
-        image:
-          null,
-
-        price:
-          null,
-
-        availability:
-          null
-
-      };
-
-
-    const snapshot =
-      snapshotForProduct(
-        product,
-        result.text
-      );
-
-
-    const previous =
-      productSnapshots.get(
-        url
-      );
-
-
-    if(
-      !previous
-    ){
-
-      productSnapshots.set(
-        url,
-        snapshot
-      );
-
-
-      if(
-        baselineReady
-      ){
-
-        events.push(
-          addActivity({
-
-            type:
-              "NEW_PRODUCT",
-
-            priority:
-              "critical",
-
-            url:
-              snapshot.url ||
-              url,
-
-            name:
-              snapshot.name ||
-              "New Pokémon Center product",
-
-            sku:
-              snapshot.sku,
-
-            detail:
-              "New product record became publicly visible."
-
-          })
-        );
-
-      }
-
-
-      if(
-        baselineReady &&
-        snapshot.live
-      ){
-
-        events.push(
-          addActivity({
-
-            type:
-              "PRODUCT_LIVE",
-
-            priority:
-              "critical",
-
-            url:
-              snapshot.url ||
-              url,
-
-            name:
-              snapshot.name ||
-              "Pokémon Center product",
-
-            sku:
-              snapshot.sku,
-
-            detail:
-              "Product is publicly purchasable or preorderable."
-
-          })
-        );
-
-      }
-
-
-      return;
-
-    }
-
-
-    if(
-      previous.fingerprint !==
-      snapshot.fingerprint
-    ){
-
-      const changedFields =
-        describeProductChanges(
-          previous,
-          snapshot
-        );
-
-
-      productSnapshots.set(
-        url,
-        snapshot
-      );
-
-
-      events.push(
-        addActivity({
-
-          type:
-            "PRODUCT_CHANGED",
-
-          priority:
-            "critical",
-
-          url:
-            snapshot.url ||
-            url,
-
-          name:
-            snapshot.name ||
-            previous.name ||
-            "Pokémon Center product",
-
-          sku:
-            snapshot.sku ||
-            previous.sku ||
-            null,
-
-          fields:
-            changedFields,
-
-          detail:
-            `Product backend fields changed: ${
-              changedFields.join(
-                ", "
-              ) ||
-              "unknown"
-            }.`
-
-        })
-      );
-
-
-      if(
-        !previous.live &&
-        snapshot.live
-      ){
-
-        events.push(
-          addActivity({
-
-            type:
-              "PRODUCT_LIVE",
-
-            priority:
-              "critical",
-
-            url:
-              snapshot.url ||
-              url,
-
-            name:
-              snapshot.name ||
-              previous.name ||
-              "Pokémon Center product",
-
-            sku:
-              snapshot.sku ||
-              previous.sku ||
-              null,
-
-            detail:
-              "Product transitioned to purchasable/preorderable."
-
-          })
-        );
-
-      }
-
-    }
-
-
-  }catch{
-
-    /*
-      A single product page failure
-      does not interrupt the monitor.
-    */
-
-  }
-
-}
-
-
-/* =========================================================
-   PRODUCT LIST
-========================================================= */
-
-function productList(){
-
-  return Array
-    .from(
-      productSnapshots.values()
-    )
-    .sort(
-      (a,b) =>
-        new Date(
-          b.checkedAt
-        ) -
-        new Date(
-          a.checkedAt
-        )
-    )
-    .slice(
-      0,
-      250
-    );
-
-}
-
-
-/* =========================================================
-   PUBLIC STATE
-========================================================= */
-
-function publicState(){
-
-  return JSON.parse(
-    JSON.stringify({
-
-      ...state,
-
-      sourceHealth:
-        getSourceHealth(),
-
-      trackedProductCount:
-        trackedProductUrls.size,
-
-      latestEvents:
-        activityLog.slice(
-          0,
-          25
-        ),
-
-      products:
-        productList()
-
-    })
-  );
-
-}
-
-
-/* =========================================================
-   MAIN SCAN
+   CLOUD SENTINEL SCAN
 ========================================================= */
 
 async function scan(){
 
   if(
-    running
+    scanRunning
   ){
 
     return {
 
-      ...publicState(),
+      ...getState(),
 
       skipped:
         true,
@@ -3241,306 +2855,89 @@ async function scan(){
   }
 
 
-  running =
+  scanRunning =
     true;
 
 
-  const scanStarted =
-    Date.now();
+  state.running =
+    true;
 
 
-  const events =
+  state.lastChecked =
+    nowIso();
+
+
+  const results =
     [];
-
-
-  state = {
-
-    ...state,
-
-    running:
-      true,
-
-    lastChecked:
-      nowIso(),
-
-    lastError:
-      null
-
-  };
 
 
   try{
 
-    const sourceResults =
-      await mapLimit(
-
-        SOURCE_URLS,
-
-        2,
-
-        url =>
-          scanSource(
-            url,
-            events
-          )
-
-      );
-
-
-    const successfulSources =
-      sourceResults.filter(
-        result =>
-          result?.ok ===
-          true
-      );
-
-
-    const queueActive =
-      sourceResults.some(
-        result =>
-          result?.queue ===
-          true
-      );
-
-
-    const hot =
-      Date.now() <
-        hotUntil ||
-      queueActive;
-
-
-    const deepLimit =
-      hot
-        ? HOT_DEEP_SCAN_LIMIT
-        : NORMAL_DEEP_SCAN_LIMIT;
-
-
-    const deepUrls =
-      chooseDeepScanUrls(
-        deepLimit
-      );
-
-
-    await mapLimit(
-
-      deepUrls,
-
-      3,
-
-      url =>
-        scanProductPage(
-          url,
-          events
-        )
-
-    );
-
-
-    const meaningfulEvents =
-      events.filter(
-        event =>
-          event.type !==
-          "RATE_LIMITED"
-      );
-
-
-    const level =
-      deriveLevel(
-        meaningfulEvents,
-        queueActive
-      );
-
-
-    if(
-      levelRank(
-        level
-      ) >=
-      levelRank(
-        "backend_activity"
-      )
+    /*
+      We intentionally scan the support
+      sources sequentially to stay gentle
+      and reliable.
+    */
+    for(
+      const url of
+      SUPPORT_URLS
     ){
 
-      hotUntil =
-        Date.now() +
-        HOT_HOLD_MS;
+      results.push(
+        await scanSupportSource(
+          url
+        )
+      );
 
     }
 
 
-    const hotMode =
-      Date.now() <
-      hotUntil;
+    const successful =
+      results.filter(
+        result =>
+          result.ok ===
+          true
+      );
 
 
-    const products =
-      productList();
+    state.lastSuccess =
+      successful.length
+        ? nowIso()
+        : state.lastSuccess;
 
 
-    const health =
-      getSourceHealth();
+    state.lastError =
+      successful.length
+        ? null
+        : (
+            results
+              .map(
+                result =>
+                  result.error
+              )
+              .filter(
+                Boolean
+              )
+              .join(
+                " | "
+              ) ||
+            "All Pokémon Center support sentinel sources failed"
+          );
 
 
-    const failureSummary =
-      health
-        .filter(
-          item =>
-            !item.ok
-        )
-        .map(
-          item =>
-            item.status
-              ? `${item.url} => HTTP ${item.status}`
-              : `${item.url} => ${item.error || "failed"}`
-        )
-        .join(
-          " | "
-        );
+    refreshState();
 
 
-    state = {
-
-      ...state,
-
-      ok:
-        successfulSources.length >
-        0,
-
-      running:
-        false,
-
-      priority:
-        "highest",
-
-      level,
-
-      queueActive,
-
-      hotMode,
-
-      lastChecked:
-        nowIso(),
-
-      lastSuccess:
-        successfulSources.length >
-        0
-          ? nowIso()
-          : state.lastSuccess,
-
-      lastError:
-        successfulSources.length ===
-        0
-          ? (
-              failureSummary ||
-              "All public Pokémon Center sources failed"
-            )
-          : null,
-
-      sourceCount:
-        SOURCE_URLS.length,
-
-      sourceHealth:
-        health,
-
-      trackedProductCount:
-        trackedProductUrls.size,
-
-      changedProductCount:
-        meaningfulEvents.filter(
-          event =>
-            event.type ===
-            "PRODUCT_CHANGED"
-        )
-          .length,
-
-      liveProductCount:
-        products.filter(
-          product =>
-            product.live
-        )
-          .length,
-
-      scanDurationMs:
-        Date.now() -
-        scanStarted,
-
-      latestEvents:
-        activityLog.slice(
-          0,
-          25
-        ),
-
-      products
-
-    };
-
-
-    if(
-      !baselineReady
-    ){
-
-      baselineReady =
-        true;
-
-
-      state.level =
-        "normal";
-
-
-    }else if(
-      meaningfulEvents.length
-    ){
-
-      try{
-
-        await sendAlert(
-          level,
-          meaningfulEvents
-        );
-
-
-      }catch(error){
-
-        state.lastAlertError =
-          error.message;
-
-      }
-
-    }
-
-
-    return publicState();
-
-
-  }catch(error){
-
-    state = {
-
-      ...state,
-
-      ok:
-        false,
-
-      running:
-        false,
-
-      lastChecked:
-        nowIso(),
-
-      lastError:
-        error.message,
-
-      sourceHealth:
-        getSourceHealth()
-
-    };
-
-
-    return publicState();
+    return getState();
 
 
   }finally{
 
-    running =
+    scanRunning =
+      false;
+
+
+    state.running =
       false;
 
   }
@@ -3549,8 +2946,264 @@ async function scan(){
 
 
 /* =========================================================
+   STATE REFRESH
+========================================================= */
+
+function refreshState(
+  latestEvent =
+    null
+) {
+
+  const activeWindow =
+    isActiveWindow();
+
+
+  const peakWindow =
+    isPeakWindow();
+
+
+  const online =
+    sensorOnline();
+
+
+  const recent =
+    recentMeaningfulEvents(
+      20
+    );
+
+
+  const maxRecentScore =
+    recent.reduce(
+      (
+        best,
+        event
+      ) =>
+        Math.max(
+          best,
+          Number(
+            event.score ||
+            0
+          )
+        ),
+      0
+    );
+
+
+  const latestScore =
+    latestEvent
+      ? Number(
+          latestEvent.score ||
+          0
+        )
+      : 0;
+
+
+  const score =
+    Math.max(
+      maxRecentScore,
+      latestScore
+    );
+
+
+  let level =
+    "normal";
+
+
+  if(
+    recent.some(
+      event =>
+        event.live ===
+          true ||
+        event.type ===
+          "PRODUCT_LIVE" ||
+        event.type ===
+          "PREORDER_LIVE"
+    )
+  ){
+
+    level =
+      "live";
+
+
+  }else if(
+    score >=
+      70
+  ){
+
+    level =
+      "drop_likely";
+
+
+  }else if(
+    score >=
+      20
+  ){
+
+    level =
+      "backend_activity";
+
+  }
+
+
+  const predicted =
+    bestProductFromRecentEvents();
+
+
+  state = {
+
+    ...state,
+
+    ok:
+      true,
+
+    running:
+      scanRunning,
+
+    priority:
+      "highest",
+
+    level,
+
+    confidence:
+      score,
+
+    confidenceLabel:
+      confidenceLabel(
+        score
+      ),
+
+    queueActive:
+      recent.some(
+        event =>
+          event.type ===
+            "QUEUE_ACTIVE" ||
+          event.queueActive ===
+            true
+      ),
+
+    hotMode:
+      Date.now() <
+      hotUntil,
+
+    activeWindow,
+
+    peakWindow,
+
+    readinessWindow:
+      readinessWindowFor(
+        score,
+        latestEvent ||
+        recent[0] ||
+        {}
+      ),
+
+    predictedProduct:
+      predicted,
+
+    browserSensorOnline:
+      online,
+
+    browserSensorLastHeartbeat:
+      lastBrowserHeartbeat,
+
+    browserSensorId:
+      lastBrowserSensorId,
+
+    browserSensorVersion:
+      lastBrowserSensorVersion,
+
+    supportSourceCount:
+      SUPPORT_URLS.length,
+
+    supportHealth:
+      SUPPORT_URLS.map(
+        url =>
+          supportHealth.get(
+            url
+          ) ||
+          {
+
+            url,
+
+            ok:
+              false,
+
+            checkedAt:
+              null,
+
+            error:
+              "Not checked yet"
+
+          }
+      ),
+
+    trackedProductCount:
+      products.size,
+
+    eventCount:
+      events.length,
+
+    latestEvents:
+      events.slice(
+        0,
+        30
+      ),
+
+    products:
+      Array
+        .from(
+          products.values()
+        )
+        .sort(
+          (a,b) =>
+            new Date(
+              b.lastSeen ||
+              0
+            ) -
+            new Date(
+              a.lastSeen ||
+              0
+            )
+        )
+        .slice(
+          0,
+          250
+        )
+
+  };
+
+}
+
+
+/* =========================================================
    ADAPTIVE SCHEDULER
 ========================================================= */
+
+function nextInterval(){
+
+  if(
+    Date.now() <
+    hotUntil
+  ){
+
+    return HOT_SCAN_MS;
+
+  }
+
+
+  if(
+    isActiveWindow()
+  ){
+
+    return ACTIVE_SCAN_MS;
+
+  }
+
+
+  return OFF_WINDOW_SCAN_MS;
+
+}
+
 
 function scheduleNext(){
 
@@ -3563,17 +3216,14 @@ function scheduleNext(){
   }
 
 
-  const interval =
-    Date.now() <
-    hotUntil
-      ? HOT_SCAN_MS
-      : NORMAL_SCAN_MS;
+  const delay =
+    nextInterval();
 
 
   state.nextCheck =
     new Date(
       Date.now() +
-      interval
+      delay
     )
       .toISOString();
 
@@ -3587,23 +3237,27 @@ function scheduleNext(){
     setTimeout(
       async () => {
 
-        await scan();
+        try{
+
+          await scan();
+
+
+        }catch(error){
+
+          state.lastError =
+            error.message;
+
+        }
+
 
         scheduleNext();
 
       },
-      interval
+      delay
     );
 
 
-  if(
-    typeof timer.unref ===
-    "function"
-  ){
-
-    timer.unref();
-
-  }
+  timer.unref?.();
 
 }
 
@@ -3614,13 +3268,13 @@ function scheduleNext(){
 
 async function start(
   options = {}
-){
+) {
 
   if(
     started
   ){
 
-    return publicState();
+    return getState();
 
   }
 
@@ -3636,13 +3290,23 @@ async function start(
       : null;
 
 
-  await scan();
+  try{
+
+    await scan();
+
+
+  }catch(error){
+
+    state.lastError =
+      error.message;
+
+  }
 
 
   scheduleNext();
 
 
-  return publicState();
+  return getState();
 
 }
 
@@ -3669,46 +3333,159 @@ function stop(){
 
 
 /* =========================================================
-   EXPORTED STATE
+   EXTERNAL BROWSER SENSOR INGEST
+========================================================= */
+
+async function ingestSignal(
+  signal
+) {
+
+  return processSignal(
+    signal
+  );
+
+}
+
+
+/* =========================================================
+   HEARTBEAT INGEST
+========================================================= */
+
+async function heartbeat(
+  data = {}
+) {
+
+  return processSignal({
+
+    type:
+      "HEARTBEAT",
+
+    source:
+      "browser-sensor",
+
+    sensorId:
+      data.sensorId ||
+      null,
+
+    version:
+      data.version ||
+      null,
+
+    userAgent:
+      data.userAgent ||
+      null,
+
+    at:
+      nowIso()
+
+  });
+
+}
+
+
+/* =========================================================
+   PUBLIC STATE
 ========================================================= */
 
 function getState(){
 
-  return publicState();
+  refreshState();
+
+
+  return JSON.parse(
+    JSON.stringify(
+      state
+    )
+  );
 
 }
 
 
 function getProducts(){
 
-  return productList();
+  return JSON.parse(
+    JSON.stringify(
+      Array.from(
+        products.values()
+      )
+        .sort(
+          (a,b) =>
+            new Date(
+              b.lastSeen ||
+              0
+            ) -
+            new Date(
+              a.lastSeen ||
+              0
+            )
+        )
+    )
+  );
 
 }
 
 
 function getActivity(){
 
-  return activityLog.slice(
-    0,
-    100
+  return JSON.parse(
+    JSON.stringify(
+      events.slice(
+        0,
+        150
+      )
+    )
   );
 
 }
 
 
+/* =========================================================
+   CONFIG
+========================================================= */
+
 function getConfig(){
 
   return {
 
-    baseUrl:
-      BASE_URL,
-
     priority:
       "highest",
 
-    normalScanSeconds:
+    timeZone:
+      TIME_ZONE,
+
+    activeWindow: {
+
+      days:
+        [
+          "Tuesday",
+          "Wednesday",
+          "Thursday"
+        ],
+
+      startHour:
+        ACTIVE_START_HOUR,
+
+      endHour:
+        ACTIVE_END_HOUR
+
+    },
+
+    peakWindow: {
+
+      startHour:
+        PEAK_START_HOUR,
+
+      endHour:
+        PEAK_END_HOUR,
+
+      note:
+        "Historical readiness weighting only; not a guaranteed drop window."
+
+    },
+
+    activeScanSeconds:
       Math.round(
-        NORMAL_SCAN_MS /
+        ACTIVE_SCAN_MS /
         1000
       ),
 
@@ -3724,21 +3501,54 @@ function getConfig(){
         60000
       ),
 
-    normalDeepPages:
-      NORMAL_DEEP_SCAN_LIMIT,
+    sentinelMinutes:
+      Math.round(
+        OFF_WINDOW_SCAN_MS /
+        60000
+      ),
 
-    hotDeepPages:
-      HOT_DEEP_SCAN_LIMIT,
+    sensorStaleMinutes:
+      Math.round(
+        SENSOR_STALE_MS /
+        60000
+      ),
 
-    maxTrackedProducts:
-      MAX_TRACKED_PRODUCTS,
+    supportSources: [
+      ...SUPPORT_URLS
+    ],
 
-    sources: [
-      ...SOURCE_URLS
+    capabilities: [
+
+      "browser sensor heartbeat",
+
+      "new product detection",
+
+      "new product URL detection",
+
+      "SKU/product ID change detection",
+
+      "image change detection",
+
+      "price change detection",
+
+      "availability change detection",
+
+      "queue signal detection",
+
+      "official preorder/support-page change detection",
+
+      "multi-signal confidence scoring",
+
+      "estimated readiness windows",
+
+      "duplicate alert suppression",
+
+      "multi-device broadcast push support"
+
     ],
 
     accessPolicy:
-      "Public Pokémon Center surfaces only. No CAPTCHA, queue, authentication, or access-control bypass."
+      "Public and user-visible signals only. No CAPTCHA, queue, authentication, anti-bot, or access-control bypass."
 
   };
 
@@ -3756,6 +3566,10 @@ module.exports = {
   stop,
 
   scan,
+
+  ingestSignal,
+
+  heartbeat,
 
   getState,
 
