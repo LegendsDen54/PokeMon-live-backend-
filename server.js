@@ -12,6 +12,7 @@ const {
 } = require("./monitor");
 
 const walmart = require("./walmart");
+const walmartRaffles = require("./walmart-raffles");
 const push = require("./push");
 const discovery = require("./discovery");
 const products = require("./products.json");
@@ -27,6 +28,10 @@ const walmartWatchlist =
 const walmart30thDiscovery =
   require("./walmart-30th-discovery");
 
+
+/* ========================================
+   APP
+======================================== */
 
 const app = express();
 
@@ -76,6 +81,21 @@ const discoveryMinutes =
     )
   );
 
+/*
+  Raffle checks run independently from
+  the normal Walmart product scheduler.
+
+  Default = every 10 minutes.
+*/
+const rafflePollMinutes =
+  Math.max(
+    5,
+    Number(
+      process.env.WALMART_RAFFLE_POLL_MINUTES ||
+      10
+    )
+  );
+
 const manualScanToken =
   process.env.MANUAL_SCAN_TOKEN ||
   "";
@@ -84,6 +104,10 @@ const walmartWakeToken =
   process.env.WALMART_WAKE_TOKEN ||
   "";
 
+
+/* ========================================
+   MIDDLEWARE
+======================================== */
 
 app.use(
   cors({
@@ -100,7 +124,541 @@ app.use(
 
 
 /* ========================================
-   SCAN
+   RAFFLE STATE
+======================================== */
+
+let raffleScanRunning =
+  false;
+
+let raffleBaselineReady =
+  false;
+
+const raffleBaseline =
+  new Map();
+
+let raffleState = {
+  ok: false,
+  running: false,
+  lastChecked: null,
+  lastSuccess: null,
+  error: null,
+  count: 0,
+  items: []
+};
+
+
+function raffleKey(item) {
+  return String(
+    item?.walmartItemId ||
+    item?.url ||
+    item?.productId ||
+    item?.name ||
+    ""
+  );
+}
+
+
+function mergeRaffles(
+  axessoItems,
+  publicItems
+) {
+  const merged =
+    new Map();
+
+  /*
+    Axesso first.
+    Walmart's public Draw page is then
+    allowed to overwrite because its
+    draw-state information is more direct.
+  */
+  for (
+    const item of
+    Array.isArray(axessoItems)
+      ? axessoItems
+      : []
+  ) {
+    const key =
+      raffleKey(item);
+
+    if (key) {
+      merged.set(
+        key,
+        item
+      );
+    }
+  }
+
+
+  for (
+    const item of
+    Array.isArray(publicItems)
+      ? publicItems
+      : []
+  ) {
+    const key =
+      raffleKey(item);
+
+    if (!key) {
+      continue;
+    }
+
+    const previous =
+      merged.get(key) ||
+      {};
+
+    merged.set(
+      key,
+      {
+        ...previous,
+        ...item,
+
+        image:
+          item.image ||
+          previous.image ||
+          null,
+
+        url:
+          item.url ||
+          previous.url ||
+          null,
+
+        price:
+          item.price ??
+          previous.price ??
+          null,
+
+        startsAt:
+          item.startsAt ||
+          previous.startsAt ||
+          null
+      }
+    );
+  }
+
+
+  const order = {
+    live: 0,
+    upcoming: 1,
+    detected: 2,
+    closed: 3
+  };
+
+
+  return Array
+    .from(
+      merged.values()
+    )
+    .filter(
+      item =>
+        walmart
+          .isOfficialSealedPokemonProduct?.(
+            item.name || ""
+          ) !== false
+    )
+    .sort(
+      (a,b) =>
+        (
+          order[
+            a.raffleStatus
+          ] ?? 9
+        ) -
+        (
+          order[
+            b.raffleStatus
+          ] ?? 9
+        )
+    );
+}
+
+
+/* ========================================
+   RAFFLE ALERTS
+======================================== */
+
+async function processRaffleAlerts(
+  items
+) {
+  if (
+    !Array.isArray(items)
+  ) {
+    return;
+  }
+
+
+  /*
+    First successful scan establishes
+    baseline without spamming old raffles.
+  */
+  if (
+    !raffleBaselineReady
+  ) {
+    raffleBaseline.clear();
+
+    for (
+      const item of items
+    ) {
+      const key =
+        raffleKey(item);
+
+      if (!key) {
+        continue;
+      }
+
+      raffleBaseline.set(
+        key,
+        item.raffleStatus ||
+        item.status ||
+        "detected"
+      );
+    }
+
+    raffleBaselineReady =
+      true;
+
+    console.log(
+      `Walmart raffle baseline established with ${raffleBaseline.size} item(s).`
+    );
+
+    return;
+  }
+
+
+  for (
+    const item of items
+  ) {
+    const key =
+      raffleKey(item);
+
+    if (!key) {
+      continue;
+    }
+
+    const current =
+      item.raffleStatus ||
+      item.status ||
+      "detected";
+
+    const previous =
+      raffleBaseline.get(
+        key
+      );
+
+
+    /*
+      NEWLY DISCOVERED RAFFLE
+      = pre-warning.
+    */
+    if (
+      previous === undefined &&
+      (
+        current === "detected" ||
+        current === "upcoming"
+      )
+    ) {
+      try {
+        await push.broadcast({
+          title:
+            "⚡ Walmart Pokémon Raffle Detected",
+
+          body:
+            item.startsAt
+              ? `${item.name} has been found for an upcoming Walmart drawing. Starts ${new Date(
+                  item.startsAt
+                ).toLocaleString("en-US")}.`
+              : `${item.name} has been found for an upcoming Walmart drawing.`,
+
+          url:
+            item.url ||
+            "https://www.walmart.com/shop/collectibles/draw",
+
+          icon:
+            item.image ||
+            "https://pokemon-live-backend.onrender.com/app-icon.png",
+
+          badge:
+            "https://pokemon-live-backend.onrender.com/app-icon.png",
+
+          tag:
+            `walmart-raffle-warning-${
+              item.walmartItemId ||
+              item.productId ||
+              key
+            }`
+        });
+
+        console.log(
+          "Walmart raffle pre-warning sent:",
+          item.name
+        );
+
+      } catch (error) {
+        console.error(
+          "Walmart raffle pre-warning failed:",
+          error.message
+        );
+      }
+    }
+
+
+    /*
+      DRAW JUST WENT LIVE
+    */
+    if (
+      previous !== undefined &&
+      previous !== "live" &&
+      current === "live"
+    ) {
+      try {
+        await push.broadcast({
+          title:
+            "🔥 WALMART RAFFLE LIVE!",
+
+          body:
+            `${item.name} drawing is LIVE. Tap to open Walmart now.`,
+
+          url:
+            item.url ||
+            "https://www.walmart.com/shop/collectibles/draw",
+
+          icon:
+            item.image ||
+            "https://pokemon-live-backend.onrender.com/app-icon.png",
+
+          badge:
+            "https://pokemon-live-backend.onrender.com/app-icon.png",
+
+          tag:
+            `walmart-raffle-live-${
+              item.walmartItemId ||
+              item.productId ||
+              key
+            }`
+        });
+
+        console.log(
+          "Walmart raffle LIVE alert sent:",
+          item.name
+        );
+
+      } catch (error) {
+        console.error(
+          "Walmart raffle LIVE alert failed:",
+          error.message
+        );
+      }
+    }
+
+
+    raffleBaseline.set(
+      key,
+      current
+    );
+  }
+}
+
+
+/* ========================================
+   RAFFLE SCAN
+======================================== */
+
+async function runRaffleScan() {
+
+  if (
+    raffleScanRunning
+  ) {
+    return {
+      ...raffleState,
+      skipped: true,
+      reason:
+        "Raffle scan already running"
+    };
+  }
+
+
+  raffleScanRunning =
+    true;
+
+  raffleState = {
+    ...raffleState,
+    running: true,
+    lastChecked:
+      new Date()
+        .toISOString()
+  };
+
+
+  let publicResult = null;
+  let axessoItems = [];
+  let errorMessages = [];
+
+
+  try {
+
+    /*
+      Source 1:
+      Walmart public Collectibles Draw page.
+    */
+    try {
+      publicResult =
+        await walmartRaffles
+          .scan();
+
+      if (
+        publicResult?.error
+      ) {
+        errorMessages.push(
+          publicResult.error
+        );
+      }
+
+    } catch (error) {
+      console.error(
+        "Public Walmart raffle scan failed:",
+        error.message
+      );
+
+      errorMessages.push(
+        error.message
+      );
+    }
+
+
+    /*
+      Source 2:
+      Axesso search raffle detection.
+    */
+    try {
+      axessoItems =
+        await walmart
+          .refreshRaffles();
+
+    } catch (error) {
+      console.error(
+        "Axesso Walmart raffle scan failed:",
+        error.message
+      );
+
+      errorMessages.push(
+        error.message
+      );
+    }
+
+
+    const items =
+      mergeRaffles(
+        axessoItems,
+        publicResult?.items || []
+      );
+
+
+    raffleState = {
+      ok:
+        Boolean(
+          publicResult?.ok ||
+          Array.isArray(
+            axessoItems
+          )
+        ),
+
+      running:
+        false,
+
+      lastChecked:
+        new Date()
+          .toISOString(),
+
+      lastSuccess:
+        items.length ||
+        publicResult?.ok
+          ? new Date()
+              .toISOString()
+          : raffleState.lastSuccess,
+
+      error:
+        errorMessages.length
+          ? errorMessages.join(" | ")
+          : null,
+
+      count:
+        items.length,
+
+      items
+    };
+
+
+    await processRaffleAlerts(
+      items
+    );
+
+
+    console.log(
+      "Walmart raffle scan finished:",
+      {
+        count:
+          items.length,
+
+        publicCount:
+          publicResult?.count ||
+          0,
+
+        axessoCount:
+          Array.isArray(
+            axessoItems
+          )
+            ? axessoItems.length
+            : 0
+      }
+    );
+
+
+    return {
+      ...raffleState
+    };
+
+
+  } catch (error) {
+
+    raffleState = {
+      ...raffleState,
+
+      ok:
+        false,
+
+      running:
+        false,
+
+      lastChecked:
+        new Date()
+          .toISOString(),
+
+      error:
+        error.message
+    };
+
+
+    console.error(
+      "Walmart raffle scan failed:",
+      error
+    );
+
+
+    return {
+      ...raffleState
+    };
+
+
+  } finally {
+
+    raffleScanRunning =
+      false;
+
+  }
+
+}
+
+
+/* ========================================
+   MAIN WALMART SCAN
 ======================================== */
 
 async function runScheduledScan(){
@@ -111,8 +669,10 @@ async function runScheduledScan(){
       "Starting Walmart catalog scan..."
     );
 
+
     const catalogResult =
       await runCheck();
+
 
     let discovery30th =
       null;
@@ -123,6 +683,7 @@ async function runScheduledScan(){
       discovery30th =
         await walmart30thDiscovery
           .runDiscovery();
+
 
       console.log(
         "Walmart 30th discovery finished:",
@@ -149,6 +710,7 @@ async function runScheduledScan(){
         error.message
       );
 
+
       discovery30th = {
         ok:false,
         error:error.message
@@ -157,9 +719,33 @@ async function runScheduledScan(){
     }
 
 
+    /*
+      Also refresh raffle state during
+      scheduled Walmart scans.
+    */
+    let raffles =
+      null;
+
+
+    try{
+
+      raffles =
+        await runRaffleScan();
+
+    }catch(error){
+
+      console.error(
+        "Walmart raffle refresh failed:",
+        error.message
+      );
+
+    }
+
+
     const result = {
       ...catalogResult,
-      discovery30th
+      discovery30th,
+      raffles
     };
 
 
@@ -179,12 +765,17 @@ async function runScheduledScan(){
       error
     );
 
+
     throw error;
 
   }
 
 }
 
+
+/* ========================================
+   WALMART SCHEDULER
+======================================== */
 
 const walmartScheduler =
   createWalmartScheduler({
@@ -351,10 +942,12 @@ app.get(
       "application/manifest+json"
     );
 
+
     res.setHeader(
       "Cache-Control",
       "no-cache, no-store, must-revalidate"
     );
+
 
     res.json({
 
@@ -451,6 +1044,11 @@ app.get(
           .getProviderInfo?.() ||
         null,
 
+      walmartRaffles:
+        raffleState,
+
+      rafflePollMinutes,
+
       walmart30thDiscovery:
         walmart30thDiscovery
           .getState(),
@@ -508,6 +1106,11 @@ app.get(
         walmart
           .getProviderInfo?.() ||
         null,
+
+      walmartRaffles:
+        raffleState,
+
+      rafflePollMinutes,
 
       walmart30thDiscovery:
         walmart30thDiscovery
@@ -758,13 +1361,20 @@ app.get(
 
       walmartSchedule:
         walmartScheduler
-          .getStatus()
+          .getStatus(),
+
+      walmartRaffles:
+        raffleState
 
     });
 
   }
 );
 
+
+/* ========================================
+   STATUS
+======================================== */
 
 app.get(
   "/api/status",
@@ -822,10 +1432,18 @@ app.get(
           .getProviderInfo?.() ||
         null,
 
+      walmartDiscoveredDeals:
+        walmart
+          .getDiscoveredDeals?.() ||
+        [],
+
       upcoming:
         walmart
           .getUpcoming?.() ||
         [],
+
+      walmartRaffles:
+        raffleState,
 
       walmartWatchlist:
         walmartWatchlist
@@ -890,6 +1508,12 @@ app.get(
               : [];
 
 
+          const discovered =
+            walmart
+              .getDiscoveredDeals?.() ||
+            [];
+
+
           return {
 
             ...provider,
@@ -897,7 +1521,8 @@ app.get(
             configured:true,
 
             itemCount:
-              walmartItems.length,
+              walmartItems.length +
+              discovered.length,
 
             lastRun:
               latest.lastRun ||
@@ -985,7 +1610,7 @@ app.get(
         getLatest();
 
 
-      items =
+      const scannedItems =
         Array.isArray(
           latest.items
         )
@@ -995,6 +1620,146 @@ app.get(
                 "walmart"
             )
           : [];
+
+
+      const discoveredDeals =
+        walmart
+          .getDiscoveredDeals?.() ||
+        [];
+
+
+      const merged =
+        [
+          ...scannedItems,
+          ...discoveredDeals
+        ];
+
+
+      const unique =
+        new Map();
+
+
+      for(
+        const item of merged
+      ){
+
+        /*
+          Only official sealed Pokémon
+          products are allowed into the
+          Walmart product view.
+        */
+        if(
+          walmart
+            .isOfficialSealedPokemonProduct?.(
+              item.name || ""
+            ) === false
+        ){
+          continue;
+        }
+
+
+        /*
+          Auto-discovered products need
+          to pass the user's price rule.
+          Curated scan placeholders remain
+          visible so monitored products
+          don't disappear when OOS.
+        */
+        if(
+          item.autoDiscovered === true &&
+          item.withinPriceRule !== true
+        ){
+          continue;
+        }
+
+
+        const key =
+          String(
+            item.walmartItemId ||
+            item.productId ||
+            item.url ||
+            [
+              item.name,
+              item.seller,
+              item.price
+            ].join("|")
+          );
+
+
+        const existing =
+          unique.get(key);
+
+
+        if(
+          !existing ||
+          (
+            item.displayEligible === true &&
+            existing.displayEligible !== true
+          )
+        ){
+          unique.set(
+            key,
+            item
+          );
+        }
+
+      }
+
+
+      items =
+        Array
+          .from(
+            unique.values()
+          )
+          .sort(
+            (a,b) => {
+
+              const aLive =
+                a.inStock === true
+                  ? 0
+                  : 1;
+
+              const bLive =
+                b.inStock === true
+                  ? 0
+                  : 1;
+
+
+              if(
+                aLive !==
+                bLive
+              ){
+                return (
+                  aLive -
+                  bLive
+                );
+              }
+
+
+              const ap =
+                Number(
+                  a.price
+                );
+
+              const bp =
+                Number(
+                  b.price
+                );
+
+
+              if(
+                Number.isFinite(ap) &&
+                Number.isFinite(bp)
+              ){
+                return ap - bp;
+              }
+
+
+              return 0;
+
+            }
+          );
+
 
     }else{
 
@@ -1105,6 +1870,131 @@ app.get(
 );
 
 
+/* ========================================
+   WALMART QUALIFYING DEALS
+======================================== */
+
+app.get(
+  "/api/walmart/deals",
+  (req,res) => {
+
+    const items =
+      (
+        walmart
+          .getDiscoveredDeals?.() ||
+        []
+      )
+        .filter(
+          item =>
+            item.displayEligible ===
+              true &&
+            item.withinPriceRule ===
+              true &&
+            walmart
+              .isOfficialSealedPokemonProduct?.(
+                item.name || ""
+              ) !== false
+        );
+
+
+    res.json({
+
+      ok:true,
+
+      count:
+        items.length,
+
+      items
+
+    });
+
+  }
+);
+
+
+/* ========================================
+   WALMART RAFFLES
+======================================== */
+
+app.get(
+  "/api/walmart/raffles",
+  (req,res) => {
+
+    res.json({
+      ...raffleState,
+
+      pollMinutes:
+        rafflePollMinutes,
+
+      drawPage:
+        walmartRaffles
+          .DRAW_URL
+    });
+
+  }
+);
+
+
+/*
+  Manual raffle refresh.
+  Protected by the same scan key.
+*/
+app.post(
+  "/api/walmart/raffles/scan",
+  async (req,res) => {
+
+    if(!manualScanToken){
+
+      return res
+        .status(503)
+        .json({
+
+          ok:false,
+
+          error:
+            "Manual scan is disabled until MANUAL_SCAN_TOKEN is configured"
+
+        });
+
+    }
+
+
+    if(
+      !hasValidManualToken(
+        req
+      )
+    ){
+
+      return res
+        .status(401)
+        .json({
+
+          ok:false,
+
+          error:
+            "Invalid scan token"
+
+        });
+
+    }
+
+
+    const result =
+      await runRaffleScan();
+
+
+    res.json(
+      result
+    );
+
+  }
+);
+
+
+/* ========================================
+   WALMART UPCOMING
+======================================== */
+
 app.get(
   "/api/walmart/upcoming",
   (req,res) => {
@@ -1129,6 +2019,10 @@ app.get(
   }
 );
 
+
+/* ========================================
+   WALMART WATCHLIST
+======================================== */
 
 app.get(
   "/api/walmart/watchlist",
@@ -1171,6 +2065,10 @@ app.get(
 );
 
 
+/* ========================================
+   WALMART 30TH
+======================================== */
+
 app.get(
   "/api/walmart/30th",
   (req,res) => {
@@ -1187,6 +2085,10 @@ app.get(
   }
 );
 
+
+/* ========================================
+   WALMART HEALTH
+======================================== */
 
 app.get(
   "/api/walmart/health",
@@ -1208,6 +2110,11 @@ app.get(
         walmartScheduler
           .getStatus(),
 
+      raffles:
+        raffleState,
+
+      rafflePollMinutes,
+
       watchlistCount:
         walmartWatchlist
           .getConfiguredWatchlist()
@@ -1222,6 +2129,10 @@ app.get(
   }
 );
 
+
+/* ========================================
+   WALMART WAKE
+======================================== */
 
 app.all(
   "/api/walmart/wake",
@@ -1301,6 +2212,10 @@ app.all(
   }
 );
 
+
+/* ========================================
+   WALMART MANUAL SCAN
+======================================== */
 
 app.post(
   "/api/walmart/scan",
@@ -1439,11 +2354,8 @@ app.get(
       }
 
 
-      const offers =
-        [];
-
-      const errors =
-        [];
+      const offers = [];
+      const errors = [];
 
 
       for(
@@ -1530,11 +2442,10 @@ app.get(
           )
         ){
 
-          uniqueOffers
-            .set(
-              key,
-              offer
-            );
+          uniqueOffers.set(
+            key,
+            offer
+          );
 
         }
 
@@ -1544,8 +2455,7 @@ app.get(
       const sorted =
         Array
           .from(
-            uniqueOffers
-              .values()
+            uniqueOffers.values()
           )
           .filter(
             offer =>
@@ -1889,6 +2799,10 @@ app.get(
 );
 
 
+/* ========================================
+   DEBUG WALMART
+======================================== */
+
 app.get(
   "/api/debug/walmart-search",
   async (req,res) => {
@@ -2085,6 +2999,56 @@ app.listen(
     );
 
 
+    /*
+      Start raffle watcher shortly after
+      backend startup.
+    */
+    setTimeout(
+      () => {
+
+        runRaffleScan()
+          .catch(
+            error => {
+
+              console.error(
+                "Startup raffle scan failed:",
+                error.message
+              );
+
+            }
+          );
+
+      },
+      8000
+    );
+
+
+    /*
+      Keep checking weekly raffle data
+      even outside normal stock windows.
+    */
+    setInterval(
+      () => {
+
+        runRaffleScan()
+          .catch(
+            error => {
+
+              console.error(
+                "Automatic raffle scan failed:",
+                error.message
+              );
+
+            }
+          );
+
+      },
+      rafflePollMinutes *
+      60 *
+      1000
+    );
+
+
     if(runOnStartup){
 
       await runScheduledScan();
@@ -2092,7 +3056,7 @@ app.listen(
     }else{
 
       console.log(
-        "Startup scan disabled."
+        "Startup catalog scan disabled."
       );
 
     }
