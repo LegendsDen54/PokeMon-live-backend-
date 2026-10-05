@@ -81,12 +81,6 @@ const discoveryMinutes =
     )
   );
 
-/*
-  Raffle checks run independently from
-  the normal Walmart product scheduler.
-
-  Default = every 10 minutes.
-*/
 const rafflePollMinutes =
   Math.max(
     5,
@@ -148,6 +142,7 @@ let raffleState = {
 
 
 function raffleKey(item) {
+
   return String(
     item?.walmartItemId ||
     item?.url ||
@@ -155,6 +150,7 @@ function raffleKey(item) {
     item?.name ||
     ""
   );
+
 }
 
 
@@ -162,30 +158,30 @@ function mergeRaffles(
   axessoItems,
   publicItems
 ) {
+
   const merged =
     new Map();
 
-  /*
-    Axesso first.
-    Walmart's public Draw page is then
-    allowed to overwrite because its
-    draw-state information is more direct.
-  */
+
   for (
     const item of
     Array.isArray(axessoItems)
       ? axessoItems
       : []
   ) {
+
     const key =
       raffleKey(item);
 
     if (key) {
+
       merged.set(
         key,
         item
       );
+
     }
+
   }
 
 
@@ -195,16 +191,21 @@ function mergeRaffles(
       ? publicItems
       : []
   ) {
+
     const key =
       raffleKey(item);
 
     if (!key) {
+
       continue;
+
     }
+
 
     const previous =
       merged.get(key) ||
       {};
+
 
     merged.set(
       key,
@@ -233,6 +234,7 @@ function mergeRaffles(
           null
       }
     );
+
   }
 
 
@@ -268,6 +270,7 @@ function mergeRaffles(
           ] ?? 9
         )
     );
+
 }
 
 
@@ -278,31 +281,37 @@ function mergeRaffles(
 async function processRaffleAlerts(
   items
 ) {
+
   if (
     !Array.isArray(items)
   ) {
+
     return;
+
   }
 
 
-  /*
-    First successful scan establishes
-    baseline without spamming old raffles.
-  */
   if (
     !raffleBaselineReady
   ) {
+
     raffleBaseline.clear();
+
 
     for (
       const item of items
     ) {
+
       const key =
         raffleKey(item);
 
+
       if (!key) {
+
         continue;
+
       }
+
 
       raffleBaseline.set(
         key,
@@ -310,33 +319,44 @@ async function processRaffleAlerts(
         item.status ||
         "detected"
       );
+
     }
+
 
     raffleBaselineReady =
       true;
+
 
     console.log(
       `Walmart raffle baseline established with ${raffleBaseline.size} item(s).`
     );
 
+
     return;
+
   }
 
 
   for (
     const item of items
   ) {
+
     const key =
       raffleKey(item);
 
+
     if (!key) {
+
       continue;
+
     }
+
 
     const current =
       item.raffleStatus ||
       item.status ||
       "detected";
+
 
     const previous =
       raffleBaseline.get(
@@ -344,10 +364,6 @@ async function processRaffleAlerts(
       );
 
 
-    /*
-      NEWLY DISCOVERED RAFFLE
-      = pre-warning.
-    */
     if (
       previous === undefined &&
       (
@@ -355,8 +371,11 @@ async function processRaffleAlerts(
         current === "upcoming"
       )
     ) {
+
       try {
+
         await push.broadcast({
+
           title:
             "⚡ Walmart Pokémon Raffle Detected",
 
@@ -384,32 +403,38 @@ async function processRaffleAlerts(
               item.productId ||
               key
             }`
+
         });
+
 
         console.log(
           "Walmart raffle pre-warning sent:",
           item.name
         );
 
+
       } catch (error) {
+
         console.error(
           "Walmart raffle pre-warning failed:",
           error.message
         );
+
       }
+
     }
 
 
-    /*
-      DRAW JUST WENT LIVE
-    */
     if (
       previous !== undefined &&
       previous !== "live" &&
       current === "live"
     ) {
+
       try {
+
         await push.broadcast({
+
           title:
             "🔥 WALMART RAFFLE LIVE!",
 
@@ -433,19 +458,25 @@ async function processRaffleAlerts(
               item.productId ||
               key
             }`
+
         });
+
 
         console.log(
           "Walmart raffle LIVE alert sent:",
           item.name
         );
 
+
       } catch (error) {
+
         console.error(
           "Walmart raffle LIVE alert failed:",
           error.message
         );
+
       }
+
     }
 
 
@@ -453,7 +484,9 @@ async function processRaffleAlerts(
       key,
       current
     );
+
   }
+
 }
 
 
@@ -466,21 +499,26 @@ async function runRaffleScan() {
   if (
     raffleScanRunning
   ) {
+
     return {
       ...raffleState,
       skipped: true,
       reason:
         "Raffle scan already running"
     };
+
   }
 
 
   raffleScanRunning =
     true;
 
+
   raffleState = {
     ...raffleState,
+
     running: true,
+
     lastChecked:
       new Date()
         .toISOString()
@@ -488,59 +526,66 @@ async function runRaffleScan() {
 
 
   let publicResult = null;
+
   let axessoItems = [];
+
   let errorMessages = [];
 
 
   try {
 
-    /*
-      Source 1:
-      Walmart public Collectibles Draw page.
-    */
     try {
+
       publicResult =
         await walmartRaffles
           .scan();
 
+
       if (
         publicResult?.error
       ) {
+
         errorMessages.push(
           publicResult.error
         );
+
       }
 
+
     } catch (error) {
+
       console.error(
         "Public Walmart raffle scan failed:",
         error.message
       );
 
+
       errorMessages.push(
         error.message
       );
+
     }
 
 
-    /*
-      Source 2:
-      Axesso search raffle detection.
-    */
     try {
+
       axessoItems =
         await walmart
           .refreshRaffles();
 
+
     } catch (error) {
+
       console.error(
         "Axesso Walmart raffle scan failed:",
         error.message
       );
 
+
       errorMessages.push(
         error.message
       );
+
     }
 
 
@@ -552,6 +597,7 @@ async function runRaffleScan() {
 
 
     raffleState = {
+
       ok:
         Boolean(
           publicResult?.ok ||
@@ -583,6 +629,7 @@ async function runRaffleScan() {
         items.length,
 
       items
+
     };
 
 
@@ -594,6 +641,7 @@ async function runRaffleScan() {
     console.log(
       "Walmart raffle scan finished:",
       {
+
         count:
           items.length,
 
@@ -607,6 +655,7 @@ async function runRaffleScan() {
           )
             ? axessoItems.length
             : 0
+
       }
     );
 
@@ -688,6 +737,7 @@ async function runScheduledScan(){
       console.log(
         "Walmart 30th discovery finished:",
         {
+
           count:
             discovery30th?.count ||
             0,
@@ -699,6 +749,7 @@ async function runScheduledScan(){
           availableDirectCount:
             discovery30th?.availableDirectCount ||
             0
+
         }
       );
 
@@ -719,10 +770,6 @@ async function runScheduledScan(){
     }
 
 
-    /*
-      Also refresh raffle state during
-      scheduled Walmart scans.
-    */
     let raffles =
       null;
 
@@ -731,6 +778,7 @@ async function runScheduledScan(){
 
       raffles =
         await runRaffleScan();
+
 
     }catch(error){
 
@@ -743,9 +791,13 @@ async function runScheduledScan(){
 
 
     const result = {
+
       ...catalogResult,
+
       discovery30th,
+
       raffles
+
     };
 
 
@@ -791,7 +843,9 @@ const walmartScheduler =
 function hasValidManualToken(req){
 
   if(!manualScanToken){
+
     return false;
+
   }
 
 
@@ -814,7 +868,9 @@ function hasValidManualToken(req){
 function hasValidWakeToken(req){
 
   if(!walmartWakeToken){
+
     return false;
+
   }
 
 
@@ -863,6 +919,12 @@ app.get(
   "/",
   (req,res) => {
 
+    res.setHeader(
+      "Cache-Control",
+      "no-cache, no-store, must-revalidate"
+    );
+
+
     res.sendFile(
       path.join(
         __dirname,
@@ -889,9 +951,140 @@ app.get(
 );
 
 
+/*
+  ORIGINAL ICON ROUTE
+*/
 app.get(
   "/app-icon.png",
   (req,res) => {
+
+    res.setHeader(
+      "Cache-Control",
+      "no-cache, no-store, must-revalidate"
+    );
+
+
+    res.type(
+      "image/png"
+    );
+
+
+    res.sendFile(
+      path.join(
+        __dirname,
+        "app-icon.png"
+      )
+    );
+
+  }
+);
+
+
+/*
+  IOS STANDARD APP ICON ROUTE
+
+  iPhone/iPad Safari can request this path
+  directly even when a custom link tag exists.
+*/
+app.get(
+  "/apple-touch-icon.png",
+  (req,res) => {
+
+    res.setHeader(
+      "Cache-Control",
+      "no-cache, no-store, must-revalidate"
+    );
+
+
+    res.type(
+      "image/png"
+    );
+
+
+    res.sendFile(
+      path.join(
+        __dirname,
+        "app-icon.png"
+      )
+    );
+
+  }
+);
+
+
+/*
+  OLDER IOS STANDARD PATH
+*/
+app.get(
+  "/apple-touch-icon-precomposed.png",
+  (req,res) => {
+
+    res.setHeader(
+      "Cache-Control",
+      "no-cache, no-store, must-revalidate"
+    );
+
+
+    res.type(
+      "image/png"
+    );
+
+
+    res.sendFile(
+      path.join(
+        __dirname,
+        "app-icon.png"
+      )
+    );
+
+  }
+);
+
+
+/*
+  SOME IOS VERSIONS MAY REQUEST
+  SIZE-SPECIFIC ICON PATHS.
+*/
+app.get(
+  "/apple-touch-icon-180x180.png",
+  (req,res) => {
+
+    res.setHeader(
+      "Cache-Control",
+      "no-cache, no-store, must-revalidate"
+    );
+
+
+    res.type(
+      "image/png"
+    );
+
+
+    res.sendFile(
+      path.join(
+        __dirname,
+        "app-icon.png"
+      )
+    );
+
+  }
+);
+
+
+app.get(
+  "/apple-touch-icon-152x152.png",
+  (req,res) => {
+
+    res.setHeader(
+      "Cache-Control",
+      "no-cache, no-store, must-revalidate"
+    );
+
+
+    res.type(
+      "image/png"
+    );
+
 
     res.sendFile(
       path.join(
@@ -913,15 +1106,18 @@ app.get(
       "application/javascript; charset=utf-8"
     );
 
+
     res.setHeader(
       "Service-Worker-Allowed",
       "/"
     );
 
+
     res.setHeader(
       "Cache-Control",
       "no-cache, no-store, must-revalidate"
     );
+
 
     res.sendFile(
       path.join(
@@ -980,8 +1176,9 @@ app.get(
 
       icons:[
         {
+
           src:
-            "/app-icon.png",
+            "/apple-touch-icon.png",
 
           sizes:
             "512x512",
@@ -991,6 +1188,7 @@ app.get(
 
           purpose:
             "any"
+
         }
       ]
 
@@ -1492,7 +1690,9 @@ app.get(
             provider.retailer !==
             "walmart"
           ){
+
             return provider;
+
           }
 
 
@@ -1643,33 +1843,25 @@ app.get(
         const item of merged
       ){
 
-        /*
-          Only official sealed Pokémon
-          products are allowed into the
-          Walmart product view.
-        */
         if(
           walmart
             .isOfficialSealedPokemonProduct?.(
               item.name || ""
             ) === false
         ){
+
           continue;
+
         }
 
 
-        /*
-          Auto-discovered products need
-          to pass the user's price rule.
-          Curated scan placeholders remain
-          visible so monitored products
-          don't disappear when OOS.
-        */
         if(
           item.autoDiscovered === true &&
           item.withinPriceRule !== true
         ){
+
           continue;
+
         }
 
 
@@ -1697,10 +1889,12 @@ app.get(
             existing.displayEligible !== true
           )
         ){
+
           unique.set(
             key,
             item
           );
+
         }
 
       }
@@ -1729,10 +1923,12 @@ app.get(
                 aLive !==
                 bLive
               ){
+
                 return (
                   aLive -
                   bLive
                 );
+
               }
 
 
@@ -1751,7 +1947,9 @@ app.get(
                 Number.isFinite(ap) &&
                 Number.isFinite(bp)
               ){
+
                 return ap - bp;
+
               }
 
 
@@ -1921,6 +2119,7 @@ app.get(
   (req,res) => {
 
     res.json({
+
       ...raffleState,
 
       pollMinutes:
@@ -1929,16 +2128,13 @@ app.get(
       drawPage:
         walmartRaffles
           .DRAW_URL
+
     });
 
   }
 );
 
 
-/*
-  Manual raffle refresh.
-  Protected by the same scan key.
-*/
 app.post(
   "/api/walmart/raffles/scan",
   async (req,res) => {
@@ -2856,7 +3052,9 @@ let discoveryRunning =
 async function runScheduledDiscovery(){
 
   if(discoveryRunning){
+
     return;
+
   }
 
 
@@ -2999,10 +3197,6 @@ app.listen(
     );
 
 
-    /*
-      Start raffle watcher shortly after
-      backend startup.
-    */
     setTimeout(
       () => {
 
@@ -3023,10 +3217,6 @@ app.listen(
     );
 
 
-    /*
-      Keep checking weekly raffle data
-      even outside normal stock windows.
-    */
     setInterval(
       () => {
 
