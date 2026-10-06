@@ -1,0 +1,185 @@
+"use strict";
+const cheerio = require("cheerio");
+const push = require("./push");
+const {Pool}=require("pg");
+const pool=process.env.DATABASE_URL?new Pool({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false},connectionTimeoutMillis:5000}):null;
+let storageReady=false;
+async function restore() {
+  if(!pool)return;
+  try {
+    await pool.query("CREATE TABLE IF NOT EXISTS retail_online_observations (retailer TEXT NOT NULL, url TEXT NOT NULL, data JSONB NOT NULL, PRIMARY KEY(retailer,url))");
+    const result=await pool.query("SELECT retailer,url,data FROM retail_online_observations");
+    for(const row of result.rows)if(configs[row.retailer] && productUrl(row.retailer,row.url))getState(row.retailer).items.set(row.url,row.data);
+    storageReady=true;
+  }catch(error){console.error("Online monitor storage unavailable:",error.message);}
+}
+async function persist(item) {
+  if(!storageReady)return;
+  await pool.query("INSERT INTO retail_online_observations(retailer,url,data) VALUES($1,$2,$3) ON CONFLICT(retailer,url) DO UPDATE SET data=EXCLUDED.data",[item.retailer,item.url,JSON.stringify(item)]).catch(error=>console.error("Online observation storage failed:",error.message));
+}
+const configs = {
+  sams: {label:"Sam's Club", host:"www.samsclub.com", search:"https://www.samsclub.com/s/Pokemon", locator:"https://www.samsclub.com/club-finder"},
+  costco: {label:"Costco", host:"www.costco.com", search:"https://www.costco.com/s?keyword=pokemon", locator:"https://www.costco.com/w/-/locations"},
+  target: {label:"Target", host:"www.target.com", search:"https://www.target.com/s?searchTerm=pokemon+trading+cards", locator:"https://www.target.com/store-locator/find-stores"}
+};
+const catalogs = require("./retail-catalog.json");
+const states = new Map();
+const requests = new Map();
+function isTcg(name) {
+  const value = String(name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (!/pokemon/.test(value)) return false;
+  if (/plush|shirt|hoodie|sneaker|lego|video game|funko|playmat only|sleeves|deck box only|binder|card storage/.test(value)) return false;
+  if (/deck box|playmat|protector|album/.test(value) && !/booster|elite trainer|premium collection|collection box|packs|\btin|bundle|promo/.test(value)) return false;
+  return /booster|elite trainer|\betb\b|\bupc\b|\bspc\b|premium collection|collection box|\btins?\b|blister|battle deck|theme deck|promo card|trading card game|\btcg\b/.test(value);
+}
+function validUrl(retailer, value) {
+  try {
+    const u = new URL(value);
+    if (u.protocol !== "https:" || u.hostname !== configs[retailer]?.host || u.port || u.username || u.password) return null;
+    u.hash = "";
+    u.search = "";
+    return u.href;
+  } catch { return null; }
+}
+function productUrl(retailer, value) {
+  const url = validUrl(retailer, value);
+  if (!url) return null;
+  const path = new URL(url).pathname;
+  return ({sams:/^\/(ip|p)\/.+/, costco:/^\/p\/.+|\.product\.[\d]+\.html$/, target:/^\/p\/.+\/-\/A-\d+/}[retailer]).test(path) ? url : null;
+}
+function getState(retailer) {
+  if (!configs[retailer]) throw new Error("Unsupported retailer");
+  if (!states.has(retailer)) states.set(retailer, {retailer, running:false, items:new Map(), error:null, lastRun:null, lastSuccess:null, lastDiscovery:0, nextCheck:0});
+  return states.get(retailer);
+}
+async function page(url) {
+  const cached = requests.get(url);
+  if (cached?.until > Date.now()) {
+    if (cached.error) throw new Error(cached.error);
+    return cached.html;
+  }
+  if (cached?.promise) return cached.promise;
+  const pending = (async () => {
+    try {
+      let response; let current=url;
+      for(let redirects=0; redirects<=3; redirects++) {
+        response = await fetch(current, {headers:{"User-Agent":"LegendsDen-PokemonMonitor/1.0 (+https://pokemon-live-backend.onrender.com)", accept:"text/html"}, redirect:"manual", signal:AbortSignal.timeout(15000)});
+        if (![301,302,303,307,308].includes(response.status)) break;
+        const next=new URL(response.headers.get("location"),current);
+        await response.body?.cancel();
+        if(next.protocol!=="https:" || next.hostname!==new URL(url).hostname || next.port || next.username || next.password) throw new Error("Retailer redirected outside its public website");
+        current=next.href;
+      }
+      if (!response.ok) {
+        const error = new Error(`Public page returned HTTP ${response.status}`);
+        error.status = response.status;
+        error.retryAfter = response.headers.get("retry-after");
+        throw error;
+      }
+      const reader = response.body.getReader();
+      let bytes = 0; const parts = [];
+      while (true) {
+        const chunk = await reader.read(); if (chunk.done) break;
+        bytes += chunk.value.length;
+        if (bytes > 4 * 1024 * 1024) { await reader.cancel(); throw new Error("Public page exceeds size limit"); }
+        parts.push(Buffer.from(chunk.value));
+      }
+      const html = Buffer.concat(parts).toString("utf8");
+      if (/access denied|verify you are human|captcha|robot or human/i.test(html) && !/"@type"\s*:\s*"Product"/.test(html)) throw new Error("Public page access is restricted");
+      requests.set(url, {html, fetchedAt:new Date().toISOString(), until:Date.now() + 10 * 60000});
+      if(requests.size>300)requests.delete(requests.keys().next().value);
+      return html;
+    } catch (error) {
+      const failures = (cached?.failures || 0) + 1;
+      const delay = [401,403].includes(error.status) ? 6 * 3600000 : Math.min(3600000, 60000 * 2 ** Math.min(failures,6)) + Math.random()*30000;
+      const retry = Number(error.retryAfter) * 1000 || Math.max(0, Date.parse(error.retryAfter || "") - Date.now()) || 0;
+      requests.set(url, {error:error.message, failures, until:Date.now() + Math.max(delay,retry)});
+      throw error;
+    }
+  })();
+  requests.set(url, {...cached, promise:pending});
+  return pending;
+}
+function parseProduct(retailer, url, html) {
+  const $ = cheerio.load(html);
+  const nodes = [];
+  function walk(value) {
+    if (Array.isArray(value)) return value.forEach(walk);
+    if (!value || typeof value !== "object") return;
+    if ([].concat(value["@type"] || []).includes("Product")) nodes.push(value);
+    if (value["@graph"]) walk(value["@graph"]);
+  }
+  $('script[type="application/ld+json"]').each((_,element) => {try { walk(JSON.parse($(element).text())); } catch {} });
+  const product = nodes.find(p => isTcg(p.name));
+  if (!product) return null;
+  const offers = [].concat(product.offers || []);
+  const offer = offers.find(o => o && typeof o === "object" && !/InStoreOnly|LimitedAvailability/.test(String(o.availability))) || {};
+  const seller = String(offer.seller?.name || "");
+  if (seller && !seller.toLowerCase().includes(configs[retailer].label.toLowerCase())) return null;
+  // Target marketplace offers require explicit seller attribution.
+  const verifiedSeller = retailer !== "target" || /^target$/i.test(seller);
+  const availability = String(offer.availability || "").split("/").pop();
+  const status = !verifiedSeller ? "unknown" : ({InStock:"instock", OutOfStock:"out", SoldOut:"out", PreOrder:"preorder", PreSale:"preorder", Discontinued:"out"}[availability] || "unknown");
+  const price = offer.price != null && offer.price !== "" && Number.isFinite(Number(offer.price)) ? Number(offer.price) : null;
+  const image = [].concat(product.image || [])[0];
+  const imageUrl = typeof image === "object" ? image?.url : image;
+  const sku = String(product.sku || product.productID || new URL(url).pathname.match(/(?:A-|\/)(\d{6,})(?:$|\.)/)?.[1] || "");
+  return {retailer, channel:"online", name:product.name, productId:sku || url, sku:sku || null, url, image:/^https:\/\//.test(imageUrl || "") ? imageUrl : null, price, status, rawStatus:verifiedSeller ? availability || "Not published" : "Seller not verified", quantity:null, shippingPostalCode:null, shippingEligible:null, source:"public_product_structured_data", observedAt:new Date().toISOString(), seller:seller || null, sellerVerified:verifiedSeller};
+}
+function catalog(retailer) {
+  const state = getState(retailer);
+  const entries = new Map((catalogs[retailer] || []).map(item => [item.url || item.query, item]));
+  for (const item of state.items.values()) entries.set(item.url, {label:item.name, query:item.name, url:item.url, sku:item.sku, image:item.image, price:item.price, discovered:true});
+  return [...entries.values()];
+}
+async function check(retailer, url) {
+  const safe = productUrl(retailer,url);
+  if (!safe) throw new Error("Enter an individual product link from this retailer");
+  const state = getState(retailer);
+  const item = parseProduct(retailer,safe,await page(safe));
+  if (!item) throw new Error("No card-containing Pokémon product data was published on this page");
+  item.observedAt=requests.get(safe)?.fetchedAt || item.observedAt;
+  const before = state.items.get(safe);
+  state.items.set(safe,item);
+  await persist(item);
+  if (before && ["instock","preorder"].includes(item.status) && before.status !== item.status) await push.broadcast({title:`${configs[retailer].label} — Online TCG alert`,body:`${item.name} · ${item.status === "preorder" ? "Pre-order offer" : "Listed in stock"} · Confirm shipping to your ZIP`,url:safe,tag:`online-${retailer}-${item.productId}`}).catch(() => {});
+  return item;
+}
+async function poll(retailer) {
+  const state = getState(retailer);
+  if (state.running || state.nextCheck > Date.now()) return;
+  state.running = true; state.lastRun = new Date().toISOString();
+  const hour = Number(new Intl.DateTimeFormat("en-US", {timeZone:"America/Chicago", hour:"numeric",hourCycle:"h23"}).format(new Date()));
+  state.nextCheck = Date.now() + (retailer === "target" && hour >=2 && hour <5 ? 10 : 30)*60000;
+  try {
+    if (Date.now() - state.lastDiscovery > 24*3600000) {
+      state.lastDiscovery = Date.now();
+      try {
+        const $ = cheerio.load(await page(configs[retailer].search));
+        $("a[href]").each((_,el) => {
+          let link; try {link = productUrl(retailer,new URL($(el).attr("href"),configs[retailer].search).href);} catch {}
+          const name = $(el).text().trim() || $(el).find("img").attr("alt");
+          if (link && isTcg(name) && state.items.size < 100 && !state.items.has(link)) state.items.set(link,{name,url:link,status:"unknown",channel:"online",retailer,quantity:null,source:"public_catalog_link",observedAt:new Date().toISOString()});
+        });
+      } catch(error) {state.error = error.message;}
+    }
+    const urls = [...new Set([...catalog(retailer).map(i => i.url), ...(process.env[retailer.toUpperCase()+"_PUBLIC_WATCH_URLS"] || "").split(/[\n,]/)])].filter(url => productUrl(retailer,url));
+    const offset=state.cursor || 0;
+    const batch=[...urls.slice(offset),...urls.slice(0,offset)].slice(0,12);
+    state.cursor=urls.length ? (offset+batch.length)%urls.length : 0;
+    let successes=0; const errors=[];
+    for (const url of batch) {try {await check(retailer,url);successes++;} catch(error) {errors.push(error.message);}}
+    if (successes) state.lastSuccess = new Date().toISOString();
+    state.error = errors.length ? [...new Set(errors)].join("; ") : successes ? null : state.error;
+  } finally {state.running=false;}
+}
+function snapshot(retailer) {
+  const state=getState(retailer);
+  return {...state, items:[...state.items.values()].map(item => ({...item, stale:Boolean(requests.get(item.url)?.error) || Date.now()-Date.parse(item.observedAt)>60*60000})), catalog:catalog(retailer), searchUrl:configs[retailer].search, locatorUrl:configs[retailer].locator};
+}
+async function start() {
+  await restore();
+  const tick=() => Promise.allSettled(Object.keys(configs).map(poll));
+  tick(); const timer=setInterval(tick,60000);timer.unref();
+}
+module.exports={start,snapshot,check,isTcg,parseProduct,productUrl};

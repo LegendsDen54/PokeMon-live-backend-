@@ -1,5 +1,6 @@
 const { Pool } = require("pg");
 const push = require("./push");
+const {isTcg: isCardProduct} = require("./retail-online");
 const warehouseAlertStates = new Map();
 
 async function notifyWarehouseChanges(retailer, items) {
@@ -7,7 +8,7 @@ async function notifyWarehouseChanges(retailer, items) {
   const current = new Map();
   for (const item of items) {
     const location = item.channel === "store" ? item.storeId || item.storeName || item.storeAddress : "online";
-    if (!location || !item.productId || !isPokemonTcgName(item.name)) continue;
+    if (!location || !item.productId || !isCardProduct(item.name)) continue;
     const key = JSON.stringify([retailer, item.channel, item.productId, location]);
     current.set(key, item);
     const before = previous?.get(key);
@@ -1740,8 +1741,8 @@ async function pollGenericExternal(
         );
     }
 
-    if (["sams", "costco"].includes(retailer)) {
-      items = items.filter(item => isPokemonTcgName(item.name));
+    if (["sams", "costco", "target"].includes(retailer)) {
+      items = items.filter(item => isCardProduct(item.name));
       await notifyWarehouseChanges(retailer, items);
     }
     state.items =

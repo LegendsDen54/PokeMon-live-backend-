@@ -193,3 +193,42 @@ use caching/backoff and transition-based alert deduplication. New listings or
 images alone are potential signals, not proof that a drop is imminent. Verify
 one real availability transition and push delivery before declaring Target live.
 This entry saves a plan only; it does not enable Target scanning or a new feed.
+
+### Public online monitor implementation and live probes (2026-10-06)
+
+Added an independent public structured-offer monitor for Costco, Sam's and Target,
+manual official product URL checks, daily catalog-link discovery attempts,
+official imagery/prices, actual observation timestamps and cached/backoff states.
+The public monitor has bounded coverage and requires accessible retailer content.
+It does not replace a warehouse inventory provider or promise future drops.
+
+Direct live probes successfully parsed Costco Galar Powers mini tins item 2351575
+at $39.99, explicitly OutOfStock, and Sam's 151 4-mini-tin/promo bundle,
+also OutOfStock. Sam's Focused Fighters and Target catalog access returned
+restricted pages. Other Costco seed links did not publish matching structured
+product data. Automatic full-catalog coverage is therefore not verified.
+
+Nearby mapped location lookup uses ZIP centroids and an attributed Overpass
+directory. Live location probes timed out or returned temporary service failures;
+no complete 75-mile location list was verified. The official retailer locator is
+available as a fallback. Never present mapped locations as confirmed product stock.
+https://wiki.openstreetmap.org/wiki/Overpass_API
+
+RestockR support replied that no API access is currently offered, asked about
+group size, and said infrastructure is being rebuilt. With user authorization,
+the private ticket was updated to clarify personal use by two friends and the
+difficulty obtaining direct store access. No new data-use permission was granted.
+
+Cross-region stock is not automatically deliverable to ZIP 60634. The public
+offer schema does not confirm destination eligibility; shipping must be checked
+at the retailer. Regional pickup is not treated as nationwide shipping inventory.
+https://help.samsclub.com/app/answers/detail/a_id/3980
+https://customerservice.costco.com/app/answers/detail/a_id/11031
+
+Validation: root/extension JavaScript and inline HTML scripts parsed; ten product
+classification/URL assertions passed; server start script ran via pnpm (npm is
+not installed locally); health/status/backend/new catalog endpoints responded;
+off-domain manual check rejected. Local browser verified Costco's official image,
+price, item ID, and out-of-stock result, including retention after UI refresh.
+Local PostgreSQL/VAPID credentials are absent, so database persistence and actual
+phone push delivery were not validated locally. No simulation data went live.

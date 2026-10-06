@@ -10,6 +10,14 @@ It detects public page changes, new product links that appear on an observed lis
 2. In Chrome, open `chrome://extensions`, turn on Developer mode, select **Load unpacked**, and choose this `pokemon-center-sensor` folder.
 3. Open the extension, enter `https://pokemon-live-backend.onrender.com` and the same pairing key, then choose **Save and test connection**.
 4. Keep the Pokémon Center pages you want to watch open in Chrome. The extension reports page changes while those tabs are open.
-5. **Refresh Pokémon Center automatically** starts enabled. It refreshes only already-open Pokémon Center tabs every two minutes Tuesday through Thursday from 9 AM to 2 PM Central, then stops outside those hours. You can turn it off in the extension popup.
+5. **Refresh Pokémon Center automatically** starts enabled. It refreshes only already-open Pokémon Center tabs every minute Tuesday through Thursday from 9 AM to 2 PM Central, then stops outside those hours. You can turn it off in the extension popup.
+
+Version 1.4.8 uses explicit structured product offers for Sam's Club and Costco.
+Generic words such as delivery, shipping, pickup, or add-to-list do not imply
+stock. These observations are online offers, not warehouse counts. An observation
+heartbeat is sent every two minutes while an eligible page remains open; it does
+not force a retailer reload or discover private changes on an idle page. After
+reloading the extension, reload the Sam's/Costco product tabs to attach the new
+script. Pokémon Center and X monitoring retain their existing scripts.
 
 The pairing key is not stored in this repository and must not be shared with other people. It only authorizes observations sent to this monitor; it does not grant access to Pokémon Center, Discord, or any retailer account.

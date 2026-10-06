@@ -2567,6 +2567,7 @@ function warehouseCheckerMarkup(retailer, provider){
     "<p>Choose a product and ZIP code to check confirmed public " + sourceName + " signals within 75 miles.</p>" +
     "<div class=\"store-checker-row\"><select id=\"warehouseWatchProduct\" aria-label=\"Pokémon TCG product\"><option value=\"\">Choose a Pokémon TCG product</option>" + options + "</select><input id=\"warehouseWatchZip\" inputmode=\"numeric\" maxlength=\"10\" placeholder=\"ZIP code\" value=\"60634\"><button id=\"warehouseWatchButton\" type=\"button\">CHECK NEARBY STORES</button><button id=\"warehouseBrowserButton\" type=\"button\">SHOW CHROME PAGE SIGNAL</button></div>" +
     "<p><span id=\"warehouseWatchItemLink\">" + productLink + "</span></p>" +
+    "<p><button id=\"warehouseLocationsButton\" type=\"button\">FIND NEARBY LOCATIONS</button> <a href=\"" + (retailer === "sams" ? "https://www.samsclub.com/club-finder" : "https://www.costco.com/w/-/locations") + "\" target=\"_blank\" rel=\"noopener noreferrer\">OFFICIAL STORE LOCATOR</a></p>" +
     "<div id=\"warehouseWatchResults\" class=\"store-checker-results\" aria-live=\"polite\"></div>" +
     "<div class=\"warehouse-signal-grid\">" +
       "<div class=\"warehouse-signal\"><strong>On order</strong>Only shown when published by a connected source.</div>" +
@@ -2585,6 +2586,24 @@ function wireWarehouseChecker(retailer){
   const browserButton = document.getElementById("warehouseBrowserButton");
   const results = document.getElementById("warehouseWatchResults");
   if(!product || !zip || !button || !results) return;
+  document.getElementById("warehouseLocationsButton")?.addEventListener("click",async event=>{
+    const control=event.target;control.disabled=true;control.textContent="FINDING LOCATIONS…";
+    try {
+      const response=await fetch("/api/retail/locations?retailer="+encodeURIComponent(retailer)+"&zip="+encodeURIComponent(zip.value),{cache:"no-store"});
+      const data=await response.json();if(!response.ok || !data.ok)throw new Error(data.error || "Location search unavailable");
+      const cards=(data.locations || []).map(item=>'<article class="retailer-product-card"><div><strong>'+esc(item.name)+'</strong><small>'+esc(item.address || "Address not mapped")+'</small><small>'+esc(item.distanceMiles)+' miles · approximate</small><small>Product inventory: not published</small><a href="'+esc(item.mapUrl)+'" target="_blank" rel="noopener noreferrer">MAP &amp; DIRECTIONS</a>'+(item.phone?'<small>'+esc(item.phone)+'</small>':'')+'</div></article>').join("");
+      results.innerHTML='<p>Nearby locations within 75 miles of the ZIP center. This is a location directory, not confirmed product stock.</p><div class="retailer-product-grid">'+cards+'</div><small>Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>. Verify location details with the retailer.</small>';
+    }catch(error){results.textContent=error.message;}
+    finally{control.disabled=false;control.textContent="FIND NEARBY LOCATIONS";}
+  });
+  fetch("/api/retail/online?retailer="+encodeURIComponent(retailer)).then(r=>r.json()).then(data=>{
+    if(!product.isConnected)return;
+    for(const item of data.catalog || []){
+      if([...product.options].some(option=>option.value===item.query))continue;
+      const option=document.createElement("option");option.value=item.query;option.textContent=item.label;product.append(option);
+      WAREHOUSE_TCG_WATCHLIST[retailer].push(item);
+    }
+  }).catch(()=>{});
   if(browserButton) browserButton.addEventListener("click", async () => {
     browserButton.disabled = true;
     results.innerHTML = "<p>Reading the latest public retailer page visible in Chrome…</p>";
@@ -2815,6 +2834,8 @@ function bestBuyPickerIsInUse(){
 }
 
 async function renderExternalRetailer(retailer){
+  if(retailer === "target" || (["sams","costco"].includes(retailer) && warehouseChannels[retailer] === "online")) return renderPublicOnline(retailer);
+  if(["sams","costco"].includes(retailer) && otherRetailerCard.contains(document.activeElement) && /INPUT|SELECT|BUTTON/.test(document.activeElement.tagName)) return;
   if(retailer === "bestbuy" && bestBuyPickerIsInUse()) return;
   const labels = {target:"Target", sams:"Sam's Club", bestbuy:"Best Buy", costco:"Costco"};
   const label = labels[retailer] || retailer;
@@ -2922,6 +2943,55 @@ async function renderExternalRetailer(retailer){
         esc(error.message) + "</p>";
     }
   }
+}
+
+async function renderPublicOnline(retailer){
+  renderPublicOnline.saved ||= {};
+  const saved=renderPublicOnline.saved[retailer] ||= {url:"",result:""};
+  const labels={sams:"Sam's Club",costco:"Costco",target:"Target"};
+  if(otherRetailerCard.contains(document.activeElement) && /INPUT|SELECT/.test(document.activeElement.tagName)) return;
+  try {
+    const response=await fetch("/api/retail/online?retailer="+encodeURIComponent(retailer),{cache:"no-store"});
+    const data=await response.json();
+    if(!response.ok || !data.ok) throw new Error(data.error || "Could not load online monitor");
+    if(activeRetailer!==retailer || (retailer!=="target" && warehouseChannels[retailer]!=="online")) return;
+    const items=new Map((data.items || []).map(item=>[item.url,item]));
+    // Configured provider inventory takes precedence over browser/page observations.
+    const feed=await fetch("/api/products?retailer="+encodeURIComponent(retailer),{cache:"no-store"}).then(r=>r.json()).catch(()=>({}));
+    for(const item of feed.items || []) if(item.channel==="online") items.set(item.url || item.productId,item);
+    if(retailer!=="target") {
+      const browser=await fetch("/api/"+retailer+"/browser-observations",{cache:"no-store"}).then(r=>r.json()).catch(()=>({}));
+      for(const item of browser.items || []) if(!items.has(item.url)) items.set(item.url,{...item,name:item.title,sku:item.itemNumber,status:item.availability,stale:Date.now()-Date.parse(item.observedAt)>5*60000});
+    }
+    if(activeRetailer!==retailer || (retailer!=="target" && warehouseChannels[retailer]!=="online")) return;
+    const cards=[...items.values()].map(item=>{
+      const url=safeExternalUrl(item.url);
+      const status=item.stale ? "Last observed · needs a fresh check" : String(item.rawStatus || item.status || "Unknown").replace(/_/g," ");
+      const price=item.price!=null && Number.isFinite(Number(item.price)) ? "$"+Number(item.price).toFixed(2) : "Price not published";
+      const shipping="<small>Shipping to your ZIP: confirm at retailer</small>";
+      return '<article class="retailer-product-card">'+retailerImageMarkup(item.image,item.name)+'<div><strong>'+(url?'<a target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">'+esc(item.name)+'</a>':esc(item.name))+'</strong><small>'+esc(price)+'</small><small>Item / SKU: '+esc(item.sku || item.productId || "Not published")+'</small><small>'+esc(status)+'</small>'+shipping+'<small>'+(item.observedAt?esc(new Date(item.observedAt).toLocaleString()):"Not checked yet")+'</small></div></article>';
+    }).join("");
+    const options=(data.catalog || []).map(item=>'<option value="'+esc(item.url || "")+'">'+esc(item.label || item.name || item.query)+'</option>').join("");
+    const header=retailer==="target" ? "" : warehouseChannelMarkup(retailer);
+    otherRetailerCard.innerHTML='<strong>'+esc(labels[retailer])+'</strong>'+header+'<section class="store-checker"><h3>Online Pokémon TCG</h3><p>'+(retailer==="target"?'Priority window: 2–5 a.m. Chicago time. Drops can happen outside this window.':'Online offers are separate from club and warehouse inventory.')+'</p><div class="store-checker-row"><input id="retailOnlineUrl" type="url" placeholder="Paste an official product link" aria-label="Official product link"><button id="retailOnlineCheck" type="button">CHECK PRODUCT</button></div><select id="retailOnlineCatalog" aria-label="Retailer Pokémon products"><option value="">Choose a retailer product</option>'+options+'</select><p><a href="'+esc(data.searchUrl)+'" target="_blank" rel="noopener noreferrer">FIND PRODUCTS AT '+esc(labels[retailer].toUpperCase())+'</a></p><div id="retailOnlineResult" aria-live="polite"></div></section><p>'+ (data.error?'Some public checks are unavailable: '+esc(data.error):data.running?'Checking public listings…':'Public product observations')+'</p><div class="retailer-product-grid">'+cards+'</div>'+(cards?'':'<p>No verified online product observation yet. No stock is assumed.</p>');
+    if(retailer!=="target") wireWarehouseChannels(retailer);
+    const input=document.getElementById("retailOnlineUrl");
+    input.value=saved.url;
+    document.getElementById("retailOnlineResult").innerHTML=saved.result;
+    input.addEventListener("input",()=>{saved.url=input.value;});
+    document.getElementById("retailOnlineCatalog").addEventListener("change",event=>{input.value=event.target.value;saved.url=input.value;});
+    document.getElementById("retailOnlineCheck").addEventListener("click",async event=>{
+      const button=event.target;button.disabled=true;button.textContent="CHECKING…";
+      const result=document.getElementById("retailOnlineResult");
+      try {
+        const res=await fetch("/api/retail/product-check?retailer="+encodeURIComponent(retailer)+"&url="+encodeURIComponent(input.value),{cache:"no-store"});
+        const body=await res.json();if(!res.ok || !body.ok) throw new Error(body.error || "Check failed");
+        const item=body.item;
+        result.innerHTML='<p>'+esc(item.name)+' · '+esc(item.rawStatus)+' · '+(item.price==null?'Price not published':'$'+Number(item.price).toFixed(2))+'</p>'+retailerImageMarkup(item.image,item.name)+'<a target="_blank" rel="noopener noreferrer" href="'+esc(item.url)+'">OPEN PRODUCT</a>';
+      } catch(error){result.textContent=error.message;}
+      finally{saved.result=result.innerHTML;button.disabled=false;button.textContent="CHECK PRODUCT";}
+    });
+  }catch(error){if(activeRetailer===retailer) otherRetailerCard.innerHTML='<p>'+esc(error.message)+'</p>';}
 }
 
 

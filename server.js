@@ -18,6 +18,9 @@ const push = require("./push");
 const discovery = require("./discovery");
 const products = require("./products.json");
 const multiStore = require("./multi-store");
+const retailOnline = require("./retail-online");
+const nearbyRetail = require("./nearby-retail");
+
 
 const {
   createWalmartScheduler
@@ -116,6 +119,7 @@ const bestBuyPublicStates = new Map();
 const bestBuyBrowserStates = new Map();
 const samsBrowserStates = new Map();
 const costcoBrowserStates = new Map();
+
 
 const bestBuyPublicWatchUrls =
   String(process.env.BESTBUY_PUBLIC_WATCH_URLS || "")
@@ -320,6 +324,19 @@ app.use(
 app.use(
   express.json()
 );
+
+app.get("/api/retail/online", (req,res) => {
+  try {res.json({ok:true,...retailOnline.snapshot(String(req.query.retailer || ""))});}
+  catch(error) {res.status(400).json({ok:false,error:error.message});}
+});
+app.get("/api/retail/product-check", async (req,res) => {
+  try {res.json({ok:true,item:await retailOnline.check(String(req.query.retailer || ""),String(req.query.url || ""))});}
+  catch(error) {res.status(503).json({ok:false,error:error.message});}
+});
+app.get("/api/retail/locations", async(req,res)=>{
+  try{res.json({ok:true,...await nearbyRetail.nearby(String(req.query.retailer || ""),String(req.query.zip || ""))});}
+  catch(error){res.status(503).json({ok:false,error:error.message});}
+});
 
 
 /* ========================================
@@ -1767,7 +1784,7 @@ app.post(
       url,
       title: String(req.body?.title || "Best Buy product").slice(0, 240),
       image: /^https:\/\//i.test(observedImage) ? observedImage.slice(0, 1000) : null,
-      price: Number.isFinite(observedPrice) && observedPrice >= 0 ? observedPrice : null,
+      price: req.body?.price != null && req.body?.price !== "" && Number.isFinite(observedPrice) && observedPrice >= 0 ? observedPrice : null,
       seller: observedSeller ? observedSeller.slice(0, 160) : null,
       availability,
       observedAt: new Date().toISOString(),
@@ -1797,7 +1814,7 @@ app.post(
     }
 
     const availability = String(req.body?.availability || "unknown");
-    if (!new Set(["available","unavailable","unknown"]).has(availability)) {
+    if (!new Set(["available","unavailable","unknown","preorder"]).has(availability)) {
       return res.status(400).json({ok:false,error:"Invalid Sam's Club availability"});
     }
 
@@ -1807,7 +1824,7 @@ app.post(
       url,
       title: String(req.body?.title || "Sam's Club product").slice(0,240),
       image: /^https:\/\//i.test(observedImage) ? observedImage.slice(0,1000) : null,
-      price: Number.isFinite(observedPrice) && observedPrice >= 0 ? observedPrice : null,
+      price: req.body?.price != null && req.body?.price !== "" && Number.isFinite(observedPrice) && observedPrice >= 0 ? observedPrice : null,
       itemNumber: String(req.body?.itemNumber || "").replace(/\D/g,"").slice(0,30) || null,
       availability,
       observedAt: new Date().toISOString(),
@@ -1815,14 +1832,14 @@ app.post(
     };
 
     result.channel = "online";
-    if (!isPokemonTcgText(result.title)) return res.json({ok:true,ignored:true});
+    if (!retailOnline.isTcg(result.title)) return res.json({ok:true,ignored:true});
     const previous = samsBrowserStates.get(url);
     samsBrowserStates.set(url,result);
 
-    if (previous && previous.availability !== "available" && availability === "available") {
+    if (previous && previous.availability !== availability && ["available","preorder"].includes(availability)) {
       push.broadcast({
         title: "Sam's Club — Online TCG alert",
-        body: result.title + " now appears available.",
+        body: result.title + (availability === "preorder" ? " is available for pre-order." : " now appears available online."),
         url,
         tag: "sams-" + Buffer.from(url).toString("base64url").slice(0,36)
       }).catch(() => {});
@@ -1861,7 +1878,7 @@ app.post(
     }
 
     const availability = String(req.body?.availability || "unknown");
-    if (!new Set(["available","unavailable","unknown"]).has(availability)) {
+    if (!new Set(["available","unavailable","unknown","preorder"]).has(availability)) {
       return res.status(400).json({ok:false,error:"Invalid Costco availability"});
     }
 
@@ -1871,7 +1888,7 @@ app.post(
       url,
       title: String(req.body?.title || "Costco product").slice(0,240),
       image: /^https:\/\//i.test(observedImage) ? observedImage.slice(0,1000) : null,
-      price: Number.isFinite(observedPrice) && observedPrice >= 0 ? observedPrice : null,
+      price: req.body?.price != null && req.body?.price !== "" && Number.isFinite(observedPrice) && observedPrice >= 0 ? observedPrice : null,
       itemNumber: String(req.body?.itemNumber || "").replace(/\D/g,"").slice(0,30) || null,
       availability,
       observedAt: new Date().toISOString(),
@@ -1879,14 +1896,14 @@ app.post(
       source: "browser_product_page"
     };
 
-    if (!isPokemonTcgText(result.title)) return res.json({ok:true,ignored:true});
+    if (!retailOnline.isTcg(result.title)) return res.json({ok:true,ignored:true});
     const previous = costcoBrowserStates.get(url);
     costcoBrowserStates.set(url,result);
 
-    if (previous && previous.availability !== "available" && availability === "available") {
+    if (previous && previous.availability !== availability && ["available","preorder"].includes(availability)) {
       push.broadcast({
         title: "Costco — Online TCG alert",
-        body: result.title + " now appears available.",
+        body: result.title + (availability === "preorder" ? " is available for pre-order." : " now appears available online."),
         url,
         tag: "costco-" + Buffer.from(url).toString("base64url").slice(0,36)
       }).catch(() => {});
@@ -3303,6 +3320,7 @@ async function runScheduledDiscovery() {
 app.listen(
   port,
   async () => {
+    if (process.env.RETAIL_PUBLIC_MONITOR_ENABLED !== "false") retailOnline.start().catch(error=>console.error("Online monitor startup failed:",error.message));
     console.log(
       `Pokemon monitor backend listening on ${port}`
     );
