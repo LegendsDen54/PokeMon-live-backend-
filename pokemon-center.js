@@ -131,7 +131,7 @@ const ACTIVE_SCAN_MS =
     30000,
     Number(
       process.env.POKEMON_CENTER_ACTIVE_SCAN_SECONDS ||
-      120
+      60
     ) * 1000
   );
 
