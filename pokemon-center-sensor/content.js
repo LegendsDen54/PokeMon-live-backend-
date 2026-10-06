@@ -142,13 +142,17 @@ function snapshot() {
   const mainText = text(document.querySelector("main")?.innerText || pageText)
     .slice(0, 16000);
   const links = productLinks();
-  const quantities = quantitySignals(pageText);
-  const tcgRelevant = isTcgText([
-    document.title,
-    firstText("h1"),
-    mainText,
-    links.map(item => `${item.name || ""} ${item.url}`).join("\n")
-  ].join("\n"));
+  const name = firstText("h1") || meta("meta[property='og:title']") || document.title;
+  const productPage = /^\/product\//.test(location.pathname);
+  const tcgRelevant = productPage && isTcgProductText(name);
+  const quantities = tcgRelevant ? quantitySignals(mainText) : {};
+  // Prices must come from a product price field, never shipping banners
+  // or recommendation cards elsewhere in the document.
+  const priceNode = document.querySelector("main [itemprop='price']");
+  const priceValue = meta("meta[property='product:price:amount']") ||
+    text(priceNode?.getAttribute("content") || priceNode?.textContent);
+  const price = tcgRelevant && priceValue
+    ? Number(priceValue.replace(/[^\d.]/g, "")) : null;
   const image =
     meta("meta[property='og:image']") ||
     document.querySelector("main img")?.currentSrc ||
@@ -156,13 +160,10 @@ function snapshot() {
 
   return {
     url: location.href,
-    name:
-      firstText("h1") ||
-      meta("meta[property='og:title']") ||
-      document.title,
+    name,
     image,
     sku: skuFrom(pageText),
-    price: priceFrom(pageText),
+    price: Number.isFinite(price) ? price : null,
     purchaseLimit: quantities.purchaseLimit,
     quantityOptions: quantities.quantityOptions,
     availability: availabilityFrom(pageText),
@@ -251,9 +252,10 @@ function compare(current) {
     signal("SKU_CHANGE", current, "A visible product SKU changed.");
   }
 
-  if (current.tcgRelevant && current.price !== previous.price) {
+  if (current.tcgRelevant && current.price !== null && previous.price !== null && current.price !== previous.price) {
     specificChange = true;
-    signal("PRICE_CHANGE", current, "A visible product price changed.");
+    signal("PRICE_CHANGE", {...current, previousPrice: previous.price},
+      `Product price changed from $${previous.price.toFixed(2)} to $${current.price.toFixed(2)}.`);
   }
 
   if (
@@ -275,7 +277,7 @@ function compare(current) {
     );
   }
 
-  if (current.tcgRelevant && current.availability !== previous.availability) {
+  if ((current.tcgRelevant || current.availability === "queue" || previous.availability === "queue") && current.availability !== previous.availability) {
     specificChange = true;
     signal(
       current.availability === "queue" ? "QUEUE_ACTIVE" : "AVAILABILITY_CHANGE",

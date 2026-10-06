@@ -2212,6 +2212,8 @@ async function processSignal(
       rawSignal.price ??
       null,
 
+    previousPrice: rawSignal.previousPrice ?? null,
+
     availability:
       normalizeText(
         rawSignal.availability ||
@@ -2449,6 +2451,13 @@ async function processSignal(
 
   }
 
+
+  if (signal.source === "browser-sensor" &&
+      ["PRICE_CHANGE", "IMAGE_CHANGE", "SKU_CHANGE", "QUANTITY_CHANGE", "PRODUCT_DISCOVERED", "AVAILABILITY_CHANGE"].includes(signal.type) &&
+      !isTcgProductEvent(signal)) {
+    refreshState();
+    return {ok: true, ignored: true, reason: "No identified card-containing TCG product", state: getState()};
+  }
 
   const initialScore =
     scoreSignal(
