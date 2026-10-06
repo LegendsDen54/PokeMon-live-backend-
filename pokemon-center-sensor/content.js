@@ -312,6 +312,16 @@ function compare(current) {
 }
 
 function observe() {
+  const queueText = document.body?.innerText || "";
+  if (/virtual queue|you are in line|waiting room|queue is active|estimated wait/i.test(queueText) && !document.getElementById("pc-sensor-queue-reminder")) {
+    const reminder = document.createElement("aside");
+    reminder.id = "pc-sensor-queue-reminder";
+    reminder.setAttribute("role", "alert");
+    reminder.textContent = "Queue detected. Turn off ‘Refresh Pokémon Center automatically’ in the sensor popup and save. Saving keeps this page in place.";
+    reminder.style.cssText = "position:fixed;bottom:16px;left:16px;right:16px;z-index:2147483647;padding:14px;border:2px solid #ffd34d;border-radius:10px;background:#10233a;color:white;font:14px/1.4 system-ui;box-shadow:0 4px 20px #0006";
+    // Keep sensor UI outside the product content used for change detection.
+    document.documentElement.appendChild(reminder);
+  }
   compare(snapshot());
 }
 
