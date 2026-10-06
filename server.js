@@ -105,6 +105,45 @@ const pokemonCenterSensorToken =
 
 const bestBuyPublicStates = new Map();
 
+const bestBuyPublicWatchUrls =
+  String(process.env.BESTBUY_PUBLIC_WATCH_URLS || "")
+    .split(/[\n,]/)
+    .map(value => value.trim())
+    .filter(Boolean)
+    .slice(0, 12);
+
+const bestBuyPublicPollMinutes =
+  Math.max(
+    15,
+    Number(process.env.BESTBUY_PUBLIC_POLL_MINUTES || 30)
+  );
+
+const bestBuyPublicCacheMinutes =
+  Math.max(
+    5,
+    Number(process.env.BESTBUY_PUBLIC_CACHE_MINUTES || 10)
+  );
+
+const bestBuyPublicTimeZone =
+  process.env.BESTBUY_PUBLIC_TIME_ZONE ||
+  "America/Chicago";
+
+const bestBuyPublicWindowStart =
+  process.env.BESTBUY_PUBLIC_WINDOW_START ||
+  "21:00";
+
+const bestBuyPublicWindowEnd =
+  process.env.BESTBUY_PUBLIC_WINDOW_END ||
+  "00:00";
+
+const bestBuyPublicScheduleState = {
+  running: false,
+  lastRun: null,
+  lastSuccess: null,
+  lastError: null,
+  nextRun: null
+};
+
 function validBestBuyPublicUrl(value) {
   try {
     const url = new URL(String(value || ""));
@@ -116,20 +155,118 @@ function validBestBuyPublicUrl(value) {
   }
 }
 
-async function checkPublicBestBuyPage(value) {
+function bestBuyPublicStatus() {
+  return {
+    configuredUrls: bestBuyPublicWatchUrls.length,
+    pollMinutes: bestBuyPublicPollMinutes,
+    cacheMinutes: bestBuyPublicCacheMinutes,
+    timeZone: bestBuyPublicTimeZone,
+    window: `${bestBuyPublicWindowStart}–${bestBuyPublicWindowEnd}`,
+    ...bestBuyPublicScheduleState
+  };
+}
+
+function isBestBuyPublicWindowActive(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: bestBuyPublicTimeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(now);
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  const [startHour, startMinute] = bestBuyPublicWindowStart.split(":").map(Number);
+  const [endHour, endMinute] = bestBuyPublicWindowEnd.split(":").map(Number);
+  const minute = Number(values.hour) * 60 + Number(values.minute);
+  const start = startHour * 60 + startMinute;
+  const end = endHour * 60 + endMinute;
+  return start <= end
+    ? minute >= start && minute < end
+    : minute >= start || minute < end;
+}
+
+function isTemporaryBestBuyError(error) {
+  const status = Number(error?.status || 0);
+  return status === 429 || status >= 500 || error?.name === "AbortError";
+}
+
+function retryDelay(error, attempt) {
+  const retryAfter = Number(error?.retryAfter || 0);
+  if (retryAfter > 0) return Math.min(retryAfter * 1000, 60000);
+  const capped = Math.min(8000, 1000 * 2 ** attempt);
+  return capped + Math.floor(Math.random() * 500);
+}
+
+function wait(milliseconds) {
+  return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
+
+async function fetchBestBuyPublicPage(url) {
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        headers: {accept: "text/html"},
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!response.ok) {
+        const error = new Error(`Best Buy page returned ${response.status}`);
+        error.status = response.status;
+        error.retryAfter = response.headers.get("retry-after");
+        throw error;
+      }
+      return response.text();
+    } catch (error) {
+      lastError = error;
+      if (!isTemporaryBestBuyError(error) || attempt === 2) throw error;
+      await wait(retryDelay(error, attempt));
+    }
+  }
+  throw lastError;
+}
+
+async function checkPublicBestBuyPage(value, {force = false} = {}) {
   const url = validBestBuyPublicUrl(value);
   if (!url) throw new Error("Enter a public Best Buy product-page link");
-  const response = await fetch(url, {headers: {accept: "text/html"}, signal: AbortSignal.timeout(15000)});
-  if (!response.ok) throw new Error(`Best Buy page returned ${response.status}`);
-  const html = await response.text();
+  const previous = bestBuyPublicStates.get(url);
+  const now = Date.now();
+  if (!force && previous?.cacheUntil && previous.cacheUntil > now) {
+    return {...previous, cached: true};
+  }
+  const html = await fetchBestBuyPublicPage(url);
   const pageText = html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").toLowerCase();
   const availability = /pickup today|ready for pickup|pick up today/.test(pageText) ? "pickup_available" : /sold out|unavailable for pickup|pickup not available/.test(pageText) ? "pickup_unavailable" : /add to cart/.test(pageText) ? "online_available" : "unknown";
   const title = (html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] || "Best Buy product").trim();
-  const previous = bestBuyPublicStates.get(url);
   const changed = previous && previous.availability !== availability;
-  bestBuyPublicStates.set(url, {availability, checkedAt: new Date().toISOString()});
+  const result = {
+    url,
+    title,
+    availability,
+    changed: Boolean(changed),
+    checkedAt: new Date().toISOString(),
+    cacheUntil: now + bestBuyPublicCacheMinutes * 60 * 1000,
+    cached: false
+  };
+  bestBuyPublicStates.set(url, result);
   if (changed && availability === "pickup_available") push.broadcast({title: "Best Buy — Public pickup signal", body: `${title} now shows pickup availability.`, url, tag: `bestbuy-${Buffer.from(url).toString("base64url").slice(0, 36)}`}).catch(() => {});
-  return {url, title, availability, changed: Boolean(changed), checkedAt: new Date().toISOString()};
+  return result;
+}
+
+async function runBestBuyPublicWatch() {
+  if (bestBuyPublicScheduleState.running || !bestBuyPublicWatchUrls.length) return;
+  bestBuyPublicScheduleState.running = true;
+  bestBuyPublicScheduleState.lastRun = new Date().toISOString();
+  try {
+    for (const url of bestBuyPublicWatchUrls) {
+      await checkPublicBestBuyPage(url, {force: true});
+    }
+    bestBuyPublicScheduleState.lastSuccess = new Date().toISOString();
+    bestBuyPublicScheduleState.lastError = null;
+  } catch (error) {
+    bestBuyPublicScheduleState.lastError = error.message;
+    console.warn("Best Buy public watch failed:", error.message);
+  } finally {
+    bestBuyPublicScheduleState.running = false;
+  }
 }
 
 
@@ -1015,6 +1152,9 @@ app.get(
         pokemonCenter
           .getConfig(),
 
+      bestBuyPublicWatch:
+        bestBuyPublicStatus(),
+
       marketplaceEndpoint:
         "/api/marketplace",
 
@@ -1077,6 +1217,9 @@ app.get(
       pokemonCenter:
         pokemonCenter
           .getState(),
+
+      bestBuyPublicWatch:
+        bestBuyPublicStatus(),
 
       providers:
         multiStore
@@ -2979,6 +3122,34 @@ app.listen(
         "Multi-store provider engine startup failed:",
         error
       );
+    }
+
+    if (bestBuyPublicWatchUrls.length) {
+      const runPublicBestBuyWatch = () => {
+        const activeWindow = isBestBuyPublicWindowActive();
+        bestBuyPublicScheduleState.nextRun = new Date(
+          Date.now() + bestBuyPublicPollMinutes * 60 * 1000
+        ).toISOString();
+        if (activeWindow) runBestBuyPublicWatch().catch(error => {
+          console.warn("Best Buy public watch scheduler failed:", error.message);
+        });
+      };
+
+      runPublicBestBuyWatch();
+      const bestBuyPublicTimer = setInterval(
+        runPublicBestBuyWatch,
+        bestBuyPublicPollMinutes * 60 * 1000
+      );
+      bestBuyPublicTimer.unref?.();
+
+      console.log("Best Buy public watch scheduled:", {
+        urls: bestBuyPublicWatchUrls.length,
+        everyMinutes: bestBuyPublicPollMinutes,
+        timeZone: bestBuyPublicTimeZone,
+        window: `${bestBuyPublicWindowStart}–${bestBuyPublicWindowEnd}`
+      });
+    } else {
+      console.log("Best Buy public watch is waiting for configured product URLs.");
     }
 
     const scheduleState =
