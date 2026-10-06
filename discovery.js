@@ -372,8 +372,64 @@ async function initializeDiscoveryDatabase() {
     live_price NUMERIC
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS walmart_product_alerts (
+      retailer_item_id TEXT PRIMARY KEY,
+      product_name TEXT,
+      seller TEXT,
+      first_alerted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
   console.log(
     "Discovery database initialized."
+  );
+}
+
+
+/* ========================================
+   WALMART ALERT HISTORY
+======================================== */
+
+async function hasWalmartProductAlert(itemId) {
+  if (!itemId) {
+    return false;
+  }
+
+  const result = await pool.query(
+    `
+      SELECT 1
+      FROM walmart_product_alerts
+      WHERE retailer_item_id = $1
+      LIMIT 1
+    `,
+    [String(itemId)]
+  );
+
+  return result.rowCount > 0;
+}
+
+
+async function recordWalmartProductAlert(itemId, item) {
+  if (!itemId) {
+    return;
+  }
+
+  await pool.query(
+    `
+      INSERT INTO walmart_product_alerts (
+        retailer_item_id,
+        product_name,
+        seller
+      )
+      VALUES ($1, $2, $3)
+      ON CONFLICT (retailer_item_id) DO NOTHING
+    `,
+    [
+      String(itemId),
+      item?.name || null,
+      item?.seller || null
+    ]
   );
 }
 
@@ -828,6 +884,8 @@ async function getDiscoveredProducts() {
 
 module.exports = {
   initializeDiscoveryDatabase,
+  hasWalmartProductAlert,
+  recordWalmartProductAlert,
   discoverWalmartProducts,
   getDiscoveredProducts
 };

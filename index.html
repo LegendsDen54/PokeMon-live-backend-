@@ -1384,12 +1384,17 @@ a{
 
 .raffle-list{
   display:grid;
+  grid-template-columns:
+    repeat(
+      auto-fill,
+      minmax(210px, 1fr)
+    );
   gap:10px;
 }
 
 .raffle-card{
   display:grid;
-  grid-template-columns:90px 1fr;
+  grid-template-rows:150px auto;
 
   gap:10px;
 
@@ -1408,7 +1413,7 @@ a{
 
   overflow:hidden;
 
-  min-height:100px;
+  min-height:290px;
 }
 
 .raffle-image{
@@ -1427,8 +1432,7 @@ a{
 }
 
 .raffle-body{
-  padding:
-    10px 10px 10px 0;
+  padding:10px;
 }
 
 .raffle-status{
@@ -2728,20 +2732,6 @@ function qualifiesForBuyNow(product){
     return false;
   }
 
-  /*
-    GT Collectibles is the approved marketplace exception. The
-    discovery service has already verified it as an alert-eligible,
-    in-stock offer even when a reference MSRP is not published.
-  */
-  if(
-    product.alertEligible === true &&
-    product.approvedMarketplace === true &&
-    isApprovedSeller(product)
-  ){
-    return true;
-  }
-
-
   if(
     !isWithinPriceRule(product)
   ){
@@ -3144,6 +3134,26 @@ function raffleScheduleLabel(item){
 }
 
 
+function isPokemonRaffle(item){
+
+  const text =
+    normalize(
+      [
+        item?.name,
+        item?.productType,
+        item?.set
+      ].join(" ")
+    );
+
+  return (
+    text.includes("pokemon") ||
+    text.includes("pokémon") ||
+    text.includes("trading card") ||
+    text.includes("tcg")
+  );
+}
+
+
 /* =========================================
    RAFFLE CARD
 ========================================= */
@@ -3306,6 +3316,20 @@ function renderRaffles(){
 
   raffleList.innerHTML =
     currentRaffles
+      .slice()
+      .sort(
+        (a, b) => {
+          const aPokemon = isPokemonRaffle(a);
+          const bPokemon = isPokemonRaffle(b);
+
+          if(aPokemon !== bPokemon){
+            return aPokemon ? -1 : 1;
+          }
+
+          return String(a.name || "")
+            .localeCompare(String(b.name || ""));
+        }
+      )
       .map(
         item =>
           buildRaffleCard(

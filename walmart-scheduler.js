@@ -8,7 +8,7 @@
 
   Default:
   - enabled
-  - every 10 minutes
+  - every 5 minutes
   - America/Chicago
 
   Can be changed in Render with:
@@ -46,7 +46,7 @@ function createWalmartScheduler({
       Number(
         process.env
           .WALMART_SCAN_EVERY_MINUTES ||
-        10
+      5
       )
     );
 
@@ -524,7 +524,7 @@ function createWalmartScheduler({
 
     /*
       Start one scan shortly after Render boots
-      instead of waiting up to 10 minutes.
+      instead of waiting up to 5 minutes.
     */
     setTimeout(
       () => {

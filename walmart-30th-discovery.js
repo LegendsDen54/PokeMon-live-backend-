@@ -1,4 +1,5 @@
 const push = require("./push");
+const discovery = require("./discovery");
 
 const HASDATA_API_KEY =
   process.env.HASDATA_API_KEY || "";
@@ -47,7 +48,8 @@ const MAX_PRICE_MULTIPLIER =
 
   GT COLLECTIBLES RULE
 
-  In stock = eligible regardless of MSRP
+  In stock AND within the same verified price
+  range used for Walmart Direct listings.
 
   IMPORTANT
 
@@ -70,7 +72,9 @@ const MAX_PRICE_MULTIPLIER =
 ======================================== */
 
 const ALWAYS_SEARCH_TERMS = [
-  "Pokemon TCG"
+  "Pokemon TCG",
+  "Pokemon TCG Booster Box",
+  "Pokemon TCG 30th Celebration Booster Box"
 ];
 
 const ROTATING_SEARCH_TERMS = [
@@ -1196,7 +1200,10 @@ function normalizeCandidate(item) {
     "Pokemon TCG product";
 
   const withinPriceRule =
-    directSeller &&
+    (
+      directSeller ||
+      approvedMarketplace
+    ) &&
     price !== null &&
     msrp !== null &&
     price <=
@@ -1204,7 +1211,6 @@ function normalizeCandidate(item) {
       MAX_PRICE_MULTIPLIER;
 
   const alertEligible =
-    approvedMarketplace === true ||
     withinPriceRule === true;
 
   const inStock =
@@ -1403,19 +1409,24 @@ async function processDiscoveryAlerts(
       1. First time ever observed and already
          qualifying + IN STOCK.
 
-      2. Previously explicitly OUT and now
-         qualifying + IN STOCK.
+      A product receives one alert for its Walmart
+      item ID. It may stay visible while available,
+      but it is not announced again after a later
+      scan or service restart.
     */
     const shouldAlert =
-      currentInStock ===
-        true &&
-
-      (
-        !hasPrevious ||
-        previous === false
-      );
+      currentInStock === true &&
+      !hasPrevious;
 
     if (!shouldAlert) {
+      continue;
+    }
+
+    if (
+      await discovery.hasWalmartProductAlert(
+        key
+      )
+    ) {
       continue;
     }
 
@@ -1454,6 +1465,11 @@ async function processDiscoveryAlerts(
         pushResult?.ok ===
           true
       ) {
+        await discovery.recordWalmartProductAlert(
+          key,
+          item
+        );
+
         alertsTriggered +=
           1;
       }
