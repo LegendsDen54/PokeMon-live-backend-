@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Pokémon Center Signal Sensor",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Sends visible Pokémon Center, Best Buy, Sam's Club, and Costco product availability to the owner's private monitor.",
   "permissions": [
     "storage",
