@@ -2308,6 +2308,7 @@ const pokemonCenterSensorSignalTypes =
     "SKU_CHANGE",
     "IMAGE_CHANGE",
     "PRICE_CHANGE",
+    "QUANTITY_CHANGE",
     "AVAILABILITY_CHANGE",
     "QUEUE_ACTIVE"
   ]);
