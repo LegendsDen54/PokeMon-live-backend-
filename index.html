@@ -788,6 +788,45 @@ a{
   color:var(--text);
 }
 
+.pokemon-center-heading{
+  display:flex;
+  align-items:center;
+  gap:9px;
+
+  margin-bottom:10px;
+}
+
+.pokemon-center-mark{
+  position:relative;
+
+  width:28px;
+  height:28px;
+  flex:0 0 28px;
+
+  border:2px solid #f7fbff;
+  border-radius:50%;
+
+  background:linear-gradient(to bottom,#ed4d63 0 46%,#f7fbff 46% 54%,#dfeaf5 54% 100%);
+  box-shadow:0 0 0 1px rgba(98,199,255,.32),0 0 14px rgba(98,199,255,.26);
+}
+
+.pokemon-center-mark::before{
+  content:"";
+
+  position:absolute;
+  top:50%;
+  left:50%;
+
+  width:9px;
+  height:9px;
+
+  border:2px solid #f7fbff;
+  border-radius:50%;
+
+  background:#071326;
+  transform:translate(-50%,-50%);
+}
+
 .signal-summary{
   display:flex;
   align-items:center;
@@ -1793,8 +1832,8 @@ function renderPokemonCenter(state){
       (date ? " <small>" + esc(date) + "</small>" : "") + "</li>";
   }).join("");
   pokemonCenterCard.innerHTML =
-    "<div class=\"panel-title\">Pokémon Center</div>" +
-    "<div class=\"signal-summary\"><div><div class=\"signal-summary-label\">Current signal level</div><div class=\"signal-summary-value\">" + esc(level) + "</div></div><div class=\"signal-score\">" + score + "</div></div>" +
+    "<div class=\"pokemon-center-heading\"><span class=\"pokemon-center-mark\" aria-hidden=\"true\"></span><div class=\"panel-title\">Pokémon Center</div></div>" +
+    "<div class=\"signal-summary\"><div><div class=\"signal-summary-label\">Pokémon Center readiness</div><div class=\"signal-summary-value\">" + score + "/100</div></div><div class=\"signal-score\">" + esc(level) + "</div></div>" +
     "<div class=\"pokemon-center-meta\"><span>Sensor: " + esc(sensor) + "</span><span>Official checks: " + supportOk + "/" + sources.length + "</span>" +
     (pc.queueActive ? "<span>QUEUE ACTIVE</span>" : "") + "</div>" +
     queueAction +
@@ -1815,8 +1854,7 @@ function renderPokemonOutlook(pc, events, score, level, supportOk, sourceCount){
   const evidence = score === 0
     ? "No verified movement supports a drop estimate today."
     : "This score updates only from verified public signals; it is not a guarantee.";
-  return "<div class=\"panel-title\" style=\"margin-top:18px\">Drop Outlook</div>" +
-    "<div class=\"outlook-score\"><div class=\"outlook-score-number\">" + score + "/100</div><div><div class=\"outlook-score-label\">Today’s readiness score</div><div class=\"outlook-score-detail\">" + esc(level) + "</div></div></div>" +
+  return "<div class=\"panel-title\" style=\"margin-top:18px\">Signal details</div>" +
     "<div class=\"outlook-grid\"><div class=\"outlook-fact\"><span>Readiness window</span><strong>" + esc(readiness) + "</strong></div><div class=\"outlook-fact\"><span>Latest evidence</span><strong>" + esc(activity) + "</strong></div><div class=\"outlook-fact\"><span>Official sources</span><strong>" + supportOk + "/" + sourceCount + " responding</strong></div><div class=\"outlook-fact\"><span>Queue</span><strong>" + (pc.queueActive ? "Signal active" : "No signal") + "</strong></div></div>" +
     "<p class=\"outlook-note\">" + esc(evidence) + "</p>";
 }
