@@ -202,7 +202,7 @@ async function poll(retailer) {
 }
 function snapshot(retailer) {
   const state=getState(retailer);
-  return {...state, items:[...state.items.values()].map(item => ({...item, stale:Boolean(requests.get(item.url)?.error) || Date.now()-Date.parse(item.observedAt)>60*60000})), catalog:catalog(retailer), searchUrl:configs[retailer].search, locatorUrl:configs[retailer].locator};
+  return {...state, items:[...state.items.values()].map(item => ({...item, stale:Boolean(requests.get(item.url)?.error) || Date.now()-Date.parse(item.observedAt)>60*60000})), upcoming:retailer === "target" ? require("./target-drop-reports.json").filter(report=>productUrl("target",report.url) && /^https:\/\//.test(report.sourceUrl || "") && report.name && report.sourceName && report.expectedWindow && Date.parse(report.expiresAt)>Date.now() && Date.parse(report.reportedAt)<=Date.now()) : [], catalog:catalog(retailer), searchUrl:configs[retailer].search, locatorUrl:configs[retailer].locator};
 }
 async function start() {
   await restore();
