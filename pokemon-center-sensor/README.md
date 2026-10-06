@@ -10,6 +10,6 @@ It detects public page changes, new product links that appear on an observed lis
 2. In Chrome, open `chrome://extensions`, turn on Developer mode, select **Load unpacked**, and choose this `pokemon-center-sensor` folder.
 3. Open the extension, enter `https://pokemon-live-backend.onrender.com` and the same pairing key, then choose **Save and test connection**.
 4. Keep the Pokémon Center pages you want to watch open in Chrome. The extension reports page changes while those tabs are open.
-5. Optional: turn on **Refresh Pokémon Center automatically** in the extension popup. It refreshes only already-open Pokémon Center tabs every two minutes Tuesday through Thursday from 10 AM to 3 PM Eastern, then stops outside those hours.
+5. **Refresh Pokémon Center automatically** starts enabled. It refreshes only already-open Pokémon Center tabs every two minutes Tuesday through Thursday from 10 AM to 3 PM Eastern, then stops outside those hours. You can turn it off in the extension popup.
 
 The pairing key is not stored in this repository and must not be shared with other people. It only authorizes observations sent to this monitor; it does not grant access to Pokémon Center, Discord, or any retailer account.

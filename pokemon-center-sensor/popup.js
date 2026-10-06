@@ -14,7 +14,7 @@ chrome.storage.local.get([
     stored.backendUrl ||
     "https://pokemon-live-backend.onrender.com";
   sensorToken.value = stored.sensorToken || "";
-  automaticRefresh.checked = stored.automaticRefreshEnabled === true;
+  automaticRefresh.checked = stored.automaticRefreshEnabled !== false;
 });
 
 document.getElementById("save")

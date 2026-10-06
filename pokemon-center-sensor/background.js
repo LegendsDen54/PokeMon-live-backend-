@@ -37,7 +37,7 @@ async function refreshPokemonCenterTabs() {
     "lastAutomaticRefreshAt"
   ]);
 
-  if (!settings.automaticRefreshEnabled) {
+  if (settings.automaticRefreshEnabled === false) {
     return;
   }
 
