@@ -949,9 +949,47 @@ a{
 }
 
 .third-party-feed > a{
-  display:inline-block;
   margin-top:10px;
+}
+
+.source-link{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  margin-top:12px;
+  padding:9px 11px;
+  border:1px solid rgba(98,199,255,.36);
+  border-radius:9px;
+  background:#0b1b31;
+  color:#f3f8ff;
   font-size:12px;
+  font-weight:900;
+  text-decoration:none;
+}
+
+.source-link-x{
+  border-color:rgba(230,240,255,.40);
+}
+
+.source-link-mark-x{
+  width:20px;
+  color:#fff;
+  font-size:18px;
+  font-weight:900;
+  line-height:1;
+  text-align:center;
+}
+
+.source-link .pokemon-center-mark{
+  width:20px;
+  height:20px;
+  flex-basis:20px;
+}
+
+.source-link .pokemon-center-mark::before{
+  width:6px;
+  height:6px;
+  border-width:1px;
 }
 
 .pokemon-center-product{
@@ -1982,7 +2020,7 @@ function renderPokemonCenter(state){
     (thirdPartyEvents.length
       ? "<ul class=\"signal-list\">" + thirdPartyRows + "</ul>"
       : "<p class=\"quiet-state\">No new public PokémonRestocks TCG alerts today.</p>") +
-    "<a href=\"https://x.com/PokemonRestocks\" target=\"_blank\" rel=\"noopener noreferrer\">Open PokémonRestocks on X</a></details>";
+    "<a class=\"source-link source-link-x\" href=\"https://x.com/PokemonRestocks\" target=\"_blank\" rel=\"noopener noreferrer\"><span class=\"source-link-mark-x\" aria-hidden=\"true\">𝕏</span>Open PokémonRestocks on X</a></details>";
   pokemonCenterCard.innerHTML =
     "<div class=\"pokemon-center-heading\"><span class=\"pokemon-center-mark\" aria-hidden=\"true\"></span><div class=\"panel-title\">Pokémon Center</div></div>" +
     "<div class=\"signal-summary\"><div><div class=\"signal-summary-label\">Pokémon Center readiness</div><div class=\"signal-summary-value\">" + score + "/100</div></div><div class=\"signal-score\">" + esc(level) + "</div></div>" +
@@ -1994,7 +2032,7 @@ function renderPokemonCenter(state){
     "<p class=\"pokemon-center-activity\">" + activity + "</p>" +
     thirdPartyFeed +
     outlook +
-    "<p><a href=\"https://www.pokemoncenter.com/\" target=\"_blank\" rel=\"noopener noreferrer\">Open Pokémon Center</a></p>";
+    "<a class=\"source-link\" href=\"https://www.pokemoncenter.com/\" target=\"_blank\" rel=\"noopener noreferrer\"><span class=\"pokemon-center-mark\" aria-hidden=\"true\"></span>Open Pokémon Center</a>";
   showNewPokemonCenterSignal(events[0]);
 }
 
