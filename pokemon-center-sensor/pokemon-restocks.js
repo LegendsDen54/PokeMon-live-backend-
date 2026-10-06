@@ -53,7 +53,7 @@ function inspect() {
 
 function scheduleInspect() {
   clearTimeout(timer);
-  timer = setTimeout(inspect, 1500);
+  timer = setTimeout(inspect, 100);
 }
 
 inspect();
