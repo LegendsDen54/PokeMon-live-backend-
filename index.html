@@ -2450,6 +2450,16 @@ function bestBuyCheckerMarkup(provider){
     "<div id=\"bestBuyCheckerResults\" class=\"store-checker-results\" aria-live=\"polite\"></div></section>";
 }
 
+function bestBuyManualProductName(url){
+  try{
+    const parts = new URL(url).pathname.split("/").filter(Boolean);
+    const slug = parts.find(part => part !== "product" && !/^[A-Z0-9]{8,}$/i.test(part));
+    return slug ? slug.replace(/[-_]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase()) : "Best Buy product link";
+  }catch(error){
+    return "Best Buy product link";
+  }
+}
+
 function bestBuyCheckerCard(item){
   const url = safeExternalUrl(item.url);
   const name = esc(item.name || "Pokémon product");
@@ -2513,11 +2523,13 @@ function wireBestBuyChecker(provider){
         showCatalog("<p>Public availability: " + esc(String(data.availability || "unknown").replace(/_/g, " ")) + "<br>Checked " + esc(new Date(data.checkedAt).toLocaleString()) + "</p><div class=\"retailer-product-grid\">" + bestBuyCheckerCard(publicProduct) + "</div>");
       }catch(error){
         const fallbackUrl = safeExternalUrl(query);
-        const fallbackOpen = fallbackUrl ? "<p><a class=\"retailer-product-card-action\" href=\"" + esc(fallbackUrl) + "\" target=\"_blank\" rel=\"noopener noreferrer\">OPEN AT BEST BUY</a></p>" : "";
+        const fallbackCard = fallbackUrl
+          ? "<div class=\"retailer-product-grid\">" + bestBuyCheckerCard({name: bestBuyManualProductName(fallbackUrl), url: fallbackUrl, status: "manual product link"}) + "</div>"
+          : "";
         const publicPageMessage = /fetch failed/i.test(String(error.message || ""))
-          ? "Best Buy's public page could not be read from the monitor right now. This does not identify the seller or mean the item is unavailable."
+          ? "The monitor could not read Best Buy's page right now, so this is shown as your manual product link. Seller, price, and availability are not being assumed."
           : error.message;
-        showCatalog("<p>" + esc(publicPageMessage) + "</p>" + fallbackOpen);
+        showCatalog("<p>" + esc(publicPageMessage) + "</p>" + fallbackCard);
       }
       finally{ productButton.disabled = false; }
       return;
