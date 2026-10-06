@@ -4,7 +4,7 @@ const DEFAULT_BACKEND_URL =
   "https://pokemon-live-backend.onrender.com";
 
 const REFRESH_ALARM = "pokemon-center-scheduled-refresh";
-const ACTIVE_REFRESH_MS = 1 * 60 * 1000;
+const ACTIVE_REFRESH_MS = 5 * 60 * 1000;
 const QUIET_REFRESH_MS = 15 * 60 * 1000;
 
 function isPokemonRestocksUrl(value) {
@@ -89,7 +89,23 @@ async function refreshPokemonCenterTabs() {
   await Promise.all(
     tabs
       .filter(tab => Number.isInteger(tab.id))
-      .map(tab => chrome.tabs.reload(tab.id))
+      .map(async tab => {
+        if (/\/(?:cart|checkout|account)(?:\/|$)/i.test(new URL(tab.url).pathname)) return;
+        try {
+          const results = await chrome.scripting.executeScript({
+            target: {tabId: tab.id},
+            func: () => {
+              const body = document.body?.innerText || "";
+              return /virtual queue|you are in line|waiting room|queue is active|your turn|estimated wait|verify you are human|access denied|something.s gone wrong|press and hold/i.test(body) || Boolean(document.querySelector(".imperva-error-modal, #imperva-error-modal"));
+            }
+          });
+          // A failed or unreadable check must never trigger a blind reload.
+          if (!results.length || results.some(result => result.result !== false)) return;
+          await chrome.tabs.reload(tab.id);
+        } catch {
+          // Keep the current page when protection state cannot be checked.
+        }
+      })
   );
 
   await chrome.storage.local.set({
