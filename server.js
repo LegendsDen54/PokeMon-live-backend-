@@ -489,12 +489,25 @@ async function runRaffleScan() {
       );
     }
 
+    /*
+      The public Walmart drawing page is the source of truth for
+      what belongs in the current raffle tab. Its result replaces
+      the prior set on every successful scan, so completed draws
+      disappear and the tab is ready for the next week.
+
+      Axesso remains available as a fallback only when the public
+      draw page could not be read for this scan.
+    */
     const items =
-      mergeRaffles(
-        axessoItems,
-        publicResult?.items ||
-        []
-      );
+      publicResult?.ok
+        ? mergeRaffles(
+            [],
+            publicResult.items || []
+          )
+        : mergeRaffles(
+            axessoItems,
+            []
+          );
 
     raffleState = {
       ok:

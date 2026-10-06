@@ -3051,6 +3051,14 @@ function updateRaffleBadge(){
 
 function isRaffleItem(item){
 
+  if(
+    item?.raffle === true
+  ){
+
+    return true;
+
+  }
+
   const type =
     normalize(
       item.dropType
@@ -3310,7 +3318,8 @@ function closeRaffleModal(){
 ========================================= */
 
 function renderWalmartStatus(
-  statusData
+  statusData,
+  raffleData = null
 ){
 
   const schedule =
@@ -3360,25 +3369,20 @@ function renderWalmartStatus(
       "MONITORING";
 
 
-  /*
-    The backend already removes items from
-    /upcoming when Walmart no longer returns
-    them. Therefore the UI keeps only the
-    currently active Walmart raffle set.
-  */
-
-  const upcoming =
+  const raffleItems =
     Array.isArray(
-      statusData?.upcoming
+      raffleData?.items
     )
       ?
-      statusData.upcoming
+      raffleData.items
       :
-      [];
+      Array.isArray(statusData?.upcoming)
+        ? statusData.upcoming
+        : [];
 
 
   currentRaffles =
-    upcoming.filter(
+    raffleItems.filter(
       isRaffleItem
     );
 
@@ -3395,13 +3399,24 @@ async function load(){
 
   try{
 
-    const statusResponse =
-      await fetch(
+    const [
+      statusResponse,
+      raffleResponse
+    ] =
+      await Promise.all([
+        fetch(
         `/api/status?t=${Date.now()}`,
         {
           cache:"no-store"
         }
-      );
+      ),
+        fetch(
+          `/api/walmart/raffles?t=${Date.now()}`,
+          {
+            cache:"no-store"
+          }
+        )
+      ]);
 
 
     if(
@@ -3418,6 +3433,11 @@ async function load(){
     const statusData =
       await statusResponse.json();
 
+    const raffleData =
+      raffleResponse.ok
+        ? await raffleResponse.json()
+        : null;
+
 
     latestStatusData =
       statusData;
@@ -3432,7 +3452,8 @@ async function load(){
 
 
     renderWalmartStatus(
-      statusData
+      statusData,
+      raffleData
     );
 
     renderPokemonCenter(

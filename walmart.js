@@ -2985,15 +2985,13 @@ function updateDiscoveryState(
         item.name
     );
 
+  /*
+    A raffle search is a current snapshot. Do not carry prior
+    results forward: completed drawings must disappear before the
+    next weekly set is published.
+  */
   lastRaffles =
-    mergeUnique(
-      lastRaffles,
-      raffles,
-      item =>
-        item.walmartItemId ||
-        item.url ||
-        item.name
-    )
+    raffles
       .sort(
         (a, b) =>
           rafflePriority(
