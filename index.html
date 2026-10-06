@@ -2030,6 +2030,7 @@ const lastUpdated =
 
 let newestPokemonCenterSignal = null;
 let pokemonCenterToastTimer = null;
+let walmartManualScanRunning = false;
 
 function renderPokemonRestocks(state){
   const allEvents = Array.isArray(state?.latestEvents) ? state.latestEvents : [];
@@ -2037,14 +2038,14 @@ function renderPokemonRestocks(state){
     timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit"
   }).format(new Date());
   const posts = allEvents.filter(event => {
-    if (!event || event.thirdParty !== true || event.tcgRelevant !== true || !event.at) return false;
+    if (!event || event.thirdParty !== true || event.tcgRelevant !== true || !event.publishedAt) return false;
     return new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit"
-    }).format(new Date(event.at)) === chicagoDay;
+    }).format(new Date(event.publishedAt)) === chicagoDay;
   });
   const rows = posts.map(event => {
     const url = /^https:\/\/x\.com\/PokemonRestocks\/status\/\d+/i.test(String(event.url || "")) ? event.url : "https://x.com/PokemonRestocks";
-    const time = new Date(event.at).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+    const time = new Date(event.publishedAt).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
     return "<a class=\"pokemon-restocks-post\" href=\"" + esc(url) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" +
       esc(event.detail || "PokémonRestocks TCG alert") +
       "<small>Open post · " + esc(time) + "</small></a>";
@@ -3534,10 +3535,12 @@ async function load(){
     );
 
 
-    renderWalmartStatus(
-      statusData,
-      raffleData
-    );
+    if(!walmartManualScanRunning){
+      renderWalmartStatus(
+        statusData,
+        raffleData
+      );
+    }
 
     renderPokemonCenter(
       statusData?.pokemonCenter
@@ -3608,6 +3611,10 @@ async function load(){
 
 async function runManualWalmartScan(){
 
+  if(walmartManualScanRunning){
+    return;
+  }
+
   let token =
     localStorage.getItem(
       "pokemonMonitorScanToken"
@@ -3646,6 +3653,8 @@ async function runManualWalmartScan(){
   );
 
   livePanelWasOpened = true;
+
+  walmartManualScanRunning = true;
 
 
   liveCount.textContent =
@@ -3771,6 +3780,8 @@ async function runManualWalmartScan(){
 
 
   }finally{
+
+    walmartManualScanRunning = false;
 
     manualWalmartScan.disabled =
       false;

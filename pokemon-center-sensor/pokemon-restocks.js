@@ -17,12 +17,36 @@ function relatesToPokemonCenter(text) {
   return /pokemon\s*center|pokemoncenter\.com|\bqueue\b/i.test(text);
 }
 
+function isTodayInChicago(value) {
+  const date = new Date(value || "");
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  const format = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
+
+  return format.format(date) === format.format(new Date());
+}
+
 function report(article) {
   const link = article.querySelector("a[href*='/PokemonRestocks/status/']");
   const id = link?.getAttribute("href")?.match(/\/status\/(\d+)/)?.[1];
+  const publishedAt = article.querySelector("time")?.getAttribute("datetime") || null;
   const alertText = normalize(article.innerText).slice(0, 800);
 
-  if (!id || !alertText || !isTcgAlert(alertText) || seenPostIds.has(id)) {
+  if (
+    !id ||
+    !publishedAt ||
+    !isTodayInChicago(publishedAt) ||
+    !alertText ||
+    !isTcgAlert(alertText) ||
+    seenPostIds.has(id)
+  ) {
     return;
   }
 
@@ -40,6 +64,7 @@ function report(article) {
         postId: id,
         url: new URL(link.href, location.href).href,
         alertText,
+        publishedAt,
         queueReported: /\bqueue\b/i.test(alertText),
         pokemonCenterRelated: relatesToPokemonCenter(alertText),
         tcgRelevant: true

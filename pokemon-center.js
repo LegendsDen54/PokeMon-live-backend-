@@ -333,6 +333,19 @@ const recentSignalFingerprints =
   new Map();
 
 
+/*
+  A browser can finish rendering an already-existing page several seconds
+  after its sensor starts. Keep that initial render out of the activity feed.
+  Queue signals are never held back.
+*/
+const browserSensorWarmups =
+  new Map();
+
+
+const BROWSER_SENSOR_WARMUP_MS =
+  10 * 1000;
+
+
 let state = {
 
   ok:
@@ -2197,6 +2210,10 @@ async function processSignal(
       rawSignal.thirdParty ===
       true,
 
+    publishedAt:
+      rawSignal.publishedAt ||
+      null,
+
     pageMarker:
       normalizeText(
         rawSignal.pageMarker ||
@@ -2284,6 +2301,79 @@ async function processSignal(
         getState()
 
     };
+
+  }
+
+
+  if(
+    signal.source ===
+      "browser-sensor" &&
+    signal.sensorId &&
+    signal.type !==
+      "QUEUE_ACTIVE" &&
+    signal.queueActive !==
+      true
+  ){
+
+    const sensorId =
+      signal.sensorId;
+
+    const warmupStartedAt =
+      browserSensorWarmups.get(
+        sensorId
+      );
+
+    if(
+      !warmupStartedAt
+    ){
+
+      browserSensorWarmups.set(
+        sensorId,
+        Date.now()
+      );
+
+      return {
+
+        ok:
+          true,
+
+        ignored:
+          true,
+
+        reason:
+          "Establishing the current page baseline",
+
+        state:
+          getState()
+
+      };
+
+    }
+
+
+    if(
+      Date.now() -
+      warmupStartedAt <
+      BROWSER_SENSOR_WARMUP_MS
+    ){
+
+      return {
+
+        ok:
+          true,
+
+        ignored:
+          true,
+
+        reason:
+          "Waiting for the current page to finish loading",
+
+        state:
+          getState()
+
+      };
+
+    }
 
   }
 

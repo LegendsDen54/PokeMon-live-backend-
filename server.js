@@ -1986,6 +1986,7 @@ app.post(
       pokemonCenterRelated: req.body?.pokemonCenterRelated === true,
       tcgRelevant: true,
       thirdParty: true,
+      publishedAt: req.body?.publishedAt || null,
       detail: alertText
     });
 
