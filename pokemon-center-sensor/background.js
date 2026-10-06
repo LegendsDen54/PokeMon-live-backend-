@@ -163,6 +163,8 @@ chrome.runtime.onMessage.addListener(
           ? "/api/pokemon-center/sensor/signal"
           : message.kind === "thirdPartyAlert"
             ? "/api/pokemon-center/sensor/third-party-alert"
+            : message.kind === "bestBuyObservation"
+              ? "/api/bestbuy/browser-observation"
           : null;
 
     if (!path) {

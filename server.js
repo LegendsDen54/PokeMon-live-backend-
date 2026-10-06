@@ -104,6 +104,7 @@ const pokemonCenterSensorToken =
   "";
 
 const bestBuyPublicStates = new Map();
+const bestBuyBrowserStates = new Map();
 
 const bestBuyPublicWatchUrls =
   String(process.env.BESTBUY_PUBLIC_WATCH_URLS || "")
@@ -234,7 +235,16 @@ async function checkPublicBestBuyPage(value, {force = false} = {}) {
   if (!force && previous?.cacheUntil && previous.cacheUntil > now) {
     return {...previous, cached: true};
   }
-  const html = await fetchBestBuyPublicPage(url);
+  let html;
+  try {
+    html = await fetchBestBuyPublicPage(url);
+  } catch (error) {
+    const browserObservation = bestBuyBrowserStates.get(url);
+    if (browserObservation) {
+      return {...browserObservation, browserObserved: true};
+    }
+    throw error;
+  }
   const pageText = html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").toLowerCase();
   const availability = /pickup today|ready for pickup|pick up today/.test(pageText) ? "pickup_available" : /sold out|unavailable for pickup|pickup not available/.test(pageText) ? "pickup_unavailable" : /add to cart/.test(pageText) ? "online_available" : "unknown";
   const title = (html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] || "Best Buy product").trim();
@@ -1690,6 +1700,46 @@ app.get(
     } catch (error) {
       res.status(400).json({ok: false, error: error.message});
     }
+  }
+);
+
+app.post(
+  "/api/bestbuy/browser-observation",
+  (req,res) => {
+    if (!pokemonCenterSensorToken) {
+      return pokemonCenterSensorUnavailable(res);
+    }
+
+    if (!hasValidPokemonCenterSensorToken(req)) {
+      return pokemonCenterSensorUnauthorized(res);
+    }
+
+    const url = validBestBuyPublicUrl(req.body?.url);
+    const availability = String(req.body?.availability || "unknown");
+    const allowedAvailability = new Set([
+      "pickup_available",
+      "pickup_unavailable",
+      "online_available",
+      "unknown"
+    ]);
+
+    if (!url || !allowedAvailability.has(availability)) {
+      return res.status(400).json({
+        ok: false,
+        error: "Invalid public Best Buy browser observation"
+      });
+    }
+
+    const result = {
+      url,
+      title: String(req.body?.title || "Best Buy product").slice(0, 240),
+      availability,
+      observedAt: new Date().toISOString(),
+      source: "browser_product_page"
+    };
+
+    bestBuyBrowserStates.set(url, result);
+    res.json({ok: true, ...result});
   }
 );
 
