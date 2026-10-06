@@ -247,14 +247,22 @@ function isApprovedMarketplaceSeller(
     normalize(value);
 
   return (
-    seller ===
-      "gt collectibles and toys" ||
-
-    seller ===
-      "gt collectibles toys" ||
-
-    seller ===
+    seller.includes(
       "gt collectibles"
+    ) ||
+    seller.includes(
+      "gt collectible"
+    ) ||
+    seller.includes(
+      "gt mj holdings"
+    ) ||
+    seller.includes(
+      "gtmj holdings"
+    ) ||
+    (
+      seller.includes("gt") &&
+      seller.includes("collectibles")
+    )
   );
 }
 

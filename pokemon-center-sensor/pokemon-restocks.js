@@ -2,8 +2,8 @@
 
 /* Watches only newly visible posts on the public @PokemonRestocks timeline. */
 const seenPostIds = new Set();
-let initialized = false;
 let timer = null;
+const TIMELINE_REFRESH_MS = 2 * 60 * 1000;
 
 function normalize(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
@@ -52,10 +52,6 @@ function report(article) {
 
   seenPostIds.add(id);
 
-  if (!initialized) {
-    return;
-  }
-
   try {
     const request = chrome.runtime.sendMessage({
       kind: "thirdPartyAlert",
@@ -81,7 +77,6 @@ function report(article) {
 
 function inspect() {
   document.querySelectorAll("article[data-testid='tweet']").forEach(report);
-  initialized = true;
 }
 
 function scheduleInspect() {
@@ -94,3 +89,9 @@ new MutationObserver(scheduleInspect).observe(document.documentElement, {
   childList: true,
   subtree: true
 });
+
+/*
+  X does not reliably stream every new post into an idle timeline. Refresh the
+  owner-opened public timeline so the sensor can collect today's posts.
+*/
+setInterval(() => location.reload(), TIMELINE_REFRESH_MS);

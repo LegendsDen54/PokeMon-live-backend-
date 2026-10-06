@@ -3564,25 +3564,27 @@ async function load(){
       live Walmart products here.
     */
 
-    renderLiveProducts(
-      [
-        ...(
-          Array.isArray(statusData?.items)
-            ? statusData.items
-            : []
-        ),
-        ...(
-          Array.isArray(statusData?.walmart30thDiscovery?.items)
-            ? statusData.walmart30thDiscovery.items
-            : []
-        ),
-        ...(
-          Array.isArray(statusData?.walmartDiscoveredDeals)
-            ? statusData.walmartDiscoveredDeals
-            : []
-        )
-      ]
-    );
+    if(!walmartManualScanRunning){
+      renderLiveProducts(
+        [
+          ...(
+            Array.isArray(statusData?.items)
+              ? statusData.items
+              : []
+          ),
+          ...(
+            Array.isArray(statusData?.walmart30thDiscovery?.items)
+              ? statusData.walmart30thDiscovery.items
+              : []
+          ),
+          ...(
+            Array.isArray(statusData?.walmartDiscoveredDeals)
+              ? statusData.walmartDiscoveredDeals
+              : []
+          )
+        ]
+      );
+    }
 
 
     lastUpdated.textContent =

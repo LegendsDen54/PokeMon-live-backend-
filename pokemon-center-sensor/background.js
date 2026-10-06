@@ -173,7 +173,36 @@ chrome.runtime.onMessage.addListener(
       return;
     }
 
-    post(path, message.payload || {})
+    const payload = message.payload || {};
+
+    /*
+      Keep a durable record of posts already forwarded. The X page is
+      periodically refreshed to find new posts, so this prevents the same
+      timeline cards from being delivered again after each refresh.
+    */
+    const send = async () => {
+      if (message.kind === "thirdPartyAlert") {
+        const postId = String(payload.postId || "").trim();
+        const key = postId ? `pokemonRestocks:${postId}` : null;
+
+        if (key) {
+          const stored = await chrome.storage.local.get(key);
+          if (stored[key] === true) {
+            return {ok: true, duplicate: true};
+          }
+
+          const result = await post(path, payload);
+          if (result.ok) {
+            await chrome.storage.local.set({[key]: true});
+          }
+          return result;
+        }
+      }
+
+      return post(path, payload);
+    };
+
+    send()
       .then(sendResponse)
       .catch(error => sendResponse({
         ok: false,
