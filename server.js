@@ -1849,6 +1849,17 @@ function isPokemonTcgSignal(signal = {}) {
 }
 
 
+function pokemonCenterWatchTodayHint(value) {
+  const text = String(value || "").toLowerCase();
+
+  return (
+    /pokemon\s*center|pokemoncenter\.com|\bqueue\b/.test(text) &&
+    /\btoday\b|\btonight\b|\bthis\s+(?:morning|afternoon|evening)\b/.test(text) &&
+    /\brestock\b|\bdrop\b|\brelease\b|\bqueue\b|\bgoing\s+live\b|\bback\s+in\s+stock\b/.test(text)
+  );
+}
+
+
 function pokemonCenterSensorUnavailable(res) {
   return res
     .status(503)
@@ -1987,6 +1998,7 @@ app.post(
       tcgRelevant: true,
       thirdParty: true,
       publishedAt: req.body?.publishedAt || null,
+      watchToday: pokemonCenterWatchTodayHint(alertText),
       detail: alertText
     });
 

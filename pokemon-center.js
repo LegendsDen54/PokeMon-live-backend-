@@ -1264,10 +1264,20 @@ function scoreSignal(
       return 0;
     }
 
+    if(
+      signal.pokemonCenterRelated !==
+        true
+    ){
+      return 0;
+    }
+
     return signal.queueReported ===
       true
       ? 28
-      : 22;
+      : signal.watchToday ===
+        true
+        ? 26
+        : 12;
   }
 
   if(
@@ -2221,6 +2231,10 @@ async function processSignal(
 
     thirdParty:
       rawSignal.thirdParty ===
+      true,
+
+    watchToday:
+      rawSignal.watchToday ===
       true,
 
     publishedAt:
