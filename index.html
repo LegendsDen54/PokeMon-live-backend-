@@ -2728,6 +2728,19 @@ function qualifiesForBuyNow(product){
     return false;
   }
 
+  /*
+    GT Collectibles is the approved marketplace exception. The
+    discovery service has already verified it as an alert-eligible,
+    in-stock offer even when a reference MSRP is not published.
+  */
+  if(
+    product.alertEligible === true &&
+    product.approvedMarketplace === true &&
+    isApprovedSeller(product)
+  ){
+    return true;
+  }
+
 
   if(
     !isWithinPriceRule(product)
@@ -2782,6 +2795,16 @@ function buildLiveCard(product){
 
   let priceLabel =
     "WITHIN PRICE RULE";
+
+  if(
+    product.approvedMarketplace === true &&
+    product.alertEligible === true
+  ){
+
+    priceLabel =
+      "APPROVED GT OFFER";
+
+  }
 
 
   if(
@@ -3515,13 +3538,23 @@ async function load(){
     */
 
     renderLiveProducts(
-      Array.isArray(
-        statusData?.items
-      )
-        ?
-        statusData.items
-        :
-        []
+      [
+        ...(
+          Array.isArray(statusData?.items)
+            ? statusData.items
+            : []
+        ),
+        ...(
+          Array.isArray(statusData?.walmart30thDiscovery?.items)
+            ? statusData.walmart30thDiscovery.items
+            : []
+        ),
+        ...(
+          Array.isArray(statusData?.walmartDiscoveredDeals)
+            ? statusData.walmartDiscoveredDeals
+            : []
+        )
+      ]
     );
 
 
