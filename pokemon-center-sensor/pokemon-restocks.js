@@ -9,6 +9,10 @@ function normalize(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
 
+function isTcgAlert(text) {
+  return /\bpok[eé]mon\s*tcg\b|trading\s*card\s*game|\belite trainer box\b|\bbooster\s+(?:box|bundle|pack)\b|\bultra[- ]premium collection\b|\bbuild\s*(?:&|and)\s*battle\b|\bpromo\s+card\b|\bcollector(?:'s)?\s+chest\b|\bmini\s*tins?\b|\btrainer\s+kit\b|\btheme\s+deck\b/i.test(text);
+}
+
 function relatesToPokemonCenter(text) {
   return /pokemon\s*center|pokemoncenter\.com|\bqueue\b/i.test(text);
 }
@@ -18,7 +22,7 @@ function report(article) {
   const id = link?.getAttribute("href")?.match(/\/status\/(\d+)/)?.[1];
   const alertText = normalize(article.innerText).slice(0, 800);
 
-  if (!id || !alertText || seenPostIds.has(id)) {
+  if (!id || !alertText || !isTcgAlert(alertText) || seenPostIds.has(id)) {
     return;
   }
 
@@ -36,7 +40,8 @@ function report(article) {
       url: new URL(link.href, location.href).href,
       alertText,
       queueReported: /\bqueue\b/i.test(alertText),
-      pokemonCenterRelated: relatesToPokemonCenter(alertText)
+      pokemonCenterRelated: relatesToPokemonCenter(alertText),
+      tcgRelevant: true
     }
   }).catch(() => {});
 }

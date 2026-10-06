@@ -1777,6 +1777,25 @@ const pokemonCenterSensorSignalTypes =
   ]);
 
 
+function isPokemonTcgText(value) {
+  return /\bpok[eé]mon\s*tcg\b|trading\s*card\s*game|\belite trainer box\b|\bbooster\s+(?:box|bundle|pack)\b|\bultra[- ]premium collection\b|\bbuild\s*(?:&|and)\s*battle\b|\bpromo\s+card\b|\bcollector(?:'s)?\s+chest\b|\bmini\s*tins?\b|\btrainer\s+kit\b|\btheme\s+deck\b/i.test(
+    String(value || "")
+  );
+}
+
+
+function isPokemonTcgSignal(signal = {}) {
+  return signal.tcgRelevant === true ||
+    isPokemonTcgText([
+      signal.name,
+      signal.productName,
+      signal.url,
+      signal.detail,
+      signal.alertText
+    ].join(" "));
+}
+
+
 function pokemonCenterSensorUnavailable(res) {
   return res
     .status(503)
@@ -1847,6 +1866,14 @@ app.post(
         });
     }
 
+    if (!isPokemonTcgSignal(req.body)) {
+      return res.status(202).json({
+        ok: true,
+        ignored: true,
+        reason: "Only Pokémon TCG signals are monitored"
+      });
+    }
+
     const result =
       await pokemonCenter
         .ingestSignal({
@@ -1889,6 +1916,14 @@ app.post(
         });
     }
 
+    if (!isPokemonTcgSignal(req.body)) {
+      return res.status(202).json({
+        ok: true,
+        ignored: true,
+        reason: "Only Pokémon TCG alerts are monitored"
+      });
+    }
+
     const result = await pokemonCenter.ingestSignal({
       type: "THIRD_PARTY_ALERT",
       source: "pokemon-restocks-x",
@@ -1896,6 +1931,7 @@ app.post(
       url,
       queueReported: req.body?.queueReported === true,
       pokemonCenterRelated: req.body?.pokemonCenterRelated === true,
+      tcgRelevant: true,
       thirdParty: true,
       detail: alertText
     });

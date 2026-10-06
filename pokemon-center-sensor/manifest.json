@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Pokémon Center Signal Sensor",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Sends changes visible on Pokémon Center pages to the owner's private monitor.",
   "permissions": ["storage"],
   "host_permissions": [

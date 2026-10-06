@@ -1245,7 +1245,7 @@ function scoreSignal(
       true
   ){
     if(
-      signal.pokemonCenterRelated !==
+      signal.tcgRelevant !==
         true
     ){
       return 0;
@@ -2189,6 +2189,10 @@ async function processSignal(
       rawSignal.pokemonCenterRelated ===
       true,
 
+    tcgRelevant:
+      rawSignal.tcgRelevant ===
+      true,
+
     thirdParty:
       rawSignal.thirdParty ===
       true,
@@ -2328,6 +2332,8 @@ async function processSignal(
     signal.source ===
       "pokemon-center-support" ||
     signal.thirdParty ===
+      true &&
+    signal.tcgRelevant ===
       true
       ? initialScore
       : correlatedScore(
@@ -2422,6 +2428,8 @@ async function processSignal(
         "pokemon-center-support"
     ) ||
     signal.thirdParty ===
+      true &&
+    signal.tcgRelevant ===
       true
   ){
 

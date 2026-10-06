@@ -55,6 +55,12 @@ function skuFrom(pageText) {
   return match ? match[1] : null;
 }
 
+function isTcgText(value) {
+  return /\bpok[eé]mon\s*tcg\b|trading\s*card\s*game|\belite trainer box\b|\bbooster\s+(?:box|bundle|pack)\b|\bultra[- ]premium collection\b|\bbuild\s*(?:&|and)\s*battle\b|\bpromo\s+card\b|\bcollector(?:'s)?\s+chest\b|\bmini\s*tins?\b|\btrainer\s+kit\b|\btheme\s+deck\b/i.test(
+    String(value || "")
+  );
+}
+
 function productLinks() {
   return [...document.querySelectorAll("a[href*='/product/']")]
     .map(anchor => ({
@@ -63,6 +69,7 @@ function productLinks() {
       image: anchor.querySelector("img")?.currentSrc || null
     }))
     .filter(item => item.url.startsWith("https://www.pokemoncenter.com/"))
+    .filter(item => isTcgText(`${item.name || ""} ${item.url}`))
     .filter((item, index, items) =>
       items.findIndex(candidate => candidate.url === item.url) === index
     )
@@ -85,6 +92,12 @@ function snapshot() {
   const mainText = text(document.querySelector("main")?.innerText || pageText)
     .slice(0, 16000);
   const links = productLinks();
+  const tcgRelevant = isTcgText([
+    document.title,
+    firstText("h1"),
+    mainText,
+    links.map(item => `${item.name || ""} ${item.url}`).join("\n")
+  ].join("\n"));
   const image =
     meta("meta[property='og:image']") ||
     document.querySelector("main img")?.currentSrc ||
@@ -100,6 +113,7 @@ function snapshot() {
     sku: skuFrom(pageText),
     price: priceFrom(pageText),
     availability: availabilityFrom(pageText),
+    tcgRelevant,
     productLinks: links,
     pageMarker: marker([
       document.title,
@@ -149,27 +163,27 @@ function compare(current) {
       .filter(item => !before.has(item.url))
       .forEach(item => signal(
         "PRODUCT_DISCOVERED",
-        item,
+        {...item, tcgRelevant: true},
         "A public Pokémon Center product link appeared on a page already being observed."
       ));
   }
 
-  if (current.image && current.image !== previous.image) {
+  if (current.tcgRelevant && current.image && current.image !== previous.image) {
     specificChange = true;
     signal("IMAGE_CHANGE", current, "A visible product image changed.");
   }
 
-  if (current.sku && current.sku !== previous.sku) {
+  if (current.tcgRelevant && current.sku && current.sku !== previous.sku) {
     specificChange = true;
     signal("SKU_CHANGE", current, "A visible product SKU changed.");
   }
 
-  if (current.price !== previous.price) {
+  if (current.tcgRelevant && current.price !== previous.price) {
     specificChange = true;
     signal("PRICE_CHANGE", current, "A visible product price changed.");
   }
 
-  if (current.availability !== previous.availability) {
+  if (current.tcgRelevant && current.availability !== previous.availability) {
     specificChange = true;
     signal(
       current.availability === "queue" ? "QUEUE_ACTIVE" : "AVAILABILITY_CHANGE",
@@ -184,6 +198,7 @@ function compare(current) {
 
   if (
     !specificChange &&
+    current.tcgRelevant &&
     current.pageMarker !== previous.pageMarker &&
     Date.now() - lastGenericChangeAt >= GENERIC_CHANGE_COOLDOWN_MS
   ) {

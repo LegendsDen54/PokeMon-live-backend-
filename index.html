@@ -954,6 +954,32 @@ a{
   font-size:12px;
 }
 
+.pokemon-center-product{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:12px 0;
+  padding:10px;
+  border:1px solid rgba(98,199,255,.20);
+  border-radius:10px;
+  background:#06111f;
+}
+
+.pokemon-center-product img{
+  width:58px;
+  height:58px;
+  flex:0 0 58px;
+  object-fit:contain;
+  border-radius:7px;
+  background:#fff;
+}
+
+.pokemon-center-product p{
+  margin:0;
+  color:#dcecff;
+  font-size:12px;
+}
+
 .outlook-card{
   text-align:left;
   color:var(--text);
@@ -1831,7 +1857,7 @@ function renderPokemonCenter(state){
     day: "2-digit"
   }).format(new Date());
   const thirdPartyEvents = allEvents.filter(event => {
-    if (!event || event.thirdParty !== true || !event.at) return false;
+    if (!event || event.thirdParty !== true || event.tcgRelevant !== true || !event.at) return false;
     return new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/Chicago",
       year: "numeric",
@@ -1861,6 +1887,14 @@ function renderPokemonCenter(state){
   const queueAction = pc.queueActive && queueUrl
     ? "<a class=\"queue-action\" href=\"" + esc(queueUrl) + "\" target=\"_blank\" rel=\"noopener noreferrer\">JOIN QUEUE</a>"
     : "";
+  const predictedImage = pc.predictedProduct && /^https:\/\//i.test(String(pc.predictedProduct.image || ""))
+    ? String(pc.predictedProduct.image)
+    : "";
+  const predictedProduct = pc.predictedProduct && pc.predictedProduct.name
+    ? "<div class=\"pokemon-center-product\">" +
+      (predictedImage ? "<img src=\"" + esc(predictedImage) + "\" alt=\"" + esc(pc.predictedProduct.name) + "\">" : "") +
+      "<p><strong>Potential TCG product:</strong> " + esc(pc.predictedProduct.name) + "</p></div>"
+    : "";
   const signalRows = events.map(event => {
     const date = event.at ? new Date(event.at).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) : "";
     return "<li><strong>" + esc(event.type || "Signal") + "</strong>" +
@@ -1877,12 +1911,12 @@ function renderPokemonCenter(state){
       (date ? " <small>" + esc(date) + "</small>" : "") + link + "</li>";
   }).join("");
   const thirdPartyFeed =
-    "<details class=\"third-party-feed\"><summary>PokémonRestocks today" +
+    "<details class=\"third-party-feed\"><summary>PokémonRestocks TCG today" +
     (thirdPartyEvents.length ? " · " + thirdPartyEvents.length + " alert" + (thirdPartyEvents.length === 1 ? "" : "s") : "") +
     "</summary>" +
     (thirdPartyEvents.length
       ? "<ul class=\"signal-list\">" + thirdPartyRows + "</ul>"
-      : "<p class=\"quiet-state\">No new public PokémonRestocks alerts today.</p>") +
+      : "<p class=\"quiet-state\">No new public PokémonRestocks TCG alerts today.</p>") +
     "<a href=\"https://x.com/PokemonRestocks\" target=\"_blank\" rel=\"noopener noreferrer\">Open PokémonRestocks on X</a></details>";
   pokemonCenterCard.innerHTML =
     "<div class=\"pokemon-center-heading\"><span class=\"pokemon-center-mark\" aria-hidden=\"true\"></span><div class=\"panel-title\">Pokémon Center</div></div>" +
@@ -1890,8 +1924,7 @@ function renderPokemonCenter(state){
     "<div class=\"pokemon-center-meta\"><span>Sensor: " + esc(sensor) + "</span><span>Official checks: " + supportOk + "/" + sources.length + "</span>" +
     (pc.queueActive ? "<span>QUEUE ACTIVE</span>" : "") + "</div>" +
     queueAction +
-    (pc.predictedProduct && pc.predictedProduct.name
-      ? "<p><strong>Potential product:</strong> " + esc(pc.predictedProduct.name) + "</p>" : "") +
+    predictedProduct +
     (events.length ? "<ul class=\"signal-list\">" + signalRows + "</ul>" :
       "<p class=\"quiet-state\">No verified Pokémon Center activity yet.</p>") +
     thirdPartyFeed +
