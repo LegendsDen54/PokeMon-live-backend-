@@ -1836,6 +1836,19 @@ function bestProductFromRecentEvents(){
     recent
   ){
 
+    /*
+      Public PokémonRestocks posts can contribute a clearly labeled readiness
+      signal, but they are not Pokémon Center product records.
+    */
+    if(
+      event.thirdParty ===
+      true
+    ){
+
+      continue;
+
+    }
+
     const key =
       String(
         event.sku ||
