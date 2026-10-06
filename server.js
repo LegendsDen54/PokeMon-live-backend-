@@ -20,6 +20,7 @@ const products = require("./products.json");
 const multiStore = require("./multi-store");
 const retailOnline = require("./retail-online");
 const nearbyRetail = require("./nearby-retail");
+const ccnInventory = require("./ccn-inventory");
 
 
 const {
@@ -1913,6 +1914,17 @@ app.post(
   }
 );
 
+app.post("/api/ccn/inventory-report", async (req,res) => {
+  if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
+  if (!hasValidPokemonCenterSensorToken(req)) return pokemonCenterSensorUnauthorized(res);
+  try {res.json({ok:true,report:await ccnInventory.save(req.body)});}
+  catch(error){res.status(400).json({ok:false,error:error.message});}
+});
+app.get("/api/ccn/inventory-reports", async (req,res) => {
+  if (!["costco","sams","bestbuy"].includes(req.query.retailer) || !/^\d{5}$/.test(req.query.zip || "")) return res.status(400).json({ok:false,error:"Choose retailer and ZIP"});
+  try {res.json({ok:true,reports:await ccnInventory.list(req.query.retailer,req.query.zip)});}
+  catch(error){res.status(503).json({ok:false,error:"CCN report storage unavailable"});}
+});
 app.get(
   "/api/costco/browser-observations",
   (req,res) => {

@@ -873,6 +873,7 @@ a{
 
 .online-product-link::after{content:"";position:absolute;inset:0;border-radius:12px;}
 .online-product-link:focus-visible::after{outline:2px solid #62c7ff;}
+.store-checker select{max-width:100%;min-width:0;box-sizing:border-box;text-overflow:ellipsis;}
 #retailOnlineCatalog{box-sizing:border-box;display:block;margin-top:12px;}
 
 .retailer-product-image-frame{
@@ -2837,6 +2838,29 @@ function bestBuyPickerIsInUse(){
   return picker.contains(document.activeElement);
 }
 
+function updateCcnCountdowns(){
+  document.querySelectorAll("[data-ccn-next]").forEach(node=>{
+    const seconds=Math.ceil((Number(node.dataset.ccnNext)-Date.now())/1000);
+    node.textContent=seconds>0?"Next hourly check due in "+Math.floor(seconds/60)+"m "+seconds%60+"s":"Hourly check due · waiting for a new result";
+  });
+}
+setInterval(updateCcnCountdowns,1000);
+async function renderCcnInventory(retailer){
+  const zip=document.getElementById("warehouseWatchZip")?.value || "60634";
+  const section=document.createElement("section");section.className="store-checker";section.id="ccnInventoryReports";
+  section.innerHTML='<h3>CCN in-store reports</h3><p>Loading latest checks…</p>';
+  otherRetailerCard.append(section);
+  try{
+    const data=await fetch("/api/ccn/inventory-reports?retailer="+encodeURIComponent(retailer)+"&zip="+encodeURIComponent(zip),{cache:"no-store"}).then(r=>r.json());
+    if(!section.isConnected)return;
+    if(!data.ok)throw new Error(data.error);
+    section.innerHTML='<h3>CCN in-store reports</h3><p>ZIP '+esc(zip)+' · CCN reports, not retailer-confirmed inventory. Latest report replaces the previous check. The checker currently advertises a 50-mile radius.</p>'+((data.reports || []).map(report=>{
+      const locations=(report.locations || []).map(row=>'<article class="retailer-product-card"><div><strong>'+esc(row.name)+'</strong><small>'+esc(row.address)+'</small><small>On order: '+esc(row.onOrder ?? 'Not published')+'</small><small>In transit: '+esc(row.inTransit ?? 'Not published')+'</small><small>On hand: '+esc(row.onHand ?? 'Not published')+'</small><small>'+esc(row.status)+'</small></div></article>').join('');
+      return '<section><h4>'+esc(report.name)+'</h4><p>Item '+esc(report.productId)+' · Checked '+esc(new Date(report.checkedAt).toLocaleString())+(report.stale?' · STALE':'')+'</p><p data-ccn-next="'+(Date.parse(report.checkedAt)+3600000)+'"></p><p>'+esc(report.result==='checker_error'?'Checker failed — inventory unknown':report.result==='no_stock_reported'?'CCN returned no stock found; no warehouse quantities supplied':'CCN checker results')+'</p><p>'+esc(report.detail)+'</p><div class="retailer-product-grid">'+locations+'</div><a href="'+esc(report.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW CCN SOURCE</a></section>';
+    }).join('') || '<p>No CCN check has been imported for this ZIP yet. Countdown starts after the first recorded check.</p>');
+    updateCcnCountdowns();
+  }catch(error){section.innerHTML='<h3>CCN in-store reports</h3><p>'+esc(error.message)+'</p>';}
+}
 async function renderExternalRetailer(retailer){
   if(retailer === "target" || (["sams","costco"].includes(retailer) && warehouseChannels[retailer] === "online")) return renderPublicOnline(retailer);
   if(["sams","costco"].includes(retailer) && otherRetailerCard.contains(document.activeElement) && /INPUT|SELECT|BUTTON/.test(document.activeElement.tagName)) return;
@@ -2854,7 +2878,7 @@ async function renderExternalRetailer(retailer){
       "No inventory feed is configured. This tab shows products only after a real provider feed is configured.") + "</p>" +
     (retailer === "bestbuy" ? bestBuyCheckerMarkup(provider) :
       (checker ? warehouseCheckerMarkup(retailer, provider) : ""));
-  if(warehouse) wireWarehouseChannels(retailer);
+  if(warehouse) {wireWarehouseChannels(retailer); if(checker) renderCcnInventory(retailer);}
   if(!provider.configured && !(warehouse && selectedChannel === "online")){
     if(retailer === "bestbuy") wireBestBuyChecker(provider);
     if(retailer === "sams" || retailer === "costco") wireWarehouseChecker(retailer);
