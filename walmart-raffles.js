@@ -309,6 +309,83 @@ function determineStatus(item) {
   return "detected";
 }
 
+function parseWalmartSchedule(value) {
+  const text =
+    String(value || "")
+      .replace(/<!--\s*-->/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const match =
+    text.match(
+      /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2}),?\s+(\d{1,2}:\d{2}\s*(?:a\.?(?:m\.?)?|p\.?(?:m\.?)))\s*(PDT|PST|EDT|EST|CDT|CST)\b/i
+    );
+
+  if (!match) {
+    return null;
+  }
+
+  const date =
+    new Date(
+      `${match[1]} ${match[2]}, ${new Date().getFullYear()} ${match[3].replace(/(a|p)\.?m\.?$/i, " $1M")} ${match[4].toUpperCase()}`
+    );
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  /*
+    Walmart's draw page omits the year. If the parsed date is already
+    well in the past, its listed month belongs to the next calendar year.
+  */
+  if (date.getTime() < Date.now() - 7 * 24 * 60 * 60 * 1000) {
+    date.setFullYear(date.getFullYear() + 1);
+  }
+
+  return date.toISOString();
+}
+
+function isDrawCandidate(item) {
+  const text =
+    getObjectText(item);
+
+  return item?.showDrawCTA === true ||
+    /\bdraw\b|\bdrawing\b|\braffle\b|\blottery\b/
+      .test(text);
+}
+
+function hasWalmartItemId(item) {
+  return /^\d{6,}$/.test(
+    String(getItemId(item) || "")
+  );
+}
+
+function extractSchedulesByItemId(html) {
+  const schedules =
+    new Map();
+
+  const pattern =
+    /data-item-id="(\d+)"[\s\S]{0,20000}?Drawing starts\s*<span[^>]*>\s*(?:<!--\s*-->)?\s*([^<]+)/gi;
+
+  let match;
+
+  while ((match = pattern.exec(String(html || "")))) {
+    const startsAt =
+      parseWalmartSchedule(
+        decodeHtml(match[2])
+      );
+
+    if (startsAt) {
+      schedules.set(
+        match[1],
+        startsAt
+      );
+    }
+  }
+
+  return schedules;
+}
+
 function findDate(
   value,
   depth = 0
@@ -316,7 +393,7 @@ function findDate(
   if (
     value === null ||
     value === undefined ||
-    depth > 6
+    depth > 12
   ) {
     return null;
   }
@@ -324,6 +401,13 @@ function findDate(
   if (
     typeof value === "string"
   ) {
+    const schedule =
+      parseWalmartSchedule(value);
+
+    if (schedule) {
+      return schedule;
+    }
+
     if (
       !/20[0-9]{2}/
         .test(value)
@@ -369,7 +453,8 @@ function findDate(
       "eventStartTime",
       "startDateTime",
       "startTime",
-      "startDate"
+      "startDate",
+      "slaText"
     ];
 
     for (
@@ -499,8 +584,8 @@ function collectProductsFromJson(root) {
 
       if (
         name &&
-        normalize(name)
-          .includes("pokemon")
+        hasWalmartItemId(value) &&
+        isDrawCandidate(value)
       ) {
         candidates.push(
           value
@@ -538,7 +623,8 @@ function normalizeRaffle(item) {
     getName(item);
 
   if (
-    !isOfficialPokemonProduct(name)
+    !name ||
+    !isDrawCandidate(item)
   ) {
     return null;
   }
@@ -875,9 +961,27 @@ async function scan() {
         .map(normalizeRaffle)
         .filter(Boolean);
 
-    normalized.push(
-      ...extractFromHtml(html)
-    );
+    const schedules =
+      extractSchedulesByItemId(html);
+
+    for (const item of normalized) {
+      item.startsAt =
+        item.startsAt ||
+        schedules.get(
+          String(item.walmartItemId || "")
+        ) ||
+        null;
+    }
+
+    /*
+      The HTML fallback is only needed when Walmart does not expose
+      structured product records. Mixing both produces duplicate cards.
+    */
+    if (!normalized.length) {
+      normalized.push(
+        ...extractFromHtml(html)
+      );
+    }
 
     const items =
       dedupeRaffles(

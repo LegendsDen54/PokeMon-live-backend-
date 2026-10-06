@@ -240,10 +240,8 @@ function mergeRaffles(
     )
     .filter(
       item =>
-        walmart
-          .isOfficialSealedPokemonProduct?.(
-            item.name || ""
-          ) !== false
+        item?.raffle === true &&
+        String(item?.name || "").trim()
     )
     .sort(
       (a,b) =>
@@ -339,7 +337,7 @@ async function processRaffleAlerts(
       try {
         await push.broadcast({
           title:
-            "⚡ Walmart Pokémon Raffle Detected",
+            "⚡ Walmart Raffle Detected",
 
           body:
             item.startsAt
