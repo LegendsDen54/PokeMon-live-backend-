@@ -149,7 +149,9 @@ function validBestBuyPublicUrl(value) {
     const url = new URL(String(value || ""));
     return url.protocol === "https:" &&
       (url.hostname === "www.bestbuy.com" || url.hostname === "bestbuy.com") &&
-      url.pathname.includes("/site/") ? url.href : null;
+      (url.pathname.includes("/site/") || url.pathname.includes("/product/"))
+      ? url.href
+      : null;
   } catch (error) {
     return null;
   }
