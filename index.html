@@ -2353,21 +2353,21 @@ function verifiedPokemonCenterQueueUrl(value){
 }
 
 function bestBuyCheckerMarkup(provider){
-  const catalogDisabled = provider.catalogSearch ? "" : " disabled";
+  const catalogDisabled = "";
   const storesDisabled = provider.catalogSearch && provider.localStoreSearch ? "" : " disabled";
   const localMessage = provider.localStoreSearch
     ? "Store results use the saved ZIP code and a 75-mile radius."
     : "A saved ZIP code is required before a SKU can check nearby stores.";
   const catalogMessage = provider.catalogSearch
     ? "Search by set or product type. Results come from the official Best Buy catalog and show the exact Best Buy SKU."
-    : "The verified Best Buy catalog connection is awaiting approval. Product and SKU results stay empty until that source is available.";
+    : "Paste a public Best Buy product link to check it now. Keyword and SKU catalog results will unlock when the verified Best Buy catalog connection is approved.";
   return "<section class=\"store-checker\"><h3>Official Best Buy Product &amp; SKU Finder</h3>" +
     "<p>" + esc(catalogMessage) + "</p>" +
     "<div class=\"store-checker-row\"><input id=\"bestBuyProductSearch\" type=\"search\" placeholder=\"Product name or Best Buy link, e.g. Prismatic ETB\"" + catalogDisabled + ">" +
     "<button id=\"bestBuyProductSearchButton\" type=\"button\"" + catalogDisabled + ">FIND PRODUCT &amp; SKU</button></div>" +
     "<div class=\"set-sku-presets\" aria-label=\"Popular Pokémon TCG set searches\">" +
       ["Mega Evolution", "Scarlet & Violet", "Prismatic Evolutions", "Destined Rivals", "Surging Sparks", "Journey Together"].map(set =>
-        "<button type=\"button\" data-bestbuy-query=\"" + esc(set) + "\"" + catalogDisabled + ">" + esc(set) + "</button>"
+        "<button type=\"button\" data-bestbuy-query=\"" + esc(set) + "\"" + (provider.catalogSearch ? "" : " disabled") + ">" + esc(set) + "</button>"
       ).join("") +
     "</div>" +
     "<div id=\"bestBuyCatalogResults\" class=\"store-checker-results\" aria-live=\"polite\"></div></section>" +
@@ -2417,6 +2417,19 @@ function wireBestBuyChecker(provider){
   const search = async () => {
     const query = String(productInput && productInput.value || "").trim();
     if(query.length < 2) return showCatalog("<p>Enter at least two characters to find a product and SKU.</p>");
+    const isBestBuyProductLink = /^https:\/\/(?:www\.)?bestbuy\.com\/(?:site|product)\//i.test(query);
+    if(isBestBuyProductLink){
+      productButton.disabled = true; showCatalog("<p>Checking the public Best Buy product page…</p>");
+      try{
+        const response = await fetch("/api/bestbuy/public-check?force=true&url=" + encodeURIComponent(query), {cache:"no-store"});
+        const data = await response.json();
+        if(!response.ok || !data.ok) throw new Error(data.error || "Public page check failed");
+        showCatalog("<p><strong>" + esc(data.title) + "</strong><br>Public availability: " + esc(String(data.availability || "unknown").replace(/_/g, " ")) + "<br>Checked " + esc(new Date(data.checkedAt).toLocaleString()) + "</p>");
+      }catch(error){ showCatalog("<p>" + esc(error.message) + "</p>"); }
+      finally{ productButton.disabled = false; }
+      return;
+    }
+    if(!provider.catalogSearch) return showCatalog("<p>Keyword search is waiting for the approved Best Buy catalog connection. You can still paste a public Best Buy product link above to check that page now.</p>");
     productButton.disabled = true; showCatalog("<p>Searching official Best Buy product listings…</p>");
     try{
       const response = await fetch("/api/bestbuy/search?q=" + encodeURIComponent(query), {cache:"no-store"});
