@@ -1770,9 +1770,9 @@ function renderPokemonCenter(state){
   const score = Math.max(0, Math.min(100, Number(pc.confidence) || 0));
   const outlook = renderPokemonOutlook(pc, events, score, level, supportOk, sources.length);
   const queueEvent = events.find(event =>
-    event && (event.type === "QUEUE_ACTIVE" || event.queueActive === true) && safeExternalUrl(event.url)
+    event && (event.type === "QUEUE_ACTIVE" || event.queueActive === true) && verifiedPokemonCenterProductUrl(event.url)
   );
-  const queueUrl = queueEvent ? safeExternalUrl(queueEvent.url) : null;
+  const queueUrl = queueEvent ? verifiedPokemonCenterProductUrl(queueEvent.url) : null;
   const queueAction = pc.queueActive && queueUrl
     ? "<a class=\"queue-action\" href=\"" + esc(queueUrl) + "\" target=\"_blank\" rel=\"noopener noreferrer\">JOIN QUEUE</a>"
     : "";
@@ -1836,6 +1836,19 @@ function safeExternalUrl(value){
   try{
     const url = new URL(String(value || ""));
     return url.protocol === "https:" ? url.href : null;
+  }catch(error){
+    return null;
+  }
+}
+
+
+function verifiedPokemonCenterProductUrl(value){
+  const url = safeExternalUrl(value);
+  if(!url) return null;
+  try{
+    const parsed = new URL(url);
+    const isPokemonCenter = parsed.hostname === "www.pokemoncenter.com" || parsed.hostname === "pokemoncenter.com";
+    return isPokemonCenter && parsed.pathname.includes("/product/") ? parsed.href : null;
   }catch(error){
     return null;
   }
