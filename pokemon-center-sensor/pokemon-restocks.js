@@ -89,7 +89,7 @@ function report(article) {
 }
 
 function inspect() {
-  document.querySelectorAll("article[data-testid='tweet']").forEach(article => {
+  document.querySelectorAll("article[data-testid='tweet'], article").forEach(article => {
     const link = article.querySelector("a[href*='/PokemonRestocks/status/']");
     const id = link?.getAttribute("href")?.match(/\/status\/(\d+)/)?.[1];
     if (!id || !pendingPostIds.has(id)) report(article);

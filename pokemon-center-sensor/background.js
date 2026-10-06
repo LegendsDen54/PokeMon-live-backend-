@@ -7,6 +7,33 @@ const REFRESH_ALARM = "pokemon-center-scheduled-refresh";
 const ACTIVE_REFRESH_MS = 1 * 60 * 1000;
 const QUIET_REFRESH_MS = 15 * 60 * 1000;
 
+function isPokemonRestocksUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    return url.protocol === "https:" && url.hostname === "x.com" &&
+      /^\/PokemonRestocks\/?$/i.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+async function attachPokemonRestocksSensor(tabId) {
+  if (!Number.isInteger(tabId)) return;
+  try {
+    await chrome.scripting.executeScript({
+      target: {tabId},
+      files: ["pokemon-restocks.js"]
+    });
+  } catch {
+    // The tab may still be loading or X may have navigated away.
+  }
+}
+
+async function attachOpenPokemonRestocksSensors() {
+  const tabs = await chrome.tabs.query({url: "https://x.com/PokemonRestocks*"});
+  await Promise.all(tabs.map(tab => attachPokemonRestocksSensor(tab.id)));
+}
+
 function centralNow() {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Chicago",
@@ -74,12 +101,20 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create(REFRESH_ALARM, {
     periodInMinutes: 1
   });
+  attachOpenPokemonRestocksSensors().catch(() => {});
 });
 
 chrome.runtime.onStartup.addListener(() => {
   chrome.alarms.create(REFRESH_ALARM, {
     periodInMinutes: 1
   });
+  attachOpenPokemonRestocksSensors().catch(() => {});
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === "complete" && isPokemonRestocksUrl(tab.url)) {
+    attachPokemonRestocksSensor(tabId).catch(() => {});
+  }
 });
 
 chrome.alarms.onAlarm.addListener(alarm => {
