@@ -9,7 +9,7 @@ const QUIET_REFRESH_MS = 15 * 60 * 1000;
 
 function chicagoNow() {
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Chicago",
+    timeZone: "America/New_York",
     weekday: "short",
     hour: "numeric",
     hourCycle: "h23"
@@ -26,19 +26,9 @@ function activeWatchWindow() {
   const now = chicagoNow();
   const hour = Number(now.hour);
 
-  if (now.weekday === "Tue") {
-    return hour >= 10;
-  }
-
-  if (now.weekday === "Wed") {
-    return true;
-  }
-
-  if (now.weekday === "Thu") {
-    return hour < 15;
-  }
-
-  return false;
+  return ["Tue", "Wed", "Thu"].includes(now.weekday) &&
+    hour >= 10 &&
+    hour < 15;
 }
 
 async function refreshPokemonCenterTabs() {
@@ -51,9 +41,11 @@ async function refreshPokemonCenterTabs() {
     return;
   }
 
-  const interval = activeWatchWindow()
-    ? ACTIVE_REFRESH_MS
-    : QUIET_REFRESH_MS;
+  if (!activeWatchWindow()) {
+    return;
+  }
+
+  const interval = ACTIVE_REFRESH_MS;
 
   if (Date.now() - Number(settings.lastAutomaticRefreshAt || 0) < interval) {
     return;
