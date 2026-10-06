@@ -1884,7 +1884,7 @@ a{
         class="tab"
         data-retailer="all"
       >
-        <img class="tab-brand" src="https://abs.twimg.com/favicons/twitter.3.ico" alt="" aria-hidden="true">𝕏 RESTOCKS
+        CCN HOME
       </button>
 
       <button
@@ -2316,29 +2316,22 @@ let newestPokemonCenterSignal = null;
 let pokemonCenterToastTimer = null;
 let walmartManualScanRunning = false;
 
-function renderPokemonRestocks(state){
-  const allEvents = Array.isArray(state?.latestEvents) ? state.latestEvents : [];
-  const chicagoDay = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit"
-  }).format(new Date());
-  const posts = allEvents.filter(event => {
-    if (!event || event.thirdParty !== true || event.tcgRelevant !== true || !event.publishedAt) return false;
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit"
-    }).format(new Date(event.publishedAt)) === chicagoDay;
-  });
-  const rows = posts.map(event => {
-    const url = /^https:\/\/x\.com\/PokemonRestocks\/status\/\d+/i.test(String(event.url || "")) ? event.url : "https://x.com/PokemonRestocks";
-    const time = new Date(event.publishedAt).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
-    return "<a class=\"pokemon-restocks-post\" href=\"" + esc(url) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" +
-      esc(event.detail || "PokémonRestocks TCG alert") +
-      "<small>" + (event.watchToday ? "Public outlook: watch today · " : "Open post · ") + esc(time) + "</small></a>";
-  }).join("");
-  pokemonRestocksCard.innerHTML =
-    "<div class=\"pokemon-restocks-widget\">" +
-    "<div class=\"pokemon-restocks-widget-head\"><span class=\"pokemon-restocks-widget-mark\" aria-hidden=\"true\">𝕏</span><div><div class=\"pokemon-restocks-widget-title\">PokémonRestocks</div><div class=\"pokemon-restocks-widget-subtitle\">Today’s public TCG alerts</div></div></div>" +
-    "<div class=\"pokemon-restocks-feed\">" + (rows || "<p class=\"quiet-state\">Waiting for new PokémonRestocks TCG posts today.</p>") + "</div>" +
-    "<a class=\"source-link source-link-x\" href=\"https://x.com/PokemonRestocks\" target=\"_blank\" rel=\"noopener noreferrer\"><span class=\"source-link-mark-x\" aria-hidden=\"true\">𝕏</span>Open PokémonRestocks on X</a></div>";
+async function renderPokemonRestocks(){
+  if(pokemonRestocksCard.contains(document.activeElement) && /INPUT|BUTTON/.test(document.activeElement.tagName))return;
+  const key=sessionStorage.getItem('ccnReportKey');
+  const header='<div class="pokemon-restocks-widget"><h3>CCN Alerts</h3><p>Today’s imported TCG updates · Chicago time</p>';
+  const footer='<p><a href="https://discord.com/channels/1410547930250612828/1514248684575920160" target="_blank" rel="noopener noreferrer">OPEN CCN IN DISCORD ↗</a></p></div>';
+  if(!key){
+    pokemonRestocksCard.innerHTML=header+'<p>Connect your existing sensor pairing key to view the private CCN feed.</p><input id="ccnHomeKey" type="password" autocomplete="off" aria-label="Sensor pairing key"><button id="ccnHomeConnect" type="button">CONNECT CCN REPORTS</button>'+footer;
+    document.getElementById('ccnHomeConnect').addEventListener('click',()=>{const value=document.getElementById('ccnHomeKey').value.trim();if(value){sessionStorage.setItem('ccnReportKey',value);document.activeElement.blur();renderPokemonRestocks();}});
+    return;
+  }
+  try{
+    const data=await fetch('/api/ccn/news',{cache:'no-store',headers:{Authorization:'Bearer '+key}}).then(r=>r.json());
+    if(!data.ok)throw new Error(data.error || 'CCN feed unavailable');
+    const rows=(data.posts || []).map(post=>'<a class="pokemon-restocks-post" href="'+esc(post.sourceUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(post.summary)+'<small>CCN · '+esc(new Date(post.publishedAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}))+'</small></a>').join('');
+    pokemonRestocksCard.innerHTML=header+(rows || '<p>No CCN updates have been imported today. This is not a live Discord feed; open CCN for immediate alerts.</p>')+footer;
+  }catch(error){pokemonRestocksCard.innerHTML=header+'<p>'+esc(error.message)+'</p>'+footer;}
 }
 
 function renderPokemonCenter(state){

@@ -28,3 +28,21 @@ async function list(retailer,zip){
   return rows.rows.map(row=>({...row.data,stale:Date.now()-Date.parse(row.data.checkedAt)>90*60000}));
 }
 module.exports={save,list};
+async function newsStorage(){
+  await storage();
+  await pool.query("CREATE TABLE IF NOT EXISTS ccn_news_reports (source_url TEXT PRIMARY KEY, data JSONB NOT NULL)");
+}
+async function saveNews(input){
+  const timestamp=Date.parse(input.publishedAt);
+  if(!/^https:\/\/discord\.com\/channels\/1410547930250612828\/\d+\/\d+$/.test(input.sourceUrl || "") || !input.summary || !Number.isFinite(timestamp) || timestamp>Date.now()+60000 || Date.now()-timestamp>48*3600000) throw new Error("Provide a recent actual CCN message link, summary and publication time");
+  const report={sourceUrl:input.sourceUrl,summary:String(input.summary).slice(0,1000),retailer:["costco","sams","bestbuy","target","pokemoncenter","walmart"].includes(input.retailer)?input.retailer:null,publishedAt:new Date(timestamp).toISOString(),source:"CCN",importedAt:new Date().toISOString()};
+  await newsStorage();
+  await pool.query("INSERT INTO ccn_news_reports(source_url,data) VALUES($1,$2) ON CONFLICT(source_url) DO UPDATE SET data=EXCLUDED.data",[report.sourceUrl,report]);
+  return report;
+}
+async function news(){
+  await newsStorage();
+  const result=await pool.query("SELECT data FROM ccn_news_reports WHERE (data->>'publishedAt')::timestamptz >= date_trunc('day',now() AT TIME ZONE 'America/Chicago') AT TIME ZONE 'America/Chicago' ORDER BY (data->>'publishedAt')::timestamptz DESC LIMIT 40");
+  return result.rows.map(row=>row.data);
+}
+module.exports.saveNews=saveNews;module.exports.news=news;

@@ -5,7 +5,7 @@ document.getElementById('save').addEventListener('click',async()=>{
   try{
     if(!key.value.trim())throw new Error('Enter the existing sensor pairing key.');
     const report=JSON.parse(document.getElementById('report').value);
-    const response=await fetch('/api/ccn/inventory-report',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key.value.trim()},body:JSON.stringify(report)});
+    const response=await fetch(report.kind==='news'?'/api/ccn/news-report':'/api/ccn/inventory-report',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key.value.trim()},body:JSON.stringify(report)});
     const data=await response.json();if(!response.ok || !data.ok)throw new Error(data.error || 'Report could not be saved');
     sessionStorage.setItem('ccnReportKey',key.value.trim());status.textContent='Saved actual check result. The monitor will show it on its next update.';
   }catch(error){status.textContent=error.message;}finally{button.disabled=false;}

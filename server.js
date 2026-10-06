@@ -1921,6 +1921,16 @@ app.post("/api/ccn/inventory-report", async (req,res) => {
   catch(error){res.status(400).json({ok:false,error:error.message});}
 });
 app.get("/ccn-import", (req,res)=>res.sendFile(path.join(__dirname,"ccn-import.html")));
+app.post("/api/ccn/news-report",async(req,res)=>{
+  if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
+  if (!hasValidPokemonCenterSensorToken(req)) return pokemonCenterSensorUnauthorized(res);
+  try{res.json({ok:true,report:await ccnInventory.saveNews(req.body)});}catch(error){res.status(400).json({ok:false,error:error.message});}
+});
+app.get("/api/ccn/news",async(req,res)=>{
+  if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
+  if (!hasValidPokemonCenterSensorToken(req)) return pokemonCenterSensorUnauthorized(res);
+  try{res.json({ok:true,posts:await ccnInventory.news()});}catch(error){res.status(503).json({ok:false,error:"CCN news storage unavailable"});}
+});
 app.get("/api/ccn/inventory-reports", async (req,res) => {
   if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
   if (!hasValidPokemonCenterSensorToken(req)) return pokemonCenterSensorUnauthorized(res);
