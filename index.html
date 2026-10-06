@@ -1575,20 +1575,13 @@ a{
       <span>LIVE MONITOR CONNECTED</span>
     </div>
 
-    <div
-      id="pushStatus"
-      class="status-pill"
-    >
-      <span class="dot"></span>
-      <span>ALERT SERVICE READY</span>
-    </div>
-
     <button
-      id="enableNotifications"
-      class="notification-button"
+      id="pushStatus"
+      class="status-pill notification-button"
       type="button"
     >
-      ENABLE PHONE ALERTS
+      <span class="dot"></span>
+      <span>CHECKING PUSH ALERTS…</span>
     </button>
 
   </div>
@@ -1925,9 +1918,6 @@ const backendStatus =
 
 const pushStatus =
   document.getElementById("pushStatus");
-
-const enableNotifications =
-  document.getElementById("enableNotifications");
 
 const walmartSection =
   document.getElementById("walmartSection");
@@ -2294,9 +2284,9 @@ function base64UrlToUint8Array(value){
 
 
 function setNotificationButton(label, disabled = false){
-  if(!enableNotifications) return;
-  enableNotifications.textContent = label;
-  enableNotifications.disabled = disabled;
+  if(!pushStatus) return;
+  pushStatus.textContent = label;
+  pushStatus.disabled = disabled;
 }
 
 
@@ -2310,15 +2300,15 @@ async function getMonitorServiceWorker(){
 
 
 async function syncPhoneNotificationStatus(){
-  if(!enableNotifications) return;
+  if(!pushStatus) return;
 
   if(!("Notification" in window) || !("serviceWorker" in navigator)){
-    setNotificationButton("PHONE ALERTS UNSUPPORTED", true);
+    setNotificationButton("PUSH ALERTS UNSUPPORTED", true);
     return;
   }
 
   if(Notification.permission === "denied"){
-    setNotificationButton("PHONE ALERTS BLOCKED");
+    setNotificationButton("PUSH ALERTS BLOCKED");
     return;
   }
 
@@ -2326,26 +2316,26 @@ async function syncPhoneNotificationStatus(){
     const registration = await getMonitorServiceWorker();
     const subscription = await registration.pushManager.getSubscription();
     setNotificationButton(
-      subscription ? "PHONE ALERTS ENABLED" : "ENABLE PHONE ALERTS"
+      subscription ? "PUSH ALERTS ENABLED · TAP TO TURN OFF" : "ENABLE PUSH ALERTS"
     );
   }catch(error){
-    setNotificationButton("ENABLE PHONE ALERTS");
+    setNotificationButton("ENABLE PUSH ALERTS");
   }
 }
 
 
 async function enablePhoneNotifications(){
   if(!("Notification" in window) || !("serviceWorker" in navigator)){
-    setNotificationButton("PHONE ALERTS UNSUPPORTED", true);
+    setNotificationButton("PUSH ALERTS UNSUPPORTED", true);
     return;
   }
 
   try{
-    setNotificationButton("ENABLING PHONE ALERTS…", true);
+    setNotificationButton("ENABLING PUSH ALERTS…", true);
 
     const permission = await Notification.requestPermission();
     if(permission !== "granted"){
-      setNotificationButton("PHONE ALERTS BLOCKED");
+      setNotificationButton("PUSH ALERTS BLOCKED");
       return;
     }
 
@@ -2374,8 +2364,47 @@ async function enablePhoneNotifications(){
     await syncPhoneNotificationStatus();
   }catch(error){
     console.error("Could not enable phone alerts", error);
-    setNotificationButton("ENABLE PHONE ALERTS");
+    setNotificationButton("ENABLE PUSH ALERTS");
   }
+}
+
+
+async function disablePhoneNotifications(){
+  try{
+    setNotificationButton("TURNING OFF PUSH ALERTS…", true);
+    const registration = await getMonitorServiceWorker();
+    const subscription = await registration.pushManager.getSubscription();
+
+    if(subscription){
+      await fetch("/api/push/unsubscribe", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({endpoint:subscription.endpoint})
+      });
+      await subscription.unsubscribe();
+    }
+
+    await syncPhoneNotificationStatus();
+  }catch(error){
+    console.error("Could not turn off push alerts", error);
+    setNotificationButton("PUSH ALERTS ENABLED · TAP TO TURN OFF");
+  }
+}
+
+
+async function togglePhoneNotifications(){
+  try{
+    const registration = await getMonitorServiceWorker();
+    const subscription = await registration.pushManager.getSubscription();
+    if(subscription){
+      await disablePhoneNotifications();
+      return;
+    }
+  }catch(error){
+    console.error("Could not inspect push alerts", error);
+  }
+
+  await enablePhoneNotifications();
 }
 
 
@@ -3402,16 +3431,6 @@ async function load(){
     );
 
 
-    setOnline(
-      pushStatus,
-      Boolean(
-        statusData?.push?.configured
-      ),
-      "ALERT SERVICE READY",
-      "ALERT SERVICE UNAVAILABLE"
-    );
-
-
     renderWalmartStatus(
       statusData
     );
@@ -3747,9 +3766,9 @@ manualWalmartScan.addEventListener(
   runManualWalmartScan
 );
 
-enableNotifications.addEventListener(
+pushStatus.addEventListener(
   "click",
-  enablePhoneNotifications
+  togglePhoneNotifications
 );
 
 
