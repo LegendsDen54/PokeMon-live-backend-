@@ -1,12 +1,17 @@
 {
   "manifest_version": 3,
   "name": "Pokémon Center Signal Sensor",
-  "version": "1.3.8",
-  "description": "Sends visible Pokémon Center and Best Buy product availability to the owner's private monitor.",
-  "permissions": ["storage", "tabs", "alarms"],
+  "version": "1.3.9",
+  "description": "Sends visible Pokémon Center, Best Buy, and Sam's Club product availability to the owner's private monitor.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "alarms"
+  ],
   "host_permissions": [
     "https://www.pokemoncenter.com/*",
     "https://www.bestbuy.com/*",
+    "https://www.samsclub.com/*",
     "https://x.com/PokemonRestocks*",
     "https://pokemon-live-backend.onrender.com/*"
   ],
@@ -19,13 +24,21 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.pokemoncenter.com/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://www.pokemoncenter.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://x.com/PokemonRestocks*"],
-      "js": ["pokemon-restocks.js"],
+      "matches": [
+        "https://x.com/PokemonRestocks*"
+      ],
+      "js": [
+        "pokemon-restocks.js"
+      ],
       "run_at": "document_idle"
     },
     {
@@ -33,7 +46,18 @@
         "https://www.bestbuy.com/site/*",
         "https://www.bestbuy.com/product/*"
       ],
-      "js": ["bestbuy.js"],
+      "js": [
+        "bestbuy.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.samsclub.com/ip/*"
+      ],
+      "js": [
+        "sams.js"
+      ],
       "run_at": "document_idle"
     }
   ]
