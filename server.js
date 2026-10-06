@@ -1680,7 +1680,10 @@ app.get(
   "/api/bestbuy/public-check",
   async (req,res) => {
     try {
-      const result = await checkPublicBestBuyPage(req.query.url);
+      const result = await checkPublicBestBuyPage(
+        req.query.url,
+        {force: String(req.query.force || "").toLowerCase() === "true"}
+      );
       res.json({ok: true, source: "public_product_page", ...result});
     } catch (error) {
       res.status(400).json({ok: false, error: error.message});

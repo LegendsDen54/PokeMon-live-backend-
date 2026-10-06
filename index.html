@@ -2403,7 +2403,7 @@ function wireBestBuyChecker(provider){
     if(!url) return show("<p>Paste a public Best Buy product-page link.</p>");
     publicUrlButton.disabled = true; show("<p>Checking the public product page…</p>");
     try{
-      const response = await fetch("/api/bestbuy/public-check?url=" + encodeURIComponent(url), {cache:"no-store"});
+      const response = await fetch("/api/bestbuy/public-check?force=true&url=" + encodeURIComponent(url), {cache:"no-store"});
       const data = await response.json();
       if(!response.ok || !data.ok) throw new Error(data.error || "Public page check failed");
       show("<p><strong>" + esc(data.title) + "</strong><br>Public availability: " + esc(data.availability.replace(/_/g, " ")) + "<br>Checked " + esc(new Date(data.checkedAt).toLocaleString()) + "</p>");
