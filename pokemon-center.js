@@ -1195,6 +1195,9 @@ function baseScoreForType(
     PRICE_CHANGE:
       20,
 
+    QUANTITY_CHANGE:
+      18,
+
     PRODUCT_NAME_CHANGE:
       22,
 
