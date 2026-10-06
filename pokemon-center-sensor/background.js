@@ -167,6 +167,8 @@ chrome.runtime.onMessage.addListener(
               ? "/api/bestbuy/browser-observation"
             : message.kind === "samsObservation"
               ? "/api/sams/browser-observation"
+            : message.kind === "costcoObservation"
+              ? "/api/costco/browser-observation"
           : null;
 
     if (!path) {
