@@ -2,6 +2,7 @@
 
 /* Watches only newly visible posts on the public @PokemonRestocks timeline. */
 const seenPostIds = new Set();
+const pendingPostIds = new Set();
 let timer = null;
 const TIMELINE_REFRESH_MS = 2 * 60 * 1000;
 
@@ -50,7 +51,7 @@ function report(article) {
     return;
   }
 
-  seenPostIds.add(id);
+  pendingPostIds.add(id);
 
   try {
     const request = chrome.runtime.sendMessage({
@@ -67,16 +68,32 @@ function report(article) {
       }
     });
 
-    if (request && typeof request.catch === "function") {
-      request.catch(() => {});
+    if (request && typeof request.then === "function") {
+      request
+        .then(result => {
+          if (result?.ok) {
+            seenPostIds.add(id);
+          }
+        })
+        .catch(() => {})
+        .finally(() => pendingPostIds.delete(id));
+    } else {
+      /* Older Chrome versions do not return a Promise here. The next
+         timeline refresh safely retries if delivery was not confirmed. */
+      pendingPostIds.delete(id);
     }
   } catch {
-    // The extension may be reloading; later posts are checked again.
+    pendingPostIds.delete(id);
+    // The extension may be reloading; later timeline changes retry.
   }
 }
 
 function inspect() {
-  document.querySelectorAll("article[data-testid='tweet']").forEach(report);
+  document.querySelectorAll("article[data-testid='tweet']").forEach(article => {
+    const link = article.querySelector("a[href*='/PokemonRestocks/status/']");
+    const id = link?.getAttribute("href")?.match(/\/status\/(\d+)/)?.[1];
+    if (!id || !pendingPostIds.has(id)) report(article);
+  });
 }
 
 function scheduleInspect() {
