@@ -783,6 +783,230 @@ a{
   line-height:1.5;
 }
 
+.pokemon-center-card{
+  text-align:left;
+  color:var(--text);
+}
+
+.signal-summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+
+  padding:12px;
+
+  border:1px solid rgba(98,199,255,.20);
+  border-radius:12px;
+
+  background:#06111f;
+}
+
+.signal-summary-label{
+  color:var(--muted);
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.4px;
+  text-transform:uppercase;
+}
+
+.signal-summary-value{
+  margin-top:3px;
+  font-size:18px;
+  font-weight:950;
+}
+
+.signal-score{
+  min-width:58px;
+  padding:8px 7px;
+
+  border:1px solid rgba(84,243,166,.40);
+  border-radius:10px;
+
+  color:var(--green);
+  text-align:center;
+  font-size:16px;
+  font-weight:950;
+}
+
+.pokemon-center-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+
+  margin:12px 0;
+}
+
+.pokemon-center-meta span{
+  border:1px solid rgba(98,199,255,.20);
+  border-radius:999px;
+
+  padding:5px 8px;
+
+  color:var(--muted);
+  font-size:10px;
+  font-weight:800;
+}
+
+.signal-list{
+  display:grid;
+  gap:8px;
+
+  margin:12px 0 0;
+  padding:0;
+
+  list-style:none;
+}
+
+.signal-list li{
+  padding:10px;
+
+  border-left:3px solid var(--blue);
+  border-radius:0 9px 9px 0;
+
+  background:#06111f;
+
+  color:#dcecff;
+  font-size:12px;
+}
+
+.quiet-state{
+  margin:14px 0 0;
+
+  color:var(--muted);
+  font-size:12px;
+}
+
+.outlook-card{
+  text-align:left;
+  color:var(--text);
+}
+
+.outlook-score{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:14px;
+  align-items:center;
+
+  padding:14px;
+
+  border:1px solid rgba(255,199,107,.28);
+  border-radius:14px;
+
+  background:linear-gradient(135deg,#101d30,#081528);
+}
+
+.outlook-score-number{
+  min-width:76px;
+
+  color:var(--gold);
+  font-size:28px;
+  font-weight:950;
+  text-align:center;
+}
+
+.outlook-score-label{
+  color:var(--muted);
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.3px;
+  text-transform:uppercase;
+}
+
+.outlook-score-detail{
+  margin-top:4px;
+  font-size:14px;
+  font-weight:900;
+}
+
+.outlook-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+
+  margin-top:10px;
+}
+
+.outlook-fact{
+  padding:10px;
+
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;
+
+  background:#06111f;
+}
+
+.outlook-fact span{
+  display:block;
+  color:var(--muted);
+  font-size:9px;
+  font-weight:800;
+  text-transform:uppercase;
+}
+
+.outlook-fact strong{
+  display:block;
+  margin-top:4px;
+  font-size:12px;
+}
+
+.outlook-note{
+  margin:12px 0 0;
+
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45;
+}
+
+.signal-toast{
+  position:fixed;
+  right:14px;
+  bottom:18px;
+  z-index:1200;
+
+  width:min(360px,calc(100vw - 28px));
+  padding:14px;
+
+  border:1px solid rgba(84,243,166,.65);
+  border-radius:14px;
+
+  background:#0a251f;
+  box-shadow:0 18px 45px rgba(0,0,0,.42);
+
+  transform:translateY(130%);
+  opacity:0;
+  pointer-events:none;
+  transition:transform .25s ease,opacity .25s ease;
+}
+
+.signal-toast.show{
+  transform:translateY(0);
+  opacity:1;
+  pointer-events:auto;
+}
+
+.signal-toast-title{
+  color:var(--green);
+  font-size:12px;
+  font-weight:950;
+}
+
+.signal-toast-body{
+  margin-top:5px;
+  color:#e8f7f0;
+  font-size:12px;
+  line-height:1.4;
+}
+
+.signal-toast a{
+  display:inline-block;
+  margin-top:9px;
+
+  color:var(--green);
+  font-size:11px;
+  font-weight:900;
+}
+
 
 /* =========================================
    MODAL
@@ -1118,6 +1342,13 @@ a{
       </button>
 
       <button
+        class="tab"
+        data-retailer="pokemonoutlook"
+      >
+        DROP OUTLOOK
+      </button>
+
+      <button
         class="tab active"
         data-retailer="walmart"
       >
@@ -1162,7 +1393,14 @@ a{
     id="pokemonCenterSection"
     class="section other-retailer"
   >
-    <div id="pokemonCenterCard" class="other-card"></div>
+    <div id="pokemonCenterCard" class="other-card pokemon-center-card"></div>
+  </section>
+
+  <section
+    id="pokemonOutlookSection"
+    class="section other-retailer"
+  >
+    <div id="pokemonOutlookCard" class="other-card outlook-card"></div>
   </section>
 
 
@@ -1349,6 +1587,13 @@ a{
 
 </div>
 
+<div
+  id="pokemonCenterToast"
+  class="signal-toast"
+  role="status"
+  aria-live="polite"
+></div>
+
 
 
 <!-- ======================================
@@ -1423,6 +1668,15 @@ const pokemonCenterSection =
 
 const pokemonCenterCard =
   document.getElementById("pokemonCenterCard");
+
+const pokemonOutlookSection =
+  document.getElementById("pokemonOutlookSection");
+
+const pokemonOutlookCard =
+  document.getElementById("pokemonOutlookCard");
+
+const pokemonCenterToast =
+  document.getElementById("pokemonCenterToast");
 
 const otherRetailerSection =
   document.getElementById(
@@ -1506,53 +1760,70 @@ const lastUpdated =
 
 
 
+let newestPokemonCenterSignal = null;
+let pokemonCenterToastTimer = null;
+
 function renderPokemonCenter(state){
   const pc = state || {};
   const events = Array.isArray(pc.latestEvents) ? pc.latestEvents.slice(0, 8) : [];
-  const level = esc(String(pc.level || "normal").replace(/_/g, " ").toUpperCase());
-  const sensor = pc.browserSensorOnline === true ? "CONNECTED" : "WAITING FOR BROWSER SENSOR";
-  const lastCheck = pc.lastChecked ? new Date(pc.lastChecked).toLocaleString() : "Not checked yet";
+  const level = String(pc.level || "normal").replace(/_/g, " ").toUpperCase();
+  const sensor = pc.browserSensorOnline === true ? "CONNECTED" : "PAIR CHROME SENSOR";
   const sources = Array.isArray(pc.supportHealth) ? pc.supportHealth : [];
   const supportOk = sources.filter(source => source.ok === true).length;
-  const sourceSummary = sources.map(source => {
-    let host = "Official source";
-    try { host = new URL(source.url).hostname; } catch (error) {}
-    const retry = source.retryAfter
-      ? " · retry after " + new Date(source.retryAfter).toLocaleString()
-      : "";
-    const detail = source.state === "blocked"
-      ? " · automated access denied" + (source.status ? " (HTTP " + source.status + ")" : "")
-      : source.state === "rate_limited"
-        ? " · rate limited" + (source.status ? " (HTTP " + source.status + ")" : "")
-        : source.state === "available"
-          ? " · responding"
-          : " · unavailable" + (source.status ? " (HTTP " + source.status + ")" : "");
-    return host + detail + retry;
-  });
-  const eventRows = events.map(event => {
-    const date = event.at ? new Date(event.at).toLocaleString() : "";
+  const score = Math.max(0, Math.min(100, Number(pc.confidence) || 0));
+  const signalRows = events.map(event => {
+    const date = event.at ? new Date(event.at).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) : "";
     return "<li><strong>" + esc(event.type || "Signal") + "</strong>" +
       (event.name ? " · " + esc(event.name) : "") +
       (event.detail ? " — " + esc(event.detail) : "") +
       (date ? " <small>" + esc(date) + "</small>" : "") + "</li>";
   }).join("");
   pokemonCenterCard.innerHTML =
-    "<div class=\"panel-title\">Pokémon Center Signal Monitor</div>" +
-    "<p>Priority " + esc(pc.priority || "highest") + " · " + level +
-    " · Confidence " + esc(pc.confidenceLabel || "LOW") + "</p>" +
-    "<p>Browser sensor: " + esc(sensor) + " · Official support pages: " +
-    supportOk + "/" + sources.length + " responding</p>" +
-    "<p>Last check: " + esc(lastCheck) +
-    (pc.queueActive ? " · QUEUE SIGNAL ACTIVE" : "") + "</p>" +
-    (sourceSummary.length ? "<p>Source checks: " + esc(sourceSummary.join("; ")) + "</p>" : "") +
+    "<div class=\"panel-title\">Pokémon Center</div>" +
+    "<div class=\"signal-summary\"><div><div class=\"signal-summary-label\">Current signal level</div><div class=\"signal-summary-value\">" + esc(level) + "</div></div><div class=\"signal-score\">" + score + "</div></div>" +
+    "<div class=\"pokemon-center-meta\"><span>Sensor: " + esc(sensor) + "</span><span>Official checks: " + supportOk + "/" + sources.length + "</span>" +
+    (pc.queueActive ? "<span>QUEUE ACTIVE</span>" : "") + "</div>" +
     (pc.predictedProduct && pc.predictedProduct.name
-      ? "<p>Related product signal: " + esc(pc.predictedProduct.name) + "</p>" : "") +
-    (pc.lastError ? "<p role=\"status\">Monitor note: " + esc(pc.lastError) + "</p>" : "") +
-    "<h3>Recent Pokémon Center signals</h3>" +
-    (events.length ? "<ul>" + eventRows + "</ul>" :
-      "<p>No product signals have been detected yet. This monitor reports configured public support checks and user-visible browser sensor signals; it does not invent stock.</p>") +
-    "<p>Support-page checks do not confirm product inventory or stock.</p>" +
+      ? "<p><strong>Potential product:</strong> " + esc(pc.predictedProduct.name) + "</p>" : "") +
+    (events.length ? "<ul class=\"signal-list\">" + signalRows + "</ul>" :
+      "<p class=\"quiet-state\">No verified Pokémon Center activity yet.</p>") +
     "<p><a href=\"https://www.pokemoncenter.com/\" target=\"_blank\" rel=\"noopener noreferrer\">Open Pokémon Center</a></p>";
+  renderPokemonOutlook(pc, events, score, level, supportOk, sources.length);
+  showNewPokemonCenterSignal(events[0]);
+}
+
+function renderPokemonOutlook(pc, events, score, level, supportOk, sourceCount){
+  const readiness = pc.readinessWindow && pc.readinessWindow.label
+    ? pc.readinessWindow.label
+    : "No reliable window yet";
+  const activity = events.length ? (events[0].type || "Verified activity") : "No verified activity";
+  const evidence = score === 0
+    ? "No verified movement supports a drop estimate today."
+    : "This score updates only from verified public signals; it is not a guarantee.";
+  pokemonOutlookCard.innerHTML =
+    "<div class=\"panel-title\">Pokémon Center Drop Outlook</div>" +
+    "<div class=\"outlook-score\"><div class=\"outlook-score-number\">" + score + "/100</div><div><div class=\"outlook-score-label\">Today’s readiness score</div><div class=\"outlook-score-detail\">" + esc(level) + "</div></div></div>" +
+    "<div class=\"outlook-grid\"><div class=\"outlook-fact\"><span>Readiness window</span><strong>" + esc(readiness) + "</strong></div><div class=\"outlook-fact\"><span>Latest evidence</span><strong>" + esc(activity) + "</strong></div><div class=\"outlook-fact\"><span>Official sources</span><strong>" + supportOk + "/" + sourceCount + " responding</strong></div><div class=\"outlook-fact\"><span>Queue</span><strong>" + (pc.queueActive ? "Signal active" : "No signal") + "</strong></div></div>" +
+    "<p class=\"outlook-note\">" + esc(evidence) + "</p>";
+}
+
+function showNewPokemonCenterSignal(event){
+  if(!event || !event.at || !pokemonCenterToast) return;
+  const key = [event.at, event.type, event.name, event.url].join("|");
+  if(newestPokemonCenterSignal === null){
+    newestPokemonCenterSignal = key;
+    return;
+  }
+  if(newestPokemonCenterSignal === key) return;
+  newestPokemonCenterSignal = key;
+  const url = safeExternalUrl(event.url);
+  pokemonCenterToast.innerHTML =
+    "<div class=\"signal-toast-title\">Pokémon Center activity</div>" +
+    "<div class=\"signal-toast-body\">" + esc(event.name || event.type || "New verified signal") + "</div>" +
+    (url ? "<a href=\"" + esc(url) + "\" target=\"_blank\" rel=\"noopener noreferrer\">Open product page</a>" : "");
+  pokemonCenterToast.classList.add("show");
+  clearTimeout(pokemonCenterToastTimer);
+  pokemonCenterToastTimer = setTimeout(() => pokemonCenterToast.classList.remove("show"), 12000);
 }
 
 
@@ -2941,6 +3212,9 @@ function setRetailer(
     otherRetailerSection.classList.remove(
       "show"
     );
+    pokemonOutlookSection.classList.remove(
+      "show"
+    );
     pokemonCenterSection.classList.add(
       "show"
     );
@@ -2950,7 +3224,30 @@ function setRetailer(
     return;
   }
 
+  if(
+    retailer === "pokemonoutlook"
+  ){
+    walmartSection.style.display =
+      "none";
+    otherRetailerSection.classList.remove(
+      "show"
+    );
+    pokemonCenterSection.classList.remove(
+      "show"
+    );
+    pokemonOutlookSection.classList.add(
+      "show"
+    );
+    renderPokemonCenter(
+      latestStatusData && latestStatusData.pokemonCenter
+    );
+    return;
+  }
+
   pokemonCenterSection.classList.remove(
+    "show"
+  );
+  pokemonOutlookSection.classList.remove(
     "show"
   );
 
