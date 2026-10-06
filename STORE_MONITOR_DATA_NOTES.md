@@ -33,3 +33,40 @@ the source does not publish it. A feed item can include:
 
 This keeps location, status, SKU, official image, and confirmed quantity
 separate from unavailable or estimated inventory.
+
+## Provider research: CCN and Zephyr (2026-10-06)
+
+Read-only inspection of the user's accessible CCN channels identified alert
+footers naming `CCN x Zephyr Monitors`. This attribution was visible on several
+retailer alerts, including Pokemon Center; it does not establish that every CCN
+service uses the same provider.
+
+The CCN Retail Stock Checker instructions list Bestbuy, Costco, and Samsclub
+among supported retailers. Its documented inputs are retailer, ZIP code, and
+product identifier. These instructions establish advertised coverage, not a
+verified response for a Chicago warehouse. Exact quantities and the three
+warehouse phases (on order, in transit, on hand) remain unverified for those
+retailers. No bot command was submitted during this inspection.
+
+Zephyr's public website advertises a customer dashboard with configurable
+webhooks: https://zephyrmonitorsllc.com/ . This is a concrete provider lead,
+but no documented ingestion API, credentials, pricing, redistribution permission,
+or feed subscription was obtained. A CCN membership alone must not be treated
+as a configured application feed.
+
+Useful Pokemon Center event distinctions observed in alert presentation:
+
+- Product identifier and official product URL should remain attached to evidence.
+- `invite_only` must be separate from stock status and public purchase eligibility.
+- An unavailable price must remain unknown; a market-value estimate is not the
+  retailer's purchase price.
+- Editorial warnings about a possible drop window are attributed external
+  expectations. They do not prove a queue, inventory change, or calibrated
+  30-60 minute prediction.
+
+Next connection requirements: confirm a supported provider feed and its license,
+retailer coverage, location identifiers, timestamps, status semantics, quantity
+coverage, authentication, and webhook signature/replay handling before adapting
+it to the existing server-side inventory model. Keep missing fields unknown and
+deduplicate updates by product, location, and event identity. No runtime provider
+connection was added by this research.
