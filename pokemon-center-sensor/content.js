@@ -99,6 +99,12 @@ function isTcgText(value) {
   );
 }
 
+function isTcgProductText(value) {
+  const label = String(value || "");
+  const accessory = /\b(?:sleeves?|deck box|binder|portfolio|playmat|coin|dice|damage counter|pin|keychain|plush|figure|apparel|shirt|hoodie|hat|backpack|lunchbox|mug|water bottle|sticker|poster|ornament)\b/i;
+  return isTcgText(label) && !accessory.test(label);
+}
+
 function productLinks() {
   return [...document.querySelectorAll("a[href*='/product/']")]
     .map(anchor => {
@@ -112,7 +118,7 @@ function productLinks() {
       };
     })
     .filter(item => item.url.startsWith("https://www.pokemoncenter.com/"))
-    .filter(item => isTcgText(`${item.name || ""} ${item.url}`))
+    .filter(item => isTcgProductText(`${item.name || ""} ${item.url}`))
     .filter((item, index, items) =>
       items.findIndex(candidate => candidate.url === item.url) === index
     )

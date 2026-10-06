@@ -816,6 +816,13 @@ function productKey(
 
 }
 
+function isTcgProductEvent(event = {}) {
+  const label = [event.name, event.url, event.detail].filter(Boolean).join(" ");
+  const tcg = /\bpok[eé]mon\s*tcg\b|trading\s*card\s*game|\belite trainer box\b|\bbooster\s+(?:box|bundle|pack)\b|\bultra[- ]premium collection\b|\bbuild\s*(?:&|and)\s*battle\b|\bpromo\s+card\b|\bcollector(?:'s)?\s+chest\b|\bmini\s*tins?\b|\btrainer\s+kit\b|\btheme\s+deck\b/i.test(label);
+  const accessory = /\b(?:sleeves?|deck box|binder|portfolio|playmat|coin|dice|damage counter|pin|keychain|plush|figure|apparel|shirt|hoodie|hat|backpack|lunchbox|mug|water bottle|sticker|poster|ornament)\b/i.test(label);
+  return event.tcgRelevant === true && tcg && !accessory && /^https:\/\/www\.pokemoncenter\.com\/product\//i.test(String(event.url || ""));
+}
+
 
 function mergeProduct(
   signal
@@ -2492,7 +2499,8 @@ async function processSignal(
 
 
   if(
-    !signal.observedOnly
+    !signal.observedOnly &&
+    isTcgProductEvent(event)
   ){
     mergeProduct(
       event

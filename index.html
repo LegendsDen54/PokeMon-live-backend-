@@ -2365,13 +2365,17 @@ function renderPokemonCenter(state){
   const predictedImage = pc.predictedProduct && /^https:\/\//i.test(String(pc.predictedProduct.image || ""))
     ? String(pc.predictedProduct.image)
     : "";
-  const predictedProduct = pc.predictedProduct && pc.predictedProduct.name
+  const isTcgProduct = event => {
+    const label = [event && event.name, event && event.url, event && event.detail].filter(Boolean).join(" ");
+    return /\bpok[eé]mon\s*tcg\b|trading\s*card\s*game|\belite trainer box\b|\bbooster\s+(?:box|bundle|pack)\b|\bultra[- ]premium collection\b|\bbuild\s*(?:&|and)\s*battle\b|\bpromo\s+card\b|\bcollector(?:'s)?\s+chest\b|\bmini\s*tins?\b|\btrainer\s+kit\b|\btheme\s+deck\b/i.test(label) && !/\b(?:sleeves?|deck box|binder|portfolio|playmat|coin|dice|damage counter|pin|keychain|plush|figure|apparel|shirt|hoodie|hat|backpack|lunchbox|mug|water bottle|sticker|poster|ornament)\b/i.test(label);
+  };
+  const predictedProduct = pc.predictedProduct && pc.predictedProduct.name && isTcgProduct(pc.predictedProduct)
     ? "<div class=\"pokemon-center-product\">" +
       (predictedImage ? "<img src=\"" + esc(predictedImage) + "\" alt=\"" + esc(pc.predictedProduct.name) + "\">" : "") +
       "<p><strong>Potential TCG product:</strong> " + esc(pc.predictedProduct.name) + "</p></div>"
     : "";
   const productEvents = events
-    .filter(event => event && event.tcgRelevant === true && event.name &&
+    .filter(event => event && isTcgProduct(event) && event.name &&
       /^https:\/\//i.test(String(event.image || "")) &&
       verifiedPokemonCenterProductUrl(event.url))
     .filter((event, index, items) => items.findIndex(item => item.url === event.url) === index)
