@@ -111,6 +111,16 @@ async function getConfig() {
   };
 }
 
+function chicagoDay(value) {
+  const date = new Date(value || Date.now());
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(Number.isNaN(date.getTime()) ? new Date() : date);
+}
+
 async function post(path, payload) {
   const config = await getConfig();
 
@@ -189,7 +199,11 @@ chrome.runtime.onMessage.addListener(
     const send = async () => {
       if (message.kind === "thirdPartyAlert") {
         const postId = String(payload.postId || "").trim();
-        const key = postId ? `pokemonRestocks:${postId}` : null;
+          /* Keep the timeline clean within a day while allowing today's
+             posts to be recovered after the monitor restarts. */
+          const key = postId
+            ? `pokemonRestocks:${chicagoDay(payload.publishedAt)}:${postId}`
+            : null;
 
         if (key) {
           const stored = await chrome.storage.local.get(key);

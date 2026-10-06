@@ -1748,6 +1748,28 @@ a{
   vertical-align:middle;
 }
 
+.pull-refresh-indicator{
+  position:fixed;
+  top:10px;
+  left:50%;
+  z-index:1200;
+  transform:translate(-50%,-130%);
+  transition:transform .16s ease;
+  border:1px solid rgba(98,199,255,.35);
+  border-radius:999px;
+  background:#071829;
+  color:#eaf7ff;
+  box-shadow:0 8px 25px rgba(0,0,0,.35);
+  padding:8px 12px;
+  font-size:11px;
+  font-weight:900;
+  pointer-events:none;
+}
+
+.pull-refresh-indicator.show{
+  transform:translate(-50%,0);
+}
+
 
 /* =========================================
    MOBILE
@@ -1817,6 +1839,8 @@ a{
 
 
 <body>
+
+<div id="pullRefreshIndicator" class="pull-refresh-indicator" aria-live="polite">Pull down to refresh</div>
 
 <div class="app">
 
@@ -4593,6 +4617,53 @@ setInterval(
   load,
   15000
 );
+
+/* Pull down at the top of the monitor to request fresh data immediately. */
+const pullRefreshIndicator = document.getElementById("pullRefreshIndicator");
+let pullRefreshStartY = null;
+let pullRefreshReady = false;
+let pullRefreshRunning = false;
+const PULL_REFRESH_DISTANCE = 70;
+
+function setPullRefreshMessage(message, visible){
+  pullRefreshIndicator.textContent = message;
+  pullRefreshIndicator.classList.toggle("show", visible);
+}
+
+window.addEventListener("touchstart", event => {
+  if(window.scrollY <= 0 && event.touches.length === 1 && !pullRefreshRunning){
+    pullRefreshStartY = event.touches[0].clientY;
+    pullRefreshReady = false;
+  }
+}, {passive:true});
+
+window.addEventListener("touchmove", event => {
+  if(pullRefreshStartY == null || pullRefreshRunning) return;
+  const distance = event.touches[0].clientY - pullRefreshStartY;
+  if(distance <= 0) return;
+  pullRefreshReady = distance >= PULL_REFRESH_DISTANCE;
+  setPullRefreshMessage(pullRefreshReady ? "Release to refresh" : "Pull down to refresh", true);
+  if(pullRefreshReady) event.preventDefault();
+}, {passive:false});
+
+window.addEventListener("touchend", async () => {
+  const shouldRefresh = pullRefreshReady && !pullRefreshRunning;
+  pullRefreshStartY = null;
+  pullRefreshReady = false;
+  if(!shouldRefresh){
+    setPullRefreshMessage("Pull down to refresh", false);
+    return;
+  }
+  pullRefreshRunning = true;
+  setPullRefreshMessage("Refreshing monitor…", true);
+  try{
+    await load();
+    setPullRefreshMessage("Monitor refreshed", true);
+  }finally{
+    pullRefreshRunning = false;
+    setTimeout(() => setPullRefreshMessage("Pull down to refresh", false), 900);
+  }
+}, {passive:true});
 
 
 /* =========================================
