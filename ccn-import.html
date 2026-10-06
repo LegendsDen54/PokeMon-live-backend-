@@ -1,0 +1,13 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Private CCN report transfer</title><style>body{max-width:640px;margin:40px auto;padding:20px;font:16px system-ui;background:#06111f;color:#eee}label{display:block;margin:16px 0 6px}input,textarea,button{box-sizing:border-box;width:100%;padding:12px;border-radius:8px}textarea{height:220px}button{margin-top:16px}</style><h1>Private CCN report transfer</h1><p>Transfer an actual stock-checker response. This does not query Discord or manufacture inventory.</p><label for="key">Existing sensor pairing key</label><input id="key" type="password" autocomplete="off"><label for="report">Prepared report</label><textarea id="report" aria-label="Prepared CCN report"></textarea><button id="save">SAVE CHECK RESULT</button><p id="status" role="status"></p><a href="/">Return to monitor</a><script>
+const key=document.getElementById('key');key.value=sessionStorage.getItem('ccnReportKey') || '';
+document.getElementById('save').addEventListener('click',async()=>{
+  const status=document.getElementById('status');const button=document.getElementById('save');button.disabled=true;
+  try{
+    if(!key.value.trim())throw new Error('Enter the existing sensor pairing key.');
+    const report=JSON.parse(document.getElementById('report').value);
+    const response=await fetch('/api/ccn/inventory-report',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key.value.trim()},body:JSON.stringify(report)});
+    const data=await response.json();if(!response.ok || !data.ok)throw new Error(data.error || 'Report could not be saved');
+    sessionStorage.setItem('ccnReportKey',key.value.trim());status.textContent='Saved actual check result. The monitor will show it on its next update.';
+  }catch(error){status.textContent=error.message;}finally{button.disabled=false;}
+});
+</script></html>
