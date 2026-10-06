@@ -132,3 +132,36 @@ Buildable fallback: capture explicit location-specific availability from retaile
 pages, attach product/location/source timestamps, retain unknown quantities, and
 notify only confirmed state transitions. Incoming shipments remain unknown
 until the source explicitly publishes them. This review added no runtime feed.
+
+### Additional inventory source leads (2026-10-06)
+
+RestockR's existing Discord news channel contains historical September Costco
+reports with warehouse identifiers and on-order, in-transit, and on-hand counts.
+This verifies that the community publishes such reports, not their accuracy or
+current availability. Regional distribution centers must not be presented as
+customer warehouses. No historical counts were imported into live inventory.
+A private support inquiry was sent and visibly verified in ticket 1251 asking
+about API/webhook/export access, permission, coverage, timestamps, quantities,
+75-mile ZIP searches, and current Sam's product identifier compatibility.
+The ticket is awaiting a response. Channel reference:
+https://discord.com/channels/1348719595619614743/1349023087265452055
+
+Hermai documents a Costco `warehouse_inventory_batch` schema for checking SKUs
+at a specified warehouse. Hosted execution is not enabled; a schema/data package
+requires an account API key. It is therefore not a ready cloud inventory feed.
+No exact quantities or incoming shipment phases were documented. Catalog search
+and warehouse locator schemas may help with a future public availability proof.
+https://hermai.ai/schemas/costco.com
+
+Unwrangle's Sam's product API documents distinct product_id, sku_id, and item_no
+fields. These could resolve legacy identifiers required by Discord checkers,
+but compatibility with current /ip/ product URLs is unverified. Its documented
+legacy URL examples are not evidence of current support. An API key is required;
+the documentation lists ten credits per successful request. No location-specific
+quantities or shipment phases were documented. Do not purchase it as a warehouse
+quantity feed without confirming coverage first.
+https://docs.unwrangle.com/samsclub-product-data-api/
+
+An authorized CCN Costco checker test returned an item/checker eligibility error,
+not stock. A Sam's test was not submitted because the required legacy product
+and SKU identifiers were not verified. No newly working live feed was obtained.
