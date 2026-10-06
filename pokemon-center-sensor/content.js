@@ -4,10 +4,12 @@ const DEBOUNCE_MS = 2500;
 const HEARTBEAT_MS = 2 * 60 * 1000;
 const MAX_NEW_PRODUCTS = 12;
 const GENERIC_CHANGE_COOLDOWN_MS = 10 * 60 * 1000;
+const BASELINE_SETTLE_MS = 8000;
 
 let timer = null;
 let previous = null;
 let lastGenericChangeAt = 0;
+const baselineReadyAt = Date.now() + BASELINE_SETTLE_MS;
 
 function text(value) {
   return String(value || "")
@@ -163,7 +165,12 @@ function sameLinks(left, right) {
 }
 
 function compare(current) {
-  if (!previous) {
+  /*
+    Pokémon Center can populate product links after the content script
+    starts. Keep refreshing the local baseline during that short load
+    period so existing page items are not misreported as new uploads.
+  */
+  if (!previous || Date.now() < baselineReadyAt) {
     previous = current;
     return;
   }
@@ -248,6 +255,9 @@ function scheduleObserve() {
 
 send("heartbeat", {});
 observe();
+
+/* Capture one final stable baseline after client-side page loading. */
+setTimeout(observe, BASELINE_SETTLE_MS + 250);
 
 new MutationObserver(scheduleObserve)
   .observe(document.documentElement, {
