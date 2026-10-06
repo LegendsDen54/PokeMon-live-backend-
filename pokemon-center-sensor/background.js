@@ -76,6 +76,8 @@ chrome.runtime.onMessage.addListener(
         ? "/api/pokemon-center/sensor/heartbeat"
         : message.kind === "signal"
           ? "/api/pokemon-center/sensor/signal"
+          : message.kind === "thirdPartyAlert"
+            ? "/api/pokemon-center/sensor/third-party-alert"
           : null;
 
     if (!path) {

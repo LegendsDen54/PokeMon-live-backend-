@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Pokémon Center Signal Sensor",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Sends changes visible on Pokémon Center pages to the owner's private monitor.",
   "permissions": ["storage"],
   "host_permissions": [
     "https://www.pokemoncenter.com/*",
+    "https://x.com/PokemonRestocks*",
     "https://pokemon-live-backend.onrender.com/*"
   ],
   "background": {
@@ -19,6 +20,11 @@
     {
       "matches": ["https://www.pokemoncenter.com/*"],
       "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://x.com/PokemonRestocks*"],
+      "js": ["pokemon-restocks.js"],
       "run_at": "document_idle"
     }
   ]

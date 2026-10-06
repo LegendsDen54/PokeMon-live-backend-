@@ -1241,6 +1241,23 @@ function scoreSignal(
 ) {
 
   if(
+    signal.thirdParty ===
+      true
+  ){
+    if(
+      signal.pokemonCenterRelated !==
+        true
+    ){
+      return 0;
+    }
+
+    return signal.queueReported ===
+      true
+      ? 28
+      : 22;
+  }
+
+  if(
     signal.type ===
       "PAGE_CHANGE" &&
     signal.observedOnly ===
@@ -1951,7 +1968,10 @@ async function sendPushForEvent(
 
 
   const title =
-    level ===
+    event.thirdParty ===
+      true
+      ? "📣 THIRD-PARTY POKÉMON ALERT"
+      : level ===
       "live"
       ? "🔥 POKÉMON CENTER LIVE"
       : level ===
@@ -2161,6 +2181,18 @@ async function processSignal(
       rawSignal.queueActive ===
         true,
 
+    queueReported:
+      rawSignal.queueReported ===
+      true,
+
+    pokemonCenterRelated:
+      rawSignal.pokemonCenterRelated ===
+      true,
+
+    thirdParty:
+      rawSignal.thirdParty ===
+      true,
+
     pageMarker:
       normalizeText(
         rawSignal.pageMarker ||
@@ -2294,7 +2326,9 @@ async function processSignal(
 
   const score =
     signal.source ===
-      "pokemon-center-support"
+      "pokemon-center-support" ||
+    signal.thirdParty ===
+      true
       ? initialScore
       : correlatedScore(
           initialScore
@@ -2382,9 +2416,13 @@ async function processSignal(
     exact same alert from repeating.
   */
   if(
-    score >= 20 &&
-    signal.source !==
-      "pokemon-center-support"
+    (
+      score >= 20 &&
+      signal.source !==
+        "pokemon-center-support"
+    ) ||
+    signal.thirdParty ===
+      true
   ){
 
     try{

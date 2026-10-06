@@ -1860,6 +1860,51 @@ app.post(
 );
 
 
+app.post(
+  "/api/pokemon-center/sensor/third-party-alert",
+  async (req,res) => {
+    if (!pokemonCenterSensorToken) {
+      return pokemonCenterSensorUnavailable(res);
+    }
+
+    if (!hasValidPokemonCenterSensorToken(req)) {
+      return pokemonCenterSensorUnauthorized(res);
+    }
+
+    const url = String(req.body?.url || "").trim();
+    const alertText = String(req.body?.alertText || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 800);
+
+    if (
+      !/^https:\/\/x\.com\/PokemonRestocks\/status\/\d+(?:[/?#].*)?$/i.test(url) ||
+      !alertText
+    ) {
+      return res
+        .status(400)
+        .json({
+          ok: false,
+          error: "Invalid public PokémonRestocks alert"
+        });
+    }
+
+    const result = await pokemonCenter.ingestSignal({
+      type: "THIRD_PARTY_ALERT",
+      source: "pokemon-restocks-x",
+      name: "PokémonRestocks public alert",
+      url,
+      queueReported: req.body?.queueReported === true,
+      pokemonCenterRelated: req.body?.pokemonCenterRelated === true,
+      thirdParty: true,
+      detail: alertText
+    });
+
+    res.json(result);
+  }
+);
+
+
 /* ========================================
    WALMART
 ======================================== */

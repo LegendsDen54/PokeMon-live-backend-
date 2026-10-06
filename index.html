@@ -933,6 +933,27 @@ a{
   font-size:12px;
 }
 
+.third-party-feed{
+  margin-top:14px;
+  padding:11px 12px;
+  border:1px solid rgba(138,160,190,.24);
+  border-radius:10px;
+  background:rgba(10,20,38,.45);
+}
+
+.third-party-feed summary{
+  cursor:pointer;
+  color:#dcecff;
+  font-size:12px;
+  font-weight:800;
+}
+
+.third-party-feed > a{
+  display:inline-block;
+  margin-top:10px;
+  font-size:12px;
+}
+
 .outlook-card{
   text-align:left;
   color:var(--text);
@@ -1801,7 +1822,23 @@ let pokemonCenterToastTimer = null;
 
 function renderPokemonCenter(state){
   const pc = state || {};
-  const events = Array.isArray(pc.latestEvents) ? pc.latestEvents.slice(0, 8) : [];
+  const allEvents = Array.isArray(pc.latestEvents) ? pc.latestEvents : [];
+  const events = allEvents.filter(event => event && event.thirdParty !== true).slice(0, 8);
+  const chicagoDay = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+  const thirdPartyEvents = allEvents.filter(event => {
+    if (!event || event.thirdParty !== true || !event.at) return false;
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Chicago",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).format(new Date(event.at)) === chicagoDay;
+  });
   const level = String(pc.level || "normal").replace(/_/g, " ").toUpperCase();
   const sensor = pc.browserSensorOnline === true ? "CONNECTED" : "PAIR CHROME SENSOR";
   const sources = Array.isArray(pc.supportHealth) ? pc.supportHealth : [];
@@ -1831,6 +1868,22 @@ function renderPokemonCenter(state){
       (event.detail ? " — " + esc(event.detail) : "") +
       (date ? " <small>" + esc(date) + "</small>" : "") + "</li>";
   }).join("");
+  const thirdPartyRows = thirdPartyEvents.map(event => {
+    const date = event.at ? new Date(event.at).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) : "";
+    const link = /^https:\/\/x\.com\/PokemonRestocks\/status\/\d+/i.test(String(event.url || ""))
+      ? " <a href=\"" + esc(event.url) + "\" target=\"_blank\" rel=\"noopener noreferrer\">Open post</a>"
+      : "";
+    return "<li>" + esc(event.detail || "PokémonRestocks public alert") +
+      (date ? " <small>" + esc(date) + "</small>" : "") + link + "</li>";
+  }).join("");
+  const thirdPartyFeed =
+    "<details class=\"third-party-feed\"><summary>PokémonRestocks today" +
+    (thirdPartyEvents.length ? " · " + thirdPartyEvents.length + " alert" + (thirdPartyEvents.length === 1 ? "" : "s") : "") +
+    "</summary>" +
+    (thirdPartyEvents.length
+      ? "<ul class=\"signal-list\">" + thirdPartyRows + "</ul>"
+      : "<p class=\"quiet-state\">No new public PokémonRestocks alerts today.</p>") +
+    "<a href=\"https://x.com/PokemonRestocks\" target=\"_blank\" rel=\"noopener noreferrer\">Open PokémonRestocks on X</a></details>";
   pokemonCenterCard.innerHTML =
     "<div class=\"pokemon-center-heading\"><span class=\"pokemon-center-mark\" aria-hidden=\"true\"></span><div class=\"panel-title\">Pokémon Center</div></div>" +
     "<div class=\"signal-summary\"><div><div class=\"signal-summary-label\">Pokémon Center readiness</div><div class=\"signal-summary-value\">" + score + "/100</div></div><div class=\"signal-score\">" + esc(level) + "</div></div>" +
@@ -1841,6 +1894,7 @@ function renderPokemonCenter(state){
       ? "<p><strong>Potential product:</strong> " + esc(pc.predictedProduct.name) + "</p>" : "") +
     (events.length ? "<ul class=\"signal-list\">" + signalRows + "</ul>" :
       "<p class=\"quiet-state\">No verified Pokémon Center activity yet.</p>") +
+    thirdPartyFeed +
     outlook +
     "<p><a href=\"https://www.pokemoncenter.com/\" target=\"_blank\" rel=\"noopener noreferrer\">Open Pokémon Center</a></p>";
   showNewPokemonCenterSignal(events[0]);
