@@ -252,7 +252,8 @@ const MAX_PRODUCTS =
 const SUPPORT_URLS = [
   "https://support.pokemoncenter.com/api/v2/help_center/en-us/articles/4407702295572.json",
   "https://support.pokemoncenter.com/api/v2/help_center/en-us/articles/360000247014.json",
-  "https://support.pokemoncenter.com/api/v2/help_center/en-us/articles/37286495522452.json"
+  "https://support.pokemoncenter.com/api/v2/help_center/en-us/articles/37286495522452.json",
+  "https://support.pokemoncenter.com/api/v2/help_center/en-us/articles/35134190572564.json"
 ];
 
 
@@ -2989,6 +2990,27 @@ async function scanSupportSource(
 
       }
 
+
+    }else if(
+      url.includes(
+        "/articles/35134190572564.json"
+      )
+    ){
+
+      await processSignal({
+
+        type:
+          "EARLY_ACCESS_INFO_CHANGE",
+
+        source:
+          "pokemon-center-support",
+
+        url,
+
+        detail:
+          "Official Pokémon Center early-access information changed. This is informational and does not confirm public inventory."
+
+      });
 
     }else{
 

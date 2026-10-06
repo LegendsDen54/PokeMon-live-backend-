@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Pokémon Center Sensor</title>
+    <style>
+      body { font: 14px system-ui, sans-serif; margin: 16px; min-width: 290px; color: #172033; }
+      label { display: block; font-weight: 700; margin-top: 12px; }
+      input { box-sizing: border-box; width: 100%; margin-top: 4px; padding: 8px; }
+      button { margin-top: 14px; padding: 8px 12px; width: 100%; }
+      #status { min-height: 20px; margin-top: 10px; }
+      small { color: #4d5c74; display: block; margin-top: 8px; }
+    </style>
+  </head>
+  <body>
+    <strong>Pokémon Center Signal Sensor</strong>
+    <label for="backendUrl">Monitor address</label>
+    <input id="backendUrl" type="url">
+    <label for="sensorToken">Sensor pairing key</label>
+    <input id="sensorToken" type="password" autocomplete="off">
+    <button id="save" type="button">Save and test connection</button>
+    <p id="status" role="status"></p>
+    <small>Only page changes visible in your own browser are sent. It does not bypass queues or access controls.</small>
+    <script src="popup.js"></script>
+  </body>
+</html>

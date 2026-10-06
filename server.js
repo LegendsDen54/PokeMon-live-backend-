@@ -99,6 +99,10 @@ const walmartWakeToken =
   process.env.WALMART_WAKE_TOKEN ||
   "";
 
+const pokemonCenterSensorToken =
+  process.env.POKEMON_CENTER_SENSOR_TOKEN ||
+  "";
+
 
 /* ========================================
    MIDDLEWARE
@@ -652,6 +656,41 @@ function hasValidManualToken(req) {
     supplied ===
     manualScanToken
   );
+}
+
+
+function hasValidPokemonCenterSensorToken(req) {
+  if (!pokemonCenterSensorToken) {
+    return false;
+  }
+
+  const auth =
+    String(
+      req.get(
+        "authorization"
+      ) || ""
+    );
+
+  const bearer =
+    auth
+      .toLowerCase()
+      .startsWith(
+        "bearer "
+      )
+      ? auth
+          .slice(7)
+          .trim()
+      : "";
+
+  const supplied =
+    req.get(
+      "x-pokemon-center-sensor-token"
+    ) ||
+    bearer ||
+    req.body?.token ||
+    "";
+
+  return supplied === pokemonCenterSensorToken;
 }
 
 
@@ -1721,6 +1760,102 @@ app.post(
     res.json(
       result
     );
+  }
+);
+
+
+const pokemonCenterSensorSignalTypes =
+  new Set([
+    "PAGE_CHANGE",
+    "PRODUCT_DISCOVERED",
+    "PRODUCT_URL_CHANGE",
+    "SKU_CHANGE",
+    "IMAGE_CHANGE",
+    "PRICE_CHANGE",
+    "AVAILABILITY_CHANGE",
+    "QUEUE_ACTIVE"
+  ]);
+
+
+function pokemonCenterSensorUnavailable(res) {
+  return res
+    .status(503)
+    .json({
+      ok: false,
+      error:
+        "Pokémon Center sensor ingest is disabled until POKEMON_CENTER_SENSOR_TOKEN is configured"
+    });
+}
+
+
+function pokemonCenterSensorUnauthorized(res) {
+  return res
+    .status(401)
+    .json({
+      ok: false,
+      error: "Invalid Pokémon Center sensor token"
+    });
+}
+
+
+app.post(
+  "/api/pokemon-center/sensor/heartbeat",
+  async (req,res) => {
+    if (!pokemonCenterSensorToken) {
+      return pokemonCenterSensorUnavailable(res);
+    }
+
+    if (!hasValidPokemonCenterSensorToken(req)) {
+      return pokemonCenterSensorUnauthorized(res);
+    }
+
+    const result =
+      await pokemonCenter
+        .heartbeat({
+          sensorId: req.body?.sensorId,
+          version: req.body?.version,
+          userAgent: req.body?.userAgent
+        });
+
+    res.json(result);
+  }
+);
+
+
+app.post(
+  "/api/pokemon-center/sensor/signal",
+  async (req,res) => {
+    if (!pokemonCenterSensorToken) {
+      return pokemonCenterSensorUnavailable(res);
+    }
+
+    if (!hasValidPokemonCenterSensorToken(req)) {
+      return pokemonCenterSensorUnauthorized(res);
+    }
+
+    const type =
+      String(req.body?.type || "")
+        .trim()
+        .toUpperCase();
+
+    if (!pokemonCenterSensorSignalTypes.has(type)) {
+      return res
+        .status(400)
+        .json({
+          ok: false,
+          error: "Unsupported Pokémon Center sensor signal type"
+        });
+    }
+
+    const result =
+      await pokemonCenter
+        .ingestSignal({
+          ...req.body,
+          type,
+          source: "browser-sensor"
+        });
+
+    res.json(result);
   }
 );
 

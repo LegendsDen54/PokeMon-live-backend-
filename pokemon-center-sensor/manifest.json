@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Pokémon Center Signal Sensor",
+  "version": "1.0.0",
+  "description": "Sends changes visible on Pokémon Center pages to the owner's private monitor.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://www.pokemoncenter.com/*",
+    "https://pokemon-live-backend.onrender.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Pokémon Center Signal Sensor",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.pokemoncenter.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
