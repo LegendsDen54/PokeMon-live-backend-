@@ -27,7 +27,23 @@ function productImage() {
 }
 
 function productPrice() {
-  const match = String(document.body?.innerText || "").match(/\$\s*(\d{1,4}(?:\.\d{2})?)/);
+  const body = String(document.body?.innerText || "");
+  // Best Buy's header can contain unrelated promotion amounts. The product
+  // purchase module expresses its own price as "$x.xx or N payments".
+  const purchasePrice = body.match(/\$\s*(\d{1,4}(?:\.\d{2})?)\s+or\s+\d+\s+payments/i);
+  if (purchasePrice) return Number(purchasePrice[1]);
+
+  const offer = [...document.querySelectorAll('script[type="application/ld+json"]')]
+    .map(node => {
+      try { return JSON.parse(node.textContent || ""); } catch { return null; }
+    })
+    .flatMap(value => Array.isArray(value) ? value : [value])
+    .map(value => value?.offers)
+    .flatMap(value => Array.isArray(value) ? value : [value])
+    .find(value => Number.isFinite(Number(value?.price)));
+  if (offer) return Number(offer.price);
+
+  const match = body.match(/\$\s*(\d{1,4}(?:\.\d{2})?)/);
   return match ? Number(match[1]) : null;
 }
 
