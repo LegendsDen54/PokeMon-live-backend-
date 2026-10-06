@@ -1,4 +1,27 @@
 const { Pool } = require("pg");
+const push = require("./push");
+const warehouseAlertStates = new Map();
+
+async function notifyWarehouseChanges(retailer, items) {
+  const previous = warehouseAlertStates.get(retailer);
+  const current = new Map();
+  for (const item of items) {
+    const location = item.channel === "store" ? item.storeId || item.storeName || item.storeAddress : "online";
+    if (!location || !item.productId || !isPokemonTcgName(item.name)) continue;
+    const key = JSON.stringify([retailer, item.channel, item.productId, location]);
+    current.set(key, item);
+    const before = previous?.get(key);
+    const actionable = ["instock", "onhand", "ordered", "transit", "preorder"].includes(item.status);
+    if (!previous || !actionable || (before && before.status === item.status && before.quantity === item.quantity)) continue;
+    await push.broadcast({
+      title: `${RETAILERS[retailer].label} — ${item.channel === "store" ? "In-store" : "Online"} TCG alert`,
+      body: `${item.name} · ${item.rawStatus || item.status}${item.channel === "store" ? ` · ${location}` : ""}${item.quantity != null ? ` · Quantity: ${item.quantity}` : ""}`,
+      url: item.url,
+      tag: "warehouse-" + Buffer.from(key).toString("base64url")
+    }).catch(error => console.error("Warehouse push failed:", error.message));
+  }
+  warehouseAlertStates.set(retailer, current);
+}
 
 const RETAILERS = {
   walmart: {
@@ -1596,15 +1619,9 @@ async function pollBestBuy() {
       );
     }
 
-    state.items =
-      items;
-
-    state.lastSuccess =
-      new Date()
-        .toISOString();
-
-    state.error =
-      null;
+    state.items = items;
+    state.lastSuccess = new Date().toISOString();
+    state.error = null;
 
   } catch (error) {
     state.error =
@@ -1723,6 +1740,10 @@ async function pollGenericExternal(
         );
     }
 
+    if (["sams", "costco"].includes(retailer)) {
+      items = items.filter(item => isPokemonTcgName(item.name));
+      await notifyWarehouseChanges(retailer, items);
+    }
     state.items =
       items;
 

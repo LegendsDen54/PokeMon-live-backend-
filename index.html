@@ -2578,6 +2578,7 @@ function warehouseCheckerMarkup(retailer, provider){
 }
 
 function wireWarehouseChecker(retailer){
+  const label = retailer === "sams" ? "Sam's Club" : "Costco";
   const product = document.getElementById("warehouseWatchProduct");
   const zip = document.getElementById("warehouseWatchZip");
   const button = document.getElementById("warehouseWatchButton");
@@ -2591,7 +2592,7 @@ function wireWarehouseChecker(retailer){
       const response = await fetch("/api/" + encodeURIComponent(retailer) + "/browser-observations", {cache:"no-store"});
       const data = await response.json();
       if(!response.ok || !data.ok) throw new Error(data.error || "Browser signal could not be read");
-      const cards = (data.items || []).map(item => {
+      const cards = (data.items || []).filter(item => item.channel === "store").map(item => {
         const quantity = Number(item.quantity);
         const status = String(item.availability || "unknown").replace(/_/g, " ");
         return "<article class=\"retailer-product-card\">" + retailerImageMarkup(item.image, item.title) + "<div><strong><a href=\"" + esc(item.url) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" + esc(item.title) + "</a></strong><small>Item / SKU: " + esc(item.sku || "Not published") + "</small><small>Chrome page status: " + esc(status) + "</small><div class=\"warehouse-signal-grid\"><div class=\"warehouse-signal\"><strong>On order</strong>" + (item.onOrder ? "Shown on page" : "Not published") + "</div><div class=\"warehouse-signal\"><strong>In transit</strong>" + (item.inTransit ? "Shown on page" : "Not published") + "</div><div class=\"warehouse-signal\"><strong>On hand</strong>" + (item.onHand ? (Number.isFinite(quantity) ? "Shown: " + esc(quantity) : "Available") : "Not published") + "</div><div class=\"warehouse-signal\"><strong>Observed</strong>" + esc(new Date(item.observedAt).toLocaleString()) + "</div></div></div></article>";
@@ -2791,6 +2792,22 @@ function wireBestBuyChecker(provider){
 }
 
 
+const warehouseChannels = { sams: "store", costco: "store" };
+function warehouseChannelMarkup(retailer){
+  const selected = warehouseChannels[retailer];
+  return '<div class="store-checker-row" role="group" aria-label="Inventory channel">' +
+    ['store', 'online'].map(channel => '<button type="button" data-warehouse-channel="' + channel +
+      '" aria-pressed="' + (selected === channel) + '" style="opacity:' + (selected === channel ? '1' : '.65') + '">' +
+      (channel === 'store' ? 'IN-STORE' : 'ONLINE') + '</button>').join('') + '</div>';
+}
+function wireWarehouseChannels(retailer){
+  otherRetailerCard.querySelectorAll('[data-warehouse-channel]').forEach(button => {
+    button.addEventListener('click', () => {
+      warehouseChannels[retailer] = button.dataset.warehouseChannel;
+      renderExternalRetailer(retailer);
+    });
+  });
+}
 function bestBuyPickerIsInUse(){
   const picker = document.getElementById("bestBuyEraPicker");
   if(!picker || picker.hidden) return false;
@@ -2801,26 +2818,36 @@ async function renderExternalRetailer(retailer){
   if(retailer === "bestbuy" && bestBuyPickerIsInUse()) return;
   const labels = {target:"Target", sams:"Sam's Club", bestbuy:"Best Buy", costco:"Costco"};
   const label = labels[retailer] || retailer;
+  const warehouse = retailer === "sams" || retailer === "costco";
+  const selectedChannel = warehouse ? warehouseChannels[retailer] : null;
+  const channelHeader = warehouse ? warehouseChannelMarkup(retailer) : "";
+  const checker = warehouse && selectedChannel === "store";
   const provider = (latestStatusData && Array.isArray(latestStatusData.providers)
     ? latestStatusData.providers : []).find(item => item.retailer === retailer) || {};
-  otherRetailerCard.innerHTML = "<strong>" + esc(label) + "</strong><p>" +
+  otherRetailerCard.innerHTML = "<strong>" + esc(label) + "</strong>" + channelHeader + "<p>" +
     (provider.configured ? "Loading configured inventory feed…" :
       "No inventory feed is configured. This tab shows products only after a real provider feed is configured.") + "</p>" +
     (retailer === "bestbuy" ? bestBuyCheckerMarkup(provider) :
-      ((retailer === "sams" || retailer === "costco") ? warehouseCheckerMarkup(retailer, provider) : ""));
-  if(!provider.configured){
+      (checker ? warehouseCheckerMarkup(retailer, provider) : ""));
+  if(warehouse) wireWarehouseChannels(retailer);
+  if(!provider.configured && !(warehouse && selectedChannel === "online")){
     if(retailer === "bestbuy") wireBestBuyChecker(provider);
     if(retailer === "sams" || retailer === "costco") wireWarehouseChecker(retailer);
     return;
   }
 
   try{
-    const response = await fetch("/api/products?retailer=" + encodeURIComponent(retailer) +
+    const browserOnly = warehouse && !provider.configured;
+    const response = await fetch(browserOnly ? "/api/" + retailer + "/browser-observations" : "/api/products?retailer=" + encodeURIComponent(retailer) +
       "&t=" + Date.now(), {cache:"no-store"});
     if(!response.ok) throw new Error("Inventory request failed");
     const data = await response.json();
-    if(activeRetailer !== retailer) return;
-    const items = (Array.isArray(data.items) ? data.items : []).slice().sort((left, right) => {
+    if(activeRetailer !== retailer || (warehouse && warehouseChannels[retailer] !== selectedChannel)) return;
+    const sourceItems = (Array.isArray(data.items) ? data.items : []).map(item => browserOnly ? {
+      ...item, name: item.title, sku: item.itemNumber, channel: "online",
+      status: "Observed page: " + item.availability
+    } : item);
+    const items = sourceItems.filter(item => !warehouse || item.channel === selectedChannel).sort((left, right) => {
       const leftDistance = left.distanceMiles == null ? null : Number(left.distanceMiles);
       const rightDistance = right.distanceMiles == null ? null : Number(right.distanceMiles);
       const leftValue = Number.isFinite(leftDistance) ? leftDistance : Number.POSITIVE_INFINITY;
@@ -2847,7 +2874,7 @@ async function renderExternalRetailer(retailer){
           (Number.isFinite(distance) ? "<small>" + esc(distance.toFixed(1)) + " miles away</small>" : "")
         : "Online";
       const quantity = item.quantity == null ? null : Number(item.quantity);
-      const phase = (retailer === "sams" || retailer === "costco")
+      const phase = warehouse && item.channel === "store"
         ? "<div class=\"warehouse-signal-grid\">" +
             "<div class=\"warehouse-signal\"><strong>On order</strong>" + (item.onOrder ? "Confirmed" : "Not published") + "</div>" +
             "<div class=\"warehouse-signal\"><strong>In transit</strong>" + (item.inTransit ? "Confirmed" : "Not published") + "</div>" +
@@ -2873,8 +2900,8 @@ async function renderExternalRetailer(retailer){
     const status = provider.error
       ? "Provider needs attention: " + esc(provider.error)
       : provider.running ? "Checking feed…" : "Configured provider";
-    otherRetailerCard.innerHTML = "<strong>" + esc(label) + "</strong><p>" +
-      status + check + "</p><p>" + items.length + " feed item" +
+    otherRetailerCard.innerHTML = "<strong>" + esc(label) + "</strong>" + channelHeader + "<p>" +
+      (browserOnly ? "Public browser observations · online availability is not warehouse inventory" : status + check) + "</p><p>" + items.length + " item" +
       (items.length === 1 ? "" : "s") + "</p>" +
       (retailer === "bestbuy" ? "<p>" + (provider.localStoreSearch
         ? "Nearby stores are limited to " + esc(provider.searchRadiusMiles || 75) + " miles."
@@ -2884,9 +2911,10 @@ async function renderExternalRetailer(retailer){
         "<p>" + (provider.error ? "The provider returned an error." :
           "The configured feed has not returned any inventory. No stock is being assumed.") + "</p>") +
       (retailer === "bestbuy" ? bestBuyCheckerMarkup(provider) :
-        ((retailer === "sams" || retailer === "costco") ? warehouseCheckerMarkup(retailer, provider) : ""));
+      (checker ? warehouseCheckerMarkup(retailer, provider) : ""));
+    if(warehouse) wireWarehouseChannels(retailer);
     if(retailer === "bestbuy") wireBestBuyChecker(provider);
-    if(retailer === "sams" || retailer === "costco") wireWarehouseChecker(retailer);
+    if(checker) wireWarehouseChecker(retailer);
   }catch(error){
     if(activeRetailer === retailer){
       otherRetailerCard.innerHTML = "<strong>" + esc(label) +

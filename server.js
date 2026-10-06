@@ -1814,12 +1814,14 @@ app.post(
       source: "browser_product_page"
     };
 
+    result.channel = "online";
+    if (!isPokemonTcgText(result.title)) return res.json({ok:true,ignored:true});
     const previous = samsBrowserStates.get(url);
     samsBrowserStates.set(url,result);
 
     if (previous && previous.availability !== "available" && availability === "available") {
       push.broadcast({
-        title: "Sam's Club — Pokémon availability",
+        title: "Sam's Club — Online TCG alert",
         body: result.title + " now appears available.",
         url,
         tag: "sams-" + Buffer.from(url).toString("base64url").slice(0,36)
@@ -1873,15 +1875,17 @@ app.post(
       itemNumber: String(req.body?.itemNumber || "").replace(/\D/g,"").slice(0,30) || null,
       availability,
       observedAt: new Date().toISOString(),
+      channel: "online",
       source: "browser_product_page"
     };
 
+    if (!isPokemonTcgText(result.title)) return res.json({ok:true,ignored:true});
     const previous = costcoBrowserStates.get(url);
     costcoBrowserStates.set(url,result);
 
     if (previous && previous.availability !== "available" && availability === "available") {
       push.broadcast({
-        title: "Costco — Pokémon availability",
+        title: "Costco — Online TCG alert",
         body: result.title + " now appears available.",
         url,
         tag: "costco-" + Buffer.from(url).toString("base64url").slice(0,36)
