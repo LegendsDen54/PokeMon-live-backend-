@@ -511,6 +511,30 @@ function normalizeItem(
     lowStock:
       raw.lowStock === true,
 
+    // These fields are retained separately from the current availability
+    // label. A configured, authorized feed may publish one, several, or none
+    // of them. Missing values remain null instead of being inferred.
+    onOrder:
+      raw.onOrder === true ||
+      raw.ordered === true ||
+      status === "ordered",
+
+    inTransit:
+      raw.inTransit === true ||
+      raw.transit === true ||
+      status === "transit",
+
+    onHand:
+      raw.onHand === true ||
+      status === "onhand" ||
+      Number.isFinite(
+        toNumber(
+          raw.quantity ??
+          raw.qty ??
+          raw.onHandQuantity
+        )
+      ),
+
     status,
 
     quantity:
@@ -557,6 +581,13 @@ function normalizeItem(
       raw.checkedAt ??
       new Date()
         .toISOString(),
+
+    onlineDate:
+      raw.onlineDate ??
+      raw.availableDate ??
+      raw.releaseDate ??
+      raw.launchDate ??
+      null,
 
     rawStatus:
       rawStatus

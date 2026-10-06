@@ -933,6 +933,29 @@ a{
   font-weight:900;
 }
 
+.warehouse-signal-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:6px;
+  margin:8px 0 0;
+}
+
+.warehouse-signal{
+  padding:7px;
+  border:1px solid rgba(98,199,255,.16);
+  border-radius:8px;
+  background:#07192b;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.3;
+}
+
+.warehouse-signal strong{
+  display:block;
+  color:var(--text);
+  font-size:10px;
+}
+
 .tab-brand{
   width:18px;
   height:18px;
@@ -2483,6 +2506,21 @@ function bestBuyManualProductName(url){
   }
 }
 
+function warehouseCheckerMarkup(retailer, provider){
+  const label = retailer === "sams" ? "Sam's Club" : "Costco";
+  const sourceName = retailer === "sams" ? "club pickup" : "warehouse availability";
+  const isConfigured = provider && provider.configured;
+  return "<section class=\"store-checker\"><h3>" + esc(label) + " TCG Store Watch</h3>" +
+    "<p>Shows confirmed public " + sourceName + " changes and any location data a configured authorized feed provides. Nearby stores are limited to 75 miles when that feed supplies distance.</p>" +
+    "<div class=\"warehouse-signal-grid\">" +
+      "<div class=\"warehouse-signal\"><strong>On order</strong>Only shown when published by a connected source.</div>" +
+      "<div class=\"warehouse-signal\"><strong>In transit</strong>Only shown when published by a connected source.</div>" +
+      "<div class=\"warehouse-signal\"><strong>On hand</strong>Availability and quantity only when published.</div>" +
+      "<div class=\"warehouse-signal\"><strong>Online date</strong>Confirmed public date changes appear here.</div>" +
+    "</div>" +
+    "<p>" + (isConfigured ? "Connected source is loading confirmed Pokémon TCG signals." : "No real provider is connected yet, so no stock is being assumed.") + "</p></section>";
+}
+
 function retailerImageMarkup(image, name){
   const source = safeExternalUrl(image);
   if(!source){
@@ -2649,7 +2687,8 @@ async function renderExternalRetailer(retailer){
   otherRetailerCard.innerHTML = "<strong>" + esc(label) + "</strong><p>" +
     (provider.configured ? "Loading configured inventory feed…" :
       "No inventory feed is configured. This tab shows products only after a real provider feed is configured.") + "</p>" +
-    (retailer === "bestbuy" ? bestBuyCheckerMarkup(provider) : "");
+    (retailer === "bestbuy" ? bestBuyCheckerMarkup(provider) :
+      ((retailer === "sams" || retailer === "costco") ? warehouseCheckerMarkup(retailer, provider) : ""));
   if(!provider.configured){
     if(retailer === "bestbuy") wireBestBuyChecker(provider);
     return;
@@ -2688,6 +2727,14 @@ async function renderExternalRetailer(retailer){
           (Number.isFinite(distance) ? "<small>" + esc(distance.toFixed(1)) + " miles away</small>" : "")
         : "Online";
       const quantity = item.quantity == null ? null : Number(item.quantity);
+      const phase = (retailer === "sams" || retailer === "costco")
+        ? "<div class=\"warehouse-signal-grid\">" +
+            "<div class=\"warehouse-signal\"><strong>On order</strong>" + (item.onOrder ? "Confirmed" : "Not published") + "</div>" +
+            "<div class=\"warehouse-signal\"><strong>In transit</strong>" + (item.inTransit ? "Confirmed" : "Not published") + "</div>" +
+            "<div class=\"warehouse-signal\"><strong>On hand</strong>" + (item.onHand ? (Number.isFinite(quantity) ? "Confirmed: " + esc(quantity) : "Confirmed · quantity not published") : "Not published") + "</div>" +
+            "<div class=\"warehouse-signal\"><strong>Online date</strong>" + (item.onlineDate ? esc(new Date(item.onlineDate).toLocaleString()) : "Not published") + "</div>" +
+          "</div>"
+        : "";
       const inventory = item.channel === "store"
         ? (Number.isFinite(quantity)
           ? "Quantity: " + esc(quantity)
@@ -2698,6 +2745,7 @@ async function renderExternalRetailer(retailer){
         linkedName + "</strong><small>SKU: " + esc(item.sku || item.productId || "Unavailable") +
         "</small><small>" + itemStatus + " · " + esc(price) + "</small>" + location +
         (inventory ? "<small class=\"store-availability\">" + inventory + "</small>" : "") +
+        phase +
         "</div></article>";
     }).join("");
     const check = provider.lastRun ? " · Last check " +
@@ -2715,7 +2763,8 @@ async function renderExternalRetailer(retailer){
       (items.length ? "<div class=\"retailer-product-grid\">" + cards + "</div>" :
         "<p>" + (provider.error ? "The provider returned an error." :
           "The configured feed has not returned any inventory. No stock is being assumed.") + "</p>") +
-      (retailer === "bestbuy" ? bestBuyCheckerMarkup(provider) : "");
+      (retailer === "bestbuy" ? bestBuyCheckerMarkup(provider) :
+        ((retailer === "sams" || retailer === "costco") ? warehouseCheckerMarkup(retailer, provider) : ""));
     if(retailer === "bestbuy") wireBestBuyChecker(provider);
   }catch(error){
     if(activeRetailer === retailer){
