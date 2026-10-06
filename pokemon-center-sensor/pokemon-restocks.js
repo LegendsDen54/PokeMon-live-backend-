@@ -32,18 +32,26 @@ function report(article) {
     return;
   }
 
-  chrome.runtime.sendMessage({
-    kind: "thirdPartyAlert",
-    payload: {
-      provider: "PokemonRestocks",
-      postId: id,
-      url: new URL(link.href, location.href).href,
-      alertText,
-      queueReported: /\bqueue\b/i.test(alertText),
-      pokemonCenterRelated: relatesToPokemonCenter(alertText),
-      tcgRelevant: true
+  try {
+    const request = chrome.runtime.sendMessage({
+      kind: "thirdPartyAlert",
+      payload: {
+        provider: "PokemonRestocks",
+        postId: id,
+        url: new URL(link.href, location.href).href,
+        alertText,
+        queueReported: /\bqueue\b/i.test(alertText),
+        pokemonCenterRelated: relatesToPokemonCenter(alertText),
+        tcgRelevant: true
+      }
+    });
+
+    if (request && typeof request.catch === "function") {
+      request.catch(() => {});
     }
-  }).catch(() => {});
+  } catch {
+    // The extension may be reloading; later posts are checked again.
+  }
 }
 
 function inspect() {

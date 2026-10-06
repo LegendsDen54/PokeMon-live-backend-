@@ -130,8 +130,23 @@ function snapshot() {
 }
 
 function send(kind, payload) {
-  chrome.runtime.sendMessage({kind, payload})
-    .catch(() => {});
+  try {
+    const request = chrome.runtime.sendMessage({
+      kind,
+      payload
+    });
+
+    /*
+      Chrome versions differ on whether this call
+      returns a Promise. Handle both without turning
+      a harmless delivery failure into a page error.
+    */
+    if (request && typeof request.catch === "function") {
+      request.catch(() => {});
+    }
+  } catch {
+    // The extension may be reloading; the next heartbeat retries.
+  }
 }
 
 function signal(type, data, detail) {
