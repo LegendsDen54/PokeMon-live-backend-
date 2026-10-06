@@ -975,22 +975,69 @@ a{
   margin-top:10px;
 }
 
-.set-sku-presets{
-  display:flex;
-  flex-wrap:wrap;
-  gap:7px;
-  margin:8px 0 2px;
+.bestbuy-era-tabs{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin:10px 0 0;
 }
 
-.set-sku-presets button{
-  padding:7px 9px;
-  border:1px solid rgba(98,199,255,.38);
-  border-radius:999px;
+.bestbuy-era-tabs button{
+  min-height:42px;
+  border:1px solid rgba(98,199,255,.45);
+  border-radius:10px;
   background:#0b2945;
   color:var(--text);
-  font-size:11px;
+  font-weight:850;
+  cursor:pointer;
 }
 
+.bestbuy-era-tabs button[aria-pressed="true"]{
+  border-color:var(--blue);
+  background:#123c62;
+}
+
+.bestbuy-era-picker{
+  margin-top:9px;
+  padding:11px;
+  border:1px solid rgba(98,199,255,.30);
+  border-radius:10px;
+  background:rgba(5,24,43,.74);
+}
+
+.bestbuy-era-picker[hidden]{ display:none; }
+
+.bestbuy-era-picker strong{
+  display:block;
+  margin-bottom:8px;
+  font-size:12px;
+}
+
+.bestbuy-era-picker-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+
+.bestbuy-era-picker select{
+  width:100%;
+  min-width:0;
+  padding:9px;
+  border:1px solid rgba(98,199,255,.35);
+  border-radius:8px;
+  background:#071d32;
+  color:var(--text);
+  font:inherit;
+}
+
+.bestbuy-era-search{
+  width:100%;
+  margin-top:8px;
+}
+
+@media(max-width:420px){
+  .bestbuy-era-picker-grid{ grid-template-columns:1fr; }
+}
 .retailer-product-card-action{
   margin-top:8px;
   padding:7px 8px;
@@ -2352,6 +2399,19 @@ function verifiedPokemonCenterQueueUrl(value){
   }
 }
 
+const BESTBUY_ERA_SETS = {
+  scarletViolet: {
+    label: "Scarlet & Violet",
+    sets: ["Scarlet & Violet", "Paldea Evolved", "Obsidian Flames", "151", "Paradox Rift", "Paldean Fates", "Temporal Forces", "Twilight Masquerade", "Shrouded Fable", "Stellar Crown", "Surging Sparks", "Prismatic Evolutions", "Journey Together", "Destined Rivals", "Black Bolt", "White Flare"]
+  },
+  megaEvolution: {
+    label: "Mega Evolution",
+    sets: ["Mega Evolution", "Mega Evolution Phantasmal Flames", "Mega Evolution Perfect Order", "Mega Evolution Chaos Rising", "Mega Evolution Pitch Black"]
+  }
+};
+
+const BESTBUY_PRODUCT_TYPES = ["All product types", "Elite Trainer Box", "Booster Bundle", "Booster Box", "Collection Box", "Premium Collection", "Tin", "Mini Tin", "Blister", "Build & Battle Box"];
+
 function bestBuyCheckerMarkup(provider){
   const catalogDisabled = "";
   const storesDisabled = provider.catalogSearch && provider.localStoreSearch ? "" : " disabled";
@@ -2365,10 +2425,20 @@ function bestBuyCheckerMarkup(provider){
     "<p>" + esc(catalogMessage) + "</p>" +
     "<div class=\"store-checker-row\"><input id=\"bestBuyProductSearch\" type=\"search\" placeholder=\"Product name or Best Buy link, e.g. Prismatic ETB\"" + catalogDisabled + ">" +
     "<button id=\"bestBuyProductSearchButton\" type=\"button\"" + catalogDisabled + ">FIND PRODUCT &amp; SKU</button></div>" +
-    "<div class=\"set-sku-presets\" aria-label=\"Popular Pokémon TCG set searches\">" +
-      ["Mega Evolution", "Scarlet & Violet", "Prismatic Evolutions", "Destined Rivals", "Surging Sparks", "Journey Together"].map(set =>
-        "<button type=\"button\" data-bestbuy-query=\"" + esc(set) + "\"" + (provider.catalogSearch ? "" : " disabled") + ">" + esc(set) + "</button>"
+    "<div class=\"bestbuy-era-tabs\" aria-label=\"Pokémon TCG eras\">" +
+      Object.entries(BESTBUY_ERA_SETS).map(([key, era]) =>
+        "<button type=\"button\" data-bestbuy-era=\"" + esc(key) + "\" aria-pressed=\"false\">" + esc(era.label) + "</button>"
       ).join("") +
+    "</div>" +
+    "<div id=\"bestBuyEraPicker\" class=\"bestbuy-era-picker\" hidden>" +
+      "<strong id=\"bestBuyEraPickerTitle\">Choose a set and product type</strong>" +
+      "<div class=\"bestbuy-era-picker-grid\">" +
+        "<select id=\"bestBuyEraSet\" aria-label=\"Best Buy Pokémon set\"></select>" +
+        "<select id=\"bestBuyEraProductType\" aria-label=\"Best Buy Pokémon product type\">" +
+          BESTBUY_PRODUCT_TYPES.map(type => "<option value=\"" + esc(type === "All product types" ? "" : type) + "\">" + esc(type) + "</option>").join("") +
+        "</select>" +
+      "</div>" +
+      "<button id=\"bestBuyEraSearchButton\" class=\"bestbuy-era-search\" type=\"button\">FIND THIS PRODUCT</button>" +
     "</div>" +
     "<div id=\"bestBuyCatalogResults\" class=\"store-checker-results\" aria-live=\"polite\"></div></section>" +
     "<section class=\"store-checker\"><h3>Best Buy In-Store Checker</h3>" +
@@ -2411,6 +2481,11 @@ function wireBestBuyChecker(provider){
   const skuButton = document.getElementById("bestBuySkuSearchButton");
   const catalogResults = document.getElementById("bestBuyCatalogResults");
   const results = document.getElementById("bestBuyCheckerResults");
+  const eraPicker = document.getElementById("bestBuyEraPicker");
+  const eraPickerTitle = document.getElementById("bestBuyEraPickerTitle");
+  const eraSet = document.getElementById("bestBuyEraSet");
+  const eraProductType = document.getElementById("bestBuyEraProductType");
+  const eraSearchButton = document.getElementById("bestBuyEraSearchButton");
   if(!results || !catalogResults) return;
   const show = html => { results.innerHTML = html; };
   const showCatalog = html => { catalogResults.innerHTML = html; };
@@ -2456,10 +2531,23 @@ function wireBestBuyChecker(provider){
   if(skuButton) skuButton.addEventListener("click", check);
   if(productInput) productInput.addEventListener("keydown", event => { if(event.key === "Enter") search(); });
   if(skuInput) skuInput.addEventListener("keydown", event => { if(event.key === "Enter") check(); });
-  document.querySelectorAll("[data-bestbuy-query]").forEach(button => button.addEventListener("click", () => {
-    if(productInput) productInput.value = button.dataset.bestbuyQuery || "";
-    search();
+  document.querySelectorAll("[data-bestbuy-era]").forEach(button => button.addEventListener("click", () => {
+    const era = BESTBUY_ERA_SETS[button.dataset.bestbuyEra || ""];
+    if(!era || !eraPicker || !eraSet) return;
+    document.querySelectorAll("[data-bestbuy-era]").forEach(tab => tab.setAttribute("aria-pressed", String(tab === button)));
+    if(eraPickerTitle) eraPickerTitle.textContent = era.label + " — choose a set and product type";
+    eraSet.innerHTML = "<option value=\"\">All " + esc(era.label) + " products</option>" + era.sets.map(set =>
+      "<option value=\"" + esc(set) + "\">" + esc(set) + "</option>"
+    ).join("");
+    if(eraProductType) eraProductType.value = "";
+    eraPicker.hidden = false;
+    eraSet.focus();
   }));
+  if(eraSearchButton) eraSearchButton.addEventListener("click", () => {
+    const query = [eraSet && eraSet.value, eraProductType && eraProductType.value].filter(Boolean).join(" ");
+    if(productInput) productInput.value = query || "Pokemon TCG";
+    search();
+  });
   catalogResults.addEventListener("click", event => {
     const button = event.target.closest("[data-bestbuy-sku]");
     if(!button || !skuInput) return;
