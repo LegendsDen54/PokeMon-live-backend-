@@ -2534,7 +2534,7 @@ function warehouseCheckerMarkup(retailer, provider){
   const productLink = selectedItem && selectedItem.url ? "<a href=\"" + esc(selectedItem.url) + "\" target=\"_blank\" rel=\"noopener noreferrer\">OPEN RETAILER LISTING</a>" : "Select an item with a public retailer listing to open it.";
   return "<section class=\"store-checker\"><h3>" + esc(label) + " TCG Store Watch</h3>" +
     "<p>Choose a product and ZIP code to check confirmed public " + sourceName + " signals within 75 miles.</p>" +
-    "<div class=\"store-checker-row\"><select id=\"warehouseWatchProduct\" aria-label=\"Pokémon TCG product\"><option value=\"\">Choose a Pokémon TCG product</option>" + options + "</select><input id=\"warehouseWatchZip\" inputmode=\"numeric\" maxlength=\"10\" placeholder=\"ZIP code\" value=\"60634\"><button id=\"warehouseWatchButton\" type=\"button\">CHECK NEARBY STORES</button></div>" +
+    "<div class=\"store-checker-row\"><select id=\"warehouseWatchProduct\" aria-label=\"Pokémon TCG product\"><option value=\"\">Choose a Pokémon TCG product</option>" + options + "</select><input id=\"warehouseWatchZip\" inputmode=\"numeric\" maxlength=\"10\" placeholder=\"ZIP code\" value=\"60634\"><button id=\"warehouseWatchButton\" type=\"button\">CHECK NEARBY STORES</button><button id=\"warehouseBrowserButton\" type=\"button\">SHOW CHROME PAGE SIGNAL</button></div>" +
     "<p><span id=\"warehouseWatchItemLink\">" + productLink + "</span></p>" +
     "<div id=\"warehouseWatchResults\" class=\"store-checker-results\" aria-live=\"polite\"></div>" +
     "<div class=\"warehouse-signal-grid\">" +
@@ -2550,8 +2550,25 @@ function wireWarehouseChecker(retailer){
   const product = document.getElementById("warehouseWatchProduct");
   const zip = document.getElementById("warehouseWatchZip");
   const button = document.getElementById("warehouseWatchButton");
+  const browserButton = document.getElementById("warehouseBrowserButton");
   const results = document.getElementById("warehouseWatchResults");
   if(!product || !zip || !button || !results) return;
+  if(browserButton) browserButton.addEventListener("click", async () => {
+    browserButton.disabled = true;
+    results.innerHTML = "<p>Reading the latest public retailer page visible in Chrome…</p>";
+    try{
+      const response = await fetch("/api/" + encodeURIComponent(retailer) + "/browser-observations", {cache:"no-store"});
+      const data = await response.json();
+      if(!response.ok || !data.ok) throw new Error(data.error || "Browser signal could not be read");
+      const cards = (data.items || []).map(item => {
+        const quantity = Number(item.quantity);
+        const status = String(item.availability || "unknown").replace(/_/g, " ");
+        return "<article class=\"retailer-product-card\">" + retailerImageMarkup(item.image, item.title) + "<div><strong><a href=\"" + esc(item.url) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" + esc(item.title) + "</a></strong><small>Item / SKU: " + esc(item.sku || "Not published") + "</small><small>Chrome page status: " + esc(status) + "</small><div class=\"warehouse-signal-grid\"><div class=\"warehouse-signal\"><strong>On order</strong>" + (item.onOrder ? "Shown on page" : "Not published") + "</div><div class=\"warehouse-signal\"><strong>In transit</strong>" + (item.inTransit ? "Shown on page" : "Not published") + "</div><div class=\"warehouse-signal\"><strong>On hand</strong>" + (item.onHand ? (Number.isFinite(quantity) ? "Shown: " + esc(quantity) : "Available") : "Not published") + "</div><div class=\"warehouse-signal\"><strong>Observed</strong>" + esc(new Date(item.observedAt).toLocaleString()) + "</div></div></div></article>";
+      }).join("");
+      results.innerHTML = cards ? "<p>Public page signal from the selected club or warehouse in Chrome. This is one visible location, not a 75-mile inventory list.</p><div class=\"retailer-product-grid\">" + cards + "</div>" : "<p>No public page signal has arrived yet. Open a Pokémon TCG product page at " + esc(label) + ", select your club or warehouse, then refresh that retailer page.</p>";
+    }catch(error){ results.innerHTML = "<p>" + esc(error.message) + "</p>"; }
+    finally{ browserButton.disabled = false; }
+  });
   product.addEventListener("change", () => {
     warehouseWatchSelections[retailer] = product.value;
     const item = (WAREHOUSE_TCG_WATCHLIST[retailer] || []).find(entry => entry.query === product.value);
