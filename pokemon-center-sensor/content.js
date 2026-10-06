@@ -3,9 +3,11 @@
 const DEBOUNCE_MS = 2500;
 const HEARTBEAT_MS = 2 * 60 * 1000;
 const MAX_NEW_PRODUCTS = 12;
+const GENERIC_CHANGE_COOLDOWN_MS = 10 * 60 * 1000;
 
 let timer = null;
 let previous = null;
+let lastGenericChangeAt = 0;
 
 function text(value) {
   return String(value || "")
@@ -67,8 +69,22 @@ function productLinks() {
     .slice(0, MAX_NEW_PRODUCTS);
 }
 
+function marker(value) {
+  let hash = 2166136261;
+
+  for (const character of String(value || "")) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return (hash >>> 0).toString(16);
+}
+
 function snapshot() {
   const pageText = text(document.body?.innerText).slice(0, 120000);
+  const mainText = text(document.querySelector("main")?.innerText || pageText)
+    .slice(0, 16000);
+  const links = productLinks();
   const image =
     meta("meta[property='og:image']") ||
     document.querySelector("main img")?.currentSrc ||
@@ -84,7 +100,13 @@ function snapshot() {
     sku: skuFrom(pageText),
     price: priceFrom(pageText),
     availability: availabilityFrom(pageText),
-    productLinks: productLinks()
+    productLinks: links,
+    pageMarker: marker([
+      document.title,
+      meta("meta[name='description']"),
+      mainText,
+      links.map(item => `${item.url}|${item.name || ""}`).join("\n")
+    ].join("\n"))
   };
 }
 
@@ -117,7 +139,10 @@ function compare(current) {
     return;
   }
 
+  let specificChange = false;
+
   if (!sameLinks(previous.productLinks, current.productLinks)) {
+    specificChange = true;
     const before = new Set(previous.productLinks.map(item => item.url));
 
     current.productLinks
@@ -130,18 +155,22 @@ function compare(current) {
   }
 
   if (current.image && current.image !== previous.image) {
+    specificChange = true;
     signal("IMAGE_CHANGE", current, "A visible product image changed.");
   }
 
   if (current.sku && current.sku !== previous.sku) {
+    specificChange = true;
     signal("SKU_CHANGE", current, "A visible product SKU changed.");
   }
 
   if (current.price !== previous.price) {
+    specificChange = true;
     signal("PRICE_CHANGE", current, "A visible product price changed.");
   }
 
   if (current.availability !== previous.availability) {
+    specificChange = true;
     signal(
       current.availability === "queue" ? "QUEUE_ACTIVE" : "AVAILABILITY_CHANGE",
       {
@@ -150,6 +179,23 @@ function compare(current) {
         live: current.availability === "in_stock"
       },
       "Visible Pokémon Center availability changed."
+    );
+  }
+
+  if (
+    !specificChange &&
+    current.pageMarker !== previous.pageMarker &&
+    Date.now() - lastGenericChangeAt >= GENERIC_CHANGE_COOLDOWN_MS
+  ) {
+    lastGenericChangeAt = Date.now();
+    signal(
+      "PAGE_CHANGE",
+      {
+        url: current.url,
+        pageMarker: current.pageMarker,
+        observedOnly: true
+      },
+      "Public page content changed without a page reload."
     );
   }
 

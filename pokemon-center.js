@@ -1071,6 +1071,14 @@ function signalFingerprint(
         signal.queueActive ===
         true,
 
+      pageMarker:
+        signal.pageMarker ||
+        null,
+
+      observedOnly:
+        signal.observedOnly ===
+        true,
+
       detail:
         signal.detail ||
         null
@@ -1231,6 +1239,16 @@ function baseScoreForType(
 function scoreSignal(
   signal
 ) {
+
+  if(
+    signal.type ===
+      "PAGE_CHANGE" &&
+    signal.observedOnly ===
+      true
+  ){
+    return 8;
+  }
+
 
   /*
     Official help-center edits can report preorder
@@ -2143,6 +2161,17 @@ async function processSignal(
       rawSignal.queueActive ===
         true,
 
+    pageMarker:
+      normalizeText(
+        rawSignal.pageMarker ||
+        ""
+      ) ||
+      null,
+
+    observedOnly:
+      rawSignal.observedOnly ===
+      true,
+
     detail:
       normalizeText(
         rawSignal.detail ||
@@ -2302,9 +2331,13 @@ async function processSignal(
     });
 
 
-  mergeProduct(
-    event
-  );
+  if(
+    !signal.observedOnly
+  ){
+    mergeProduct(
+      event
+    );
+  }
 
 
   if(
