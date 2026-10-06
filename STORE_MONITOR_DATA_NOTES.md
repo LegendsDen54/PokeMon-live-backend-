@@ -98,3 +98,37 @@ Screening outcome: Zephyr and Moonitor are relevant inventory-provider leads;
 Parse is a catalog/location lead. No reviewed source supplies a verified usable
 shipment-status feed for the monitor yet. Do not purchase a catalog service on
 the assumption that it includes warehouse stock.
+
+### Alternative route review and live checker test (2026-10-06)
+
+An authorized CCN `/instore bestbuy_exact` test returned a disabled/API-glitch
+notice, not inventory. The command description advertises a 50-mile radius and
+one use per six hours. Those limits do not meet the requested 75-mile nightly
+coverage by themselves. A provider-access inquiry was sent to CCN asking about
+supported feeds, exact quantities, shipment phases, coverage, and pricing.
+
+Costco's official customer guidance documents warehouse inventory checks through
+its app and customer service, with up to 30 minutes of delay. Eligible product
+pages may show availability after selecting My Warehouse; warehouse-only items
+are not necessarily listed online. Sources:
+https://customerservice.costco.com/app/answers/detail/a_id/11031
+https://customerservice.costco.com/app/answers/answer_view/a_id/1015066/~/how-do-i-check-warehouse-inventory-and-prices%253F
+
+Source review of the openweb Costco adapter found that `checkWarehouseStock`
+uses `buyable` and `programTypes` and exposes `maxItemOrderQty` as `maxQuantity`.
+The latter is an order limit, not a stock count; the WH program classification
+alone does not verify local on-hand stock. Do not copy this interpretation into
+our inventory model without independent location-specific validation.
+https://github.com/imoonkey/openweb/blob/main/src/sites/costco/adapters/costco-api.ts
+
+Moonitor retail documentation describes Discord-channel webhooks for delivering
+alerts. That does not document arbitrary app webhook delivery or an external
+inventory API. `moonitor.dev` search results describe uptime/incident monitoring;
+no relationship to the retailer bot at `moonitor.tools` was verified. Do not use
+the uptime service's API as a retail inventory provider.
+https://docs.moonitor.tools/monitoring-commands/customizing-moonitor
+
+Buildable fallback: capture explicit location-specific availability from retailer
+pages, attach product/location/source timestamps, retain unknown quantities, and
+notify only confirmed state transitions. Incoming shipments remain unknown
+until the source explicitly publishes them. This review added no runtime feed.
