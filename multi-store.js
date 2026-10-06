@@ -43,6 +43,17 @@ const BESTBUY_POSTAL_CODE =
     process.env.BESTBUY_POSTAL_CODE || ""
   ).trim();
 
+const BESTBUY_RADIUS_MILES =
+  Math.max(
+    1,
+    Math.min(
+      75,
+      Number(
+        process.env.BESTBUY_RADIUS_MILES || 75
+      )
+    )
+  );
+
 const BESTBUY_MAX_STORE_SKUS =
   Math.max(
     1,
@@ -319,6 +330,15 @@ function normalizeItem(
         ? null
         : String(productId),
 
+    sku:
+      raw.sku == null
+        ? (
+            productId == null
+              ? null
+              : String(productId)
+          )
+        : String(raw.sku),
+
     name:
       String(
         raw.name ??
@@ -350,6 +370,58 @@ function normalizeItem(
                 )
               : null
           ),
+
+    storeAddress:
+      retailer === "target" ||
+      channel !== "store"
+        ? null
+        : (
+            raw.storeAddress ??
+            raw.address ??
+            null
+          ),
+
+    storeCity:
+      retailer === "target" ||
+      channel !== "store"
+        ? null
+        : (
+            raw.storeCity ??
+            raw.city ??
+            null
+          ),
+
+    storeState:
+      retailer === "target" ||
+      channel !== "store"
+        ? null
+        : (
+            raw.storeState ??
+            raw.state ??
+            raw.region ??
+            null
+          ),
+
+    storePostalCode:
+      retailer === "target" ||
+      channel !== "store"
+        ? null
+        : (
+            raw.storePostalCode ??
+            raw.postalCode ??
+            null
+          ),
+
+    distanceMiles:
+      channel === "store"
+        ? toNumber(
+            raw.distanceMiles ??
+            raw.distance
+          )
+        : null,
+
+    lowStock:
+      raw.lowStock === true,
 
     status,
 
@@ -840,15 +912,42 @@ function normalizeBestBuyStore(
 
       storeName,
 
+      storeAddress:
+        store?.address ??
+        null,
+
+      storeCity:
+        store?.city ??
+        null,
+
+      storeState:
+        store?.state ??
+        store?.region ??
+        null,
+
+      storePostalCode:
+        store?.postalCode ??
+        null,
+
+      distanceMiles:
+        store?.distance ??
+        null,
+
+      lowStock:
+        store?.lowStock === true,
+
       status:
         "instock",
 
       inStock:
         true,
 
-      quantity:
-        store?.quantity ??
-        null,
+      /*
+        The public Best Buy Store Availability API exposes
+        availability and low-stock state, not a verified unit count.
+        Keep this null unless a separately authorized feed supplies it.
+      */
+      quantity: null,
 
       price:
         product?.salePrice ??
@@ -1005,6 +1104,13 @@ async function getBestBuyStoreAvailability(
         product,
         store
       )
+  ).filter(
+    item =>
+      Number.isFinite(
+        Number(item.distanceMiles)
+      ) &&
+      Number(item.distanceMiles) <=
+        BESTBUY_RADIUS_MILES
   );
 }
 
@@ -1494,7 +1600,18 @@ function getProviderStates() {
             item =>
               item.channel ===
               "store"
-          ).length
+          ).length,
+
+        localStoreSearch:
+          state.retailer === "bestbuy"
+            ? Boolean(BESTBUY_POSTAL_CODE)
+            : null,
+
+        searchRadiusMiles:
+          state.retailer === "bestbuy" &&
+          BESTBUY_POSTAL_CODE
+            ? BESTBUY_RADIUS_MILES
+            : null
       })
     );
 }

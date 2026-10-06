@@ -851,6 +851,76 @@ a{
   line-height:1.5;
 }
 
+.retailer-product-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  gap:12px;
+  margin-top:14px;
+  text-align:left;
+}
+
+.retailer-product-card{
+  display:grid;
+  grid-template-columns:76px minmax(0,1fr);
+  gap:10px;
+  padding:10px;
+  border:1px solid rgba(98,199,255,.20);
+  border-radius:12px;
+  background:#06111f;
+  color:var(--text);
+}
+
+.retailer-product-card img{
+  width:76px;
+  height:76px;
+  object-fit:contain;
+  border-radius:8px;
+  background:#fff;
+}
+
+.retailer-product-card .retailer-product-image-placeholder{
+  width:76px;
+  height:76px;
+  display:grid;
+  place-items:center;
+  border-radius:8px;
+  background:#10233a;
+  color:var(--muted);
+  font-size:10px;
+  text-align:center;
+}
+
+.retailer-product-card strong,
+.retailer-product-card a{
+  color:var(--text);
+  font-size:12px;
+  line-height:1.3;
+}
+
+.retailer-product-card small{
+  display:block;
+  margin-top:4px;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.35;
+}
+
+.store-availability{
+  color:var(--green) !important;
+  font-weight:900;
+}
+
+.tab-brand{
+  width:18px;
+  height:18px;
+  display:inline-block;
+  vertical-align:-4px;
+  margin-right:6px;
+  object-fit:contain;
+  border-radius:4px;
+  background:#fff;
+}
+
 .pokemon-center-card{
   text-align:left;
   color:var(--text);
@@ -1610,49 +1680,49 @@ a{
         class="tab"
         data-retailer="all"
       >
-        𝕏 RESTOCKS
+        <img class="tab-brand" src="https://abs.twimg.com/favicons/twitter.3.ico" alt="" aria-hidden="true">𝕏 RESTOCKS
       </button>
 
       <button
         class="tab"
         data-retailer="pokemoncenter"
       >
-        POKÉMON CENTER
+        <img class="tab-brand" src="https://www.pokemoncenter.com/favicon.ico" alt="" aria-hidden="true">POKÉMON CENTER
       </button>
 
       <button
         class="tab active"
         data-retailer="walmart"
       >
-        WALMART
+        <img class="tab-brand" src="https://www.walmart.com/favicon.ico" alt="" aria-hidden="true">WALMART
       </button>
 
       <button
         class="tab"
         data-retailer="target"
       >
-        TARGET
+        <img class="tab-brand" src="https://www.target.com/favicon.ico" alt="" aria-hidden="true">TARGET
       </button>
 
       <button
         class="tab"
         data-retailer="sams"
       >
-        SAM'S CLUB
+        <img class="tab-brand" src="https://www.samsclub.com/favicon.ico" alt="" aria-hidden="true">SAM'S CLUB
       </button>
 
       <button
         class="tab"
         data-retailer="bestbuy"
       >
-        BEST BUY
+        <img class="tab-brand" src="https://www.bestbuy.com/favicon.ico" alt="" aria-hidden="true">BEST BUY
       </button>
 
       <button
         class="tab"
         data-retailer="costco"
       >
-        COSTCO
+        <img class="tab-brand" src="https://www.costco.com/favicon.ico" alt="" aria-hidden="true">COSTCO
       </button>
 
     </div>
@@ -2217,22 +2287,47 @@ async function renderExternalRetailer(retailer){
     if(!response.ok) throw new Error("Inventory request failed");
     const data = await response.json();
     if(activeRetailer !== retailer) return;
-    const items = Array.isArray(data.items) ? data.items : [];
-    const rows = items.map(item => {
+    const items = (Array.isArray(data.items) ? data.items : []).slice().sort((left, right) => {
+      const leftDistance = left.distanceMiles == null ? null : Number(left.distanceMiles);
+      const rightDistance = right.distanceMiles == null ? null : Number(right.distanceMiles);
+      const leftValue = Number.isFinite(leftDistance) ? leftDistance : Number.POSITIVE_INFINITY;
+      const rightValue = Number.isFinite(rightDistance) ? rightDistance : Number.POSITIVE_INFINITY;
+      return leftValue - rightValue || String(left.name || "").localeCompare(String(right.name || ""));
+    });
+    const cards = items.map(item => {
       const url = safeExternalUrl(item.url);
       const name = esc(item.name || "Pokémon product");
-      const itemStatus = esc(item.status || "unknown").replace(/_/g, " ").toUpperCase();
-      const channel = item.channel === "store"
-        ? "Store" + (item.storeName ? " · " + esc(item.storeName) : "")
-        : "Online";
+      const itemStatus = esc(item.rawStatus || item.status || "unknown").replace(/_/g, " ").toUpperCase();
       const price = item.price == null || !Number.isFinite(Number(item.price))
         ? "Price unavailable" : "$" + Number(item.price).toFixed(2);
       const linkedName = url
         ? "<a href=\"" + esc(url) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" + name + "</a>"
         : name;
-      return "<li><strong>" + linkedName + "</strong><br>" + itemStatus +
-        " · " + channel + " · " + esc(price) +
-        (item.source ? " · " + esc(item.source) : "") + "</li>";
+      const address = [
+        item.storeAddress,
+        [item.storeCity, item.storeState, item.storePostalCode].filter(Boolean).join(" ")
+      ].filter(Boolean).map(esc).join(" · ");
+      const distance = item.distanceMiles == null ? null : Number(item.distanceMiles);
+      const location = item.channel === "store"
+        ? "<small>Store" + (item.storeName ? " · " + esc(item.storeName) : "") + "</small>" +
+          (address ? "<small>" + address + "</small>" : "") +
+          (Number.isFinite(distance) ? "<small>" + esc(distance.toFixed(1)) + " miles away</small>" : "")
+        : "Online";
+      const quantity = item.quantity == null ? null : Number(item.quantity);
+      const inventory = item.channel === "store"
+        ? (Number.isFinite(quantity)
+          ? "Quantity: " + esc(quantity)
+          : (item.lowStock ? "Low stock · exact quantity not published" : "Available · exact quantity not published"))
+        : null;
+      const image = safeExternalUrl(item.image);
+      const productImage = image
+        ? "<img src=\"" + esc(image) + "\" alt=\"\" loading=\"lazy\">"
+        : "<div class=\"retailer-product-image-placeholder\">No official image</div>";
+      return "<article class=\"retailer-product-card\">" + productImage + "<div><strong>" +
+        linkedName + "</strong><small>SKU: " + esc(item.sku || item.productId || "Unavailable") +
+        "</small><small>" + itemStatus + " · " + esc(price) + "</small>" + location +
+        (inventory ? "<small class=\"store-availability\">" + inventory + "</small>" : "") +
+        "</div></article>";
     }).join("");
     const check = provider.lastRun ? " · Last check " +
       esc(new Date(provider.lastRun).toLocaleString()) : "";
@@ -2242,7 +2337,11 @@ async function renderExternalRetailer(retailer){
     otherRetailerCard.innerHTML = "<strong>" + esc(label) + "</strong><p>" +
       status + check + "</p><p>" + items.length + " feed item" +
       (items.length === 1 ? "" : "s") + "</p>" +
-      (items.length ? "<ul>" + rows + "</ul>" :
+      (retailer === "bestbuy" ? "<p>" + (provider.localStoreSearch
+        ? "Nearby stores are limited to " + esc(provider.searchRadiusMiles || 75) + " miles."
+        : "Local store checks need a ZIP code in the monitor settings.") +
+        " Exact quantities appear only when the retailer publishes them.</p>" : "") +
+      (items.length ? "<div class=\"retailer-product-grid\">" + cards + "</div>" :
         "<p>" + (provider.error ? "The provider returned an error." :
           "The configured feed has not returned any inventory. No stock is being assumed.") + "</p>");
   }catch(error){
