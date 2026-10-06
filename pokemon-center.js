@@ -1249,6 +1249,23 @@ function scoreSignal(
       : 0;
   }
 
+
+  /*
+    A visible public queue is an actionable Pokémon
+    Center event. Treat it as a full readiness signal
+    so the dashboard and push alert immediately surface
+    the queue link, even before a product name is known.
+  */
+  if(
+    signal.queueActive ===
+    true ||
+
+    signal.type ===
+      "QUEUE_ACTIVE"
+  ){
+    return 100;
+  }
+
   let score =
     baseScoreForType(
       signal.type

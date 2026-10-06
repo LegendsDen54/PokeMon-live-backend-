@@ -1769,10 +1769,19 @@ function renderPokemonCenter(state){
   const supportOk = sources.filter(source => source.ok === true).length;
   const score = Math.max(0, Math.min(100, Number(pc.confidence) || 0));
   const outlook = renderPokemonOutlook(pc, events, score, level, supportOk, sources.length);
-  const queueEvent = events.find(event =>
-    event && (event.type === "QUEUE_ACTIVE" || event.queueActive === true) && verifiedPokemonCenterProductUrl(event.url)
+  const queueEvents = events.filter(event =>
+    event && (event.type === "QUEUE_ACTIVE" || event.queueActive === true)
   );
-  const queueUrl = queueEvent ? verifiedPokemonCenterProductUrl(queueEvent.url) : null;
+  const queueEvent = queueEvents.find(event => verifiedPokemonCenterProductUrl(event.url)) ||
+    queueEvents.find(event => verifiedPokemonCenterQueueUrl(event.url));
+  const relatedProductUrl = verifiedPokemonCenterProductUrl(
+    queueEvent && queueEvent.url
+  ) || verifiedPokemonCenterProductUrl(
+    pc.predictedProduct && pc.predictedProduct.url
+  );
+  const queueUrl = queueEvent
+    ? relatedProductUrl || verifiedPokemonCenterQueueUrl(queueEvent.url)
+    : null;
   const queueAction = pc.queueActive && queueUrl
     ? "<a class=\"queue-action\" href=\"" + esc(queueUrl) + "\" target=\"_blank\" rel=\"noopener noreferrer\">JOIN QUEUE</a>"
     : "";
@@ -1849,6 +1858,19 @@ function verifiedPokemonCenterProductUrl(value){
     const parsed = new URL(url);
     const isPokemonCenter = parsed.hostname === "www.pokemoncenter.com" || parsed.hostname === "pokemoncenter.com";
     return isPokemonCenter && parsed.pathname.includes("/product/") ? parsed.href : null;
+  }catch(error){
+    return null;
+  }
+}
+
+
+function verifiedPokemonCenterQueueUrl(value){
+  const url = safeExternalUrl(value);
+  if(!url) return null;
+  try{
+    const parsed = new URL(url);
+    const isPokemonCenter = parsed.hostname === "www.pokemoncenter.com" || parsed.hostname === "pokemoncenter.com";
+    return isPokemonCenter ? parsed.href : null;
   }catch(error){
     return null;
   }
