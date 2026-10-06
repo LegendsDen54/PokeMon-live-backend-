@@ -70,3 +70,31 @@ coverage, authentication, and webhook signature/replay handling before adapting
 it to the existing server-side inventory model. Keep missing fields unknown and
 deduplicate updates by product, location, and event identity. No runtime provider
 connection was added by this research.
+
+### Additional provider screening (2026-10-06)
+
+- Moonitor's own stock-checker documentation lists Bestbuy, Costco, and Samsclub
+  in-store support, with named groups of product links and interactive scan
+  buttons. It is a second concrete provider candidate. The reviewed documentation
+  does not establish exact quantities, shipment phases, an external REST API, or
+  app redistribution rights. Source:
+  https://docs.moonitor.tools/other-tools-and-features/preset-stock-checkers-for-members
+- Parse's Sam's Club service documents product search, item details/images,
+  identifiers, and nearby club lookup. Its FAQ explicitly excludes per-club stock
+  levels. This may help catalog maintenance and location lookup, but must not be
+  presented as local inventory. No credentials or live response were tested.
+  https://parse.bot/marketplace/aa618459-55b6-412c-8fe9-759c208337aa/samsclub-com-api
+- Parse's Costco service documents catalog search, product details and warehouse
+  locations. None of its eight listed endpoints documents per-warehouse quantity
+  or on-order/in-transit/on-hand transitions. Product availability plus a nearby
+  warehouse list is not evidence of stock at that warehouse. Source:
+  https://parse.bot/marketplace/8fb92be2-2257-46fb-a922-8ea4015f1bb2/costco-com-api
+- Zephyr's indexed client usage terms restrict public access and redistribution.
+  Obtain written permission for this app's intended use before connecting their
+  commercial feed. Contact listed in those terms: monitors@zephyrmonitors.com.
+  https://www.zephyrmonitors.com/terms
+
+Screening outcome: Zephyr and Moonitor are relevant inventory-provider leads;
+Parse is a catalog/location lead. No reviewed source supplies a verified usable
+shipment-status feed for the monitor yet. Do not purchase a catalog service on
+the assumption that it includes warehouse stock.
