@@ -2381,7 +2381,7 @@ function renderPokemonOutlook(pc, events, score, level, supportOk, sourceCount){
   const readiness = pc.readinessWindow && pc.readinessWindow.label
     ? pc.readinessWindow.label
     : "No reliable window yet";
-  const activity = events.length ? (events[0].type || "Verified activity") : "No verified activity";
+  const activity = events.length ? (events[0].type || "Verified activity") : "";
   const evidence = score === 0
     ? "No verified movement supports a drop estimate today."
     : "This score updates only from verified public signals; it is not a guarantee.";
