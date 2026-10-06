@@ -51,7 +51,7 @@ function productUrl(retailer, value) {
   const url = validUrl(retailer, value);
   if (!url) return null;
   const path = new URL(url).pathname;
-  return ({sams:/^\/(ip|p)\/.+/, costco:/^\/p\/.+|\.product\.[\d]+\.html$/, target:/^\/p\/.+\/-\/A-\d+/}[retailer]).test(path) ? url : null;
+  return ({sams:/^\/(ip|p)\/.+/, costco:/^\/p\/.+|\.product\.[\d]+\.html$/, target:/^\/p\/(?:.+\/)?-\/A-\d+$/}[retailer]).test(path) ? url : null;
 }
 function getState(retailer) {
   if (!configs[retailer]) throw new Error("Unsupported retailer");
