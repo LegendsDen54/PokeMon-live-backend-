@@ -1111,6 +1111,13 @@ a{
       </button>
 
       <button
+        class="tab"
+        data-retailer="pokemoncenter"
+      >
+        POKÉMON CENTER
+      </button>
+
+      <button
         class="tab active"
         data-retailer="walmart"
       >
@@ -1147,6 +1154,15 @@ a{
 
     </div>
 
+  </section>
+
+
+  <!-- POKÉMON CENTER SIGNAL MONITOR -->
+  <section
+    id="pokemonCenterSection"
+    class="section other-retailer"
+  >
+    <div id="pokemonCenterCard" class="other-card"></div>
   </section>
 
 
@@ -1402,6 +1418,12 @@ const pushStatus =
 const walmartSection =
   document.getElementById("walmartSection");
 
+const pokemonCenterSection =
+  document.getElementById("pokemonCenterSection");
+
+const pokemonCenterCard =
+  document.getElementById("pokemonCenterCard");
+
 const otherRetailerSection =
   document.getElementById(
     "otherRetailerSection"
@@ -1481,6 +1503,104 @@ const lastUpdated =
   document.getElementById(
     "lastUpdated"
   );
+
+
+
+function renderPokemonCenter(state){
+  const pc = state || {};
+  const events = Array.isArray(pc.latestEvents) ? pc.latestEvents.slice(0, 8) : [];
+  const level = esc(String(pc.level || "normal").replace(/_/g, " ").toUpperCase());
+  const sensor = pc.browserSensorOnline === true ? "CONNECTED" : "WAITING FOR BROWSER SENSOR";
+  const lastCheck = pc.lastChecked ? new Date(pc.lastChecked).toLocaleString() : "Not checked yet";
+  const sources = Array.isArray(pc.supportHealth) ? pc.supportHealth : [];
+  const supportOk = sources.filter(source => source.ok === true).length;
+  const eventRows = events.map(event => {
+    const date = event.at ? new Date(event.at).toLocaleString() : "";
+    return "<li><strong>" + esc(event.type || "Signal") + "</strong>" +
+      (event.name ? " · " + esc(event.name) : "") +
+      (event.detail ? " — " + esc(event.detail) : "") +
+      (date ? " <small>" + esc(date) + "</small>" : "") + "</li>";
+  }).join("");
+  pokemonCenterCard.innerHTML =
+    "<div class=\"panel-title\">Pokémon Center Signal Monitor</div>" +
+    "<p>Priority " + esc(pc.priority || "highest") + " · " + level +
+    " · Confidence " + esc(pc.confidenceLabel || "LOW") + "</p>" +
+    "<p>Browser sensor: " + esc(sensor) + " · Official support sources: " +
+    supportOk + "/" + sources.length + " responding</p>" +
+    "<p>Last check: " + esc(lastCheck) +
+    (pc.queueActive ? " · QUEUE SIGNAL ACTIVE" : "") + "</p>" +
+    (pc.predictedProduct && pc.predictedProduct.name
+      ? "<p>Related product signal: " + esc(pc.predictedProduct.name) + "</p>" : "") +
+    (pc.lastError ? "<p role=\"status\">Monitor note: " + esc(pc.lastError) + "</p>" : "") +
+    "<h3>Recent Pokémon Center signals</h3>" +
+    (events.length ? "<ul>" + eventRows + "</ul>" :
+      "<p>No product signals have been detected yet. This monitor reports configured public support checks and user-visible browser sensor signals; it does not invent stock.</p>") +
+    "<p><a href=\"https://www.pokemoncenter.com/\" target=\"_blank\" rel=\"noopener noreferrer\">Open Pokémon Center</a></p>";
+}
+
+
+function safeExternalUrl(value){
+  try{
+    const url = new URL(String(value || ""));
+    return url.protocol === "https:" ? url.href : null;
+  }catch(error){
+    return null;
+  }
+}
+
+
+async function renderExternalRetailer(retailer){
+  const labels = {target:"Target", sams:"Sam's Club", bestbuy:"Best Buy", costco:"Costco"};
+  const label = labels[retailer] || retailer;
+  const provider = (latestStatusData && Array.isArray(latestStatusData.providers)
+    ? latestStatusData.providers : []).find(item => item.retailer === retailer) || {};
+  otherRetailerCard.innerHTML = "<strong>" + esc(label) + "</strong><p>" +
+    (provider.configured ? "Loading configured inventory feed…" :
+      "No inventory feed is configured. This tab shows products only after a real provider feed is configured.") + "</p>";
+  if(!provider.configured) return;
+
+  try{
+    const response = await fetch("/api/products?retailer=" + encodeURIComponent(retailer) +
+      "&t=" + Date.now(), {cache:"no-store"});
+    if(!response.ok) throw new Error("Inventory request failed");
+    const data = await response.json();
+    if(activeRetailer !== retailer) return;
+    const items = Array.isArray(data.items) ? data.items : [];
+    const rows = items.map(item => {
+      const url = safeExternalUrl(item.url);
+      const name = esc(item.name || "Pokémon product");
+      const itemStatus = esc(item.status || "unknown").replace(/_/g, " ").toUpperCase();
+      const channel = item.channel === "store"
+        ? "Store" + (item.storeName ? " · " + esc(item.storeName) : "")
+        : "Online";
+      const price = item.price == null || !Number.isFinite(Number(item.price))
+        ? "Price unavailable" : "$" + Number(item.price).toFixed(2);
+      const linkedName = url
+        ? "<a href=\"" + esc(url) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" + name + "</a>"
+        : name;
+      return "<li><strong>" + linkedName + "</strong><br>" + itemStatus +
+        " · " + channel + " · " + esc(price) +
+        (item.source ? " · " + esc(item.source) : "") + "</li>";
+    }).join("");
+    const check = provider.lastRun ? " · Last check " +
+      esc(new Date(provider.lastRun).toLocaleString()) : "";
+    const status = provider.error
+      ? "Provider needs attention: " + esc(provider.error)
+      : provider.running ? "Checking feed…" : "Configured provider";
+    otherRetailerCard.innerHTML = "<strong>" + esc(label) + "</strong><p>" +
+      status + check + "</p><p>" + items.length + " feed item" +
+      (items.length === 1 ? "" : "s") + "</p>" +
+      (items.length ? "<ul>" + rows + "</ul>" :
+        "<p>" + (provider.error ? "The provider returned an error." :
+          "The configured feed has not returned any inventory. No stock is being assumed.") + "</p>");
+  }catch(error){
+    if(activeRetailer === retailer){
+      otherRetailerCard.innerHTML = "<strong>" + esc(label) +
+        "</strong><p role=\"status\">Could not load the configured inventory feed: " +
+        esc(error.message) + "</p>";
+    }
+  }
+}
 
 
 /* =========================================
@@ -2555,6 +2675,17 @@ async function load(){
       statusData
     );
 
+    renderPokemonCenter(
+      statusData?.pokemonCenter
+    );
+
+    if(
+      ["target", "sams", "bestbuy", "costco"]
+        .includes(activeRetailer)
+    ){
+      renderExternalRetailer(activeRetailer);
+    }
+
 
     /*
       The backend keeps scanning everything.
@@ -2772,7 +2903,6 @@ function setRetailer(
   activeRetailer =
     retailer;
 
-
   document
     .querySelectorAll(
       ".tab"
@@ -2786,74 +2916,46 @@ function setRetailer(
         )
     );
 
+  if(
+    retailer === "pokemoncenter"
+  ){
+    walmartSection.style.display =
+      "none";
+    otherRetailerSection.classList.remove(
+      "show"
+    );
+    pokemonCenterSection.classList.add(
+      "show"
+    );
+    renderPokemonCenter(
+      latestStatusData && latestStatusData.pokemonCenter
+    );
+    return;
+  }
 
-  /*
-    Walmart gets the specialized compact
-    dashboard. We intentionally do not show
-    a giant raw item list.
-  */
+  pokemonCenterSection.classList.remove(
+    "show"
+  );
 
   if(
     retailer === "walmart" ||
     retailer === "all"
   ){
-
     walmartSection.style.display =
       "block";
-
-
     otherRetailerSection.classList.remove(
       "show"
     );
-
-
     return;
   }
 
-
   walmartSection.style.display =
     "none";
-
-
   otherRetailerSection.classList.add(
     "show"
   );
-
-
-  const labels = {
-    target:"Target",
-    sams:"Sam's Club",
-    bestbuy:"Best Buy",
-    costco:"Costco"
-  };
-
-
-  const label =
-    labels[retailer] ||
-    retailer;
-
-
-  otherRetailerCard.innerHTML =
-    `
-    <strong
-      style="
-        color:white;
-        display:block;
-        margin-bottom:6px;
-      "
-    >
-      ${esc(label)}
-    </strong>
-
-    ${esc(label)}
-    monitoring remains separate from
-    the Walmart buy-now and raffle feeds.
-    No Walmart scan results are mixed
-    into this tab.
-    `;
-
+  renderExternalRetailer(retailer);
 }
-
 
 /* =========================================
    EVENTS
