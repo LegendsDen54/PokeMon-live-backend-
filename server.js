@@ -1917,7 +1917,15 @@ app.post(
 app.post("/api/ccn/inventory-report", async (req,res) => {
   if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
   if (!hasValidPokemonCenterSensorToken(req)) return pokemonCenterSensorUnauthorized(res);
-  try {res.json({ok:true,report:await ccnInventory.save(req.body)});}
+  try {
+    const saved=await ccnInventory.save(req.body);
+    let delivery=null;
+    if(saved.alertLocations.length){
+      const labels={bestbuy:"Best Buy",sams:"Sam’s Club",costco:"Costco"};
+      delivery=await push.broadcast({title:labels[saved.report.retailer]+" — In-store stock reported",body:saved.report.name+" · "+saved.alertLocations.map(row=>row.name+": "+row.onHand+" reported on hand").join("; ").slice(0,180),url:"/?retailer="+saved.report.retailer,tag:"instore-"+saved.report.retailer+"-"+saved.report.productId+"-"+saved.report.zip}).catch(error=>({error:error.message}));
+    }
+    res.json({ok:true,report:saved.report,push:delivery});
+  }
   catch(error){res.status(400).json({ok:false,error:error.message});}
 });
 app.get("/ccn-import", (req,res)=>res.sendFile(path.join(__dirname,"ccn-import.html")));

@@ -14,15 +14,35 @@ function clean(input){
   if(!Number.isFinite(checked) || checked>Date.now()+60000 || Date.now()-checked>6*3600000) throw new Error("Report must have a recent actual check time");
   if(!["results","no_stock_reported","checker_error"].includes(input.result)) throw new Error("Invalid checker result");
   const quantity=value=>value==null?null:Number.isInteger(value)&&value>=0?value:null;
-  const locations=(input.locations || []).slice(0,100).map(row=>({name:String(row.name || "").slice(0,150),address:String(row.address || "").slice(0,250),onOrder:quantity(row.onOrder),inTransit:quantity(row.inTransit),onHand:quantity(row.onHand),status:String(row.status || "Not published").slice(0,100)}));
+  const locations=(input.locations || []).slice(0,100).map(row=>({name:String(row.name || "").slice(0,150),address:String(row.address || "").slice(0,250),onOrder:quantity(row.onOrder),inTransit:quantity(row.inTransit),onHand:quantity(row.onHand),distanceMiles:Number.isFinite(row.distanceMiles)&&row.distanceMiles>=0?row.distanceMiles:null,status:String(row.status || "Not published").slice(0,100)}));
   let image=null;
   try{const u=new URL(input.image);if(u.protocol==="https:" && /(?:^|\.)(?:costco\.com|samsclub\.com|scene7\.com|bbystatic\.com|bestbuy\.com|wal\.co)$/.test(u.hostname))image=u.href;}catch{}
   return {retailer:input.retailer,productId:input.productId,zip:input.zip,name:String(input.name).slice(0,240),image,source:"CCN / Zephyr stock checker",sourceUrl:input.sourceUrl,checkedAt:new Date(checked).toISOString(),result:input.result,detail:String(input.detail || "").slice(0,400),locations:input.result==="results"?locations:[]};
 }
 async function save(input){
   const report=clean(input);await storage();
-  await pool.query("INSERT INTO ccn_inventory_reports(retailer,product_id,zip,data) VALUES($1,$2,$3,$4) ON CONFLICT(retailer,product_id,zip) DO UPDATE SET data=EXCLUDED.data WHERE (ccn_inventory_reports.data->>'checkedAt')::timestamptz <= (EXCLUDED.data->>'checkedAt')::timestamptz",[report.retailer,report.productId,report.zip,report]);
-  return report;
+  const client=await pool.connect();
+  let alertLocations=[];
+  try{
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))",[report.retailer+":"+report.productId+":"+report.zip]);
+    const prior=await client.query("SELECT data FROM ccn_inventory_reports WHERE retailer=$1 AND product_id=$2 AND zip=$3",[report.retailer,report.productId,report.zip]);
+    const previous=prior.rows[0]?.data;
+    if(previous && Date.parse(previous.checkedAt)>=Date.parse(report.checkedAt)){
+      await client.query("COMMIT");return {report:previous,alertLocations:[]};
+    }
+    const stockStates={...(previous?.stockStates || {})};
+    for(const row of report.locations){
+      const locationKey=(row.name+"|"+row.address).toLowerCase();
+      if(row.onHand===null)continue;
+      if(row.onHand>0 && !(stockStates[locationKey]>0) && Date.now()-Date.parse(report.checkedAt)<90*60000 && (report.retailer!=="bestbuy" || row.distanceMiles!==null && row.distanceMiles<=20))alertLocations.push(row);
+      stockStates[locationKey]=row.onHand;
+    }
+    report.stockStates=stockStates;
+    await client.query("INSERT INTO ccn_inventory_reports(retailer,product_id,zip,data) VALUES($1,$2,$3,$4) ON CONFLICT(retailer,product_id,zip) DO UPDATE SET data=EXCLUDED.data",[report.retailer,report.productId,report.zip,report]);
+    await client.query("COMMIT");
+  }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
+  return {report,alertLocations};
 }
 async function list(retailer,zip){
   await storage();
