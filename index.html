@@ -2850,8 +2850,14 @@ async function renderCcnInventory(retailer){
   const section=document.createElement("section");section.className="store-checker";section.id="ccnInventoryReports";
   section.innerHTML='<h3>CCN in-store reports</h3><p>Loading latest checks…</p>';
   otherRetailerCard.append(section);
+  const key=sessionStorage.getItem("ccnReportKey");
+  if(!key){
+    section.innerHTML='<h3>Private CCN in-store reports</h3><p>Enter your existing sensor pairing key to view private reports. It stays in this browser session.</p><input id="ccnReportKey" type="password" autocomplete="off" placeholder="Sensor pairing key"><button id="ccnConnectReports" type="button">CONNECT REPORTS</button>';
+    section.querySelector('#ccnConnectReports').addEventListener('click',()=>{const value=section.querySelector('#ccnReportKey').value.trim();if(!value)return;sessionStorage.setItem('ccnReportKey',value);section.remove();renderCcnInventory(retailer);});
+    return;
+  }
   try{
-    const data=await fetch("/api/ccn/inventory-reports?retailer="+encodeURIComponent(retailer)+"&zip="+encodeURIComponent(zip),{cache:"no-store"}).then(r=>r.json());
+    const data=await fetch("/api/ccn/inventory-reports?retailer="+encodeURIComponent(retailer)+"&zip="+encodeURIComponent(zip),{cache:"no-store",headers:{Authorization:"Bearer "+key}}).then(r=>r.json());
     if(!section.isConnected)return;
     if(!data.ok)throw new Error(data.error);
     section.innerHTML='<h3>CCN in-store reports</h3><p>ZIP '+esc(zip)+' · CCN reports, not retailer-confirmed inventory. Latest report replaces the previous check. The checker currently advertises a 50-mile radius.</p>'+((data.reports || []).map(report=>{
