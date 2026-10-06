@@ -1760,6 +1760,48 @@ async function pollExternal(
   );
 }
 
+async function searchWarehouseInventory(
+  retailer,
+  { query, postalCode, radiusMiles = 75 } = {}
+) {
+  if (!["sams", "costco"].includes(retailer)) {
+    throw new Error("Warehouse search is available for Sam's Club and Costco only");
+  }
+
+  const prefix = retailer === "sams" ? "SAMS" : "COSTCO";
+  const url = String(process.env[`${prefix}_STORE_SEARCH_URL`] || "").trim();
+  const apiKey = String(process.env[`${prefix}_API_KEY`] || "").trim();
+  if (!url) {
+    throw new Error(`${RETAILERS[retailer].label} needs an approved store-inventory provider before nearby results can be checked`);
+  }
+
+  const payload = await fetchJson(
+    url,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
+      },
+      body: JSON.stringify({
+        query: String(query || "").slice(0, 240),
+        postalCode: String(postalCode || "").slice(0, 10),
+        radiusMiles: Math.max(1, Math.min(75, Number(radiusMiles) || 75))
+      })
+    },
+    15000,
+    `${RETAILERS[retailer].label} store provider`
+  );
+
+  const items = extractFeedItems(payload)
+    .map(item => normalizeItem(retailer, item))
+    .filter(item => isPokemonTcgName(item.name))
+    .filter(item => item.channel === "store")
+    .filter(item => item.distanceMiles == null || item.distanceMiles <= 75);
+
+  return { items, source: "approved_store_provider" };
+}
+
 async function pollConfiguredProviders() {
   const providers =
     Object.keys(
@@ -2031,6 +2073,7 @@ module.exports = {
   getProviderStates,
   getProducts,
   getStoreInventory,
+  searchWarehouseInventory,
   searchBestBuyProducts,
   checkBestBuySku
 };

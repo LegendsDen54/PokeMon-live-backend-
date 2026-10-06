@@ -2458,6 +2458,23 @@ const BESTBUY_ERA_SETS = {
 
 const BESTBUY_PRODUCT_TYPES = ["All product types", "Elite Trainer Box", "Booster Bundle", "Booster Box", "Collection Box", "ex Box", "Premium Collection", "Tin", "Mini Tin", "Blister", "Build & Battle Box"];
 const CHICAGO_SALES_TAX_RATE = 0.105;
+const WAREHOUSE_TCG_WATCHLIST = {
+  sams: [
+    { label: "Confirmed · Ascended Heroes: Focused Fighters Premium Collection", query: "Pokemon TCG Mega Evolution Ascended Heroes Focused Fighters Premium Collection", url: "https://www.samsclub.com/ip/pokemon-tcg-mega-evolution-ascended-heroes-focused-fighters-premium-collection/20186272756" },
+    { label: "Reported current · Ascended Heroes ETB + Poké Ball Tin Bundle", query: "Pokemon TCG Ascended Heroes Elite Trainer Box Poke Ball Tin Bundle", url: null },
+    { label: "Confirmed · 151: 4 Mini Tins + 4 Promo Cards Bundle", query: "Pokemon TCG 151 4 Mini Tins 4 Promo Cards Bundle", url: "https://www.samsclub.com/ip/pokemon-4-mini-tins-4-promo-cards-bundle/17593918944" },
+    { label: "Recent historical · Heavy Hitters Premium Collection", query: "Pokemon TCG Heavy Hitters Premium Collection", url: null },
+    { label: "Recent historical · 151 Mini Tin + Poké Ball Bundle", query: "Pokemon TCG 151 Mini Tin Poke Ball Bundle", url: null }
+  ],
+  costco: [
+    { label: "Confirmed · 5-Pack Mini Tins, Galar Powers + 4 Promo Cards · Item 2351575", query: "Pokemon 5 Pack Mini Tins Galar Powers 2351575", url: "https://www.costco.com/p/-/pokmon-5-pack-mini-tins-galar-powers-plus-4-promo-cards/4000092045" },
+    { label: "Reported current · Ascended Heroes Mini Tin Bundle · 10 tins · Item 2007495", query: "Pokemon TCG Ascended Heroes Mini Tin Bundle 2007495", url: null },
+    { label: "Reported current · Ascended Heroes Elite Trainer Box Bundle", query: "Pokemon TCG Ascended Heroes Elite Trainer Box Bundle", url: null },
+    { label: "Reported upcoming · 30th Celebration ETB + Booster Bundle Collection", query: "Pokemon TCG 30th Celebration Elite Trainer Box Booster Bundle Collection", url: null },
+    { label: "Confirmed recent · Crown Zenith ETB + Koraidon ex + Miraidon Tins", query: "Pokemon TCG Crown Zenith Elite Trainer Box Koraidon Miraidon Tin Bundle", url: "https://www.costco.com/CompareProductsDisplay?partNumbers=4000283872" }
+  ]
+};
+const warehouseWatchSelections = { sams: "", costco: "" };
 
 function bestBuyCheckerMarkup(provider){
   const catalogDisabled = "";
@@ -2510,8 +2527,16 @@ function warehouseCheckerMarkup(retailer, provider){
   const label = retailer === "sams" ? "Sam's Club" : "Costco";
   const sourceName = retailer === "sams" ? "club pickup" : "warehouse availability";
   const isConfigured = provider && provider.configured;
+  const selected = warehouseWatchSelections[retailer] || "";
+  const watchlist = WAREHOUSE_TCG_WATCHLIST[retailer] || [];
+  const selectedItem = watchlist.find(item => item.query === selected);
+  const options = watchlist.map(item => "<option value=\"" + esc(item.query) + "\"" + (item.query === selected ? " selected" : "") + ">" + esc(item.label) + "</option>").join("");
+  const productLink = selectedItem && selectedItem.url ? "<a href=\"" + esc(selectedItem.url) + "\" target=\"_blank\" rel=\"noopener noreferrer\">OPEN RETAILER LISTING</a>" : "Select an item with a public retailer listing to open it.";
   return "<section class=\"store-checker\"><h3>" + esc(label) + " TCG Store Watch</h3>" +
-    "<p>Shows confirmed public " + sourceName + " changes and any location data a configured authorized feed provides. Nearby stores are limited to 75 miles when that feed supplies distance.</p>" +
+    "<p>Choose a product and ZIP code to check confirmed public " + sourceName + " signals within 75 miles.</p>" +
+    "<div class=\"store-checker-row\"><select id=\"warehouseWatchProduct\" aria-label=\"Pokémon TCG product\"><option value=\"\">Choose a Pokémon TCG product</option>" + options + "</select><input id=\"warehouseWatchZip\" inputmode=\"numeric\" maxlength=\"10\" placeholder=\"ZIP code\" value=\"60634\"><button id=\"warehouseWatchButton\" type=\"button\">CHECK NEARBY STORES</button></div>" +
+    "<p><span id=\"warehouseWatchItemLink\">" + productLink + "</span></p>" +
+    "<div id=\"warehouseWatchResults\" class=\"store-checker-results\" aria-live=\"polite\"></div>" +
     "<div class=\"warehouse-signal-grid\">" +
       "<div class=\"warehouse-signal\"><strong>On order</strong>Only shown when published by a connected source.</div>" +
       "<div class=\"warehouse-signal\"><strong>In transit</strong>Only shown when published by a connected source.</div>" +
@@ -2519,6 +2544,52 @@ function warehouseCheckerMarkup(retailer, provider){
       "<div class=\"warehouse-signal\"><strong>Online date</strong>Confirmed public date changes appear here.</div>" +
     "</div>" +
     "<p>" + (isConfigured ? "Connected source is loading confirmed Pokémon TCG signals." : "No real provider is connected yet, so no stock is being assumed.") + "</p></section>";
+}
+
+function wireWarehouseChecker(retailer){
+  const product = document.getElementById("warehouseWatchProduct");
+  const zip = document.getElementById("warehouseWatchZip");
+  const button = document.getElementById("warehouseWatchButton");
+  const results = document.getElementById("warehouseWatchResults");
+  if(!product || !zip || !button || !results) return;
+  product.addEventListener("change", () => {
+    warehouseWatchSelections[retailer] = product.value;
+    const item = (WAREHOUSE_TCG_WATCHLIST[retailer] || []).find(entry => entry.query === product.value);
+    const link = document.getElementById("warehouseWatchItemLink");
+    if(!link) return;
+    if(item && item.url){
+      const anchor = document.createElement("a");
+      anchor.href = item.url;
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
+      anchor.textContent = "OPEN RETAILER LISTING";
+      link.replaceChildren(anchor);
+    }else{
+      link.textContent = "No public retailer listing is available yet for this reported item.";
+    }
+  });
+  button.addEventListener("click", async () => {
+    const selected = String(product.value || "").trim();
+    const postalCode = String(zip.value || "").trim();
+    warehouseWatchSelections[retailer] = selected;
+    if(!selected) { results.innerHTML = "<p>Choose a Pokémon TCG product.</p>"; return; }
+    if(!/^\d{5}(?:-\d{4})?$/.test(postalCode)) { results.innerHTML = "<p>Enter a valid ZIP code.</p>"; return; }
+    button.disabled = true; results.innerHTML = "<p>Checking confirmed nearby store signals…</p>";
+    try{
+      const response = await fetch("/api/warehouse/store-check?retailer=" + encodeURIComponent(retailer) + "&product=" + encodeURIComponent(selected) + "&zip=" + encodeURIComponent(postalCode), {cache:"no-store"});
+      const data = await response.json();
+      if(!response.ok || !data.ok) throw new Error(data.error || "Store check failed");
+      const cards = (data.items || []).map(item => {
+        const address = [item.storeName, item.storeAddress, [item.storeCity, item.storeState, item.storePostalCode].filter(Boolean).join(" ")].filter(Boolean).map(esc).join(" · ");
+        const distance = Number(item.distanceMiles);
+        const quantity = Number(item.quantity);
+        const details = "<div class=\"warehouse-signal-grid\"><div class=\"warehouse-signal\"><strong>On order</strong>" + (item.onOrder ? "Confirmed" : "Not published") + "</div><div class=\"warehouse-signal\"><strong>In transit</strong>" + (item.inTransit ? "Confirmed" : "Not published") + "</div><div class=\"warehouse-signal\"><strong>On hand</strong>" + (item.onHand ? (Number.isFinite(quantity) ? "Confirmed: " + esc(quantity) : "Confirmed") : "Not published") + "</div><div class=\"warehouse-signal\"><strong>Status</strong>" + esc(String(item.rawStatus || item.status || "unknown").replace(/_/g, " ")) + "</div></div>";
+        return "<article class=\"retailer-product-card\">" + retailerImageMarkup(item.image, item.name) + "<div><strong>" + esc(item.name || selected) + "</strong><small>Item / SKU: " + esc(item.sku || item.productId || "Not published") + "</small><small>" + (address || "Location not published") + "</small>" + (Number.isFinite(distance) ? "<small>" + esc(distance.toFixed(1)) + " miles away</small>" : "") + details + "</div></article>";
+      }).join("");
+      results.innerHTML = cards ? "<p>" + esc(data.items.length) + " confirmed nearby store result(s) within 75 miles.</p><div class=\"retailer-product-grid\">" + cards + "</div>" : "<p>No confirmed nearby store result was returned. No inventory is being assumed.</p>";
+    }catch(error){ results.innerHTML = "<p>" + esc(error.message) + "</p>"; }
+    finally{ button.disabled = false; }
+  });
 }
 
 function retailerImageMarkup(image, name){
@@ -2691,6 +2762,7 @@ async function renderExternalRetailer(retailer){
       ((retailer === "sams" || retailer === "costco") ? warehouseCheckerMarkup(retailer, provider) : ""));
   if(!provider.configured){
     if(retailer === "bestbuy") wireBestBuyChecker(provider);
+    if(retailer === "sams" || retailer === "costco") wireWarehouseChecker(retailer);
     return;
   }
 
@@ -2766,6 +2838,7 @@ async function renderExternalRetailer(retailer){
       (retailer === "bestbuy" ? bestBuyCheckerMarkup(provider) :
         ((retailer === "sams" || retailer === "costco") ? warehouseCheckerMarkup(retailer, provider) : ""));
     if(retailer === "bestbuy") wireBestBuyChecker(provider);
+    if(retailer === "sams" || retailer === "costco") wireWarehouseChecker(retailer);
   }catch(error){
     if(activeRetailer === retailer){
       otherRetailerCard.innerHTML = "<strong>" + esc(label) +

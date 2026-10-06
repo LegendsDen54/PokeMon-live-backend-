@@ -1809,6 +1809,27 @@ app.get(
 );
 
 app.get(
+  "/api/warehouse/store-check",
+  async (req,res) => {
+    try {
+      const retailer = String(req.query.retailer || "").toLowerCase();
+      const product = String(req.query.product || "").trim().slice(0, 240);
+      const postalCode = String(req.query.zip || "").trim();
+      if (!/[a-z0-9]/i.test(product)) throw new Error("Choose a Pokémon TCG product first");
+      if (!/^\d{5}(?:-\d{4})?$/.test(postalCode)) throw new Error("Enter a valid ZIP code");
+      const result = await multiStore.searchWarehouseInventory(retailer, {
+        query: product,
+        postalCode,
+        radiusMiles: 75
+      });
+      res.json({ ok: true, retailer, product, postalCode, radiusMiles: 75, ...result });
+    } catch (error) {
+      res.status(503).json({ ok: false, error: error.message });
+    }
+  }
+);
+
+app.get(
   "/api/products",
   (req,res) => {
     const retailer =
