@@ -852,6 +852,32 @@ function isPokemonTcgName(value) {
   );
 }
 
+function isDirectBestBuyCatalogProduct(
+  product
+) {
+  if (
+    product?.marketplace === true ||
+    product?.isMarketplace === true ||
+    product?.marketplaceProduct === true ||
+    product?.thirdParty === true
+  ) {
+    return false;
+  }
+
+  const seller =
+    normalizeText(
+      product?.sellerName ||
+      product?.seller ||
+      product?.marketplaceSeller ||
+      product?.fulfillmentSeller ||
+      ""
+    );
+
+  return !seller ||
+    seller === "best buy" ||
+    seller === "bestbuy";
+}
+
 function bestBuyOrderableStatus(
   product
 ) {
@@ -1077,7 +1103,9 @@ function normalizeBestBuyStore(
   );
 }
 
-async function searchBestBuyPokemon() {
+async function searchBestBuyPokemon(
+  query = "pokemon"
+) {
   if (
     !BESTBUY_API_KEY
   ) {
@@ -1101,9 +1129,14 @@ async function searchBestBuyPokemon() {
       "mediumImage"
     ].join(",");
 
+  const search =
+    String(query || "pokemon")
+      .trim()
+      .slice(0, 100) || "pokemon";
+
   const url =
     `${BESTBUY_API_BASE}` +
-    `/products(search=pokemon)` +
+    `/products(search=${encodeURIComponent(search)})` +
     `?format=json` +
     `&pageSize=100` +
     `&show=${encodeURIComponent(show)}` +
@@ -1131,9 +1164,8 @@ async function searchBestBuyPokemon() {
 
   return products.filter(
     product =>
-      isPokemonTcgName(
-        product?.name
-      )
+      isPokemonTcgName(product?.name) &&
+      isDirectBestBuyCatalogProduct(product)
   );
 }
 
@@ -1164,13 +1196,41 @@ function productMatchesSearch(
       `${product?.name || ""} ${product?.sku || ""}`
     );
 
+  const aliases = {
+    etb: ["elite", "trainer", "box"],
+    bb: ["booster", "box"]
+  };
+
   return normalizeText(query)
     .split(" ")
     .filter(Boolean)
-    .every(
-      token =>
-        haystack.includes(token)
-    );
+    .every(token => {
+      const required = aliases[token] || [token];
+      return required.every(part => haystack.includes(part));
+    });
+}
+
+function bestBuySkuFromSearchInput(
+  value
+) {
+  const input =
+    String(value || "")
+      .trim();
+
+  if (/^\d{4,20}$/.test(input)) {
+    return input;
+  }
+
+  try {
+    const url = new URL(input);
+    const allowedHost =
+      url.hostname === "www.bestbuy.com" ||
+      url.hostname === "bestbuy.com";
+    const match = /\/sku\/(\d{4,20})(?:\/|$)/i.exec(url.pathname);
+    return allowedHost && match ? match[1] : null;
+  } catch {
+    return null;
+  }
 }
 
 async function searchBestBuyProducts(
@@ -1190,8 +1250,19 @@ async function searchBestBuyProducts(
     return [];
   }
 
+  const sku =
+    bestBuySkuFromSearchInput(search);
+
+  if (sku) {
+    return [
+      normalizeBestBuyOnline(
+        await getBestBuyProductBySku(sku)
+      )
+    ];
+  }
+
   const products =
-    await searchBestBuyPokemon();
+    await searchBestBuyPokemon(search);
 
   return products
     .filter(
@@ -1250,9 +1321,13 @@ async function getBestBuyProductBySku(
       ? payload.products[0]
       : payload;
 
-  if (!product?.sku || !isPokemonTcgName(product.name)) {
+  if (
+    !product?.sku ||
+    !isPokemonTcgName(product.name) ||
+    !isDirectBestBuyCatalogProduct(product)
+  ) {
     throw new Error(
-      "That SKU is not a Pokémon TCG product in Best Buy's catalog"
+      "That SKU is not a direct-sold Pokémon TCG product in Best Buy's catalog"
     );
   }
 
@@ -1852,6 +1927,11 @@ function getProviderStates() {
         localStoreSearch:
           state.retailer === "bestbuy"
             ? Boolean(BESTBUY_POSTAL_CODE)
+            : null,
+
+        catalogSearch:
+          state.retailer === "bestbuy"
+            ? Boolean(BESTBUY_API_KEY)
             : null,
 
         searchRadiusMiles:

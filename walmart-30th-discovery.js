@@ -1704,7 +1704,9 @@ function sortItems(items) {
    DISCOVERY RUN
 ======================================== */
 
-async function runDiscovery() {
+async function runDiscovery(
+  options = {}
+) {
   if (
     state.running
   ) {
@@ -1733,7 +1735,12 @@ async function runDiscovery() {
     [];
 
   const searchTerms =
-    getSearchTermsForRun();
+    Array.isArray(options.searchTerms) && options.searchTerms.length
+      ? options.searchTerms
+      : getSearchTermsForRun();
+
+  const approvedMarketplaceOnly =
+    options.approvedMarketplaceOnly === true;
 
   try {
     for (
@@ -1809,6 +1816,13 @@ async function runDiscovery() {
             !candidate.directSeller &&
             !candidate
               .approvedMarketplace
+          ) {
+            continue;
+          }
+
+          if (
+            approvedMarketplaceOnly &&
+            !candidate.approvedMarketplace
           ) {
             continue;
           }

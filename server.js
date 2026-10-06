@@ -91,6 +91,15 @@ const rafflePollMinutes =
     )
   );
 
+const gtCollectiblesWatchMinutes =
+  Math.max(
+    10,
+    Number(
+      process.env.GT_COLLECTIBLES_WATCH_MINUTES ||
+      15
+    )
+  );
+
 const manualScanToken =
   process.env.MANUAL_SCAN_TOKEN ||
   "";
@@ -823,6 +832,14 @@ async function runScheduledScan() {
 
     throw error;
   }
+}
+
+async function runGtCollectiblesWatch() {
+  return walmart30thDiscovery.runDiscovery({
+    /* A single broad query keeps this lightweight between Wednesday scans. */
+    searchTerms: ["Pokemon TCG"],
+    approvedMarketplaceOnly: true
+  });
 }
 
 
@@ -3288,6 +3305,39 @@ app.listen(
       );
 
     raffleTimer.unref?.();
+
+    setTimeout(
+      () => {
+        runGtCollectiblesWatch()
+          .catch(
+            error =>
+              console.error(
+                "Startup GT Collectibles watch failed:",
+                error.message
+              )
+          );
+      },
+      12000
+    );
+
+    const gtCollectiblesTimer =
+      setInterval(
+        () => {
+          runGtCollectiblesWatch()
+            .catch(
+              error =>
+                console.error(
+                  "GT Collectibles watch failed:",
+                  error.message
+                )
+            );
+        },
+        gtCollectiblesWatchMinutes *
+        60 *
+        1000
+      );
+
+    gtCollectiblesTimer.unref?.();
 
     if (
       runOnStartup

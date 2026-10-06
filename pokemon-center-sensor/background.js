@@ -7,9 +7,9 @@ const REFRESH_ALARM = "pokemon-center-scheduled-refresh";
 const ACTIVE_REFRESH_MS = 2 * 60 * 1000;
 const QUIET_REFRESH_MS = 15 * 60 * 1000;
 
-function chicagoNow() {
+function centralNow() {
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
+    timeZone: "America/Chicago",
     weekday: "short",
     hour: "numeric",
     hourCycle: "h23"
@@ -23,12 +23,12 @@ function chicagoNow() {
 }
 
 function activeWatchWindow() {
-  const now = chicagoNow();
+  const now = centralNow();
   const hour = Number(now.hour);
 
   return ["Tue", "Wed", "Thu"].includes(now.weekday) &&
-    hour >= 10 &&
-    hour < 15;
+    hour >= 9 &&
+    hour < 14;
 }
 
 async function refreshPokemonCenterTabs() {

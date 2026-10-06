@@ -975,6 +975,34 @@ a{
   margin-top:10px;
 }
 
+.set-sku-presets{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  margin:8px 0 2px;
+}
+
+.set-sku-presets button{
+  padding:7px 9px;
+  border:1px solid rgba(98,199,255,.38);
+  border-radius:999px;
+  background:#0b2945;
+  color:var(--text);
+  font-size:11px;
+}
+
+.retailer-product-card-action{
+  margin-top:8px;
+  padding:7px 8px;
+  border:1px solid rgba(98,199,255,.42);
+  border-radius:7px;
+  background:#0b2945;
+  color:var(--text);
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer;
+}
+
 .pokemon-center-card{
   text-align:left;
   color:var(--text);
@@ -2325,19 +2353,28 @@ function verifiedPokemonCenterQueueUrl(value){
 }
 
 function bestBuyCheckerMarkup(provider){
-  const catalogDisabled = provider.configured ? "" : " disabled";
-  const storesDisabled = provider.configured && provider.localStoreSearch ? "" : " disabled";
+  const catalogDisabled = provider.catalogSearch ? "" : " disabled";
+  const storesDisabled = provider.catalogSearch && provider.localStoreSearch ? "" : " disabled";
   const localMessage = provider.localStoreSearch
     ? "Store results use the saved ZIP code and a 75-mile radius."
     : "A saved ZIP code is required before a SKU can check nearby stores.";
-  return "<section class=\"store-checker\"><h3>Best Buy In-Store Checker</h3>" +
-    "<p>Find a Pokémon TCG item by set or product name, then check its official SKU at nearby stores.</p>" +
-    "<div class=\"store-checker-row\"><input id=\"bestBuyProductSearch\" type=\"search\" placeholder=\"Search set or item, e.g. Prismatic Evolutions ETB\"" + catalogDisabled + ">" +
-    "<button id=\"bestBuyProductSearchButton\" type=\"button\"" + catalogDisabled + ">FIND SKU</button></div>" +
+  const catalogMessage = provider.catalogSearch
+    ? "Search by set or product type. Results come from the official Best Buy catalog and show the exact Best Buy SKU."
+    : "The verified Best Buy catalog connection is awaiting approval. Product and SKU results stay empty until that source is available.";
+  return "<section class=\"store-checker\"><h3>Official Best Buy Product &amp; SKU Finder</h3>" +
+    "<p>" + esc(catalogMessage) + "</p>" +
+    "<div class=\"store-checker-row\"><input id=\"bestBuyProductSearch\" type=\"search\" placeholder=\"Product name or Best Buy link, e.g. Prismatic ETB\"" + catalogDisabled + ">" +
+    "<button id=\"bestBuyProductSearchButton\" type=\"button\"" + catalogDisabled + ">FIND PRODUCT &amp; SKU</button></div>" +
+    "<div class=\"set-sku-presets\" aria-label=\"Popular Pokémon TCG set searches\">" +
+      ["Mega Evolution", "Scarlet & Violet", "Prismatic Evolutions", "Destined Rivals", "Surging Sparks", "Journey Together"].map(set =>
+        "<button type=\"button\" data-bestbuy-query=\"" + esc(set) + "\"" + catalogDisabled + ">" + esc(set) + "</button>"
+      ).join("") +
+    "</div>" +
+    "<div id=\"bestBuyCatalogResults\" class=\"store-checker-results\" aria-live=\"polite\"></div></section>" +
+    "<section class=\"store-checker\"><h3>Best Buy In-Store Checker</h3>" +
+    "<p>Use an official Best Buy SKU from the finder above to check nearby stores.</p>" +
     "<div class=\"store-checker-row\"><input id=\"bestBuySkuSearch\" inputmode=\"numeric\" placeholder=\"Enter Best Buy SKU number\"" + storesDisabled + ">" +
     "<button id=\"bestBuySkuSearchButton\" type=\"button\"" + storesDisabled + ">CHECK NEARBY STORES</button></div>" +
-    "<div class=\"store-checker-row\"><input id=\"bestBuyPublicUrl\" type=\"url\" placeholder=\"Paste a public Best Buy product link\">" +
-    "<button id=\"bestBuyPublicUrlButton\" type=\"button\">CHECK PUBLIC PAGE</button></div>" +
     "<p>" + esc(localMessage) + " Exact quantities show only when a retailer source publishes them.</p>" +
     "<div id=\"bestBuyCheckerResults\" class=\"store-checker-results\" aria-live=\"polite\"></div></section>";
 }
@@ -2358,9 +2395,13 @@ function bestBuyCheckerCard(item){
       (Number.isFinite(distance) ? "<small>" + esc(distance.toFixed(1)) + " miles away</small>" : "") +
       "<small class=\"store-availability\">" + (Number.isFinite(quantity) ? "Quantity: " + esc(quantity) : (item.lowStock ? "Low stock · exact quantity not published" : "Available · exact quantity not published")) + "</small>"
     : "";
+  const sku = String(item.sku || item.productId || "").trim();
+  const useSku = sku && item.channel !== "store"
+    ? "<button class=\"retailer-product-card-action\" type=\"button\" data-bestbuy-sku=\"" + esc(sku) + "\">USE THIS SKU FOR NEARBY STORES</button>"
+    : "";
   return "<article class=\"retailer-product-card\">" + photo + "<div><strong>" + title +
     "</strong><small>SKU: " + esc(item.sku || item.productId || "Unavailable") + "</small>" +
-    "<small>" + esc(item.rawStatus || item.status || "unknown").replace(/_/g, " ").toUpperCase() + "</small>" + storeInfo + "</div></article>";
+    "<small>" + esc(item.rawStatus || item.status || "unknown").replace(/_/g, " ").toUpperCase() + "</small>" + storeInfo + useSku + "</div></article>";
 }
 
 function wireBestBuyChecker(provider){
@@ -2368,21 +2409,21 @@ function wireBestBuyChecker(provider){
   const skuInput = document.getElementById("bestBuySkuSearch");
   const productButton = document.getElementById("bestBuyProductSearchButton");
   const skuButton = document.getElementById("bestBuySkuSearchButton");
-  const publicUrlInput = document.getElementById("bestBuyPublicUrl");
-  const publicUrlButton = document.getElementById("bestBuyPublicUrlButton");
+  const catalogResults = document.getElementById("bestBuyCatalogResults");
   const results = document.getElementById("bestBuyCheckerResults");
-  if(!results) return;
+  if(!results || !catalogResults) return;
   const show = html => { results.innerHTML = html; };
+  const showCatalog = html => { catalogResults.innerHTML = html; };
   const search = async () => {
     const query = String(productInput && productInput.value || "").trim();
-    if(query.length < 2) return show("<p>Enter at least two characters to find a product and SKU.</p>");
-    productButton.disabled = true; show("<p>Finding official Best Buy SKUs…</p>");
+    if(query.length < 2) return showCatalog("<p>Enter at least two characters to find a product and SKU.</p>");
+    productButton.disabled = true; showCatalog("<p>Searching official Best Buy product listings…</p>");
     try{
       const response = await fetch("/api/bestbuy/search?q=" + encodeURIComponent(query), {cache:"no-store"});
       const data = await response.json();
       if(!response.ok || !data.ok) throw new Error(data.error || "Product search failed");
-      show(data.items.length ? "<div class=\"retailer-product-grid\">" + data.items.map(bestBuyCheckerCard).join("") + "</div><p>Copy a SKU into the store checker to see nearby availability.</p>" : "<p>No Pokémon TCG products matched that search.</p>");
-    }catch(error){ show("<p>" + esc(error.message) + "</p>"); }
+      showCatalog(data.items.length ? "<p>" + esc(data.count) + " verified Best Buy product match(es). Select a card to use its SKU below.</p><div class=\"retailer-product-grid\">" + data.items.map(bestBuyCheckerCard).join("") + "</div>" : "<p>No Pokémon TCG products matched that search in Best Buy's catalog.</p>");
+    }catch(error){ showCatalog("<p>" + esc(error.message) + "</p>"); }
     finally{ productButton.disabled = false; }
   };
   const check = async () => {
@@ -2398,23 +2439,21 @@ function wireBestBuyChecker(provider){
     }catch(error){ show("<p>" + esc(error.message) + "</p>"); }
     finally{ skuButton.disabled = false; }
   };
-  const publicCheck = async () => {
-    const url = String(publicUrlInput && publicUrlInput.value || "").trim();
-    if(!url) return show("<p>Paste a public Best Buy product-page link.</p>");
-    publicUrlButton.disabled = true; show("<p>Checking the public product page…</p>");
-    try{
-      const response = await fetch("/api/bestbuy/public-check?force=true&url=" + encodeURIComponent(url), {cache:"no-store"});
-      const data = await response.json();
-      if(!response.ok || !data.ok) throw new Error(data.error || "Public page check failed");
-      show("<p><strong>" + esc(data.title) + "</strong><br>Public availability: " + esc(data.availability.replace(/_/g, " ")) + "<br>Checked " + esc(new Date(data.checkedAt).toLocaleString()) + "</p>");
-    }catch(error){ show("<p>" + esc(error.message) + "</p>"); }
-    finally{ publicUrlButton.disabled = false; }
-  };
   if(productButton) productButton.addEventListener("click", search);
   if(skuButton) skuButton.addEventListener("click", check);
-  if(publicUrlButton) publicUrlButton.addEventListener("click", publicCheck);
   if(productInput) productInput.addEventListener("keydown", event => { if(event.key === "Enter") search(); });
   if(skuInput) skuInput.addEventListener("keydown", event => { if(event.key === "Enter") check(); });
+  document.querySelectorAll("[data-bestbuy-query]").forEach(button => button.addEventListener("click", () => {
+    if(productInput) productInput.value = button.dataset.bestbuyQuery || "";
+    search();
+  }));
+  catalogResults.addEventListener("click", event => {
+    const button = event.target.closest("[data-bestbuy-sku]");
+    if(!button || !skuInput) return;
+    skuInput.value = button.dataset.bestbuySku || "";
+    skuInput.focus();
+    show("<p>SKU " + esc(skuInput.value) + " is ready. Select <strong>CHECK NEARBY STORES</strong> to look around your saved ZIP code.</p>");
+  });
 }
 
 

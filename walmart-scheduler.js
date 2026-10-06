@@ -3,16 +3,18 @@
   WALMART CONTINUOUS SCANNER
   ========================================
 
-  Runs throughout the entire week instead of
-  only during the old Wednesday drop window.
+  Runs during the configured local drop window.
 
   Default:
   - enabled
-  - every 5 minutes
+  - Wednesdays, 8 AM–11 PM
   - America/Chicago
 
   Can be changed in Render with:
   WALMART_SCAN_EVERY_MINUTES
+  WALMART_SCHEDULE_DAY
+  WALMART_SCHEDULE_START
+  WALMART_SCHEDULE_END
 */
 
 function createWalmartScheduler({
@@ -59,6 +61,26 @@ function createWalmartScheduler({
         60
       )
     );
+
+  const scheduleDay =
+    String(
+      process.env.WALMART_SCHEDULE_DAY ||
+      "WED"
+    )
+      .trim()
+      .toUpperCase();
+
+  const scheduleStart =
+    String(
+      process.env.WALMART_SCHEDULE_START ||
+      "08:00"
+    ).trim();
+
+  const scheduleEnd =
+    String(
+      process.env.WALMART_SCHEDULE_END ||
+      "23:00"
+    ).trim();
 
   let timer =
     null;
@@ -130,6 +152,50 @@ function createWalmartScheduler({
     }
   }
 
+  function localParts() {
+    const parts = new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone,
+        weekday: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      }
+    ).formatToParts(new Date());
+
+    return Object.fromEntries(
+      parts
+        .filter(part => part.type !== "literal")
+        .map(part => [part.type, part.value])
+    );
+  }
+
+  function minutesFromTime(value) {
+    const match = /^(\d{1,2}):(\d{2})$/.exec(value);
+    if (!match) return null;
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    if (hours > 23 || minutes > 59) return null;
+    return hours * 60 + minutes;
+  }
+
+  function activeWindow() {
+    const parts = localParts();
+    const allowedDays = scheduleDay === "ALL"
+      ? null
+      : scheduleDay.split(",").map(day => day.trim()).filter(Boolean);
+    const current = Number(parts.hour) * 60 + Number(parts.minute);
+    const start = minutesFromTime(scheduleStart);
+    const end = minutesFromTime(scheduleEnd);
+
+    if (start == null || end == null || current < start || current > end) {
+      return false;
+    }
+
+    return !allowedDays || allowedDays.includes(String(parts.weekday || "").toUpperCase());
+  }
+
 
   /* ========================================
      NEXT SCAN
@@ -169,7 +235,7 @@ function createWalmartScheduler({
       enabled,
 
       mode:
-        "continuous",
+        "scheduled_window",
 
       timeZone,
 
@@ -178,18 +244,18 @@ function createWalmartScheduler({
         status code does not break.
       */
       day:
-        "ALL",
+        scheduleDay,
 
       start:
-        "00:00",
+        scheduleStart,
 
       end:
-        "23:59",
+        scheduleEnd,
 
       everyMinutes,
 
       activeWindow:
-        enabled,
+        enabled && activeWindow(),
 
       running:
         schedulerRunning,
@@ -198,10 +264,10 @@ function createWalmartScheduler({
         localTimeString(),
 
       scheduleLabel:
-        `Every ${everyMinutes} minutes, 7 days/week`,
+        `${scheduleDay === "WED" ? "Wednesday" : scheduleDay} ${scheduleStart}–${scheduleEnd}, every ${everyMinutes} minutes`,
 
       nextScanLabel:
-        enabled
+        enabled && activeWindow()
           ? `${next.toISOString()}`
           : null,
 
@@ -315,6 +381,14 @@ function createWalmartScheduler({
       };
     }
 
+    if (kind === "scheduled" && !activeWindow()) {
+      return {
+        ok: false,
+        skipped: true,
+        reason: "Outside the Walmart scheduled scan window"
+      };
+    }
+
     if (
       schedulerRunning
     ) {
@@ -371,7 +445,7 @@ function createWalmartScheduler({
     }
 
     console.log(
-      "Walmart continuous scan triggered:",
+      "Walmart scheduled scan triggered:",
       {
         trigger:
           kind,
