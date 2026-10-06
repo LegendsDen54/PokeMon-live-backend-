@@ -4,7 +4,7 @@ const DEFAULT_BACKEND_URL =
   "https://pokemon-live-backend.onrender.com";
 
 const REFRESH_ALARM = "pokemon-center-scheduled-refresh";
-const ACTIVE_REFRESH_MS = 2 * 60 * 1000;
+const ACTIVE_REFRESH_MS = 1 * 60 * 1000;
 const QUIET_REFRESH_MS = 15 * 60 * 1000;
 
 function centralNow() {
