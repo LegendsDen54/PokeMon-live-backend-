@@ -2514,7 +2514,10 @@ function wireBestBuyChecker(provider){
       }catch(error){
         const fallbackUrl = safeExternalUrl(query);
         const fallbackOpen = fallbackUrl ? "<p><a class=\"retailer-product-card-action\" href=\"" + esc(fallbackUrl) + "\" target=\"_blank\" rel=\"noopener noreferrer\">OPEN AT BEST BUY</a></p>" : "";
-        showCatalog("<p>" + esc(error.message) + "</p>" + fallbackOpen);
+        const publicPageMessage = /fetch failed/i.test(String(error.message || ""))
+          ? "Best Buy's public page could not be read from the monitor right now. This does not identify the seller or mean the item is unavailable."
+          : error.message;
+        showCatalog("<p>" + esc(publicPageMessage) + "</p>" + fallbackOpen);
       }
       finally{ productButton.disabled = false; }
       return;
