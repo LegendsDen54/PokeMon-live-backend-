@@ -164,7 +164,11 @@ async function check(retailer, url) {
     } else item.lastMovementAlertAt=before?.lastMovementAlertAt || null;
   }
   await persist(item);
-  if (before && ["instock","preorder"].includes(item.status) && before.status !== item.status) await push.broadcast({title:`${configs[retailer].label} — Online TCG alert`,body:`${item.name} · ${item.status === "preorder" ? "Pre-order offer" : "Listed in stock"} · Confirm shipping to your ZIP`,url:safe,tag:`online-${retailer}-${item.productId}`}).catch(() => {});
+  if (["instock","preorder"].includes(item.status) && (!before || before.status !== item.status)) {
+    const delivery=await push.broadcast({title:`${configs[retailer].label} — Online TCG alert`,body:`${item.name} · ${item.status === "preorder" ? "Pre-order offer" : "Listed in stock"} · Confirm shipping to your ZIP`,url:safe,tag:`online-${retailer}-${item.productId}`});
+    state.lastAlert={at:new Date().toISOString(),name:item.name,sent:delivery.sent,failed:delivery.failed,subscriptions:delivery.subscriptions};
+    if (!delivery.ok || !delivery.sent) console.error(`${configs[retailer].label} online alert delivery incomplete`,delivery);
+  }
   return item;
 }
 async function poll(retailer) {

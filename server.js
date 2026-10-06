@@ -1836,7 +1836,7 @@ app.post(
     const previous = samsBrowserStates.get(url);
     samsBrowserStates.set(url,result);
 
-    if (previous && previous.availability !== availability && ["available","preorder"].includes(availability)) {
+    if ((!previous || previous.availability !== availability) && ["available","preorder"].includes(availability)) {
       push.broadcast({
         title: "Sam's Club — Online TCG alert",
         body: result.title + (availability === "preorder" ? " is available for pre-order." : " now appears available online."),
@@ -1900,7 +1900,7 @@ app.post(
     const previous = costcoBrowserStates.get(url);
     costcoBrowserStates.set(url,result);
 
-    if (previous && previous.availability !== availability && ["available","preorder"].includes(availability)) {
+    if ((!previous || previous.availability !== availability) && ["available","preorder"].includes(availability)) {
       push.broadcast({
         title: "Costco — Online TCG alert",
         body: result.title + (availability === "preorder" ? " is available for pre-order." : " now appears available online."),

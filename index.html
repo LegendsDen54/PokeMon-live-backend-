@@ -871,6 +871,10 @@ a{
   color:var(--text);
 }
 
+.online-product-link::after{content:"";position:absolute;inset:0;border-radius:12px;}
+.online-product-link:focus-visible::after{outline:2px solid #62c7ff;}
+#retailOnlineCatalog{box-sizing:border-box;display:block;margin-top:12px;}
+
 .retailer-product-image-frame{
   width:76px;
   height:76px;
@@ -2961,7 +2965,7 @@ async function renderPublicOnline(retailer){
     for(const item of feed.items || []) if(item.channel==="online") items.set(item.url || item.productId,item);
     if(retailer!=="target") {
       const browser=await fetch("/api/"+retailer+"/browser-observations",{cache:"no-store"}).then(r=>r.json()).catch(()=>({}));
-      for(const item of browser.items || []) if(!items.has(item.url)) items.set(item.url,{...item,name:item.title,sku:item.itemNumber,status:item.availability,stale:Date.now()-Date.parse(item.observedAt)>5*60000});
+      for(const item of browser.items || []) if(!items.has(item.url) || Date.parse(item.observedAt)>Date.parse(items.get(item.url)?.observedAt || 0)) items.set(item.url,{...item,name:item.title,sku:item.itemNumber,status:item.availability,stale:Date.now()-Date.parse(item.observedAt)>5*60000});
     }
     if(activeRetailer!==retailer || (retailer!=="target" && warehouseChannels[retailer]!=="online")) return;
     const targetPreferred = item => /ascended heroes|prismatic evolutions|destined rivals|30th|ultra[- ]premium collection|super[- ]premium collection|\bupc\b|\bspc\b/i.test(String(item.name || ""));
@@ -2971,11 +2975,11 @@ async function renderPublicOnline(retailer){
       const status=item.stale ? "Last observed · needs a fresh check" : String(item.rawStatus || item.status || "Unknown").replace(/_/g," ");
       const price=item.price!=null && Number.isFinite(Number(item.price)) ? "$"+Number(item.price).toFixed(2) : "Price not published";
       const shipping="<small>Shipping to your ZIP: confirm at retailer</small>";
-      return '<article class="retailer-product-card">'+retailerImageMarkup(item.image,item.name)+'<div><strong>'+(url?'<a target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">'+esc(item.name)+'</a>':esc(item.name))+'</strong><small>'+esc(price)+'</small><small>Item / SKU: '+esc(item.sku || item.productId || "Not published")+'</small><small>'+esc(status)+'</small>'+shipping+'<small>'+(item.observedAt?esc(new Date(item.observedAt).toLocaleString()):"Not checked yet")+'</small></div></article>';
+      return '<article class="retailer-product-card" style="position:relative">'+retailerImageMarkup(item.image,item.name)+'<div><strong>'+(url?'<a class="online-product-link" target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">'+esc(item.name)+'</a>':esc(item.name))+'</strong><small>'+esc(price)+'</small><small>Item / SKU: '+esc(item.sku || item.productId || "Not published")+'</small><small>'+esc(status)+'</small>'+shipping+'<small>'+(item.observedAt?esc(new Date(item.observedAt).toLocaleString()):"Not checked yet")+'</small></div></article>';
     }).join("");
-    const options=(data.catalog || []).map(item=>'<option value="'+esc(item.url || "")+'">'+esc(item.label || item.name || item.query)+'</option>').join("");
+    const options=(data.catalog || []).filter(item=>item.url).map(item=>'<option value="'+esc(item.url || "")+'">'+esc(String(item.label || item.name || item.query).replace(/^(?:Confirmed(?: recent)?|Reported) · /, "").slice(0,85))+'</option>').join("");
     const header=retailer==="target" ? "" : warehouseChannelMarkup(retailer);
-    otherRetailerCard.innerHTML='<strong>'+esc(labels[retailer])+'</strong>'+header+'<section class="store-checker"><h3>Online Pokémon TCG</h3><p>'+(retailer==="target"?'Only verified Target sellers appear. Public signals do not confirm a future drop.':'Online offers are separate from club and warehouse inventory.')+'</p><div class="store-checker-row"><input id="retailOnlineUrl" type="url" placeholder="Paste an official product link" aria-label="Official product link"><button id="retailOnlineCheck" type="button">CHECK PRODUCT</button></div><select id="retailOnlineCatalog" aria-label="Retailer Pokémon products"><option value="">Choose a retailer product</option>'+options+'</select><p><a href="'+esc(data.searchUrl)+'" target="_blank" rel="noopener noreferrer">FIND PRODUCTS AT '+esc(labels[retailer].toUpperCase())+'</a></p><div id="retailOnlineResult" aria-live="polite"></div></section><p>'+ (data.error?'Some public checks are unavailable: '+esc(data.error):data.running?'Checking public listings…':'Public product observations')+'</p><div class="retailer-product-grid">'+cards+'</div>'+(cards?'':retailer==='target'?'<p>No confirmed available Target products right now. Background checks continue.</p>':'<p>No verified online product observation yet. No stock is assumed.</p>');
+    otherRetailerCard.innerHTML='<strong>'+esc(labels[retailer])+'</strong>'+header+'<section class="store-checker"><h3>Online Pokémon TCG</h3><p>'+(retailer==="target"?'Only verified Target sellers appear. Public signals do not confirm a future drop.':'Online offers are separate from club and warehouse inventory.')+'</p><div class="store-checker-row"><input id="retailOnlineUrl" type="url" placeholder="Paste an official product link" aria-label="Official product link"><button id="retailOnlineCheck" type="button">CHECK PRODUCT</button></div><select id="retailOnlineCatalog" style="width:100%;max-width:420px;min-width:0;text-overflow:ellipsis" aria-label="Retailer Pokémon products"><option value="">Choose a retailer product</option>'+options+'</select><p><a href="'+esc(data.searchUrl)+'" target="_blank" rel="noopener noreferrer">FIND PRODUCTS AT '+esc(labels[retailer].toUpperCase())+'</a></p><div id="retailOnlineResult" aria-live="polite"></div></section><p>'+ (data.error?'Some public checks are unavailable: '+esc(data.error):data.running?'Checking public listings…':'Public product observations')+'</p><div class="retailer-product-grid">'+cards+'</div>'+(cards?'':retailer==='target'?'<p>No confirmed available Target products right now. Background checks continue.</p>':'<p>No verified online product observation yet. No stock is assumed.</p>');
     if(retailer==="target") {
       const panel=document.createElement("section");panel.className="store-checker";
       const available=eligibleItems.filter(item=>targetPreferred(item) && !item.stale && ["instock","preorder"].includes(item.status));
@@ -2995,9 +2999,10 @@ async function renderPublicOnline(retailer){
     if(retailer!=="target") wireWarehouseChannels(retailer);
     const input=document.getElementById("retailOnlineUrl");
     input.value=saved.url;
+    document.getElementById("retailOnlineCatalog").value=saved.url;
     document.getElementById("retailOnlineResult").innerHTML=saved.result;
     input.addEventListener("input",()=>{saved.url=input.value;});
-    document.getElementById("retailOnlineCatalog").addEventListener("change",event=>{input.value=event.target.value;saved.url=input.value;});
+    document.getElementById("retailOnlineCatalog").addEventListener("change",event=>{input.value=event.target.value;saved.url=input.value;const url=safeExternalUrl(input.value);saved.result=url?'<p><a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">OPEN SELECTED PRODUCT ↗</a></p>':"";document.getElementById("retailOnlineResult").innerHTML=saved.result;});
     document.getElementById("retailOnlineCheck").addEventListener("click",async event=>{
       const button=event.target;button.disabled=true;button.textContent="CHECKING…";
       const result=document.getElementById("retailOnlineResult");
