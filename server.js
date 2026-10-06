@@ -103,6 +103,35 @@ const pokemonCenterSensorToken =
   process.env.POKEMON_CENTER_SENSOR_TOKEN ||
   "";
 
+const bestBuyPublicStates = new Map();
+
+function validBestBuyPublicUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    return url.protocol === "https:" &&
+      (url.hostname === "www.bestbuy.com" || url.hostname === "bestbuy.com") &&
+      url.pathname.includes("/site/") ? url.href : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function checkPublicBestBuyPage(value) {
+  const url = validBestBuyPublicUrl(value);
+  if (!url) throw new Error("Enter a public Best Buy product-page link");
+  const response = await fetch(url, {headers: {accept: "text/html"}, signal: AbortSignal.timeout(15000)});
+  if (!response.ok) throw new Error(`Best Buy page returned ${response.status}`);
+  const html = await response.text();
+  const pageText = html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").toLowerCase();
+  const availability = /pickup today|ready for pickup|pick up today/.test(pageText) ? "pickup_available" : /sold out|unavailable for pickup|pickup not available/.test(pageText) ? "pickup_unavailable" : /add to cart/.test(pageText) ? "online_available" : "unknown";
+  const title = (html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] || "Best Buy product").trim();
+  const previous = bestBuyPublicStates.get(url);
+  const changed = previous && previous.availability !== availability;
+  bestBuyPublicStates.set(url, {availability, checkedAt: new Date().toISOString()});
+  if (changed && availability === "pickup_available") push.broadcast({title: "Best Buy — Public pickup signal", body: `${title} now shows pickup availability.`, url, tag: `bestbuy-${Buffer.from(url).toString("base64url").slice(0, 36)}`}).catch(() => {});
+  return {url, title, availability, changed: Boolean(changed), checkedAt: new Date().toISOString()};
+}
+
 
 /* ========================================
    MIDDLEWARE
@@ -1500,6 +1529,18 @@ app.get(
         ok: false,
         error: error.message
       });
+    }
+  }
+);
+
+app.get(
+  "/api/bestbuy/public-check",
+  async (req,res) => {
+    try {
+      const result = await checkPublicBestBuyPage(req.query.url);
+      res.json({ok: true, source: "public_product_page", ...result});
+    } catch (error) {
+      res.status(400).json({ok: false, error: error.message});
     }
   }
 );

@@ -2336,6 +2336,8 @@ function bestBuyCheckerMarkup(provider){
     "<button id=\"bestBuyProductSearchButton\" type=\"button\"" + catalogDisabled + ">FIND SKU</button></div>" +
     "<div class=\"store-checker-row\"><input id=\"bestBuySkuSearch\" inputmode=\"numeric\" placeholder=\"Enter Best Buy SKU number\"" + storesDisabled + ">" +
     "<button id=\"bestBuySkuSearchButton\" type=\"button\"" + storesDisabled + ">CHECK NEARBY STORES</button></div>" +
+    "<div class=\"store-checker-row\"><input id=\"bestBuyPublicUrl\" type=\"url\" placeholder=\"Paste a public Best Buy product link\">" +
+    "<button id=\"bestBuyPublicUrlButton\" type=\"button\">CHECK PUBLIC PAGE</button></div>" +
     "<p>" + esc(localMessage) + " Exact quantities show only when a retailer source publishes them.</p>" +
     "<div id=\"bestBuyCheckerResults\" class=\"store-checker-results\" aria-live=\"polite\"></div></section>";
 }
@@ -2366,6 +2368,8 @@ function wireBestBuyChecker(provider){
   const skuInput = document.getElementById("bestBuySkuSearch");
   const productButton = document.getElementById("bestBuyProductSearchButton");
   const skuButton = document.getElementById("bestBuySkuSearchButton");
+  const publicUrlInput = document.getElementById("bestBuyPublicUrl");
+  const publicUrlButton = document.getElementById("bestBuyPublicUrlButton");
   const results = document.getElementById("bestBuyCheckerResults");
   if(!results) return;
   const show = html => { results.innerHTML = html; };
@@ -2394,8 +2398,21 @@ function wireBestBuyChecker(provider){
     }catch(error){ show("<p>" + esc(error.message) + "</p>"); }
     finally{ skuButton.disabled = false; }
   };
+  const publicCheck = async () => {
+    const url = String(publicUrlInput && publicUrlInput.value || "").trim();
+    if(!url) return show("<p>Paste a public Best Buy product-page link.</p>");
+    publicUrlButton.disabled = true; show("<p>Checking the public product page…</p>");
+    try{
+      const response = await fetch("/api/bestbuy/public-check?url=" + encodeURIComponent(url), {cache:"no-store"});
+      const data = await response.json();
+      if(!response.ok || !data.ok) throw new Error(data.error || "Public page check failed");
+      show("<p><strong>" + esc(data.title) + "</strong><br>Public availability: " + esc(data.availability.replace(/_/g, " ")) + "<br>Checked " + esc(new Date(data.checkedAt).toLocaleString()) + "</p>");
+    }catch(error){ show("<p>" + esc(error.message) + "</p>"); }
+    finally{ publicUrlButton.disabled = false; }
+  };
   if(productButton) productButton.addEventListener("click", search);
   if(skuButton) skuButton.addEventListener("click", check);
+  if(publicUrlButton) publicUrlButton.addEventListener("click", publicCheck);
   if(productInput) productInput.addEventListener("keydown", event => { if(event.key === "Enter") search(); });
   if(skuInput) skuInput.addEventListener("keydown", event => { if(event.key === "Enter") check(); });
 }
