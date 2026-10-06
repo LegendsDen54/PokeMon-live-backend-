@@ -2,6 +2,7 @@ const push = require("./push");
 
 const HASDATA_API_KEY =
   process.env.HASDATA_API_KEY || "";
+const providerCooldown = require("./provider-cooldown");
 
 const HASDATA_TIMEOUT_MS =
   Math.max(
@@ -1049,6 +1050,12 @@ async function searchHasData(query) {
     );
   }
 
+  if (providerCooldown.isBlocked("hasdata")) {
+    throw new Error(
+      `HasData temporarily disabled until ${providerCooldown.getState("hasdata").retryAfter}`
+    );
+  }
+
   const params =
     new URLSearchParams({
       q:
@@ -1070,8 +1077,9 @@ async function searchHasData(query) {
         "shipping"
     });
 
-  const data =
-    await fetchJson(
+  let data;
+  try {
+    data = await fetchJson(
       `https://api.hasdata.com/scrape/walmart/search?${params.toString()}`,
 
       {
@@ -1089,6 +1097,12 @@ async function searchHasData(query) {
 
       HASDATA_TIMEOUT_MS
     );
+  } catch (error) {
+    if (/HTTP 403|HTTP 429|quota|credit|plan/i.test(error.message || "")) {
+      providerCooldown.block("hasdata", error.message);
+    }
+    throw error;
+  }
 
   return Array.isArray(
     data?.productResults

@@ -1,4 +1,5 @@
 const rawCatalog = require("./products.json");
+const providerCooldown = require("./provider-cooldown");
 
 const catalogProducts =
   Array.isArray(rawCatalog)
@@ -65,6 +66,11 @@ const RAPIDAPI_AUTH_COOLDOWN_MS = Math.max(
   )
 );
 
+// Provider quota failures are not recoverable by retrying every scan cycle.
+// Keep the scheduler active, but pause this provider until its cooldown ends.
+const PROVIDER_QUOTA_COOLDOWN_MS =
+  providerCooldown.DEFAULT_QUOTA_COOLDOWN_MS;
+
 const discoveredItems =
   new Map();
 
@@ -73,6 +79,13 @@ let lastDiscoveredDeals = [];
 let lastRaffles = [];
 
 let rapidApiCircuit = {
+  open: false,
+  reason: null,
+  openedAt: null,
+  retryAfter: null
+};
+
+let hasDataCircuit = {
   open: false,
   reason: null,
   openedAt: null,
@@ -1285,7 +1298,8 @@ async function fetchJson(
 ======================================== */
 
 function openRapidApiCircuit(
-  error
+  error,
+  cooldownMs = RAPIDAPI_AUTH_COOLDOWN_MS
 ) {
   const now =
     Date.now();
@@ -1304,7 +1318,7 @@ function openRapidApiCircuit(
     retryAfter:
       new Date(
         now +
-        RAPIDAPI_AUTH_COOLDOWN_MS
+        cooldownMs
       ).toISOString()
   };
 }
@@ -1428,6 +1442,14 @@ async function axessoRequest(
     ) {
       openRapidApiCircuit(
         error
+      );
+    } else if (
+      error?.status === 429 &&
+      /monthly quota|quota.*exceed|requests.*plan/i.test(error.message || "")
+    ) {
+      openRapidApiCircuit(
+        error,
+        PROVIDER_QUOTA_COOLDOWN_MS
       );
     }
 
@@ -1628,6 +1650,30 @@ function isTransientHasDataError(
   );
 }
 
+function hasDataCircuitIsBlocking() {
+  if (!hasDataCircuit.open) return false;
+  const retryAfter = Date.parse(hasDataCircuit.retryAfter || "");
+  if (Number.isFinite(retryAfter) && Date.now() >= retryAfter) {
+    hasDataCircuit = {open:false, reason:null, openedAt:null, retryAfter:null};
+    return false;
+  }
+  return true;
+}
+
+function openHasDataCircuit(error) {
+  const now = Date.now();
+  hasDataCircuit = {
+    open: true,
+    reason: error?.message || "HasData credits or access unavailable",
+    openedAt: new Date(now).toISOString(),
+    retryAfter: new Date(now + PROVIDER_QUOTA_COOLDOWN_MS).toISOString()
+  };
+  providerCooldown.block(
+    "hasdata",
+    error?.message || "HasData credits or access unavailable"
+  );
+}
+
 async function hasDataSearchOnce(
   query
 ) {
@@ -1685,6 +1731,24 @@ async function hasDataSearch(
     );
   }
 
+  if (hasDataCircuitIsBlocking()) {
+    providerHealth.hasdata.blockedRequests =
+      (providerHealth.hasdata.blockedRequests || 0) + 1;
+    const error = new Error(
+      `HasData temporarily disabled until ${hasDataCircuit.retryAfter}`
+    );
+    error.code = "HASDATA_CIRCUIT_OPEN";
+    throw error;
+  }
+
+  if (providerCooldown.isBlocked("hasdata")) {
+    const error = new Error(
+      `HasData temporarily disabled until ${providerCooldown.getState("hasdata").retryAfter}`
+    );
+    error.code = "HASDATA_CIRCUIT_OPEN";
+    throw error;
+  }
+
   let lastError =
     null;
 
@@ -1722,6 +1786,13 @@ async function hasDataSearch(
         "hasdata",
         error
       );
+
+      if (
+        error?.status === 403 ||
+        (error?.status === 429 && /quota|credit|plan/i.test(error.message || ""))
+      ) {
+        openHasDataCircuit(error);
+      }
 
       const retry =
         attempt <
@@ -2403,7 +2474,10 @@ function emptyResult(
       "online",
 
     status:
-      "out",
+      source === "axesso-no-match" ||
+      String(source || "").endsWith("provider-error")
+        ? "unknown"
+        : "out",
 
     rawStatus:
       "",
@@ -3610,6 +3684,13 @@ function getProviderInfo() {
 
     rapidApiAuthCooldownMs:
       RAPIDAPI_AUTH_COOLDOWN_MS,
+
+    providerQuotaCooldownMs:
+      PROVIDER_QUOTA_COOLDOWN_MS,
+
+    hasDataCircuit: {
+      ...providerCooldown.getState("hasdata")
+    },
 
     hasDataTimeoutMs:
       HASDATA_TIMEOUT_MS,

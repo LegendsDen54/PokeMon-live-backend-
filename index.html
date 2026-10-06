@@ -1514,6 +1514,11 @@ function renderPokemonCenter(state){
   const lastCheck = pc.lastChecked ? new Date(pc.lastChecked).toLocaleString() : "Not checked yet";
   const sources = Array.isArray(pc.supportHealth) ? pc.supportHealth : [];
   const supportOk = sources.filter(source => source.ok === true).length;
+  const sourceSummary = sources.map(source => {
+    let host = "Official source";
+    try { host = new URL(source.url).hostname; } catch (error) {}
+    return host + (source.status ? " · HTTP " + source.status : source.error ? " · unavailable" : " · no response");
+  });
   const eventRows = events.map(event => {
     const date = event.at ? new Date(event.at).toLocaleString() : "";
     return "<li><strong>" + esc(event.type || "Signal") + "</strong>" +
@@ -1529,6 +1534,7 @@ function renderPokemonCenter(state){
     supportOk + "/" + sources.length + " responding</p>" +
     "<p>Last check: " + esc(lastCheck) +
     (pc.queueActive ? " · QUEUE SIGNAL ACTIVE" : "") + "</p>" +
+    (sourceSummary.length ? "<p>Source checks: " + esc(sourceSummary.join("; ")) + "</p>" : "") +
     (pc.predictedProduct && pc.predictedProduct.name
       ? "<p>Related product signal: " + esc(pc.predictedProduct.name) + "</p>" : "") +
     (pc.lastError ? "<p role=\"status\">Monitor note: " + esc(pc.lastError) + "</p>" : "") +
