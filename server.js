@@ -1935,7 +1935,7 @@ app.get("/api/ccn/inventory-reports", async (req,res) => {
   if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
   if (!hasValidPokemonCenterSensorToken(req)) return pokemonCenterSensorUnauthorized(res);
   if (!["costco","sams","bestbuy"].includes(req.query.retailer) || !/^\d{5}$/.test(req.query.zip || "")) return res.status(400).json({ok:false,error:"Choose retailer and ZIP"});
-  try {res.json({ok:true,reports:await ccnInventory.list(req.query.retailer,req.query.zip)});}
+  try {res.json({ok:true,reports:await ccnInventory.list(req.query.retailer,req.query.zip),nextCheckAt:Math.floor(Date.now()/3600000)*3600000+3600000});}
   catch(error){res.status(503).json({ok:false,error:"CCN report storage unavailable"});}
 });
 app.get(

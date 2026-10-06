@@ -15,7 +15,9 @@ function clean(input){
   if(!["results","no_stock_reported","checker_error"].includes(input.result)) throw new Error("Invalid checker result");
   const quantity=value=>value==null?null:Number.isInteger(value)&&value>=0?value:null;
   const locations=(input.locations || []).slice(0,100).map(row=>({name:String(row.name || "").slice(0,150),address:String(row.address || "").slice(0,250),onOrder:quantity(row.onOrder),inTransit:quantity(row.inTransit),onHand:quantity(row.onHand),status:String(row.status || "Not published").slice(0,100)}));
-  return {retailer:input.retailer,productId:input.productId,zip:input.zip,name:String(input.name).slice(0,240),source:"CCN / Zephyr stock checker",sourceUrl:input.sourceUrl,checkedAt:new Date(checked).toISOString(),result:input.result,detail:String(input.detail || "").slice(0,400),locations:input.result==="results"?locations:[]};
+  let image=null;
+  try{const u=new URL(input.image);if(u.protocol==="https:" && /(?:^|\.)(?:costco\.com|samsclub\.com|scene7\.com|bbystatic\.com|bestbuy\.com|wal\.co)$/.test(u.hostname))image=u.href;}catch{}
+  return {retailer:input.retailer,productId:input.productId,zip:input.zip,name:String(input.name).slice(0,240),image,source:"CCN / Zephyr stock checker",sourceUrl:input.sourceUrl,checkedAt:new Date(checked).toISOString(),result:input.result,detail:String(input.detail || "").slice(0,400),locations:input.result==="results"?locations:[]};
 }
 async function save(input){
   const report=clean(input);await storage();

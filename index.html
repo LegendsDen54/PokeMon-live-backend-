@@ -871,6 +871,15 @@ a{
   color:var(--text);
 }
 
+.ccn-product-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px;margin-top:16px;}
+.ccn-product-tile{min-width:0;padding:16px;background:#06111f;border:1px solid #26475f;border-radius:14px;text-align:left;}
+.ccn-product-tile .retailer-product-image-frame,.ccn-product-tile .retailer-product-image-placeholder{width:100%;height:180px;}
+.ccn-product-tile h4{margin:12px 0 6px;}
+.ccn-product-tile small{display:block;color:var(--muted);font-size:11px;}
+.ccn-location-scroll{overflow:auto;max-height:220px;margin-top:8px;}
+.ccn-location-scroll table{width:100%;font-size:11px;border-collapse:collapse;}
+.ccn-location-scroll th,.ccn-location-scroll td{padding:7px;border-bottom:1px solid #26475f;}
+.ccn-product-tile details{margin-top:10px;}
 .online-product-link::after{content:"";position:absolute;inset:0;border-radius:12px;}
 .online-product-link:focus-visible::after{outline:2px solid #62c7ff;}
 .store-checker select{max-width:100%;min-width:0;box-sizing:border-box;text-overflow:ellipsis;}
@@ -2853,10 +2862,12 @@ async function renderCcnInventory(retailer){
     const data=await fetch("/api/ccn/inventory-reports?retailer="+encodeURIComponent(retailer)+"&zip="+encodeURIComponent(zip),{cache:"no-store",headers:{Authorization:"Bearer "+key}}).then(r=>r.json());
     if(!section.isConnected)return;
     if(!data.ok)throw new Error(data.error);
-    section.innerHTML='<h3>CCN in-store reports</h3><p>ZIP '+esc(zip)+' · CCN reports, not retailer-confirmed inventory. Latest report replaces the previous check. The checker currently advertises a 50-mile radius.</p>'+((data.reports || []).map(report=>{
-      const locations=(report.locations || []).map(row=>'<article class="retailer-product-card"><div><strong>'+esc(row.name)+'</strong><small>'+esc(row.address)+'</small><small>On order: '+esc(row.onOrder ?? 'Not published')+'</small><small>In transit: '+esc(row.inTransit ?? 'Not published')+'</small><small>On hand: '+esc(row.onHand ?? 'Not published')+'</small><small>'+esc(row.status)+'</small></div></article>').join('');
-      return '<section><h4>'+esc(report.name)+'</h4><p>Item '+esc(report.productId)+' · Checked '+esc(new Date(report.checkedAt).toLocaleString())+(report.stale?' · STALE':'')+'</p><p data-ccn-next="'+(Date.parse(report.checkedAt)+3600000)+'"></p><p>'+esc(report.result==='checker_error'?'Checker failed — inventory unknown':report.result==='no_stock_reported'?'CCN returned no stock found; no warehouse quantities supplied':'CCN checker results')+'</p><p>'+esc(report.detail)+'</p><div class="retailer-product-grid">'+locations+'</div><a href="'+esc(report.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW CCN SOURCE</a></section>';
-    }).join('') || '<p>No CCN check has been imported for this ZIP yet. Countdown starts after the first recorded check.</p>');
+    const productTiles=(data.reports || []).map(report=>{
+      const rows=(report.locations || []).map(row=>'<tr><th scope="row">'+esc(row.name)+'<small>'+esc(row.address)+'</small></th><td>'+esc(row.onOrder ?? '—')+'</td><td>'+esc(row.inTransit ?? '—')+'</td><td>'+esc(row.onHand ?? '—')+'</td></tr>').join('');
+      const image=report.image;
+      return '<article class="ccn-product-tile">'+retailerImageMarkup(image,report.name)+'<h4>'+esc(report.name)+'</h4><small>Item '+esc(report.productId)+'</small><p>'+esc(report.result==='checker_error'?'Checker error · stock unknown':report.result==='no_stock_reported'?'CCN reported no stock found':'Reported warehouse stock')+(report.stale?' · STALE':'')+'</p><small>Checked '+esc(new Date(report.checkedAt).toLocaleString())+'</small>'+(rows?'<details open><summary>Locations ('+report.locations.length+')</summary><div class="ccn-location-scroll"><table><thead><tr><th>Location</th><th>Order</th><th>Transit</th><th>On hand</th></tr></thead><tbody>'+rows+'</tbody></table></div><small>— means not supplied by the checker.</small></details>':'')+(report.detail?'<details><summary>Check details</summary><p>'+esc(report.detail)+'</p></details>':'')+'<p><a href="'+esc(report.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW CCN SOURCE ↗</a></p></article>';
+    }).join('');
+    section.innerHTML='<h3>CCN in-store reports</h3><p data-ccn-next="'+data.nextCheckAt+'"></p><small>Costco and Sam’s share the hourly schedule. The countdown is planned timing, not proof a check succeeded.</small><p>ZIP '+esc(zip)+' · CCN source · Actual checker radius: 50 miles.</p><div class="ccn-product-grid">'+(productTiles || '<p>No stock-checker results imported yet.</p>')+'</div>';
     updateCcnCountdowns();
   }catch(error){section.innerHTML='<h3>CCN in-store reports</h3><p>'+esc(error.message)+'</p>';}
 }
