@@ -345,8 +345,15 @@ async function processRaffleAlerts(
             item.startsAt
               ? `${item.name} has been found for an upcoming Walmart drawing. Starts ${new Date(
                   item.startsAt
-                ).toLocaleString("en-US")}.`
-              : `${item.name} has been found for an upcoming Walmart drawing.`,
+                ).toLocaleString("en-US", {
+                  weekday: "long",
+                  month: "short",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                  timeZoneName: "short"
+                })}.`
+              : `${item.name} has been found for an upcoming Walmart drawing. Walmart has not posted its join day and time yet.`,
 
           url:
             item.url ||

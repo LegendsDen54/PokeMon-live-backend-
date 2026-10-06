@@ -3089,6 +3089,38 @@ function isRaffleItem(item){
 }
 
 
+function raffleScheduleLabel(item){
+
+  if(
+    !item?.startsAt
+  ){
+
+    return "JOIN TIME: NOT POSTED BY WALMART YET";
+
+  }
+
+  const date =
+    new Date(item.startsAt);
+
+  if(
+    Number.isNaN(date.getTime())
+  ){
+
+    return "JOIN TIME: NOT POSTED BY WALMART YET";
+
+  }
+
+  return `JOIN TIME: ${date.toLocaleString([], {
+    weekday:"long",
+    month:"short",
+    day:"numeric",
+    hour:"numeric",
+    minute:"2-digit",
+    timeZoneName:"short"
+  })}`;
+}
+
+
 /* =========================================
    RAFFLE CARD
 ========================================= */
@@ -3201,6 +3233,10 @@ function buildRaffleCard(
             )
           }
 
+        </div>
+
+        <div class="raffle-detail">
+          ${esc(raffleScheduleLabel(item))}
         </div>
 
 
