@@ -2444,7 +2444,7 @@ function bestBuyCheckerMarkup(provider){
     : "A saved ZIP code is required before a SKU can check nearby stores.";
   const catalogMessage = provider.catalogSearch
     ? "Search by set or product type. Results come from the official Best Buy catalog and show the exact Best Buy SKU."
-    : "Paste a public Best Buy product link to check it now. Keyword and SKU catalog results will unlock when the verified Best Buy catalog connection is approved.";
+    : "Paste an individual Best Buy product-page link to check it now. Keyword and SKU catalog results will unlock when the verified Best Buy catalog connection is approved.";
   return "<section class=\"store-checker\"><h3>Official Best Buy Product &amp; SKU Finder</h3>" +
     "<p>" + esc(catalogMessage) + "</p>" +
     "<div class=\"store-checker-row\"><input id=\"bestBuyProductSearch\" type=\"search\" placeholder=\"Product name or Best Buy link, e.g. Prismatic ETB\"" + catalogDisabled + ">" +
@@ -2545,7 +2545,11 @@ function wireBestBuyChecker(provider){
   const search = async () => {
     const query = String(productInput && productInput.value || "").trim();
     if(query.length < 2) return showCatalog("<p>Enter at least two characters to find a product and SKU.</p>");
-    const isBestBuyProductLink = /^https:\/\/(?:www\.)?bestbuy\.com\/(?:site|product)\//i.test(query);
+    const isBestBuyUrl = /^https:\/\/(?:www\.)?bestbuy\.com\//i.test(query);
+    const isBestBuyProductLink = /^https:\/\/(?:www\.)?bestbuy\.com\/product\/[^/?#]+/i.test(query);
+    if(isBestBuyUrl && !isBestBuyProductLink){
+      return showCatalog("<p>This is a Best Buy search or category page, not one product. Open the item you want on Best Buy, then paste that individual product page link here.</p>");
+    }
     if(isBestBuyProductLink){
       const productUrl = safeExternalUrl(query);
       bestBuyManualProduct = productUrl ? {name: bestBuyManualProductName(productUrl), url: productUrl, status: "manual product link"} : null;
