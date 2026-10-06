@@ -1758,9 +1758,15 @@ app.post(
       });
     }
 
+    const observedPrice = Number(req.body?.price);
+    const observedImage = String(req.body?.image || "").trim();
+    const observedSeller = String(req.body?.seller || "").trim();
     const result = {
       url,
       title: String(req.body?.title || "Best Buy product").slice(0, 240),
+      image: /^https:\/\//i.test(observedImage) ? observedImage.slice(0, 1000) : null,
+      price: Number.isFinite(observedPrice) && observedPrice >= 0 ? observedPrice : null,
+      seller: observedSeller ? observedSeller.slice(0, 160) : null,
       availability,
       observedAt: new Date().toISOString(),
       source: "browser_product_page"
