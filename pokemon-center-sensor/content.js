@@ -94,7 +94,7 @@ function skuFrom(pageText) {
 }
 
 function isTcgText(value) {
-  return /\bpok[eé]mon\s*tcg\b|trading\s*card\s*game|\belite trainer box\b|\bbooster\s+(?:box|bundle|pack)\b|\bultra[- ]premium collection\b|\bbuild\s*(?:&|and)\s*battle\b|\bpromo\s+card\b|\bcollector(?:'s)?\s+chest\b|\bmini\s*tins?\b|\btrainer\s+kit\b|\btheme\s+deck\b/i.test(
+  return /\bpok[eé]mon\s*tcg\b|trading\s*card\s*game|\belite trainer box\b|\bbooster\s+(?:box|bundle|pack|display)\b|\bultra[- ]premium collection\b|\bpremium collection\b|\b(?:ex|v|vmax|v-?union|gx)\s+(?:box|collection)\b|\b(?:three|3)[- ]pack blister\b|\bsingle[- ]pack blister\b|\bleague battle deck\b|\bbattle deck\b|\bbuild\s*(?:&|and)\s*battle(?:\s+(?:box|stadium))?\b|\bpromo\s+card\b|\bcollector(?:'s)?\s+chest\b|\bmini\s*tins?\b|\btrainer\s+kit\b|\btheme\s+deck\b/i.test(
     String(value || "")
   );
 }
@@ -102,7 +102,8 @@ function isTcgText(value) {
 function isTcgProductText(value) {
   const label = String(value || "");
   const accessory = /\b(?:sleeves?|deck box|binder|portfolio|playmat|coin|dice|damage counter|pin|keychain|plush|figure|apparel|shirt|hoodie|hat|backpack|lunchbox|mug|water bottle|sticker|poster|ornament)\b/i;
-  return isTcgText(label) && !accessory.test(label);
+  const premiumCollection = /\b(?:ultra|special|super)[- ]premium collection\b|\bpremium collection\b/i;
+  return isTcgText(label) && (premiumCollection.test(label) || !accessory.test(label));
 }
 
 function productLinks() {
