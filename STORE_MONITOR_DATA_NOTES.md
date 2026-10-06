@@ -165,3 +165,31 @@ https://docs.unwrangle.com/samsclub-product-data-api/
 An authorized CCN Costco checker test returned an item/checker eligibility error,
 not stock. A Sam's test was not submitted because the required legacy product
 and SKU identifiers were not verified. No newly working live feed was obtained.
+
+### Target online drop plan (researched 2026-10-06)
+
+User wants online Pokemon card-containing TCG drops, with an overnight priority
+window of 02:00-05:00 America/Chicago. Store timing in that IANA timezone, not
+fixed CST/EST offsets, so daylight saving changes are handled correctly.
+
+Autoqueue's own small detection sample reports approximately 03:00-04:30 Eastern
+(02:00-03:30 Chicago), explicitly an observation rather than a Target commitment.
+TrackaLacker reports a September 18 window of 03:00-06:00 Eastern (02:00-05:00
+Chicago), with the first buyable item at 03:27 Eastern (02:27 Chicago).
+Community July 3 reports also anticipated around 03:00 Eastern. These support
+the requested priority window, not guaranteed daily drops or verified quantities.
+Conflicting weekday claims do not justify limiting monitoring to a single day.
+https://autoqueue.app/drops/target
+https://www.trackalacker.com/articles/news/upcoming-pokemon-drop-at-target
+https://www.reddit.com/r/pokemonrestockr/comments/1um5njh/target_pok%C3%A9mon_drop_tonight_300_am_et/
+
+Implementation plan: validate a real online availability source with confirmed
+Target-sold listings and stable TCIN/DPCI identifiers; automatically discover
+card-containing TCG listings across eras; distinguish shipping/preorder from
+store pickup and listing discovery; retain official images, price, direct links,
+source timestamps and unknown inventory where appropriate. Keep a conservative
+baseline schedule outside the priority window, subject to provider limits, and
+use caching/backoff and transition-based alert deduplication. New listings or
+images alone are potential signals, not proof that a drop is imminent. Verify
+one real availability transition and push delivery before declaring Target live.
+This entry saves a plan only; it does not enable Target scanning or a new feed.
