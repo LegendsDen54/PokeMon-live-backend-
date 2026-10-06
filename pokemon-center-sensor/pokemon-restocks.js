@@ -4,7 +4,18 @@
 const seenPostIds = new Set();
 const pendingPostIds = new Set();
 let timer = null;
-const TIMELINE_REFRESH_MS = 2 * 60 * 1000;
+const TIMELINE_REFRESH_MS = 30 * 60 * 1000;
+
+function chicagoDayKey(value) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date(value || Date.now()));
+}
+
+let activeChicagoDay = chicagoDayKey();
 
 function normalize(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
@@ -24,14 +35,7 @@ function isTodayInChicago(value) {
     return false;
   }
 
-  const format = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Chicago",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  });
-
-  return format.format(date) === format.format(new Date());
+  return chicagoDayKey(date) === chicagoDayKey();
 }
 
 function report(article) {
@@ -112,3 +116,12 @@ new MutationObserver(scheduleInspect).observe(document.documentElement, {
   owner-opened public timeline so the sensor can collect today's posts.
 */
 setInterval(() => location.reload(), TIMELINE_REFRESH_MS);
+
+/* Start a clean daily feed even when the 30-minute timer spans midnight. */
+setInterval(() => {
+  const today = chicagoDayKey();
+  if (today !== activeChicagoDay) {
+    activeChicagoDay = today;
+    location.reload();
+  }
+}, 60 * 1000);
