@@ -1931,6 +1931,10 @@ app.get("/api/ccn/news",async(req,res)=>{
   if (!hasValidPokemonCenterSensorToken(req)) return pokemonCenterSensorUnauthorized(res);
   try{res.json({ok:true,posts:await ccnInventory.news()});}catch(error){res.status(503).json({ok:false,error:"CCN news storage unavailable"});}
 });
+app.get("/api/retail/watch-products", (req,res) => {
+  if (!["costco","sams"].includes(req.query.retailer)) return res.status(400).json({ok:false,error:"Choose retailer"});
+  res.json({ok:true,products:retailOnline.snapshot(req.query.retailer).catalog || []});
+});
 app.get("/api/ccn/inventory-reports", async (req,res) => {
   if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
   if (!hasValidPokemonCenterSensorToken(req)) return pokemonCenterSensorUnauthorized(res);

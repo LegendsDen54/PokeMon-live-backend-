@@ -136,7 +136,10 @@ function parseProduct(retailer, url, html) {
 function catalog(retailer) {
   const state = getState(retailer);
   const entries = new Map((catalogs[retailer] || []).map(item => [item.url || item.query, item]));
-  for (const item of state.items.values()) entries.set(item.url, {label:item.name, query:item.name, url:item.url, sku:item.sku, image:item.image, price:item.price, discovered:true});
+  for (const item of state.items.values()) {
+    const known=entries.get(item.url) || {};
+    entries.set(item.url, {...known,label:known.label || item.name,query:known.query || item.name,url:item.url,sku:item.sku,image:item.image || known.image,price:item.price,discovered:true,stage:item.availability === "available" ? "current" : known.stage || "current",evidence:item.availability === "available" ? "Public retailer availability observed" : known.evidence || "Retailer listing"});
+  }
   return [...entries.values()];
 }
 async function check(retailer, url) {

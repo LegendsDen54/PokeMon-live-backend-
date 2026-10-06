@@ -3,54 +3,103 @@
     {
       "label": "Confirmed · Ascended Heroes: Focused Fighters Premium Collection",
       "query": "Pokemon TCG Mega Evolution Ascended Heroes Focused Fighters Premium Collection",
-      "url": "https://www.samsclub.com/ip/pokemon-tcg-mega-evolution-ascended-heroes-focused-fighters-premium-collection/20186272756"
+      "url": "https://www.samsclub.com/ip/pokemon-tcg-mega-evolution-ascended-heroes-focused-fighters-premium-collection/20186272756",
+      "stage": "current",
+      "verifiedAt": "2026-10-06",
+      "evidence": "Retailer listing",
+      "itemNumber": "990518062",
+      "sourceUrl": "https://www.reddit.com/r/PokemonDeals/comments/1wln4lo/new_ascended_heroes_costco_sams_club_drops_are/"
     },
     {
       "label": "Reported current · Ascended Heroes ETB + Poké Ball Tin Bundle",
       "query": "Pokemon TCG Ascended Heroes Elite Trainer Box Poke Ball Tin Bundle",
-      "url": null
+      "url": "https://www.samsclub.com/ip/seort/20846402350",
+      "stage": "current",
+      "verifiedAt": "2026-10-06",
+      "evidence": "Community report",
+      "itemNumber": "990517856",
+      "sourceUrl": "https://www.reddit.com/r/PokemonDeals/comments/1wln4lo/new_ascended_heroes_costco_sams_club_drops_are/"
     },
     {
       "label": "Confirmed · 151: 4 Mini Tins + 4 Promo Cards Bundle",
       "query": "Pokemon TCG 151 4 Mini Tins 4 Promo Cards Bundle",
-      "url": "https://www.samsclub.com/ip/pokemon-4-mini-tins-4-promo-cards-bundle/17593918944"
+      "url": "https://www.samsclub.com/ip/pokemon-4-mini-tins-4-promo-cards-bundle/17593918944",
+      "stage": "current",
+      "verifiedAt": "2026-10-06",
+      "evidence": "Retailer listing"
     },
     {
       "label": "Recent historical · Heavy Hitters Premium Collection",
       "query": "Pokemon TCG Heavy Hitters Premium Collection",
-      "url": null
+      "url": null,
+      "stage": "historical",
+      "verifiedAt": "2026-10-06",
+      "evidence": "Community report"
     },
     {
       "label": "Recent historical · 151 Mini Tin + Poké Ball Bundle",
       "query": "Pokemon TCG 151 Mini Tin Poke Ball Bundle",
-      "url": null
+      "url": null,
+      "stage": "historical",
+      "verifiedAt": "2026-10-06",
+      "evidence": "Community report"
     }
   ],
   "costco": [
     {
       "label": "Confirmed · 5-Pack Mini Tins, Galar Powers + 4 Promo Cards · Item 2351575",
       "query": "Pokemon 5 Pack Mini Tins Galar Powers 2351575",
-      "url": "https://www.costco.com/p/-/pokmon-5-pack-mini-tins-galar-powers-plus-4-promo-cards/4000092045"
+      "url": "https://www.costco.com/p/-/pokmon-5-pack-mini-tins-galar-powers-plus-4-promo-cards/4000092045",
+      "stage": "current",
+      "verifiedAt": "2026-10-06",
+      "evidence": "Retailer listing",
+      "itemNumber": "2351575",
+      "image": "https://gdx-assets.costco.com/adobe/assets/urn:aaid:aem:ee321bcd-2f26-428b-9df4-c70656f95b97/as/2351575-847__1.avif"
+    },
+    {
+      "label": "Reported released · Ascended Heroes Mini Tin 5-Pack + 5 Promo Cards",
+      "query": "Pokemon TCG Ascended Heroes Mini Tin 5 Pack",
+      "url": null,
+      "itemNumber": "2007494",
+      "stage": "current",
+      "evidence": "User release report; community identifier",
+      "sourceUrl": "https://www.reddit.com/r/PokemonDeals/comments/1wln4lo/new_ascended_heroes_costco_sams_club_drops_are/",
+      "verifiedAt": "2026-10-06"
     },
     {
       "label": "Reported current · Ascended Heroes Mini Tin Bundle · 10 tins · Item 2007495",
       "query": "Pokemon TCG Ascended Heroes Mini Tin Bundle 2007495",
-      "url": null
+      "url": null,
+      "stage": "current",
+      "verifiedAt": "2026-10-06",
+      "evidence": "Community report",
+      "itemNumber": "2007495",
+      "sourceUrl": "https://www.reddit.com/r/PokemonDeals/comments/1wln4lo/new_ascended_heroes_costco_sams_club_drops_are/"
     },
     {
       "label": "Reported current · Ascended Heroes Elite Trainer Box Bundle",
       "query": "Pokemon TCG Ascended Heroes Elite Trainer Box Bundle",
-      "url": null
+      "url": null,
+      "stage": "current",
+      "verifiedAt": "2026-10-06",
+      "evidence": "Community report"
     },
     {
       "label": "Reported upcoming · 30th Celebration ETB + Booster Bundle Collection",
       "query": "Pokemon TCG 30th Celebration Elite Trainer Box Booster Bundle Collection",
-      "url": null
+      "url": null,
+      "stage": "upcoming",
+      "verifiedAt": "2026-10-06",
+      "evidence": "Community report",
+      "sourceUrl": "https://www.reddit.com/r/PokemonDealsUSA/comments/1wr57ic/costco_pok%C3%A9mon_30th_celebration_bundle_incoming/"
     },
     {
       "label": "Confirmed recent · Crown Zenith ETB + Koraidon ex + Miraidon Tins",
       "query": "Pokemon TCG Crown Zenith Elite Trainer Box Koraidon Miraidon Tin Bundle",
-      "url": "https://www.costco.com/CompareProductsDisplay?partNumbers=4000283872"
+      "url": "https://www.costco.com/CompareProductsDisplay?partNumbers=4000283872",
+      "stage": "current",
+      "verifiedAt": "2026-10-06",
+      "evidence": "Retailer listing"
     }
   ],
   "target": [
