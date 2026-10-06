@@ -2,16 +2,19 @@
 
 const backendUrl = document.getElementById("backendUrl");
 const sensorToken = document.getElementById("sensorToken");
+const automaticRefresh = document.getElementById("automaticRefresh");
 const status = document.getElementById("status");
 
 chrome.storage.local.get([
   "backendUrl",
-  "sensorToken"
+  "sensorToken",
+  "automaticRefreshEnabled"
 ]).then(stored => {
   backendUrl.value =
     stored.backendUrl ||
     "https://pokemon-live-backend.onrender.com";
   sensorToken.value = stored.sensorToken || "";
+  automaticRefresh.checked = stored.automaticRefreshEnabled === true;
 });
 
 document.getElementById("save")
@@ -26,7 +29,9 @@ document.getElementById("save")
 
     await chrome.storage.local.set({
       backendUrl: url,
-      sensorToken: token
+      sensorToken: token,
+      automaticRefreshEnabled: automaticRefresh.checked,
+      lastAutomaticRefreshAt: 0
     });
 
     chrome.runtime.sendMessage({kind: "heartbeat", payload: {}})

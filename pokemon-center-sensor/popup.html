@@ -18,6 +18,11 @@
     <input id="backendUrl" type="url">
     <label for="sensorToken">Sensor pairing key</label>
     <input id="sensorToken" type="password" autocomplete="off">
+    <label class="toggle" for="automaticRefresh">
+      <input id="automaticRefresh" type="checkbox">
+      Refresh Pokémon Center automatically
+    </label>
+    <small>Every 2 minutes from Tuesday 10 AM through Thursday 3 PM Central; every 15 minutes otherwise. Only open Pokémon Center tabs are refreshed.</small>
     <button id="save" type="button">Save and test connection</button>
     <p id="status" role="status"></p>
     <small>Only page changes visible in your own browser are sent. It does not bypass queues or access controls.</small>

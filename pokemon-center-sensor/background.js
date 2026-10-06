@@ -3,6 +3,99 @@
 const DEFAULT_BACKEND_URL =
   "https://pokemon-live-backend.onrender.com";
 
+const REFRESH_ALARM = "pokemon-center-scheduled-refresh";
+const ACTIVE_REFRESH_MS = 2 * 60 * 1000;
+const QUIET_REFRESH_MS = 15 * 60 * 1000;
+
+function chicagoNow() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    weekday: "short",
+    hour: "numeric",
+    hourCycle: "h23"
+  }).formatToParts(new Date());
+
+  return Object.fromEntries(
+    parts
+      .filter(part => part.type !== "literal")
+      .map(part => [part.type, part.value])
+  );
+}
+
+function activeWatchWindow() {
+  const now = chicagoNow();
+  const hour = Number(now.hour);
+
+  if (now.weekday === "Tue") {
+    return hour >= 10;
+  }
+
+  if (now.weekday === "Wed") {
+    return true;
+  }
+
+  if (now.weekday === "Thu") {
+    return hour < 15;
+  }
+
+  return false;
+}
+
+async function refreshPokemonCenterTabs() {
+  const settings = await chrome.storage.local.get([
+    "automaticRefreshEnabled",
+    "lastAutomaticRefreshAt"
+  ]);
+
+  if (!settings.automaticRefreshEnabled) {
+    return;
+  }
+
+  const interval = activeWatchWindow()
+    ? ACTIVE_REFRESH_MS
+    : QUIET_REFRESH_MS;
+
+  if (Date.now() - Number(settings.lastAutomaticRefreshAt || 0) < interval) {
+    return;
+  }
+
+  const tabs = await chrome.tabs.query({
+    url: "https://www.pokemoncenter.com/*"
+  });
+
+  if (!tabs.length) {
+    return;
+  }
+
+  await Promise.all(
+    tabs
+      .filter(tab => Number.isInteger(tab.id))
+      .map(tab => chrome.tabs.reload(tab.id))
+  );
+
+  await chrome.storage.local.set({
+    lastAutomaticRefreshAt: Date.now()
+  });
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.alarms.create(REFRESH_ALARM, {
+    periodInMinutes: 1
+  });
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  chrome.alarms.create(REFRESH_ALARM, {
+    periodInMinutes: 1
+  });
+});
+
+chrome.alarms.onAlarm.addListener(alarm => {
+  if (alarm.name === REFRESH_ALARM) {
+    refreshPokemonCenterTabs().catch(() => {});
+  }
+});
+
 async function getConfig() {
   const stored = await chrome.storage.local.get([
     "backendUrl",
