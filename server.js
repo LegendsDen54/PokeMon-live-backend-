@@ -148,11 +148,16 @@ const bestBuyPublicScheduleState = {
 function validBestBuyPublicUrl(value) {
   try {
     const url = new URL(String(value || ""));
-    return url.protocol === "https:" &&
+    const isProductPage = url.protocol === "https:" &&
       (url.hostname === "www.bestbuy.com" || url.hostname === "bestbuy.com") &&
-      (url.pathname.includes("/site/") || url.pathname.includes("/product/"))
-      ? url.href
-      : null;
+      (url.pathname.includes("/site/") || url.pathname.includes("/product/"));
+
+    if (!isProductPage) return null;
+
+    // Best Buy review URLs do not contain live fulfilment details. Use the
+    // corresponding product page when someone pastes the review link.
+    url.pathname = url.pathname.replace(/\/reviews\/?$/i, "");
+    return url.href;
   } catch (error) {
     return null;
   }
