@@ -262,10 +262,16 @@ async function checkPublicBestBuyPage(value, {force = false} = {}) {
   const pageText = html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").toLowerCase();
   const availability = /pickup today|ready for pickup|pick up today/.test(pageText) ? "pickup_available" : /sold out|unavailable for pickup|pickup not available/.test(pageText) ? "pickup_unavailable" : /add to cart/.test(pageText) ? "online_available" : "unknown";
   const title = (html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] || "Best Buy product").trim();
+  const metaContent = property => html.match(new RegExp("<meta[^>]+(?:property|name)=[\"']" + property + "[\"'][^>]+content=[\"']([^\"']+)", "i"))?.[1] || html.match(new RegExp("<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+(?:property|name)=[\"']" + property + "[\"']", "i"))?.[1] || null;
+  const image = metaContent("og:image") || null;
+  const rawPrice = metaContent("product:price:amount") || html.match(/itemprop=[\"']price[\"'][^>]+content=[\"']([0-9]+(?:\.[0-9]{1,2})?)/i)?.[1] || html.match(/\"price\"\s*:\s*\"?([0-9]+(?:\.[0-9]{1,2})?)/i)?.[1] || null;
+  const price = Number(rawPrice);
   const changed = previous && previous.availability !== availability;
   const result = {
     url,
     title,
+    image,
+    price: Number.isFinite(price) ? price : null,
     availability,
     changed: Boolean(changed),
     checkedAt: new Date().toISOString(),

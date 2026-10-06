@@ -2411,6 +2411,7 @@ const BESTBUY_ERA_SETS = {
 };
 
 const BESTBUY_PRODUCT_TYPES = ["All product types", "Elite Trainer Box", "Booster Bundle", "Booster Box", "Collection Box", "Premium Collection", "Tin", "Mini Tin", "Blister", "Build & Battle Box"];
+const CHICAGO_SALES_TAX_RATE = 0.105;
 
 function bestBuyCheckerMarkup(provider){
   const catalogDisabled = "";
@@ -2465,13 +2466,21 @@ function bestBuyCheckerCard(item){
       (Number.isFinite(distance) ? "<small>" + esc(distance.toFixed(1)) + " miles away</small>" : "") +
       "<small class=\"store-availability\">" + (Number.isFinite(quantity) ? "Quantity: " + esc(quantity) : (item.lowStock ? "Low stock · exact quantity not published" : "Available · exact quantity not published")) + "</small>"
     : "";
+  const price = Number(item.price);
+  const tax = Number.isFinite(price) ? Math.round(price * CHICAGO_SALES_TAX_RATE * 100) / 100 : null;
+  const total = Number.isFinite(price) ? Math.round((price + tax) * 100) / 100 : null;
+  const priceInfo = Number.isFinite(price)
+    ? "<small>Listed price: $" + esc(price.toFixed(2)) + "</small>" +
+      "<small>Est. Chicago tax (10.50%): $" + esc(tax.toFixed(2)) + "</small>" +
+      "<small class=\"store-availability\">Est. Chicago total: $" + esc(total.toFixed(2)) + "</small>"
+    : "<small>Price unavailable from the verified listing</small>";
   const sku = String(item.sku || item.productId || "").trim();
   const useSku = sku && item.channel !== "store"
     ? "<button class=\"retailer-product-card-action\" type=\"button\" data-bestbuy-sku=\"" + esc(sku) + "\">USE THIS SKU FOR NEARBY STORES</button>"
     : "";
   return "<article class=\"retailer-product-card\">" + photo + "<div><strong>" + title +
     "</strong><small>SKU: " + esc(item.sku || item.productId || "Unavailable") + "</small>" +
-    "<small>" + esc(item.rawStatus || item.status || "unknown").replace(/_/g, " ").toUpperCase() + "</small>" + storeInfo + useSku + "</div></article>";
+    "<small>" + esc(item.rawStatus || item.status || "unknown").replace(/_/g, " ").toUpperCase() + "</small>" + priceInfo + storeInfo + useSku + "</div></article>";
 }
 
 function wireBestBuyChecker(provider){
@@ -2500,8 +2509,8 @@ function wireBestBuyChecker(provider){
         const data = await response.json();
         if(!response.ok || !data.ok) throw new Error(data.error || "Public page check failed");
         const productUrl = safeExternalUrl(query);
-        const openProduct = productUrl ? "<p><a class=\"retailer-product-card-action\" href=\"" + esc(productUrl) + "\" target=\"_blank\" rel=\"noopener noreferrer\">OPEN AT BEST BUY</a></p>" : "";
-        showCatalog("<p><strong>" + esc(data.title) + "</strong><br>Public availability: " + esc(String(data.availability || "unknown").replace(/_/g, " ")) + "<br>Checked " + esc(new Date(data.checkedAt).toLocaleString()) + "</p>" + openProduct);
+        const publicProduct = {name: data.title, url: productUrl, image: data.image, price: data.price, status: data.availability};
+        showCatalog("<p>Public availability: " + esc(String(data.availability || "unknown").replace(/_/g, " ")) + "<br>Checked " + esc(new Date(data.checkedAt).toLocaleString()) + "</p><div class=\"retailer-product-grid\">" + bestBuyCheckerCard(publicProduct) + "</div>");
       }catch(error){ showCatalog("<p>" + esc(error.message) + "</p>"); }
       finally{ productButton.disabled = false; }
       return;
