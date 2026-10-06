@@ -2406,7 +2406,7 @@ const BESTBUY_ERA_SETS = {
   },
   megaEvolution: {
     label: "Mega Evolution",
-    sets: ["Mega Evolution", "Mega Evolution Phantasmal Flames", "Mega Evolution Perfect Order", "Mega Evolution Chaos Rising", "Mega Evolution Pitch Black"]
+    sets: ["Mega Evolution", "Mega Evolution Phantasmal Flames", "Mega Evolution Perfect Order", "Mega Evolution Chaos Rising", "Mega Evolution Pitch Black", "Mega Evolution 30th Anniversary"]
   }
 };
 
@@ -2499,7 +2499,9 @@ function wireBestBuyChecker(provider){
         const response = await fetch("/api/bestbuy/public-check?force=true&url=" + encodeURIComponent(query), {cache:"no-store"});
         const data = await response.json();
         if(!response.ok || !data.ok) throw new Error(data.error || "Public page check failed");
-        showCatalog("<p><strong>" + esc(data.title) + "</strong><br>Public availability: " + esc(String(data.availability || "unknown").replace(/_/g, " ")) + "<br>Checked " + esc(new Date(data.checkedAt).toLocaleString()) + "</p>");
+        const productUrl = safeExternalUrl(query);
+        const openProduct = productUrl ? "<p><a class=\"retailer-product-card-action\" href=\"" + esc(productUrl) + "\" target=\"_blank\" rel=\"noopener noreferrer\">OPEN AT BEST BUY</a></p>" : "";
+        showCatalog("<p><strong>" + esc(data.title) + "</strong><br>Public availability: " + esc(String(data.availability || "unknown").replace(/_/g, " ")) + "<br>Checked " + esc(new Date(data.checkedAt).toLocaleString()) + "</p>" + openProduct);
       }catch(error){ showCatalog("<p>" + esc(error.message) + "</p>"); }
       finally{ productButton.disabled = false; }
       return;
@@ -2546,6 +2548,8 @@ function wireBestBuyChecker(provider){
   if(eraSearchButton) eraSearchButton.addEventListener("click", () => {
     const query = [eraSet && eraSet.value, eraProductType && eraProductType.value].filter(Boolean).join(" ");
     if(productInput) productInput.value = query || "Pokemon TCG";
+    if(eraPicker) eraPicker.hidden = true;
+    document.querySelectorAll("[data-bestbuy-era]").forEach(tab => tab.setAttribute("aria-pressed", "false"));
     search();
   });
   catalogResults.addEventListener("click", event => {
@@ -2558,7 +2562,14 @@ function wireBestBuyChecker(provider){
 }
 
 
+function bestBuyPickerIsInUse(){
+  const picker = document.getElementById("bestBuyEraPicker");
+  if(!picker || picker.hidden) return false;
+  return picker.contains(document.activeElement);
+}
+
 async function renderExternalRetailer(retailer){
+  if(retailer === "bestbuy" && bestBuyPickerIsInUse()) return;
   const labels = {target:"Target", sams:"Sam's Club", bestbuy:"Best Buy", costco:"Costco"};
   const label = labels[retailer] || retailer;
   const provider = (latestStatusData && Array.isArray(latestStatusData.providers)
