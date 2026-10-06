@@ -1115,6 +1115,41 @@ app.get(
 );
 
 
+app.get(
+  "/api/push/test/pokemon-center-queue",
+  async (req,res) => {
+    try {
+      const result =
+        await push
+          .sendPokemonCenterQueueTestAlert();
+
+      res.json({
+        ok: true,
+
+        test:
+          "pokemon-center-queue-push",
+
+        simulated:
+          true,
+
+        walmartApiCalled:
+          false,
+
+        ...result
+      });
+    } catch (error) {
+      res
+        .status(500)
+        .json({
+          ok: false,
+          error:
+            error.message
+        });
+    }
+  }
+);
+
+
 app.post(
   "/api/push/subscribe",
   async (req,res) => {

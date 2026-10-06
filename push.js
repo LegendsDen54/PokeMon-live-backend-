@@ -683,6 +683,33 @@ async function sendTestAlert() {
 
 
 /* ========================================
+   POKEMON CENTER QUEUE PUSH TEST
+======================================== */
+
+async function sendPokemonCenterQueueTestAlert() {
+  return broadcast({
+    title:
+      "Pokémon Center — Queue Detected (Test)",
+
+    body:
+      "A Pokémon Center queue alert would appear here. This is only a notification test.",
+
+    url:
+      "https://pokemon-live-backend.onrender.com/",
+
+    icon:
+      "https://pokemon-live-backend.onrender.com/restock_background.png",
+
+    badge:
+      "https://pokemon-live-backend.onrender.com/restock_background.png",
+
+    tag:
+      "pokemon-center-queue-test"
+  });
+}
+
+
+/* ========================================
    STATUS
 ======================================== */
 
@@ -751,6 +778,8 @@ module.exports = {
   sendRestockAlert,
 
   sendTestAlert,
+
+  sendPokemonCenterQueueTestAlert,
 
   getPushStatus
 };
