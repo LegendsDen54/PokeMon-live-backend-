@@ -114,6 +114,7 @@ const pokemonCenterSensorToken =
 
 const bestBuyPublicStates = new Map();
 const bestBuyBrowserStates = new Map();
+const samsBrowserStates = new Map();
 
 const bestBuyPublicWatchUrls =
   String(process.env.BESTBUY_PUBLIC_WATCH_URLS || "")
@@ -1774,6 +1775,68 @@ app.post(
 
     bestBuyBrowserStates.set(url, result);
     res.json({ok: true, ...result});
+  }
+);
+
+app.post(
+  "/api/sams/browser-observation",
+  (req,res) => {
+    if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
+    if (!hasValidPokemonCenterSensorToken(req)) return pokemonCenterSensorUnauthorized(res);
+
+    let url;
+    try {
+      const parsed = new URL(String(req.body?.url || ""));
+      if (parsed.protocol !== "https:" || parsed.hostname !== "www.samsclub.com" || !parsed.pathname.startsWith("/ip/")) throw new Error("invalid");
+      parsed.search = "";
+      parsed.hash = "";
+      url = parsed.href;
+    } catch {
+      return res.status(400).json({ok:false,error:"Invalid Sam's Club browser observation"});
+    }
+
+    const availability = String(req.body?.availability || "unknown");
+    if (!new Set(["available","unavailable","unknown"]).has(availability)) {
+      return res.status(400).json({ok:false,error:"Invalid Sam's Club availability"});
+    }
+
+    const observedPrice = Number(req.body?.price);
+    const observedImage = String(req.body?.image || "").trim();
+    const result = {
+      url,
+      title: String(req.body?.title || "Sam's Club product").slice(0,240),
+      image: /^https:\/\//i.test(observedImage) ? observedImage.slice(0,1000) : null,
+      price: Number.isFinite(observedPrice) && observedPrice >= 0 ? observedPrice : null,
+      itemNumber: String(req.body?.itemNumber || "").replace(/\D/g,"").slice(0,30) || null,
+      availability,
+      observedAt: new Date().toISOString(),
+      source: "browser_product_page"
+    };
+
+    const previous = samsBrowserStates.get(url);
+    samsBrowserStates.set(url,result);
+
+    if (previous && previous.availability !== "available" && availability === "available") {
+      push.broadcast({
+        title: "Sam's Club — Pokémon availability",
+        body: result.title + " now appears available.",
+        url,
+        tag: "sams-" + Buffer.from(url).toString("base64url").slice(0,36)
+      }).catch(() => {});
+    }
+
+    res.json({ok:true,...result});
+  }
+);
+
+app.get(
+  "/api/sams/browser-observations",
+  (req,res) => {
+    res.json({
+      ok:true,
+      count:samsBrowserStates.size,
+      items:Array.from(samsBrowserStates.values())
+    });
   }
 );
 
