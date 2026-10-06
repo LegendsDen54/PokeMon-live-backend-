@@ -228,6 +228,59 @@ a{
   color:white;
 }
 
+.pokemon-restocks-widget{
+  border:1px solid rgba(98,199,255,.26);
+  border-radius:16px;
+  padding:14px;
+  background:linear-gradient(180deg,#0b1d34,#06101d);
+  color:var(--text);
+}
+
+.pokemon-restocks-widget-head{display:flex;align-items:center;gap:10px;}
+
+.pokemon-restocks-widget-mark{
+  display:grid;
+  width:34px;
+  height:34px;
+  place-items:center;
+  border-radius:9px;
+  background:#f3f8ff;
+  color:#081323;
+  font-size:22px;
+  font-weight:900;
+}
+
+.pokemon-restocks-widget-title{font-size:15px;font-weight:950;}
+.pokemon-restocks-widget-subtitle{margin-top:2px;color:var(--muted);font-size:11px;}
+
+.pokemon-restocks-feed{
+  display:grid;
+  gap:9px;
+  max-height:420px;
+  margin:14px 0 0;
+  overflow-y:auto;
+}
+
+.pokemon-restocks-post{
+  display:block;
+  padding:12px;
+  border:1px solid rgba(138,160,190,.24);
+  border-radius:10px;
+  background:#06111f;
+  color:#e7f2ff;
+  font-size:13px;
+  line-height:1.4;
+  text-decoration:none;
+}
+
+.pokemon-restocks-post small{
+  display:block;
+  margin-top:7px;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:800;
+}
+
 
 /* =========================================
    WALMART PANEL
@@ -1527,7 +1580,7 @@ a{
         class="tab"
         data-retailer="all"
       >
-        ALL
+        𝕏 RESTOCKS
       </button>
 
       <button
@@ -1576,6 +1629,14 @@ a{
 
   </section>
 
+
+  <!-- POKÉMON RESTOCKS PUBLIC FEED -->
+  <section
+    id="pokemonRestocksSection"
+    class="section other-retailer"
+  >
+    <div id="pokemonRestocksCard"></div>
+  </section>
 
   <!-- POKÉMON CENTER SIGNAL MONITOR -->
   <section
@@ -1854,6 +1915,12 @@ const pokemonCenterCard =
 const pokemonCenterToast =
   document.getElementById("pokemonCenterToast");
 
+const pokemonRestocksSection =
+  document.getElementById("pokemonRestocksSection");
+
+const pokemonRestocksCard =
+  document.getElementById("pokemonRestocksCard");
+
 const otherRetailerSection =
   document.getElementById(
     "otherRetailerSection"
@@ -1939,25 +2006,35 @@ const lastUpdated =
 let newestPokemonCenterSignal = null;
 let pokemonCenterToastTimer = null;
 
+function renderPokemonRestocks(state){
+  const allEvents = Array.isArray(state?.latestEvents) ? state.latestEvents : [];
+  const chicagoDay = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit"
+  }).format(new Date());
+  const posts = allEvents.filter(event => {
+    if (!event || event.thirdParty !== true || event.tcgRelevant !== true || !event.at) return false;
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit"
+    }).format(new Date(event.at)) === chicagoDay;
+  });
+  const rows = posts.map(event => {
+    const url = /^https:\/\/x\.com\/PokemonRestocks\/status\/\d+/i.test(String(event.url || "")) ? event.url : "https://x.com/PokemonRestocks";
+    const time = new Date(event.at).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+    return "<a class=\"pokemon-restocks-post\" href=\"" + esc(url) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" +
+      esc(event.detail || "PokémonRestocks TCG alert") +
+      "<small>Open post · " + esc(time) + "</small></a>";
+  }).join("");
+  pokemonRestocksCard.innerHTML =
+    "<div class=\"pokemon-restocks-widget\">" +
+    "<div class=\"pokemon-restocks-widget-head\"><span class=\"pokemon-restocks-widget-mark\" aria-hidden=\"true\">𝕏</span><div><div class=\"pokemon-restocks-widget-title\">PokémonRestocks</div><div class=\"pokemon-restocks-widget-subtitle\">Today’s public TCG alerts</div></div></div>" +
+    "<div class=\"pokemon-restocks-feed\">" + (rows || "<p class=\"quiet-state\">Waiting for new PokémonRestocks TCG posts today.</p>") + "</div>" +
+    "<a class=\"source-link source-link-x\" href=\"https://x.com/PokemonRestocks\" target=\"_blank\" rel=\"noopener noreferrer\"><span class=\"source-link-mark-x\" aria-hidden=\"true\">𝕏</span>Open PokémonRestocks on X</a></div>";
+}
+
 function renderPokemonCenter(state){
   const pc = state || {};
   const allEvents = Array.isArray(pc.latestEvents) ? pc.latestEvents : [];
   const events = allEvents.filter(event => event && event.thirdParty !== true).slice(0, 8);
-  const chicagoDay = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Chicago",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(new Date());
-  const thirdPartyEvents = allEvents.filter(event => {
-    if (!event || event.thirdParty !== true || event.tcgRelevant !== true || !event.at) return false;
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone: "America/Chicago",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit"
-    }).format(new Date(event.at)) === chicagoDay;
-  });
   const level = String(pc.level || "normal").replace(/_/g, " ").toUpperCase();
   const sensor = pc.browserSensorOnline === true ? "CONNECTED" : "PAIR CHROME SENSOR";
   const sources = Array.isArray(pc.supportHealth) ? pc.supportHealth : [];
@@ -2005,22 +2082,6 @@ function renderPokemonCenter(state){
     ? "Latest TCG signal: " + esc(events[0].type || "Activity") +
       (events[0].at ? " · " + esc(new Date(events[0].at).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})) : "")
     : "No verified Pokémon Center TCG activity yet.";
-  const thirdPartyRows = thirdPartyEvents.map(event => {
-    const date = event.at ? new Date(event.at).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) : "";
-    const link = /^https:\/\/x\.com\/PokemonRestocks\/status\/\d+/i.test(String(event.url || ""))
-      ? " <a href=\"" + esc(event.url) + "\" target=\"_blank\" rel=\"noopener noreferrer\">Open post</a>"
-      : "";
-    return "<li>" + esc(event.detail || "PokémonRestocks public alert") +
-      (date ? " <small>" + esc(date) + "</small>" : "") + link + "</li>";
-  }).join("");
-  const thirdPartyFeed =
-    "<details class=\"third-party-feed\"><summary>PokémonRestocks TCG today" +
-    (thirdPartyEvents.length ? " · " + thirdPartyEvents.length + " alert" + (thirdPartyEvents.length === 1 ? "" : "s") : "") +
-    "</summary>" +
-    (thirdPartyEvents.length
-      ? "<ul class=\"signal-list\">" + thirdPartyRows + "</ul>"
-      : "<p class=\"quiet-state\">No new public PokémonRestocks TCG alerts today.</p>") +
-    "<a class=\"source-link source-link-x\" href=\"https://x.com/PokemonRestocks\" target=\"_blank\" rel=\"noopener noreferrer\"><span class=\"source-link-mark-x\" aria-hidden=\"true\">𝕏</span>Open PokémonRestocks on X</a></details>";
   pokemonCenterCard.innerHTML =
     "<div class=\"pokemon-center-heading\"><span class=\"pokemon-center-mark\" aria-hidden=\"true\"></span><div class=\"panel-title\">Pokémon Center</div></div>" +
     "<div class=\"signal-summary\"><div><div class=\"signal-summary-label\">Pokémon Center readiness</div><div class=\"signal-summary-value\">" + score + "/100</div></div><div class=\"signal-score\">" + esc(level) + "</div></div>" +
@@ -2030,7 +2091,6 @@ function renderPokemonCenter(state){
     predictedProduct +
     (productBoxes ? "<div class=\"pokemon-center-products\">" + productBoxes + "</div>" : "") +
     "<p class=\"pokemon-center-activity\">" + activity + "</p>" +
-    thirdPartyFeed +
     outlook +
     "<a class=\"source-link\" href=\"https://www.pokemoncenter.com/\" target=\"_blank\" rel=\"noopener noreferrer\"><span class=\"pokemon-center-mark\" aria-hidden=\"true\"></span>Open Pokémon Center</a>";
   showNewPokemonCenterSignal(events[0]);
@@ -2163,7 +2223,7 @@ async function renderExternalRetailer(retailer){
    STATE
 ========================================= */
 
-let activeRetailer = "walmart";
+let activeRetailer = "all";
 
 let latestStatusData = null;
 
@@ -3235,6 +3295,10 @@ async function load(){
       statusData?.pokemonCenter
     );
 
+    renderPokemonRestocks(
+      statusData?.pokemonCenter
+    );
+
     if(
       ["target", "sams", "bestbuy", "costco"]
         .includes(activeRetailer)
@@ -3480,6 +3544,9 @@ function setRetailer(
     otherRetailerSection.classList.remove(
       "show"
     );
+    pokemonRestocksSection.classList.remove(
+      "show"
+    );
     pokemonCenterSection.classList.add(
       "show"
     );
@@ -3494,8 +3561,28 @@ function setRetailer(
   );
 
   if(
-    retailer === "walmart" ||
     retailer === "all"
+  ){
+    walmartSection.style.display =
+      "none";
+    otherRetailerSection.classList.remove(
+      "show"
+    );
+    pokemonRestocksSection.classList.add(
+      "show"
+    );
+    renderPokemonRestocks(
+      latestStatusData && latestStatusData.pokemonCenter
+    );
+    return;
+  }
+
+  pokemonRestocksSection.classList.remove(
+    "show"
+  );
+
+  if(
+    retailer === "walmart"
   ){
     walmartSection.style.display =
       "block";
@@ -3598,7 +3685,7 @@ setInterval(
 ========================================= */
 
 setRetailer(
-  "walmart"
+  "all"
 );
 
 load();
