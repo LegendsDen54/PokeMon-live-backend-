@@ -2511,7 +2511,11 @@ function wireBestBuyChecker(provider){
         const productUrl = safeExternalUrl(query);
         const publicProduct = {name: data.title, url: productUrl, image: data.image, price: data.price, status: data.availability};
         showCatalog("<p>Public availability: " + esc(String(data.availability || "unknown").replace(/_/g, " ")) + "<br>Checked " + esc(new Date(data.checkedAt).toLocaleString()) + "</p><div class=\"retailer-product-grid\">" + bestBuyCheckerCard(publicProduct) + "</div>");
-      }catch(error){ showCatalog("<p>" + esc(error.message) + "</p>"); }
+      }catch(error){
+        const fallbackUrl = safeExternalUrl(query);
+        const fallbackOpen = fallbackUrl ? "<p><a class=\"retailer-product-card-action\" href=\"" + esc(fallbackUrl) + "\" target=\"_blank\" rel=\"noopener noreferrer\">OPEN AT BEST BUY</a></p>" : "";
+        showCatalog("<p>" + esc(error.message) + "</p>" + fallbackOpen);
+      }
       finally{ productButton.disabled = false; }
       return;
     }
