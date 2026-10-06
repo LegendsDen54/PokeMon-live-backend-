@@ -2885,6 +2885,7 @@ async function renderExternalRetailer(retailer){
     (retailer === "bestbuy" ? bestBuyCheckerMarkup(provider) :
       (checker ? warehouseCheckerMarkup(retailer, provider) : ""));
   if(warehouse) {wireWarehouseChannels(retailer); if(checker) renderCcnInventory(retailer);}
+  if(retailer === "bestbuy") renderCcnInventory(retailer);
   if(!provider.configured && !(warehouse && selectedChannel === "online")){
     if(retailer === "bestbuy") wireBestBuyChecker(provider);
     if(retailer === "sams" || retailer === "costco") wireWarehouseChecker(retailer);
