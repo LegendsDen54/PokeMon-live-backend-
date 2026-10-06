@@ -1517,7 +1517,17 @@ function renderPokemonCenter(state){
   const sourceSummary = sources.map(source => {
     let host = "Official source";
     try { host = new URL(source.url).hostname; } catch (error) {}
-    return host + (source.status ? " · HTTP " + source.status : source.error ? " · unavailable" : " · no response");
+    const retry = source.retryAfter
+      ? " · retry after " + new Date(source.retryAfter).toLocaleString()
+      : "";
+    const detail = source.state === "blocked"
+      ? " · automated access denied" + (source.status ? " (HTTP " + source.status + ")" : "")
+      : source.state === "rate_limited"
+        ? " · rate limited" + (source.status ? " (HTTP " + source.status + ")" : "")
+        : source.state === "available"
+          ? " · responding"
+          : " · unavailable" + (source.status ? " (HTTP " + source.status + ")" : "");
+    return host + detail + retry;
   });
   const eventRows = events.map(event => {
     const date = event.at ? new Date(event.at).toLocaleString() : "";
@@ -1530,7 +1540,7 @@ function renderPokemonCenter(state){
     "<div class=\"panel-title\">Pokémon Center Signal Monitor</div>" +
     "<p>Priority " + esc(pc.priority || "highest") + " · " + level +
     " · Confidence " + esc(pc.confidenceLabel || "LOW") + "</p>" +
-    "<p>Browser sensor: " + esc(sensor) + " · Official support sources: " +
+    "<p>Browser sensor: " + esc(sensor) + " · Official support pages: " +
     supportOk + "/" + sources.length + " responding</p>" +
     "<p>Last check: " + esc(lastCheck) +
     (pc.queueActive ? " · QUEUE SIGNAL ACTIVE" : "") + "</p>" +
@@ -1541,6 +1551,7 @@ function renderPokemonCenter(state){
     "<h3>Recent Pokémon Center signals</h3>" +
     (events.length ? "<ul>" + eventRows + "</ul>" :
       "<p>No product signals have been detected yet. This monitor reports configured public support checks and user-visible browser sensor signals; it does not invent stock.</p>") +
+    "<p>Support-page checks do not confirm product inventory or stock.</p>" +
     "<p><a href=\"https://www.pokemoncenter.com/\" target=\"_blank\" rel=\"noopener noreferrer\">Open Pokémon Center</a></p>";
 }
 

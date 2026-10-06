@@ -176,6 +176,36 @@ const REQUEST_TIMEOUT_MS =
   );
 
 
+const SUPPORT_BLOCKED_RETRY_MS =
+  Math.max(
+    15 * 60 * 1000,
+    Number(
+      process.env.POKEMON_CENTER_BLOCKED_RETRY_MINUTES ||
+      360
+    ) * 60 * 1000
+  );
+
+
+const SUPPORT_RATE_LIMIT_RETRY_MS =
+  Math.max(
+    5 * 60 * 1000,
+    Number(
+      process.env.POKEMON_CENTER_RATE_LIMIT_RETRY_MINUTES ||
+      60
+    ) * 60 * 1000
+  );
+
+
+const SUPPORT_ERROR_RETRY_MS =
+  Math.max(
+    5 * 60 * 1000,
+    Number(
+      process.env.POKEMON_CENTER_ERROR_RETRY_MINUTES ||
+      15
+    ) * 60 * 1000
+  );
+
+
 const SENSOR_STALE_MS =
   Math.max(
     2 * 60 * 1000,
@@ -207,18 +237,22 @@ const MAX_PRODUCTS =
 
 
 /*
-  Public official support surfaces.
+  Public official support-center JSON endpoints.
 
-  These are fallback intelligence sources.
+  The browser pages can reject cloud requests with
+  HTTP 403 while the public Zendesk JSON endpoints
+  remain readable. These endpoints only provide
+  support and preorder/release information; they do
+  not expose live storefront inventory.
 
-  Direct pokemoncenter.com storefront requests
-  are intentionally NOT the primary source
-  because Render has already shown HTTP 403.
+  Direct pokemoncenter.com storefront requests are
+  intentionally not used as a way around access
+  controls.
 */
 const SUPPORT_URLS = [
-  "https://support.pokemoncenter.com/hc/en-us/articles/4407702295572-Estimated-Preorder-Release-Dates",
-  "https://support.pokemoncenter.com/hc/en-us/articles/360000247014-How-often-are-new-products-added-to-Pok%C3%A9mon-Center",
-  "https://support.pokemoncenter.com/hc/en-us/articles/37286495522452-Pok%C3%A9mon-Center-Virtual-Queue"
+  "https://support.pokemoncenter.com/api/v2/help_center/en-us/articles/4407702295572.json",
+  "https://support.pokemoncenter.com/api/v2/help_center/en-us/articles/360000247014.json",
+  "https://support.pokemoncenter.com/api/v2/help_center/en-us/articles/37286495522452.json"
 ];
 
 
@@ -1196,6 +1230,23 @@ function baseScoreForType(
 function scoreSignal(
   signal
 ) {
+
+  /*
+    Official help-center edits can report preorder
+    shipment dates, but they are not storefront or
+    backend inventory activity. Keep them visible as
+    informational events without treating them as
+    evidence that a drop is near.
+  */
+  if (
+    signal.source ===
+      "pokemon-center-support"
+  ) {
+    return signal.type ===
+      "SUPPORT_PREORDER_CHANGE"
+      ? 15
+      : 0;
+  }
 
   let score =
     baseScoreForType(
@@ -2195,9 +2246,12 @@ async function processSignal(
 
 
   const score =
-    correlatedScore(
-      initialScore
-    );
+    signal.source ===
+      "pokemon-center-support"
+      ? initialScore
+      : correlatedScore(
+          initialScore
+        );
 
 
   const level =
@@ -2277,8 +2331,9 @@ async function processSignal(
     exact same alert from repeating.
   */
   if(
-    score >=
-      20
+    score >= 20 &&
+    signal.source !==
+      "pokemon-center-support"
   ){
 
     try{
@@ -2357,7 +2412,7 @@ async function fetchText(
               USER_AGENT,
 
             "accept":
-              "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+              "application/json",
 
             "accept-language":
               "en-US,en;q=0.9",
@@ -2383,6 +2438,11 @@ async function fetchText(
 
       status:
         response.status,
+
+      retryAfter:
+        response.headers.get(
+          "retry-after"
+        ),
 
       finalUrl:
         response.url ||
@@ -2560,6 +2620,33 @@ async function scanSupportSource(
   const checkedAt =
     nowIso();
 
+  const previousHealth =
+    supportHealth.get(
+      url
+    );
+
+  const retryAfterMs =
+    Date.parse(
+      previousHealth?.retryAfter ||
+      ""
+    );
+
+  if (
+    Number.isFinite(
+      retryAfterMs
+    ) &&
+    retryAfterMs > Date.now()
+  ) {
+    return {
+      ok: false,
+      changed: false,
+      skipped: true,
+      status: previousHealth.status,
+      error: previousHealth.error,
+      retryAfter: previousHealth.retryAfter
+    };
+  }
+
 
   try{
 
@@ -2568,10 +2655,157 @@ async function scanSupportSource(
         url
       );
 
+    if (
+      !response.ok
+    ) {
+      const retryDelay =
+        response.status === 401 ||
+        response.status === 403
+          ? SUPPORT_BLOCKED_RETRY_MS
+          : response.status === 429
+            ? SUPPORT_RATE_LIMIT_RETRY_MS
+            : SUPPORT_ERROR_RETRY_MS;
+
+      let retryAt =
+        Date.now() + retryDelay;
+
+      if (
+        response.status === 429 &&
+        response.retryAfter
+      ) {
+        const retrySeconds =
+          Number(
+            response.retryAfter
+          );
+
+        const parsedRetryDate =
+          Number.isFinite(retrySeconds) &&
+          retrySeconds > 0
+            ? Date.now() + retrySeconds * 1000
+            : Date.parse(
+                response.retryAfter
+              );
+
+        if (
+          Number.isFinite(parsedRetryDate)
+        ) {
+          retryAt = Math.max(
+            Date.now() + 30 * 1000,
+            Math.min(
+              parsedRetryDate,
+              Date.now() + 24 * 60 * 60 * 1000
+            )
+          );
+        }
+      }
+
+      const retryAfter =
+        new Date(
+          retryAt
+        ).toISOString();
+
+      const statusLabel =
+        response.status === 401 ||
+        response.status === 403
+          ? "Automated access denied"
+          : response.status === 429
+            ? "Rate limited"
+            : "Source unavailable";
+
+      const sourceError =
+        `${statusLabel} (HTTP ${response.status})`;
+
+      supportHealth.set(
+        url,
+        {
+          url,
+          ok: false,
+          state:
+            response.status === 401 ||
+            response.status === 403
+              ? "blocked"
+              : response.status === 429
+                ? "rate_limited"
+                : "unavailable",
+          status: response.status,
+          finalUrl: response.finalUrl,
+          bytes: response.bytes,
+          checkedAt,
+          retryAfter,
+          error: sourceError
+        }
+      );
+
+      return {
+        ok: false,
+        changed: false,
+        status: response.status,
+        error: sourceError,
+        retryAfter
+      };
+    }
+
+
+    let sourceText =
+      response.text;
+
+    try {
+      const payload =
+        JSON.parse(
+          response.text
+        );
+
+      const article =
+        payload?.article;
+
+      if (
+        !article ||
+        typeof article !== "object"
+      ) {
+        throw new Error(
+          "Support API returned no article"
+        );
+      }
+
+      sourceText = [
+        article.title,
+        article.body
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+    } catch (error) {
+      const sourceError =
+        `Invalid Pokémon Center support JSON: ${error.message}`;
+
+      supportHealth.set(
+        url,
+        {
+          url,
+          ok: false,
+          state: "unavailable",
+          status: response.status,
+          finalUrl: response.finalUrl,
+          bytes: response.bytes,
+          checkedAt,
+          retryAfter: new Date(
+            Date.now() + SUPPORT_ERROR_RETRY_MS
+          ).toISOString(),
+          error: sourceError
+        }
+      );
+
+      return {
+        ok: false,
+        changed: false,
+        status: response.status,
+        error: sourceError
+      };
+    }
 
     const signalText =
       supportPageSignalText(
-        response.text
+        sourceText
       );
 
 
@@ -2596,6 +2830,9 @@ async function scanSupportSource(
         ok:
           response.ok,
 
+        state:
+          "available",
+
         status:
           response.status,
 
@@ -2606,6 +2843,9 @@ async function scanSupportSource(
           response.bytes,
 
         checkedAt,
+
+        retryAfter:
+          null,
 
         error:
           null
@@ -2694,7 +2934,7 @@ async function scanSupportSource(
 
     if(
       url.includes(
-        "Estimated-Preorder-Release-Dates"
+        "/articles/4407702295572.json"
       )
     ){
 
@@ -2797,6 +3037,9 @@ async function scanSupportSource(
         status:
           null,
 
+        state:
+          "unavailable",
+
         finalUrl:
           null,
 
@@ -2804,6 +3047,12 @@ async function scanSupportSource(
           0,
 
         checkedAt,
+
+        retryAfter:
+          new Date(
+            Date.now() +
+            SUPPORT_ERROR_RETRY_MS
+          ).toISOString(),
 
         error:
           error.message
@@ -2899,6 +3148,12 @@ async function scan(){
           true
       );
 
+    const failed =
+      results.filter(
+        result =>
+          result.ok !== true
+      );
+
 
     state.lastSuccess =
       successful.length
@@ -2906,23 +3161,47 @@ async function scan(){
         : state.lastSuccess;
 
 
-    state.lastError =
-      successful.length
-        ? null
-        : (
-            results
-              .map(
-                result =>
-                  result.error
-              )
-              .filter(
-                Boolean
-              )
-              .join(
-                " | "
-              ) ||
-            "All Pokémon Center support sentinel sources failed"
-          );
+    const blockedCount =
+      failed.filter(
+        result =>
+          result.status === 401 ||
+          result.status === 403
+      ).length;
+
+    const limitedCount =
+      failed.filter(
+        result =>
+          result.status === 429
+      ).length;
+
+    if (
+      failed.length === 0
+    ) {
+      state.lastError = null;
+    } else if (
+      blockedCount === failed.length
+    ) {
+      state.lastError =
+        `Pokémon Center denied automated access to ${blockedCount} support page(s) (HTTP 403/401). No inventory was available from these checks; blocked pages will be retried after the cooldown.`;
+    } else if (
+      limitedCount === failed.length
+    ) {
+      state.lastError =
+        `Pokémon Center rate-limited ${limitedCount} support page(s) (HTTP 429). No inventory was available from these checks; they will be retried after the cooldown.`;
+    } else {
+      const errors =
+        failed
+          .map(
+            result =>
+              result.error
+          )
+          .filter(Boolean);
+
+      state.lastError =
+        successful.length
+          ? `Some Pokémon Center support pages are unavailable: ${errors.join("; ") || `${failed.length} check(s) failed`}.`
+          : `Pokémon Center inventory is unavailable from its support pages: ${errors.join("; ") || `${failed.length} check(s) failed`}.`;
+    }
 
 
     refreshState();
