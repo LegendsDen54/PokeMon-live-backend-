@@ -115,6 +115,7 @@ const pokemonCenterSensorToken =
 const bestBuyPublicStates = new Map();
 const bestBuyBrowserStates = new Map();
 const samsBrowserStates = new Map();
+const costcoBrowserStates = new Map();
 
 const bestBuyPublicWatchUrls =
   String(process.env.BESTBUY_PUBLIC_WATCH_URLS || "")
@@ -1836,6 +1837,68 @@ app.get(
       ok:true,
       count:samsBrowserStates.size,
       items:Array.from(samsBrowserStates.values())
+    });
+  }
+);
+
+app.post(
+  "/api/costco/browser-observation",
+  (req,res) => {
+    if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
+    if (!hasValidPokemonCenterSensorToken(req)) return pokemonCenterSensorUnauthorized(res);
+
+    let url;
+    try {
+      const parsed = new URL(String(req.body?.url || ""));
+      if (parsed.protocol !== "https:" || parsed.hostname !== "www.costco.com") throw new Error("invalid");
+      parsed.search = "";
+      parsed.hash = "";
+      url = parsed.href;
+    } catch {
+      return res.status(400).json({ok:false,error:"Invalid public Costco browser observation"});
+    }
+
+    const availability = String(req.body?.availability || "unknown");
+    if (!new Set(["available","unavailable","unknown"]).has(availability)) {
+      return res.status(400).json({ok:false,error:"Invalid Costco availability"});
+    }
+
+    const observedPrice = Number(req.body?.price);
+    const observedImage = String(req.body?.image || "").trim();
+    const result = {
+      url,
+      title: String(req.body?.title || "Costco product").slice(0,240),
+      image: /^https:\/\//i.test(observedImage) ? observedImage.slice(0,1000) : null,
+      price: Number.isFinite(observedPrice) && observedPrice >= 0 ? observedPrice : null,
+      itemNumber: String(req.body?.itemNumber || "").replace(/\D/g,"").slice(0,30) || null,
+      availability,
+      observedAt: new Date().toISOString(),
+      source: "browser_product_page"
+    };
+
+    const previous = costcoBrowserStates.get(url);
+    costcoBrowserStates.set(url,result);
+
+    if (previous && previous.availability !== "available" && availability === "available") {
+      push.broadcast({
+        title: "Costco — Pokémon availability",
+        body: result.title + " now appears available.",
+        url,
+        tag: "costco-" + Buffer.from(url).toString("base64url").slice(0,36)
+      }).catch(() => {});
+    }
+
+    res.json({ok:true,...result});
+  }
+);
+
+app.get(
+  "/api/costco/browser-observations",
+  (req,res) => {
+    res.json({
+      ok:true,
+      count:costcoBrowserStates.size,
+      items:Array.from(costcoBrowserStates.values())
     });
   }
 );
