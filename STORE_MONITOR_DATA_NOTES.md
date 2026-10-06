@@ -8,6 +8,11 @@ The monitor limits nearby results to 75 miles from `BESTBUY_POSTAL_CODE`.
 The public store response does not provide an exact on-hand unit count, so the
 dashboard says that plainly instead of estimating one.
 
+The monitor also records a restock observation only after a store was previously
+observed unavailable and later returns as available. These observations can show
+local day and time patterns over time; they are evidence from the monitored
+availability feed, not a claimed delivery or stocking schedule.
+
 Required server settings for local Best Buy checks:
 
 - `BESTBUY_API_KEY`

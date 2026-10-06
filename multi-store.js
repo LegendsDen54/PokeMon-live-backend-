@@ -1,3 +1,5 @@
+const { Pool } = require("pg");
+
 const RETAILERS = {
   walmart: {
     label: "Walmart"
@@ -117,6 +119,92 @@ const states = Object.fromEntries(
 let walmartStateGetter = null;
 
 const timers = new Map();
+
+const bestBuyAvailability = new Map();
+
+const bestBuyPool =
+  process.env.DATABASE_URL
+    ? new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: {
+          rejectUnauthorized: false
+        }
+      })
+    : null;
+
+let bestBuyHistoryReady = false;
+
+async function initializeBestBuyHistory() {
+  if (!bestBuyPool || bestBuyHistoryReady) {
+    return;
+  }
+
+  await bestBuyPool.query(`
+    CREATE TABLE IF NOT EXISTS bestbuy_store_restock_events (
+      id SERIAL PRIMARY KEY,
+      product_sku TEXT NOT NULL,
+      product_name TEXT,
+      store_id TEXT NOT NULL,
+      store_name TEXT,
+      observed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(product_sku, store_id, observed_at)
+    )
+  `);
+
+  bestBuyHistoryReady = true;
+}
+
+async function recordBestBuyRestock(item) {
+  if (!bestBuyPool || !item?.sku || !item?.storeId) {
+    return;
+  }
+
+  try {
+    await initializeBestBuyHistory();
+    await bestBuyPool.query(
+      `INSERT INTO bestbuy_store_restock_events (
+        product_sku, product_name, store_id, store_name
+      ) VALUES ($1, $2, $3, $4)`,
+      [
+        item.sku,
+        item.name || null,
+        item.storeId,
+        item.storeName || null
+      ]
+    );
+  } catch (error) {
+    console.error(
+      "Best Buy restock history write failed:",
+      error.message
+    );
+  }
+}
+
+async function observeBestBuyStoreAvailability(
+  checkedSkus,
+  storeItems
+) {
+  const current = new Set();
+
+  for (const item of storeItems) {
+    const key = `${item.sku}:${item.storeId}`;
+    current.add(key);
+    const previous = bestBuyAvailability.get(key);
+
+    if (previous === false) {
+      await recordBestBuyRestock(item);
+    }
+
+    bestBuyAvailability.set(key, true);
+  }
+
+  for (const [key, available] of bestBuyAvailability) {
+    const sku = key.split(":")[0];
+    if (available && checkedSkus.has(sku) && !current.has(key)) {
+      bestBuyAvailability.set(key, false);
+    }
+  }
+}
 
 function sleep(ms) {
   return new Promise(
@@ -1049,6 +1137,128 @@ async function searchBestBuyPokemon() {
   );
 }
 
+function bestBuyProductFields() {
+  return [
+    "sku",
+    "name",
+    "salePrice",
+    "regularPrice",
+    "onlineAvailability",
+    "inStoreAvailability",
+    "inStorePickup",
+    "orderable",
+    "url",
+    "addToCartUrl",
+    "image",
+    "largeFrontImage",
+    "mediumImage"
+  ].join(",");
+}
+
+function productMatchesSearch(
+  product,
+  query
+) {
+  const haystack =
+    normalizeText(
+      `${product?.name || ""} ${product?.sku || ""}`
+    );
+
+  return normalizeText(query)
+    .split(" ")
+    .filter(Boolean)
+    .every(
+      token =>
+        haystack.includes(token)
+    );
+}
+
+async function searchBestBuyProducts(
+  query
+) {
+  if (!BESTBUY_API_KEY) {
+    throw new Error(
+      "Best Buy API is not configured"
+    );
+  }
+
+  const search =
+    String(query || "")
+      .trim();
+
+  if (search.length < 2) {
+    return [];
+  }
+
+  const products =
+    await searchBestBuyPokemon();
+
+  return products
+    .filter(
+      product =>
+        productMatchesSearch(
+          product,
+          search
+        )
+    )
+    .slice(0, 30)
+    .map(
+      normalizeBestBuyOnline
+    );
+}
+
+async function getBestBuyProductBySku(
+  sku
+) {
+  if (!BESTBUY_API_KEY) {
+    throw new Error(
+      "Best Buy API is not configured"
+    );
+  }
+
+  const value =
+    String(sku || "")
+      .trim();
+
+  if (!/^\d{4,20}$/.test(value)) {
+    throw new Error(
+      "Enter a valid Best Buy SKU number"
+    );
+  }
+
+  const params =
+    new URLSearchParams({
+      format: "json",
+      show: bestBuyProductFields(),
+      apiKey: BESTBUY_API_KEY
+    });
+
+  const payload =
+    await fetchJson(
+      `${BESTBUY_API_BASE}/products/${encodeURIComponent(value)}.json?${params.toString()}`,
+      {
+        headers: {
+          accept: "application/json"
+        }
+      },
+      BESTBUY_REQUEST_TIMEOUT_MS,
+      "Best Buy Product API"
+    );
+
+  const product =
+    Array.isArray(payload?.products)
+      ? payload.products[0]
+      : payload;
+
+  if (!product?.sku || !isPokemonTcgName(product.name)) {
+    throw new Error(
+      "That SKU is not a Pokémon TCG product in Best Buy's catalog"
+    );
+  }
+
+  return product;
+}
+
 async function getBestBuyStoreAvailability(
   product
 ) {
@@ -1112,6 +1322,30 @@ async function getBestBuyStoreAvailability(
       Number(item.distanceMiles) <=
         BESTBUY_RADIUS_MILES
   );
+}
+
+async function checkBestBuySku(
+  sku
+) {
+  if (!BESTBUY_POSTAL_CODE) {
+    throw new Error(
+      "Local Best Buy checks need a ZIP code in the monitor settings"
+    );
+  }
+
+  const product =
+    await getBestBuyProductBySku(sku);
+
+  const stores =
+    await getBestBuyStoreAvailability(product);
+
+  return {
+    product:
+      normalizeBestBuyOnline(product),
+    stores,
+    searchRadiusMiles:
+      BESTBUY_RADIUS_MILES
+  };
 }
 
 async function pollBestBuy() {
@@ -1241,6 +1475,19 @@ async function pollBestBuy() {
           );
         }
       }
+
+      await observeBestBuyStoreAvailability(
+        new Set(
+          storeCandidates.map(
+            product =>
+              String(product.sku)
+          )
+        ),
+        items.filter(
+          item =>
+            item.channel === "store"
+        )
+      );
     }
 
     state.items =
@@ -1672,5 +1919,7 @@ module.exports = {
   normalizeItem,
   getProviderStates,
   getProducts,
-  getStoreInventory
+  getStoreInventory,
+  searchBestBuyProducts,
+  checkBestBuySku
 };

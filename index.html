@@ -921,6 +921,60 @@ a{
   background:#fff;
 }
 
+.store-checker{
+  margin:14px 0;
+  padding:14px;
+  border:1px solid rgba(98,199,255,.24);
+  border-radius:12px;
+  background:#07192b;
+  text-align:left;
+}
+
+.store-checker h3{
+  margin:0 0 6px;
+  font-size:15px;
+}
+
+.store-checker p{
+  margin:0 0 10px;
+}
+
+.store-checker-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:8px 0;
+}
+
+.store-checker input{
+  min-width:190px;
+  flex:1;
+  padding:10px;
+  border:1px solid rgba(98,199,255,.35);
+  border-radius:8px;
+  background:#03101e;
+  color:var(--text);
+}
+
+.store-checker button{
+  padding:10px 12px;
+  border:0;
+  border-radius:8px;
+  background:var(--blue);
+  color:#03101e;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.store-checker button:disabled{
+  cursor:not-allowed;
+  opacity:.55;
+}
+
+.store-checker-results{
+  margin-top:10px;
+}
+
 .pokemon-center-card{
   text-align:left;
   color:var(--text);
@@ -2270,6 +2324,82 @@ function verifiedPokemonCenterQueueUrl(value){
   }
 }
 
+function bestBuyCheckerMarkup(provider){
+  const catalogDisabled = provider.configured ? "" : " disabled";
+  const storesDisabled = provider.configured && provider.localStoreSearch ? "" : " disabled";
+  const localMessage = provider.localStoreSearch
+    ? "Store results use the saved ZIP code and a 75-mile radius."
+    : "A saved ZIP code is required before a SKU can check nearby stores.";
+  return "<section class=\"store-checker\"><h3>Best Buy In-Store Checker</h3>" +
+    "<p>Find a Pokémon TCG item by set or product name, then check its official SKU at nearby stores.</p>" +
+    "<div class=\"store-checker-row\"><input id=\"bestBuyProductSearch\" type=\"search\" placeholder=\"Search set or item, e.g. Prismatic Evolutions ETB\"" + catalogDisabled + ">" +
+    "<button id=\"bestBuyProductSearchButton\" type=\"button\"" + catalogDisabled + ">FIND SKU</button></div>" +
+    "<div class=\"store-checker-row\"><input id=\"bestBuySkuSearch\" inputmode=\"numeric\" placeholder=\"Enter Best Buy SKU number\"" + storesDisabled + ">" +
+    "<button id=\"bestBuySkuSearchButton\" type=\"button\"" + storesDisabled + ">CHECK NEARBY STORES</button></div>" +
+    "<p>" + esc(localMessage) + " Exact quantities show only when a retailer source publishes them.</p>" +
+    "<div id=\"bestBuyCheckerResults\" class=\"store-checker-results\" aria-live=\"polite\"></div></section>";
+}
+
+function bestBuyCheckerCard(item){
+  const url = safeExternalUrl(item.url);
+  const name = esc(item.name || "Pokémon product");
+  const image = safeExternalUrl(item.image);
+  const photo = image ? "<img src=\"" + esc(image) + "\" alt=\"\" loading=\"lazy\">" :
+    "<div class=\"retailer-product-image-placeholder\">No official image</div>";
+  const title = url ? "<a href=\"" + esc(url) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" + name + "</a>" : name;
+  const address = [item.storeAddress, [item.storeCity, item.storeState, item.storePostalCode].filter(Boolean).join(" ")].filter(Boolean).map(esc).join(" · ");
+  const distance = item.distanceMiles == null ? null : Number(item.distanceMiles);
+  const quantity = item.quantity == null ? null : Number(item.quantity);
+  const storeInfo = item.channel === "store"
+    ? "<small>Store" + (item.storeName ? " · " + esc(item.storeName) : "") + "</small>" +
+      (address ? "<small>" + address + "</small>" : "") +
+      (Number.isFinite(distance) ? "<small>" + esc(distance.toFixed(1)) + " miles away</small>" : "") +
+      "<small class=\"store-availability\">" + (Number.isFinite(quantity) ? "Quantity: " + esc(quantity) : (item.lowStock ? "Low stock · exact quantity not published" : "Available · exact quantity not published")) + "</small>"
+    : "";
+  return "<article class=\"retailer-product-card\">" + photo + "<div><strong>" + title +
+    "</strong><small>SKU: " + esc(item.sku || item.productId || "Unavailable") + "</small>" +
+    "<small>" + esc(item.rawStatus || item.status || "unknown").replace(/_/g, " ").toUpperCase() + "</small>" + storeInfo + "</div></article>";
+}
+
+function wireBestBuyChecker(provider){
+  const productInput = document.getElementById("bestBuyProductSearch");
+  const skuInput = document.getElementById("bestBuySkuSearch");
+  const productButton = document.getElementById("bestBuyProductSearchButton");
+  const skuButton = document.getElementById("bestBuySkuSearchButton");
+  const results = document.getElementById("bestBuyCheckerResults");
+  if(!results) return;
+  const show = html => { results.innerHTML = html; };
+  const search = async () => {
+    const query = String(productInput && productInput.value || "").trim();
+    if(query.length < 2) return show("<p>Enter at least two characters to find a product and SKU.</p>");
+    productButton.disabled = true; show("<p>Finding official Best Buy SKUs…</p>");
+    try{
+      const response = await fetch("/api/bestbuy/search?q=" + encodeURIComponent(query), {cache:"no-store"});
+      const data = await response.json();
+      if(!response.ok || !data.ok) throw new Error(data.error || "Product search failed");
+      show(data.items.length ? "<div class=\"retailer-product-grid\">" + data.items.map(bestBuyCheckerCard).join("") + "</div><p>Copy a SKU into the store checker to see nearby availability.</p>" : "<p>No Pokémon TCG products matched that search.</p>");
+    }catch(error){ show("<p>" + esc(error.message) + "</p>"); }
+    finally{ productButton.disabled = false; }
+  };
+  const check = async () => {
+    const sku = String(skuInput && skuInput.value || "").trim();
+    if(!/^\d{4,20}$/.test(sku)) return show("<p>Enter a Best Buy SKU number.</p>");
+    skuButton.disabled = true; show("<p>Checking nearby Best Buy stores…</p>");
+    try{
+      const response = await fetch("/api/bestbuy/store-check?sku=" + encodeURIComponent(sku), {cache:"no-store"});
+      const data = await response.json();
+      if(!response.ok || !data.ok) throw new Error(data.error || "Store check failed");
+      const cards = [data.product].concat(data.stores || []).map(bestBuyCheckerCard).join("");
+      show("<p>" + esc((data.stores || []).length) + " nearby store result(s) within " + esc(data.searchRadiusMiles || 75) + " miles.</p><div class=\"retailer-product-grid\">" + cards + "</div>");
+    }catch(error){ show("<p>" + esc(error.message) + "</p>"); }
+    finally{ skuButton.disabled = false; }
+  };
+  if(productButton) productButton.addEventListener("click", search);
+  if(skuButton) skuButton.addEventListener("click", check);
+  if(productInput) productInput.addEventListener("keydown", event => { if(event.key === "Enter") search(); });
+  if(skuInput) skuInput.addEventListener("keydown", event => { if(event.key === "Enter") check(); });
+}
+
 
 async function renderExternalRetailer(retailer){
   const labels = {target:"Target", sams:"Sam's Club", bestbuy:"Best Buy", costco:"Costco"};
@@ -2278,8 +2408,12 @@ async function renderExternalRetailer(retailer){
     ? latestStatusData.providers : []).find(item => item.retailer === retailer) || {};
   otherRetailerCard.innerHTML = "<strong>" + esc(label) + "</strong><p>" +
     (provider.configured ? "Loading configured inventory feed…" :
-      "No inventory feed is configured. This tab shows products only after a real provider feed is configured.") + "</p>";
-  if(!provider.configured) return;
+      "No inventory feed is configured. This tab shows products only after a real provider feed is configured.") + "</p>" +
+    (retailer === "bestbuy" ? bestBuyCheckerMarkup(provider) : "");
+  if(!provider.configured){
+    if(retailer === "bestbuy") wireBestBuyChecker(provider);
+    return;
+  }
 
   try{
     const response = await fetch("/api/products?retailer=" + encodeURIComponent(retailer) +
@@ -2343,7 +2477,9 @@ async function renderExternalRetailer(retailer){
         " Exact quantities appear only when the retailer publishes them.</p>" : "") +
       (items.length ? "<div class=\"retailer-product-grid\">" + cards + "</div>" :
         "<p>" + (provider.error ? "The provider returned an error." :
-          "The configured feed has not returned any inventory. No stock is being assumed.") + "</p>");
+          "The configured feed has not returned any inventory. No stock is being assumed.") + "</p>") +
+      (retailer === "bestbuy" ? bestBuyCheckerMarkup(provider) : "");
+    if(retailer === "bestbuy") wireBestBuyChecker(provider);
   }catch(error){
     if(activeRetailer === retailer){
       otherRetailerCard.innerHTML = "<strong>" + esc(label) +

@@ -1473,6 +1473,69 @@ app.get(
 ======================================== */
 
 app.get(
+  "/api/bestbuy/search",
+  async (req,res) => {
+    try {
+      const query =
+        String(
+          req.query.q || ""
+        )
+          .trim()
+          .slice(0, 100);
+
+      const items =
+        await multiStore
+          .searchBestBuyProducts(
+            query
+          );
+
+      res.json({
+        ok: true,
+        query,
+        count: items.length,
+        items
+      });
+    } catch (error) {
+      res.status(503).json({
+        ok: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+app.get(
+  "/api/bestbuy/store-check",
+  async (req,res) => {
+    try {
+      const sku =
+        String(
+          req.query.sku || ""
+        )
+          .trim()
+          .slice(0, 20);
+
+      const result =
+        await multiStore
+          .checkBestBuySku(
+            sku
+          );
+
+      res.json({
+        ok: true,
+        sku,
+        ...result
+      });
+    } catch (error) {
+      res.status(503).json({
+        ok: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+app.get(
   "/api/products",
   (req,res) => {
     const retailer =
