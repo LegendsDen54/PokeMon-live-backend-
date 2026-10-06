@@ -63,11 +63,16 @@ function isTcgText(value) {
 
 function productLinks() {
   return [...document.querySelectorAll("a[href*='/product/']")]
-    .map(anchor => ({
-      url: new URL(anchor.href, location.href).href,
-      name: text(anchor.textContent) || null,
-      image: anchor.querySelector("img")?.currentSrc || null
-    }))
+    .map(anchor => {
+      const label = text(anchor.textContent);
+
+      return {
+        url: new URL(anchor.href, location.href).href,
+        name: text(label.replace(/(?:US\s*)?\$\s*\d{1,4}(?:\.\d{2})?/g, " ")) || null,
+        image: anchor.querySelector("img")?.currentSrc || null,
+        price: priceFrom(label)
+      };
+    })
     .filter(item => item.url.startsWith("https://www.pokemoncenter.com/"))
     .filter(item => isTcgText(`${item.name || ""} ${item.url}`))
     .filter((item, index, items) =>

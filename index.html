@@ -980,6 +980,56 @@ a{
   font-size:12px;
 }
 
+.pokemon-center-products{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
+  margin:12px 0;
+}
+
+.pokemon-center-product-box{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  min-width:0;
+  padding:8px;
+  border:1px solid rgba(98,199,255,.20);
+  border-radius:10px;
+  background:#06111f;
+  color:#dcecff;
+  text-decoration:none;
+}
+
+.pokemon-center-product-box img{
+  width:100%;
+  aspect-ratio:1;
+  object-fit:contain;
+  border-radius:7px;
+  background:#fff;
+}
+
+.pokemon-center-product-box span{
+  display:-webkit-box;
+  overflow:hidden;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  font-size:11px;
+  font-weight:800;
+  line-height:1.3;
+}
+
+.pokemon-center-product-box small{
+  color:var(--green);
+  font-size:12px;
+  font-weight:900;
+}
+
+.pokemon-center-activity{
+  margin:12px 0 0;
+  color:var(--muted);
+  font-size:11px;
+}
+
 .outlook-card{
   text-align:left;
   color:var(--text);
@@ -1895,13 +1945,23 @@ function renderPokemonCenter(state){
       (predictedImage ? "<img src=\"" + esc(predictedImage) + "\" alt=\"" + esc(pc.predictedProduct.name) + "\">" : "") +
       "<p><strong>Potential TCG product:</strong> " + esc(pc.predictedProduct.name) + "</p></div>"
     : "";
-  const signalRows = events.map(event => {
-    const date = event.at ? new Date(event.at).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) : "";
-    return "<li><strong>" + esc(event.type || "Signal") + "</strong>" +
-      (event.name ? " · " + esc(event.name) : "") +
-      (event.detail ? " — " + esc(event.detail) : "") +
-      (date ? " <small>" + esc(date) + "</small>" : "") + "</li>";
-  }).join("");
+  const productEvents = events
+    .filter(event => event && event.tcgRelevant === true && event.name &&
+      /^https:\/\//i.test(String(event.image || "")) &&
+      verifiedPokemonCenterProductUrl(event.url))
+    .filter((event, index, items) => items.findIndex(item => item.url === event.url) === index)
+    .slice(0, 4);
+  const productBoxes = productEvents.map(event =>
+    "<a class=\"pokemon-center-product-box\" href=\"" + esc(event.url) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" +
+    "<img src=\"" + esc(event.image) + "\" alt=\"" + esc(event.name) + "\">" +
+    "<span>" + esc(event.name) + "</span>" +
+    (Number.isFinite(Number(event.price)) ? "<small>$" + esc(Number(event.price).toFixed(2)) + "</small>" : "") +
+    "</a>"
+  ).join("");
+  const activity = events[0]
+    ? "Latest TCG signal: " + esc(events[0].type || "Activity") +
+      (events[0].at ? " · " + esc(new Date(events[0].at).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})) : "")
+    : "No verified Pokémon Center TCG activity yet.";
   const thirdPartyRows = thirdPartyEvents.map(event => {
     const date = event.at ? new Date(event.at).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) : "";
     const link = /^https:\/\/x\.com\/PokemonRestocks\/status\/\d+/i.test(String(event.url || ""))
@@ -1925,8 +1985,8 @@ function renderPokemonCenter(state){
     (pc.queueActive ? "<span>QUEUE ACTIVE</span>" : "") + "</div>" +
     queueAction +
     predictedProduct +
-    (events.length ? "<ul class=\"signal-list\">" + signalRows + "</ul>" :
-      "<p class=\"quiet-state\">No verified Pokémon Center activity yet.</p>") +
+    (productBoxes ? "<div class=\"pokemon-center-products\">" + productBoxes + "</div>" : "") +
+    "<p class=\"pokemon-center-activity\">" + activity + "</p>" +
     thirdPartyFeed +
     outlook +
     "<p><a href=\"https://www.pokemoncenter.com/\" target=\"_blank\" rel=\"noopener noreferrer\">Open Pokémon Center</a></p>";
