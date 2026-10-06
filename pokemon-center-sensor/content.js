@@ -52,6 +52,42 @@ function priceFrom(pageText) {
   return match ? Number(match[1]) : null;
 }
 
+function quantitySignals(pageText) {
+  const value = text(pageText);
+  const limits = [];
+  const patterns = [
+    /(?:purchase|order|item|product)\s*limit\s*(?:of|:)?\s*(\d{1,2})/ig,
+    /limit\s*(\d{1,2})\s*(?:per|each)\s*(?:customer|household|order)/ig,
+    /maximum\s*(?:quantity|of)?\s*(\d{1,2})/ig,
+    /max(?:imum)?\s*(?:qty|quantity)?\s*[:]?\s*(\d{1,2})/ig
+  ];
+  for (const pattern of patterns) {
+    for (const match of value.matchAll(pattern)) limits.push(Number(match[1]));
+  }
+
+  const select = [...document.querySelectorAll("select")]
+    .find(node => /qty|quantity/i.test([
+      node.name, node.id, node.getAttribute("aria-label"), node.closest("label")?.textContent
+    ].filter(Boolean).join(" ")));
+  const selectorQuantities = select
+    ? [...select.options].map(option => Number(option.value || option.textContent)).filter(Number.isFinite)
+    : [];
+
+  const input = [...document.querySelectorAll('input[type="number"]')]
+    .find(node => /qty|quantity/i.test([node.name,node.id,node.getAttribute("aria-label")].filter(Boolean).join(" ")));
+
+  const maxCandidates = [
+    ...limits,
+    ...selectorQuantities,
+    input?.max ? Number(input.max) : NaN
+  ].filter(number => Number.isFinite(number) && number > 0 && number <= 99);
+
+  return {
+    purchaseLimit: maxCandidates.length ? Math.max(...maxCandidates) : null,
+    quantityOptions: [...new Set(selectorQuantities)].sort((a,b) => a-b)
+  };
+}
+
 function skuFrom(pageText) {
   const match = pageText.match(/(?:sku|product id|item #?)\s*[:#]?\s*([a-z0-9-]{4,})/i);
   return match ? match[1] : null;
@@ -99,6 +135,7 @@ function snapshot() {
   const mainText = text(document.querySelector("main")?.innerText || pageText)
     .slice(0, 16000);
   const links = productLinks();
+  const quantities = quantitySignals(pageText);
   const tcgRelevant = isTcgText([
     document.title,
     firstText("h1"),
@@ -119,6 +156,8 @@ function snapshot() {
     image,
     sku: skuFrom(pageText),
     price: priceFrom(pageText),
+    purchaseLimit: quantities.purchaseLimit,
+    quantityOptions: quantities.quantityOptions,
     availability: availabilityFrom(pageText),
     tcgRelevant,
     productLinks: links,
@@ -208,6 +247,25 @@ function compare(current) {
   if (current.tcgRelevant && current.price !== previous.price) {
     specificChange = true;
     signal("PRICE_CHANGE", current, "A visible product price changed.");
+  }
+
+  if (
+    current.tcgRelevant &&
+    (
+      current.purchaseLimit !== previous.purchaseLimit ||
+      JSON.stringify(current.quantityOptions) !== JSON.stringify(previous.quantityOptions)
+    )
+  ) {
+    specificChange = true;
+    signal(
+      "QUANTITY_CHANGE",
+      {
+        ...current,
+        previousPurchaseLimit: previous.purchaseLimit,
+        previousQuantityOptions: previous.quantityOptions
+      },
+      "A visible Pokémon Center purchase limit or quantity selector changed."
+    );
   }
 
   if (current.tcgRelevant && current.availability !== previous.availability) {
