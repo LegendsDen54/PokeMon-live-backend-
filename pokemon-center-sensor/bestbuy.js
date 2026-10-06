@@ -22,8 +22,16 @@ function availability() {
 }
 
 function productImage() {
+  const pageImage = [...document.querySelectorAll("main img")]
+    .find(image => {
+      const url = image.currentSrc || image.src || "";
+      return url && !/(?:logo|icon|placeholder|rating|advert)/i.test(url);
+    });
+  if (pageImage?.currentSrc || pageImage?.src) {
+    return pageImage.currentSrc || pageImage.src;
+  }
   const meta = document.querySelector('meta[property="og:image"]')?.content;
-  return meta || document.querySelector('main img')?.currentSrc || null;
+  return meta || null;
 }
 
 function productPrice() {
