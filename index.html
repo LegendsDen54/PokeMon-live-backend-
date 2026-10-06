@@ -629,6 +629,7 @@ a{
   height:100%;
 
   object-fit:contain;
+  display:block;
 }
 
 .live-flag{
@@ -870,12 +871,34 @@ a{
   color:var(--text);
 }
 
-.retailer-product-card img{
+.retailer-product-image-frame{
   width:76px;
   height:76px;
-  object-fit:contain;
+  display:grid;
+  place-items:center;
   border-radius:8px;
-  background:#fff;
+  overflow:hidden;
+  background:#f7fbff;
+}
+
+.retailer-product-image-frame img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  display:block;
+}
+
+.retailer-product-image-frame.image-unavailable{
+  background:#10233a;
+}
+
+.retailer-product-image-frame.image-unavailable::after{
+  content:"Official image unavailable";
+  padding:8px;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.2;
+  text-align:center;
 }
 
 .retailer-product-card .retailer-product-image-placeholder{
@@ -2460,12 +2483,18 @@ function bestBuyManualProductName(url){
   }
 }
 
+function retailerImageMarkup(image, name){
+  const source = safeExternalUrl(image);
+  if(!source){
+    return "<div class=\"retailer-product-image-frame image-unavailable\" role=\"img\" aria-label=\"Official product image unavailable\"></div>";
+  }
+  return "<div class=\"retailer-product-image-frame\"><img src=\"" + esc(source) + "\" alt=\"" + esc(name || "Product image") + "\" loading=\"lazy\" decoding=\"async\" referrerpolicy=\"no-referrer\" onerror=\"this.remove();this.parentElement.classList.add('image-unavailable')\"></div>";
+}
+
 function bestBuyCheckerCard(item){
   const url = safeExternalUrl(item.url);
   const name = esc(item.name || "Pokémon product");
-  const image = safeExternalUrl(item.image);
-  const photo = image ? "<img src=\"" + esc(image) + "\" alt=\"\" loading=\"lazy\">" :
-    "<div class=\"retailer-product-image-placeholder\">No official image</div>";
+  const photo = retailerImageMarkup(item.image, item.name);
   const title = url ? "<a href=\"" + esc(url) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" + name + "</a>" : name;
   const address = [item.storeAddress, [item.storeCity, item.storeState, item.storePostalCode].filter(Boolean).join(" ")].filter(Boolean).map(esc).join(" · ");
   const distance = item.distanceMiles == null ? null : Number(item.distanceMiles);
@@ -2660,10 +2689,7 @@ async function renderExternalRetailer(retailer){
           ? "Quantity: " + esc(quantity)
           : (item.lowStock ? "Low stock · exact quantity not published" : "Available · exact quantity not published"))
         : null;
-      const image = safeExternalUrl(item.image);
-      const productImage = image
-        ? "<img src=\"" + esc(image) + "\" alt=\"\" loading=\"lazy\">"
-        : "<div class=\"retailer-product-image-placeholder\">No official image</div>";
+      const productImage = retailerImageMarkup(item.image, item.name);
       return "<article class=\"retailer-product-card\">" + productImage + "<div><strong>" +
         linkedName + "</strong><small>SKU: " + esc(item.sku || item.productId || "Unavailable") +
         "</small><small>" + itemStatus + " · " + esc(price) + "</small>" + location +
@@ -3287,6 +3313,8 @@ function buildLiveCard(product){
         <img
           src="${esc(image)}"
           alt="${esc(product.name)}"
+          loading="lazy"
+          decoding="async"
 
           onerror="
             this.onerror=null;
@@ -3655,6 +3683,8 @@ function buildRaffleCard(
         <img
           src="${esc(image)}"
           alt="${esc(item.name)}"
+          loading="lazy"
+          decoding="async"
 
           onerror="
             this.onerror=null;
