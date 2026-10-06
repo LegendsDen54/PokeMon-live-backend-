@@ -232,3 +232,32 @@ off-domain manual check rejected. Local browser verified Costco's official image
 price, item ID, and out-of-stock result, including retention after UI refresh.
 Local PostgreSQL/VAPID credentials are absent, so database persistence and actual
 phone push delivery were not validated locally. No simulation data went live.
+## Target priority update — October 6, 2026
+
+Priority window is 2–3 a.m. America/Chicago (daylight saving aware), with a
+fixed five-minute cadence, ten-minute cache outside the window, and existing
+failure cooldowns/Retry-After handling. Baseline observations do not announce
+fake restocks. Priority products are Ascended Heroes, Prismatic Evolutions,
+Destined Rivals, 30th Celebration, and UPC/SPC products. Catalog discovery still
+checks all card-containing Pokemon products; only explicitly verified Target
+sellers can become displayed observations or alerts. Seed links are candidates,
+not a stock claim. Unsupported/blocked pages remain unavailable.
+
+Track public title, image, price, SKU, release date, published inventoryLevel,
+and availability changes. Quantity is unknown if not published. Evidence expires
+after 24 hours. Movement notifications have a 30-minute per-product cooldown;
+real availability transition alerts remain separate. Opening products requires a
+user click, opens at most eight eligible priority tabs once per page session,
+and does not add to cart or purchase. Pop-up blockers may require individual links.
+
+Public reports disagree on exact overnight times and are anecdotal, not a
+retailer schedule. Use the requested window rather than claim a guaranteed drop:
+https://www.reddit.com/r/PokeCollectors/comments/1vqiej7/upcoming_target_pokemon_tcg_restocks/
+https://www.reddit.com/r/PokemonDeals/comments/1vdx9e1/target_pokemon_tcg_restock_expected_august_4/
+https://www.target.com/help/articles/product-support-services/product-availability
+
+CCN's accessible Pokemon channel showed CCN x Zephyr Monitors with product/SKU/
+stock reports; latest viewed examples were plush keychains and LEGO, excluded
+from this TCG watch. Reading subscriber alerts does not create an API connection.
+No continuous Discord scraping or CCN private backend integration is configured.
+Use provider-supported exports/feed access if permission and access are obtained.

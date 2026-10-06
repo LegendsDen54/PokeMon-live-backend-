@@ -53,5 +53,54 @@
       "url": "https://www.costco.com/CompareProductsDisplay?partNumbers=4000283872"
     }
   ],
-  "target": []
+  "target": [
+    {
+      "label": "Ascended Heroes Elite Trainer Box",
+      "query": "Pokemon Trading Card Game Ascended Heroes Elite Trainer Box",
+      "url": "https://www.target.com/p/-/A-95082118",
+      "sku": "95082118"
+    },
+    {
+      "label": "Prismatic Evolutions Booster Bundle",
+      "query": "Pokemon Trading Card Game Prismatic Evolutions Booster Bundle",
+      "url": "https://www.target.com/p/-/A-93954446",
+      "sku": "93954446"
+    },
+    {
+      "label": "Prismatic Evolutions Super Premium Collection",
+      "query": "Pokemon Trading Card Game Prismatic Evolutions Super Premium Collection",
+      "url": "https://www.target.com/p/-/A-1012055696",
+      "sku": "1012055696"
+    },
+    {
+      "label": "30th Celebration Mini Tin",
+      "query": "Pokemon Trading Card Game 30th Celebration Mini Tin",
+      "url": "https://www.target.com/p/-/A-1012422107",
+      "sku": "1012422107"
+    },
+    {
+      "label": "30th Celebration Booster Bundle",
+      "query": "Pokemon Trading Card Game 30th Celebration Booster Bundle",
+      "url": "https://www.target.com/p/-/A-1011407490",
+      "sku": "1011407490"
+    },
+    {
+      "label": "30th Celebration Elite Trainer Box",
+      "query": "Pokemon Trading Card Game 30th Celebration Elite Trainer Box",
+      "url": "https://www.target.com/p/-/A-1010892076",
+      "sku": "1010892076"
+    },
+    {
+      "label": "30th Celebration Tin Sylveon or Greninja",
+      "query": "Pokemon Trading Card Game 30th Celebration Tin Sylveon or Greninja",
+      "url": "https://www.target.com/p/-/A-1010892069",
+      "sku": "1010892069"
+    },
+    {
+      "label": "Destined Rivals Booster Bundle",
+      "query": "Pokemon Trading Card Game Destined Rivals Booster Bundle",
+      "url": "https://www.target.com/p/-/A-94300067",
+      "sku": "94300067"
+    }
+  ]
 }

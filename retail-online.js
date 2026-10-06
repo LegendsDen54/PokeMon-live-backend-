@@ -25,6 +25,12 @@ const configs = {
 const catalogs = require("./retail-catalog.json");
 const states = new Map();
 const requests = new Map();
+function targetPriority(name) {
+  return /ascended heroes|prismatic evolutions|destined rivals|30th|ultra[- ]premium collection|super[- ]premium collection|\bupc\b|\bspc\b/i.test(String(name || ""));
+}
+function targetWindow(now = new Date()) {
+  return Number(new Intl.DateTimeFormat("en-US", {timeZone:"America/Chicago", hour:"numeric",hourCycle:"h23"}).format(now)) === 2;
+}
 function isTcg(name) {
   const value = String(name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (!/pokemon/.test(value)) return false;
@@ -49,7 +55,7 @@ function productUrl(retailer, value) {
 }
 function getState(retailer) {
   if (!configs[retailer]) throw new Error("Unsupported retailer");
-  if (!states.has(retailer)) states.set(retailer, {retailer, running:false, items:new Map(), error:null, lastRun:null, lastSuccess:null, lastDiscovery:0, nextCheck:0});
+  if (!states.has(retailer)) states.set(retailer, {retailer, running:false, items:new Map(), events:[], priorityWindow:false, error:null, lastRun:null, lastSuccess:null, lastDiscovery:0, nextCheck:0});
   return states.get(retailer);
 }
 async function page(url) {
@@ -86,7 +92,7 @@ async function page(url) {
       }
       const html = Buffer.concat(parts).toString("utf8");
       if (/access denied|verify you are human|captcha|robot or human/i.test(html) && !/"@type"\s*:\s*"Product"/.test(html)) throw new Error("Public page access is restricted");
-      requests.set(url, {html, fetchedAt:new Date().toISOString(), until:Date.now() + 10 * 60000});
+      requests.set(url, {html, fetchedAt:new Date().toISOString(), until:Date.now() + (new URL(url).hostname === configs.target.host && targetWindow() ? 5 : 10) * 60000});
       if(requests.size>300)requests.delete(requests.keys().next().value);
       return html;
     } catch (error) {
@@ -118,13 +124,14 @@ function parseProduct(retailer, url, html) {
   if (seller && !seller.toLowerCase().includes(configs[retailer].label.toLowerCase())) return null;
   // Target marketplace offers require explicit seller attribution.
   const verifiedSeller = retailer !== "target" || /^target$/i.test(seller);
+  if (retailer === "target" && !verifiedSeller) return null;
   const availability = String(offer.availability || "").split("/").pop();
   const status = !verifiedSeller ? "unknown" : ({InStock:"instock", OutOfStock:"out", SoldOut:"out", PreOrder:"preorder", PreSale:"preorder", Discontinued:"out"}[availability] || "unknown");
   const price = offer.price != null && offer.price !== "" && Number.isFinite(Number(offer.price)) ? Number(offer.price) : null;
   const image = [].concat(product.image || [])[0];
   const imageUrl = typeof image === "object" ? image?.url : image;
   const sku = String(product.sku || product.productID || new URL(url).pathname.match(/(?:A-|\/)(\d{6,})(?:$|\.)/)?.[1] || "");
-  return {retailer, channel:"online", name:product.name, productId:sku || url, sku:sku || null, url, image:/^https:\/\//.test(imageUrl || "") ? imageUrl : null, price, status, rawStatus:verifiedSeller ? availability || "Not published" : "Seller not verified", quantity:null, shippingPostalCode:null, shippingEligible:null, source:"public_product_structured_data", observedAt:new Date().toISOString(), seller:seller || null, sellerVerified:verifiedSeller};
+  return {retailer, channel:"online", name:product.name, productId:sku || url, sku:sku || null, url, image:/^https:\/\//.test(imageUrl || "") ? imageUrl : null, price, status, rawStatus:verifiedSeller ? availability || "Not published" : "Seller not verified", quantity:offer.inventoryLevel?.value != null && Number.isFinite(Number(offer.inventoryLevel.value)) ? Number(offer.inventoryLevel.value) : null, releaseDate:product.releaseDate || offer.availabilityStarts || null, shippingPostalCode:null, shippingEligible:null, source:"public_product_structured_data", observedAt:new Date().toISOString(), seller:seller || null, sellerVerified:verifiedSeller};
 }
 function catalog(retailer) {
   const state = getState(retailer);
@@ -141,18 +148,34 @@ async function check(retailer, url) {
   item.observedAt=requests.get(safe)?.fetchedAt || item.observedAt;
   const before = state.items.get(safe);
   state.items.set(safe,item);
+  if (retailer === "target") {
+    item.priority = targetPriority(item.name);
+    const changes=[];
+    if (before && before.source === item.source) {
+      for (const [field,type] of [["price","PRICE_CHANGE"],["image","IMAGE_CHANGE"],["sku","SKU_CHANGE"],["status","AVAILABILITY_CHANGE"],["name","TITLE_CHANGE"],["releaseDate","RELEASE_DATE_CHANGE"],["quantity","PUBLISHED_QUANTITY_CHANGE"]]) {
+        if (before[field] != null && item[field] != null && before[field] !== item[field]) changes.push({type,field,before:before[field],after:item[field]});
+      }
+    } else if (before && before.source === "public_catalog_link") changes.push({type:"LISTING_VERIFIED"});
+    for (const change of changes) state.events.unshift({...change,name:item.name,url:safe,observedAt:item.observedAt,priority:item.priority,detail:"Public listing change; does not confirm an upcoming drop."});
+    state.events=state.events.filter(event=>Date.now()-Date.parse(event.observedAt)<24*3600000).slice(0,100);
+    if (changes.length && item.priority && !["instock","preorder"].includes(item.status) && Date.now()-(before?.lastMovementAlertAt || 0)>30*60000) {
+      item.lastMovementAlertAt=Date.now();
+      await push.broadcast({title:"Target — Public listing movement",body:`${item.name} · ${changes.map(c=>c.type.replace(/_/g," ").toLowerCase()).join(", ")} · Drop not confirmed`,url:safe,tag:`target-movement-${item.productId}`}).catch(()=>{});
+    } else item.lastMovementAlertAt=before?.lastMovementAlertAt || null;
+  }
   await persist(item);
   if (before && ["instock","preorder"].includes(item.status) && before.status !== item.status) await push.broadcast({title:`${configs[retailer].label} — Online TCG alert`,body:`${item.name} · ${item.status === "preorder" ? "Pre-order offer" : "Listed in stock"} · Confirm shipping to your ZIP`,url:safe,tag:`online-${retailer}-${item.productId}`}).catch(() => {});
   return item;
 }
 async function poll(retailer) {
   const state = getState(retailer);
-  if (state.running || state.nextCheck > Date.now()) return;
+  const priorityWindow=retailer === "target" && targetWindow();
+  if (state.running || (state.nextCheck > Date.now() && !(priorityWindow && !state.priorityWindow))) return;
+  state.priorityWindow=priorityWindow;
   state.running = true; state.lastRun = new Date().toISOString();
-  const hour = Number(new Intl.DateTimeFormat("en-US", {timeZone:"America/Chicago", hour:"numeric",hourCycle:"h23"}).format(new Date()));
-  state.nextCheck = Date.now() + (retailer === "target" && hour >=2 && hour <5 ? 10 : 30)*60000;
+  state.nextCheck = Date.now() + (priorityWindow ? 5 : 30)*60000;
   try {
-    if (Date.now() - state.lastDiscovery > 24*3600000) {
+    if (Date.now() - state.lastDiscovery > (priorityWindow ? 30*60000 : 24*3600000)) {
       state.lastDiscovery = Date.now();
       try {
         const $ = cheerio.load(await page(configs[retailer].search));
@@ -163,8 +186,12 @@ async function poll(retailer) {
         });
       } catch(error) {state.error = error.message;}
     }
-    const urls = [...new Set([...catalog(retailer).map(i => i.url), ...(process.env[retailer.toUpperCase()+"_PUBLIC_WATCH_URLS"] || "").split(/[\n,]/)])].filter(url => productUrl(retailer,url));
-    const offset=state.cursor || 0;
+    let urls = [...new Set([...catalog(retailer).map(i => i.url), ...(process.env[retailer.toUpperCase()+"_PUBLIC_WATCH_URLS"] || "").split(/[\n,]/)])].filter(url => productUrl(retailer,url));
+    if (retailer === "target") {
+      const names=new Map(catalog(retailer).map(item=>[item.url,item.query || item.label]));
+      urls.sort((a,b)=>Number(targetPriority(state.items.get(b)?.name || names.get(b)))-Number(targetPriority(state.items.get(a)?.name || names.get(a))));
+    }
+    const offset=priorityWindow ? 0 : state.cursor || 0;
     const batch=[...urls.slice(offset),...urls.slice(0,offset)].slice(0,12);
     state.cursor=urls.length ? (offset+batch.length)%urls.length : 0;
     let successes=0; const errors=[];
@@ -182,4 +209,4 @@ async function start() {
   const tick=() => Promise.allSettled(Object.keys(configs).map(poll));
   tick(); const timer=setInterval(tick,60000);timer.unref();
 }
-module.exports={start,snapshot,check,isTcg,parseProduct,productUrl};
+module.exports={start,snapshot,check,isTcg,parseProduct,productUrl,targetPriority};
