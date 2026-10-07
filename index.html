@@ -4150,7 +4150,6 @@ function raffleScheduleLabel(item){
   }
 
   return `JOIN TIME: ${date.toLocaleString([], {
-    timeZone:"America/Chicago",
     weekday:"long",
     month:"short",
     day:"numeric",
@@ -4203,7 +4202,7 @@ function buildRaffleCard(
     !seen.has(id);
 
   const url =
-    item.url || "#";
+    "https://www.walmart.com/shop/collectibles/draw";
 
 
   return `
@@ -4212,7 +4211,7 @@ function buildRaffleCard(
       href="${esc(url)}"
 
       ${
-        item.url
+        url
           ?
           `
           target="_blank"
@@ -4303,7 +4302,7 @@ function buildRaffleCard(
 
 
         <div class="enter-raffle">
-          OPEN IN WALMART →
+          OPEN WALMART DRAWINGS →
         </div>
 
       </div>
@@ -4366,15 +4365,15 @@ function renderRaffles(){
       )
       .map((item, index, items) => {
         const dayKey = value => Number.isFinite(Date.parse(value.startsAt))
-          ? new Date(value.startsAt).toLocaleDateString("en-CA", {timeZone:"America/Chicago"})
+          ? new Date(value.startsAt).toLocaleDateString("en-CA")
           : "undated";
         const day = dayKey(item);
         const heading = index === 0 || dayKey(items[index - 1]) !== day
           ? `<h3 style="grid-column:1 / -1;margin:18px 0 4px">${esc(day === "undated"
               ? "Date not announced"
               : new Date(item.startsAt).toLocaleDateString("en-US", {
-                  timeZone:"America/Chicago",weekday:"long",month:"long",day:"numeric"
-                }) + " · Chicago time")}</h3>`
+                  weekday:"long",month:"long",day:"numeric"
+                }) + " · Your local time")}</h3>`
           : "";
         return heading + buildRaffleCard(item, seen);
       })
