@@ -63,3 +63,11 @@ targetRefresh.addEventListener('change',async()=>{
  await chrome.storage.local.set({targetRefreshEnabled:targetRefresh.checked,...(targetRefresh.checked?{targetRefreshPaused:{},targetRefreshTimes:{}}:{})});
  document.getElementById('targetRefreshState').textContent=targetRefresh.checked?'Target refresh enabled.':'Target refresh stopped. Current pages stay open.';
 });
+
+chrome.storage.local.get(['pokemonCenterRefreshPaused']).then(config=>{
+  document.getElementById('pcRefreshState').textContent=config.pokemonCenterRefreshPaused?'Refresh paused for queue, security protection or unreadable page. Leave the queue window open.':'Hourly refresh ready; queue detection pauses until you resume.';
+});
+document.getElementById('resumePc').addEventListener('click',async()=>{
+  await chrome.storage.local.set({pokemonCenterRefreshPaused:false,lastAutomaticRefreshAt:Date.now()});
+  document.getElementById('pcRefreshState').textContent='Hourly refresh resumed. Next refresh is at least one hour away; pages are checked again first.';
+});

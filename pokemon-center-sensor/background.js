@@ -120,58 +120,39 @@ function activeWatchWindow() {
 }
 
 async function refreshPokemonCenterTabs() {
-  const settings = await chrome.storage.local.get([
-    "pokemonCenterHourlyRefreshEnabled",
-    "lastAutomaticRefreshAt"
-  ]);
-
-  if (settings.pokemonCenterHourlyRefreshEnabled === false) {
-    return;
+  const settings = await chrome.storage.local.get(['pokemonCenterHourlyRefreshEnabled','pokemonCenterRefreshPaused','lastAutomaticRefreshAt']);
+  if (settings.pokemonCenterHourlyRefreshEnabled === false || settings.pokemonCenterRefreshPaused) return;
+  const tabs = await chrome.tabs.query({url: 'https://www.pokemoncenter.com/*'});
+  if (!tabs.length) return;
+  const safeTabs = [];
+  // Inspect every open page before reloading any. A queue pauses the whole sensor.
+  for (const tab of tabs) {
+    if (!Number.isInteger(tab.id)) continue;
+    const pathname = new URL(tab.url).pathname;
+    if (/\/(?:cart|checkout|account)(?:\/|$)/i.test(pathname)) continue;
+    try {
+      const results = await chrome.scripting.executeScript({target:{tabId:tab.id},func:()=>{
+        const body = document.body?.innerText;
+        if (!body || document.readyState !== 'complete') return true;
+        return /queue|waiting[ -]?room|you are in line|your turn|estimated wait|verify you are human|access denied|something.s gone wrong|press and hold|temporarily blocked/i.test(body) || /queue|waiting[ -]?room/i.test(location.pathname + location.search) || Boolean(document.querySelector('.imperva-error-modal, #imperva-error-modal, iframe[src*="captcha"], iframe[src*="queue-it"]'));
+      }});
+      if (!results.length || results.some(result=>result.result !== false)) {
+        await chrome.storage.local.set({pokemonCenterRefreshPaused:true});
+        return;
+      }
+      safeTabs.push(tab.id);
+    } catch {
+      await chrome.storage.local.set({pokemonCenterRefreshPaused:true});
+      return;
+    }
   }
-
-
-
-  const interval = ACTIVE_REFRESH_MS;
-
-  if (Date.now() - Number(settings.lastAutomaticRefreshAt || 0) < interval) {
-    return;
+  if (Date.now() - Number(settings.lastAutomaticRefreshAt || 0) < ACTIVE_REFRESH_MS) return;
+  // Only one open product page per hour; never open extra tabs or alternate links.
+  if (safeTabs.length) {
+    await chrome.tabs.reload(safeTabs[0]);
+    await chrome.storage.local.set({lastAutomaticRefreshAt:Date.now()});
   }
-
-  const tabs = await chrome.tabs.query({
-    url: "https://www.pokemoncenter.com/*"
-  });
-
-  if (!tabs.length) {
-    return;
-  }
-
-  await Promise.all(
-    tabs
-      .filter(tab => Number.isInteger(tab.id))
-      .map(async tab => {
-        if (/\/(?:cart|checkout|account)(?:\/|$)/i.test(new URL(tab.url).pathname)) return;
-        try {
-          const results = await chrome.scripting.executeScript({
-            target: {tabId: tab.id},
-            func: () => {
-              const body = document.body?.innerText || "";
-              return /virtual queue|you are in line|waiting room|queue is active|your turn|estimated wait|verify you are human|access denied|something.s gone wrong|press and hold/i.test(body) || Boolean(document.querySelector(".imperva-error-modal, #imperva-error-modal"));
-            }
-          });
-          // A failed or unreadable check must never trigger a blind reload.
-          if (!results.length || results.some(result => result.result !== false)) return;
-          await chrome.tabs.reload(tab.id);
-        } catch {
-          // Keep the current page when protection state cannot be checked.
-        }
-      })
-  );
-
-  await chrome.storage.local.set({
-    lastAutomaticRefreshAt: Date.now()
-  });
 }
-
 async function refreshTargetTabs(){
  const config=await chrome.storage.local.get(['targetRefreshEnabled','targetRefreshTimes','targetRefreshPaused']);
  if(config.targetRefreshEnabled===false)return;
