@@ -2678,7 +2678,7 @@ function retailerImageMarkup(image, name){
   if(!source){
     return "<div class=\"retailer-product-image-frame image-unavailable\" role=\"img\" aria-label=\"Official product image unavailable\"></div>";
   }
-  return "<div class=\"retailer-product-image-frame\"><img src=\"" + esc(source) + "\" alt=\"" + esc(name || "Product image") + "\" loading=\"lazy\" decoding=\"async\" referrerpolicy=\"no-referrer\" onerror=\"this.remove();this.parentElement.classList.add('image-unavailable')\"></div>";
+  return "<div class=\"retailer-product-image-frame\"><img src=\"" + esc(source) + "\" alt=\"" + esc(name || "Product image") + "\" loading=\"lazy\" decoding=\"async\" referrerpolicy=\"no-referrer\" onerror=\"const frame=this.parentElement;this.remove();if(frame)frame.classList.add('image-unavailable')\"></div>";
 }
 
 function bestBuyCheckerCard(item){
