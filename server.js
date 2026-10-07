@@ -1987,16 +1987,32 @@ app.get("/api/retail/watch-products", (req,res) => {
   if (!["costco","sams"].includes(req.query.retailer)) return res.status(400).json({ok:false,error:"Choose retailer"});
   res.json({ok:true,products:retailOnline.snapshot(req.query.retailer).catalog || []});
 });
+app.post('/api/inventory/check',async(req,res)=>{
+  const retailer=String(req.body.retailer || ''),productId=String(req.body.productId || '').trim(),zip=String(req.body.zip || '').trim();
+  if(retailer==='dollargeneral' && !require('./dollar-general.json').products.some(p=>p.upc===productId))return res.status(400).json({ok:false,error:'Choose a verified Dollar General product'});
+  try{const result=await ccnInventory.requestInventory(retailer,productId,zip);if(retailer==='dollargeneral' && result.status==='queued')if(result.status==='queued')await ccnInventory.requestDg(productId,zip);res.json({ok:true,...result,processingMode:'authorized_collector',message:result.status==='cooldown'?'The checker requires a cooldown.':result.deduplicated?'This lookup is already waiting for the checker.':'Request queued for the authorized collector. Saved results remain visible until a fresh response is imported.'});}catch(error){res.status(/Choose a retailer/.test(error.message)?400:503).json({ok:false,error:/Choose a retailer/.test(error.message)?error.message:'Request storage unavailable. Your saved results are unchanged.'});}
+});
+app.get('/api/inventory/request-status',async(req,res)=>{
+  try{res.set('Cache-Control','no-store').json({ok:true,...await ccnInventory.inventoryRequestStatus(String(req.query.retailer || ''),String(req.query.productId || ''),String(req.query.zip || ''))});}catch(error){res.status(/Choose a retailer/.test(error.message)?400:503).json({ok:false,error:'Request status unavailable'});}
+});
+app.get('/api/inventory/pending-checks',async(req,res)=>{
+  if(!hasValidPokemonCenterSensorToken(req))return pokemonCenterSensorUnauthorized(res);
+  try{res.set('Cache-Control','no-store').json({ok:true,requests:await ccnInventory.pendingInventory()});}catch{res.status(503).json({ok:false,error:'Request queue unavailable'});}
+});
+app.post('/api/inventory/checker-cooldown',async(req,res)=>{
+  if(!hasValidPokemonCenterSensorToken(req))return pokemonCenterSensorUnauthorized(res);
+  try{await ccnInventory.recordCheckerCooldown(req.body.retailer,req.body.availableAt,req.body.sourceUrl);res.json({ok:true});}catch(error){res.status(400).json({ok:false,error:error.message});}
+});
 app.post('/api/dollargeneral/check',async(req,res)=>{
 const productId=String(req.body.productId || ''),zip=String(req.body.zip || '');
 if(!/^\d{5}$/.test(zip) || !require('./dollar-general.json').products.some(p=>p.upc===productId))return res.status(400).json({ok:false,error:'Choose a verified product and five-digit ZIP'});
-try{await ccnInventory.requestDg(productId,zip);res.json({ok:true,status:'queued',message:'Stock check requested. Scheduled collection checks requests every 10 minutes; Discord access and cooldowns may delay completion.'});}catch{res.status(503).json({ok:false,error:'Request storage unavailable; try again later'});}
+try{const result=await ccnInventory.requestInventory('dollargeneral',productId,zip);if(result.status==='queued')await ccnInventory.requestDg(productId,zip);res.json({ok:true,...result,message:result.status==='cooldown'?'The checker requires a cooldown.':result.deduplicated?'This lookup is already waiting for the checker.':'Fresh check queued for the authorized collector. Your last saved result remains visible.'});}catch{res.status(503).json({ok:false,error:'Request storage unavailable; try again later'});}
 });
 app.get('/api/dollargeneral/pending-checks',async(req,res)=>{if(!hasValidPokemonCenterSensorToken(req) && !hasCcnViewerAccess(req))return pokemonCenterSensorUnauthorized(res);try{res.json({ok:true,requests:await ccnInventory.pendingDg()});}catch{res.status(503).json({ok:false,error:'Request queue unavailable'});}});
 app.get('/api/dollargeneral/request-status',async(req,res)=>{
   const productId=String(req.query.productId || ''),zip=String(req.query.zip || '');
   if(!/^\d{5}$/.test(zip) || !require('./dollar-general.json').products.some(p=>p.upc===productId))return res.status(400).json({error:'Choose a verified product and five-digit ZIP'});
-  try{res.set('Cache-Control','no-store').json(await ccnInventory.dgRequestStatus(productId,zip));}
+  try{res.set('Cache-Control','no-store').json(await ccnInventory.inventoryRequestStatus('dollargeneral',productId,zip));}
   catch{res.status(503).json({error:'Request status unavailable'});}
 });
 app.get('/api/dollargeneral/catalog',async(req,res)=>{

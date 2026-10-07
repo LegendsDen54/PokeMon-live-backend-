@@ -21,6 +21,7 @@ function clean(input){
 }
 async function save(input){
   const report=clean(input);await storage();
+  await pool.query('CREATE TABLE IF NOT EXISTS inventory_check_history (retailer TEXT NOT NULL, product_id TEXT NOT NULL, zip TEXT NOT NULL, checked_at TIMESTAMPTZ NOT NULL, data JSONB NOT NULL, PRIMARY KEY(retailer,product_id,zip,checked_at))');
   const client=await pool.connect();
   let alertLocations=[];
   try{
@@ -39,6 +40,8 @@ async function save(input){
       stockStates[locationKey]=row.onHand;
     }
     report.stockStates=stockStates;
+    if(previous)await client.query('INSERT INTO inventory_check_history(retailer,product_id,zip,checked_at,data) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING',[previous.retailer,previous.productId,previous.zip,previous.checkedAt,previous]);
+    await client.query('INSERT INTO inventory_check_history(retailer,product_id,zip,checked_at,data) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING',[report.retailer,report.productId,report.zip,report.checkedAt,report]);
     await client.query("INSERT INTO ccn_inventory_reports(retailer,product_id,zip,data) VALUES($1,$2,$3,$4) ON CONFLICT(retailer,product_id,zip) DO UPDATE SET data=EXCLUDED.data",[report.retailer,report.productId,report.zip,report]);
     await client.query("COMMIT");
   }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
@@ -142,7 +145,7 @@ async function onlineAlerts(report){
 module.exports.onlineAlerts=onlineAlerts;
 
 async function dgQueueStorage(){await storage();await pool.query("CREATE TABLE IF NOT EXISTS dg_check_requests (product_id TEXT NOT NULL, zip TEXT NOT NULL, requested_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(product_id,zip))");}
-module.exports.requestDg=async(productId,zip)=>{await dgQueueStorage();await pool.query("INSERT INTO dg_check_requests(product_id,zip) VALUES($1,$2) ON CONFLICT(product_id,zip) DO UPDATE SET requested_at=now() WHERE dg_check_requests.requested_at < now()-interval '10 minutes'",[productId,zip]);};
+module.exports.requestDg=async(productId,zip)=>{await dgQueueStorage();await pool.query("INSERT INTO dg_check_requests(product_id,zip) VALUES($1,$2) ON CONFLICT(product_id,zip) DO UPDATE SET requested_at=now() WHERE dg_check_requests.requested_at < now()-interval '1 hour' OR EXISTS (SELECT 1 FROM ccn_inventory_reports r WHERE r.retailer='dollargeneral' AND r.product_id=EXCLUDED.product_id AND r.zip=EXCLUDED.zip AND (r.data->>'checkedAt')::timestamptz>=dg_check_requests.requested_at)",[productId,zip]);};
 module.exports.pendingDg=async()=>{await dgQueueStorage();const r=await pool.query("SELECT q.product_id AS \"productId\",q.zip,q.requested_at AS \"requestedAt\" FROM dg_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer='dollargeneral' AND r.product_id=q.product_id AND r.zip=q.zip WHERE q.requested_at>now()-interval '1 hour' AND (r.data IS NULL OR (r.data->>'checkedAt')::timestamptz<q.requested_at) ORDER BY q.requested_at LIMIT 10");return r.rows;};
 module.exports.dgRequestStatus=async(productId,zip)=>{
   await dgQueueStorage();
@@ -150,4 +153,43 @@ module.exports.dgRequestStatus=async(productId,zip)=>{
   if(!rows.length)return {status:'idle'};
   const row=rows[0],completed=row.data && Date.parse(row.data.checkedAt)>=Date.parse(row.requestedAt);
   return {requestedAt:row.requestedAt,status:completed?(row.data.result==='checker_error'?'checker_error':'completed'):Date.now()-Date.parse(row.requestedAt)>3600000?'expired':'queued',checkedAt:completed?row.data.checkedAt:null};
+};
+
+async function checkerStorage(){
+  await storage();
+  await pool.query("CREATE TABLE IF NOT EXISTS inventory_check_requests (retailer TEXT NOT NULL, product_id TEXT NOT NULL, zip TEXT NOT NULL, requested_at TIMESTAMPTZ NOT NULL DEFAULT now(), priority INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(retailer,product_id,zip))");
+  await pool.query("CREATE TABLE IF NOT EXISTS inventory_checker_cooldowns (retailer TEXT PRIMARY KEY, available_at TIMESTAMPTZ NOT NULL, source_url TEXT NOT NULL)");
+}
+function checkerInput(retailer,productId,zip){
+  if(!['bestbuy','costco','sams','dollargeneral'].includes(retailer)||!/^\d{5}$/.test(zip)||!/^[A-Za-z0-9-]{1,40}$/.test(productId))throw Error('Choose a retailer, valid product identifier and five-digit ZIP');
+}
+module.exports.requestInventory=async(retailer,productId,zip)=>{
+  checkerInput(retailer,productId,zip);await checkerStorage();
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',['manual-check:'+retailer+':'+productId+':'+zip]);
+    const cooldown=(await client.query('SELECT available_at FROM inventory_checker_cooldowns WHERE retailer=$1 AND available_at>now()',[retailer])).rows[0];
+    if(cooldown){await client.query('COMMIT');return {status:'cooldown',availableAt:cooldown.available_at};}
+    const existing=(await client.query("SELECT q.requested_at FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip WHERE q.retailer=$1 AND q.product_id=$2 AND q.zip=$3 AND q.requested_at>now()-interval '1 hour' AND (r.data IS NULL OR (r.data->>'checkedAt')::timestamptz<q.requested_at)",[retailer,productId,zip])).rows[0];
+    if(existing){await client.query('COMMIT');return {status:'queued',deduplicated:true,requestedAt:existing.requested_at};}
+    const row=(await client.query('INSERT INTO inventory_check_requests(retailer,product_id,zip,priority) VALUES($1,$2,$3,1) ON CONFLICT(retailer,product_id,zip) DO UPDATE SET requested_at=now(),priority=1 RETURNING requested_at',[retailer,productId,zip])).rows[0];
+    await client.query('COMMIT');return {status:'queued',deduplicated:false,requestedAt:row.requested_at};
+  }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
+};
+module.exports.inventoryRequestStatus=async(retailer,productId,zip)=>{
+  checkerInput(retailer,productId,zip);await checkerStorage();
+  const cooldown=(await pool.query('SELECT available_at FROM inventory_checker_cooldowns WHERE retailer=$1 AND available_at>now()',[retailer])).rows[0];
+  const row=(await pool.query('SELECT q.requested_at,r.data FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip WHERE q.retailer=$1 AND q.product_id=$2 AND q.zip=$3',[retailer,productId,zip])).rows[0];
+  const complete=row?.data && Date.parse(row.data.checkedAt)>=Date.parse(row.requested_at);
+  return {status:complete?(row.data.result==='checker_error'?'checker_error':'completed'):row?(Date.now()-Date.parse(row.requested_at)>3600000?'expired':'queued'):'idle',requestedAt:row?.requested_at || null,checkedAt:complete?row.data.checkedAt:null,availableAt:cooldown?.available_at || null};
+};
+module.exports.pendingInventory=async()=>{
+  await checkerStorage();return (await pool.query("SELECT q.retailer,q.product_id AS \"productId\",q.zip,q.requested_at AS \"requestedAt\",q.priority FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip LEFT JOIN inventory_checker_cooldowns c ON c.retailer=q.retailer WHERE q.requested_at>now()-interval '1 hour' AND (r.data IS NULL OR (r.data->>'checkedAt')::timestamptz<q.requested_at) AND (c.available_at IS NULL OR c.available_at<=now()) ORDER BY q.priority DESC,q.requested_at LIMIT 20")).rows;
+};
+module.exports.recordCheckerCooldown=async(retailer,availableAt,sourceUrl)=>{
+  checkerInput(retailer,'cooldown','60634');
+  const at=Date.parse(availableAt);
+  if(!Number.isFinite(at)||at<=Date.now()||at>Date.now()+24*3600000||!String(sourceUrl).startsWith('https://discord.com/channels/1367457689386356766/'))throw Error('Use the actual future cooldown and Rippin Packz response permalink');
+  await checkerStorage();await pool.query('INSERT INTO inventory_checker_cooldowns(retailer,available_at,source_url) VALUES($1,$2,$3) ON CONFLICT(retailer) DO UPDATE SET available_at=GREATEST(inventory_checker_cooldowns.available_at,EXCLUDED.available_at),source_url=EXCLUDED.source_url',[retailer,new Date(at).toISOString(),sourceUrl]);
 };
