@@ -1987,6 +1987,12 @@ app.get("/api/retail/watch-products", (req,res) => {
   if (!["costco","sams"].includes(req.query.retailer)) return res.status(400).json({ok:false,error:"Choose retailer"});
   res.json({ok:true,products:retailOnline.snapshot(req.query.retailer).catalog || []});
 });
+app.post('/api/dollargeneral/check',async(req,res)=>{
+const productId=String(req.body.productId || ''),zip=String(req.body.zip || '');
+if(!/^\d{5}$/.test(zip) || !require('./dollar-general.json').products.some(p=>p.upc===productId))return res.status(400).json({ok:false,error:'Choose a verified product and five-digit ZIP'});
+try{await ccnInventory.requestDg(productId,zip);res.json({ok:true,status:'queued',message:'Stock check requested. Scheduled collection checks requests every 10 minutes; Discord access and cooldowns may delay completion.'});}catch{res.status(503).json({ok:false,error:'Request storage unavailable; try again later'});}
+});
+app.get('/api/dollargeneral/pending-checks',async(req,res)=>{if(!hasValidPokemonCenterSensorToken(req) && !hasCcnViewerAccess(req))return pokemonCenterSensorUnauthorized(res);try{res.json({ok:true,requests:await ccnInventory.pendingDg()});}catch{res.status(503).json({ok:false,error:'Request queue unavailable'});}});
 app.get('/api/dollargeneral/catalog',async(req,res)=>{
 const zip=String(req.query.zip || '60634');if(!/^\d{5}$/.test(zip))return res.status(400).json({error:'Enter a five-digit ZIP'});
 const catalog=require('./dollar-general.json');let reports=[];let storageConnected=false;

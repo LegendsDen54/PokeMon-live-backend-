@@ -140,3 +140,7 @@ async function onlineAlerts(report){
   }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
 }
 module.exports.onlineAlerts=onlineAlerts;
+
+async function dgQueueStorage(){await storage();await pool.query("CREATE TABLE IF NOT EXISTS dg_check_requests (product_id TEXT NOT NULL, zip TEXT NOT NULL, requested_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(product_id,zip))");}
+module.exports.requestDg=async(productId,zip)=>{await dgQueueStorage();await pool.query("INSERT INTO dg_check_requests(product_id,zip) VALUES($1,$2) ON CONFLICT(product_id,zip) DO UPDATE SET requested_at=now() WHERE dg_check_requests.requested_at < now()-interval '10 minutes'",[productId,zip]);};
+module.exports.pendingDg=async()=>{await dgQueueStorage();const r=await pool.query("SELECT q.product_id AS \"productId\",q.zip,q.requested_at AS \"requestedAt\" FROM dg_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer='dollargeneral' AND r.product_id=q.product_id AND r.zip=q.zip WHERE q.requested_at>now()-interval '1 hour' AND (r.data IS NULL OR (r.data->>'checkedAt')::timestamptz<q.requested_at) ORDER BY q.requested_at LIMIT 10");return r.rows;};
