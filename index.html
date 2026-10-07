@@ -2958,7 +2958,7 @@ async function renderCcnInventory(retailer){
   const linkedZip=stockParams.get('retailer')===retailer && /^\d{5}$/.test(stockParams.get('zip') || '')?stockParams.get('zip'):'';
   if(linkedZip)sessionStorage.setItem('inventoryZip:'+retailer,linkedZip);
   const zip=linkedZip || sessionStorage.getItem('inventoryLastResultZip:'+retailer) || sessionStorage.getItem("inventoryZip:"+retailer) || "";
-  const section=document.createElement("section");section.className="store-checker";section.id="ccnInventoryReports";
+  const section=document.createElement("section");section.className="store-checker";section.id="ccnInventoryReports";section.dataset.retailer=retailer;
   const reportBody=document.createElement('div');reportBody.innerHTML='<p>Loading latest checks…</p>';section.append(reportBody);
   otherRetailerCard.append(section);
   if(["costco","sams"].includes(retailer))addInventoryRequestControl(retailer,otherRetailerCard);
@@ -2971,13 +2971,13 @@ async function renderCcnInventory(retailer){
       const products=(response.products || []).filter(p=>retailer!=="costco" || /ascended heroes|30th/i.test(p.label || p.query || ""));
       knownProducts=products;
       const readyProducts=products.filter(p=>p.image && p.itemNumber);
-      const tiles=readyProducts.map(p=>'<article class="ccn-product-tile">'+(p.imageCount===2?'<div class="bundle-image-pair">'+retailerImageMarkup(p.image,p.label)+retailerImageMarkup(p.image,p.label)+'</div>':retailerImageMarkup(p.image,p.label))+'<h4>'+esc(p.label.replace(/^(Confirmed|Reported released|Reported current|Reported upcoming|Confirmed recent) · /,''))+'</h4><small>Item '+esc(p.itemNumber)+'</small>'+(p.price!=null && Number.isFinite(Number(p.price))?'<small>$'+Number(p.price).toFixed(2)+'</small>':'')+(p.reportedPrice!=null?'<small>Reported $'+Number(p.reportedPrice).toFixed(2)+'</small>':'')+'</article>').join('');
+      const tiles=readyProducts.map(p=>'<article class="ccn-product-tile">'+''+'<h4>'+esc(p.label.replace(/^(Confirmed|Reported released|Reported current|Reported upcoming|Confirmed recent) · /,''))+'</h4><small>Item '+esc(p.itemNumber)+'</small>'+(p.price!=null && Number.isFinite(Number(p.price))?'<small>$'+Number(p.price).toFixed(2)+'</small>':'')+(p.reportedPrice!=null?'<small>Reported $'+Number(p.reportedPrice).toFixed(2)+'</small>':'')+'</article>').join('');
       watch.innerHTML='<h3>Products being watched</h3><div class="ccn-product-grid warehouse-watch-grid">'+tiles+'</div>';
     }catch(error){watch.textContent='Product watch list unavailable. Please try again.';}
   }
-  if(!/^\d{5}$/.test(zip)){reportBody.hidden=true;return;}
+  if(!/^\d{5}$/.test(zip))reportBody.hidden=true;
   let lastReportsFingerprint="";
-  async function refreshReports(){try{
+  async function refreshReports(){const zip=sessionStorage.getItem('inventoryLastResultZip:'+retailer) || sessionStorage.getItem('inventoryZip:'+retailer) || linkedZip;if(!/^\d{5}$/.test(zip))return;try{
     const data=await fetch("/api/ccn/inventory-reports?retailer="+encodeURIComponent(retailer)+"&zip="+encodeURIComponent(zip),{cache:"no-store"}).then(r=>r.json());
     if(!section.isConnected)return;
     if(!data.ok)throw new Error(data.error);
@@ -2991,6 +2991,7 @@ async function renderCcnInventory(retailer){
     reportBody.hidden=!productTiles;reportBody.innerHTML=productTiles?'<div class="ccn-product-grid">'+productTiles+'</div>':'';
     updateCcnCountdowns();
   }catch(error){if(!reportBody.children.length)reportBody.innerHTML='<p>'+esc(error.message)+'</p>';}}
+  section.addEventListener('refresh-stock-report',refreshReports);
   await refreshReports();
   const reportPoll=setInterval(()=>{if(!section.isConnected){clearInterval(reportPoll);return;}refreshReports();},10000);
 }
@@ -3024,10 +3025,10 @@ function addInventoryRequestControl(retailer,parent){
   const linked=new URLSearchParams(location.search);const selected=linked.get('retailer')===retailer?linked.get('productId'):sessionStorage.getItem('inventoryProduct:'+retailer);
   if(products.some(p=>String(p.itemNumber)===selected)){picker.value=selected;picker.dispatchEvent(new Event('change'));}
  }).catch(()=>{status.textContent='Product list unavailable. Please try again.';});
- picker.onchange=()=>{sessionStorage.setItem('inventoryProduct:'+retailer,picker.value);const p=products.find(p=>String(p.itemNumber)===picker.value);preview.innerHTML=p?'<article class="ccn-product-tile">'+(p.image?retailerImageMarkup(p.image,p.label):'')+'<h4>'+esc(p.label.replace(/^(Confirmed|Reported released|Reported current|Reported upcoming|Confirmed recent) · /,''))+'</h4><small>Item '+esc(p.itemNumber)+'</small>'+(p.price!=null && Number.isFinite(Number(p.price))?'<small>$'+Number(p.price).toFixed(2)+'</small>':'')+(p.reportedPrice!=null?'<small>Reported $'+Number(p.reportedPrice).toFixed(2)+'</small>':'')+'</article>':'';};
- const submit=watchInventoryRequest(retailer,()=>({productId:picker.value,zip:zipField.value.trim()}),status,button,data=>{const completedKey=picker.value+':'+zipField.value.trim()+':'+data.checkedAt;if(sessionStorage.getItem('inventoryRendered:'+retailer)===completedKey)return;sessionStorage.setItem('inventoryRendered:'+retailer,completedKey);sessionStorage.setItem('inventoryLastSearch:'+retailer,picker.value);sessionStorage.setItem('inventoryLastResultZip:'+retailer,zipField.value.trim());renderExternalRetailer(retailer);});
+ picker.onchange=()=>{sessionStorage.setItem('inventoryProduct:'+retailer,picker.value);const p=products.find(p=>String(p.itemNumber)===picker.value);preview.innerHTML=p?'<article class="ccn-product-tile">'+''+'<h4>'+esc(p.label.replace(/^(Confirmed|Reported released|Reported current|Reported upcoming|Confirmed recent) · /,''))+'</h4><small>Item '+esc(p.itemNumber)+'</small>'+(p.price!=null && Number.isFinite(Number(p.price))?'<small>$'+Number(p.price).toFixed(2)+'</small>':'')+(p.reportedPrice!=null?'<small>Reported $'+Number(p.reportedPrice).toFixed(2)+'</small>':'')+'</article>':'';};
+ const submit=watchInventoryRequest(retailer,()=>({productId:picker.value,zip:zipField.value.trim()}),status,button,data=>{const completedKey=picker.value+':'+zipField.value.trim()+':'+data.checkedAt;if(sessionStorage.getItem('inventoryRendered:'+retailer)===completedKey)return;sessionStorage.setItem('inventoryRendered:'+retailer,completedKey);sessionStorage.setItem('inventoryLastSearch:'+retailer,picker.value);sessionStorage.setItem('inventoryLastResultZip:'+retailer,zipField.value.trim());document.getElementById('ccnInventoryReports')?.dispatchEvent(new Event('refresh-stock-report'));});
  if(['costco','sams'].includes(retailer)){const note=document.createElement('p');note.textContent='Rip Radar · 60-minute advertised search limit. A confirmed cooldown shows the remaining time and next available search above.';form.append(note);}
- form.onsubmit=async e=>{e.preventDefault();if(/^\d{5}$/.test(zipField.value.trim()))sessionStorage.setItem('inventoryZip:'+retailer,zipField.value.trim());await submit();};
+ form.onsubmit=async e=>{e.preventDefault();if(/^\d{5}$/.test(zipField.value.trim()))sessionStorage.setItem('inventoryZip:'+retailer,zipField.value.trim());sessionStorage.setItem('inventoryLastSearch:'+retailer,picker.value);sessionStorage.setItem('inventoryLastResultZip:'+retailer,zipField.value.trim());await submit();document.getElementById('ccnInventoryReports')?.dispatchEvent(new Event('refresh-stock-report'));};
 }
 
 async function renderDollarGeneral(){
@@ -3055,6 +3056,7 @@ async function renderExternalRetailer(retailer){
 if(retailer==="barnes")return renderBarnes();
 if(retailer==="dollargeneral")return renderDollarGeneral();
   if(retailer === "target" || (["sams","costco"].includes(retailer) && warehouseChannels[retailer] === "online")) return renderPublicOnline(retailer);
+  if(["sams","costco"].includes(retailer) && document.querySelector('#ccnInventoryReports[data-retailer="'+retailer+'"]')) return;
   if(["sams","costco"].includes(retailer) && otherRetailerCard.contains(document.activeElement) && /INPUT|SELECT|BUTTON/.test(document.activeElement.tagName)) return;
   if(retailer === "bestbuy" && document.getElementById('bestBuyEraPicker')) return;
   const labels = {target:"Target", sams:"Sam's Club", bestbuy:"Best Buy", costco:"Costco"};
