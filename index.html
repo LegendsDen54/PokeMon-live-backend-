@@ -2514,7 +2514,7 @@ function renderPokemonCenter(state){
     "<p class=\"pokemon-center-activity\">" + (clues.length?'Current evidence clues: '+clues.length:activity) + "</p>" +
     outlook +
     (dailyWatchlist?'<h3>Today’s Pokémon Center watchlist</h3>'+dailyWatchlist:'')+
-    (evidenceCards?'<h3>Readiness evidence</h3><small>Evidence score, not a probability. Source reports share one contribution; invitation-only wording adds a separate clue. Clues expire after six hours.</small>'+evidenceCards:'')+
+    (evidenceCards?'<h3>Readiness evidence</h3><small>Evidence score, not a probability. Today’s discussion contributes a small clue; repeated source reports share one contribution. Older warnings lose weight. Daily clues reset at midnight Chicago time.</small>'+evidenceCards:'')+
     "<a class=\"source-link\" href=\"https://www.pokemoncenter.com/\" target=\"_blank\" rel=\"noopener noreferrer\"><span class=\"pokemon-center-mark\" aria-hidden=\"true\"></span>Open Pokémon Center</a>";
   showNewPokemonCenterSignal(events[0]);
 }
