@@ -56,11 +56,11 @@ document.getElementById("save")
 
 const targetRefresh=document.getElementById('targetRefresh');
 chrome.storage.local.get(['targetRefreshEnabled','targetRefreshPaused']).then(config=>{
- targetRefresh.checked=false; targetRefresh.disabled=true;
- const paused=Object.keys(config.targetRefreshPaused || {}).length;document.getElementById('targetRefreshState').textContent=paused?paused+' Target tab(s) paused for queue/security protection.':'Automatic Target refresh is disabled.';
+ targetRefresh.checked=config.targetRefreshEnabled!==false;
+ const paused=config.targetRefreshPaused ? 1 : 0;document.getElementById('targetRefreshState').textContent=paused?paused+' Target tab(s) paused for queue/security protection.':'Target refresh interval: 30 minutes.';
 });
 targetRefresh.addEventListener('change',async()=>{
- await chrome.storage.local.set({targetRefreshEnabled:targetRefresh.checked,...(targetRefresh.checked?{targetRefreshPaused:{},targetRefreshTimes:{}}:{})});
+ await chrome.storage.local.set({targetRefreshEnabled:targetRefresh.checked,...(targetRefresh.checked?{targetRefreshPaused:false,lastTargetRefreshAt:Date.now()}:{})});
  document.getElementById('targetRefreshState').textContent=targetRefresh.checked?'Target refresh enabled.':'Target refresh stopped. Current pages stay open.';
 });
 

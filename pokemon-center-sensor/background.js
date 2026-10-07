@@ -153,10 +153,31 @@ async function refreshPokemonCenterTabs() {
     await chrome.storage.local.set({lastAutomaticRefreshAt:Date.now()});
   }
 }
-// Target shopping access intentionally disabled.
+async function refreshTargetTabs() {
+  const config=await chrome.storage.local.get(['targetRefreshEnabled','lastTargetRefreshAt','targetRefreshPaused']);
+  if(config.targetRefreshEnabled===false || config.targetRefreshPaused) return;
+  const tabs=await chrome.tabs.query({url:'https://www.target.com/*'});
+  const safe=[];
+  for(const tab of tabs) {
+    if(!Number.isInteger(tab.id))continue;
+    const pathname=new URL(tab.url).pathname;
+    try {
+      const results=await chrome.scripting.executeScript({target:{tabId:tab.id},func:()=>{
+        const body=document.body?.innerText;
+        if(!body || document.readyState!=='complete')return true;
+        return /queue|waiting room|verify|verification|press\s*(?:&|and)\s*hold|access denied|temporarily blocked|confirm.*human/i.test(body) || Boolean(document.querySelector('#px-captcha, #px-captcha-wrapper, iframe[title*="verification" i], iframe[src*="captcha"]'));
+      }});
+      if(!results.length || results.some(r=>r.result!==false)) {await chrome.storage.local.set({targetRefreshPaused:true});return;}
+      if(/^\/p\/.+/.test(pathname))safe.push(tab.id);
+    } catch {await chrome.storage.local.set({targetRefreshPaused:true});return;}
+  }
+  if(Date.now()-Number(config.lastTargetRefreshAt || 0)<30*60*1000)return;
+  if(safe.length){await chrome.tabs.reload(safe[0]);await chrome.storage.local.set({lastTargetRefreshAt:Date.now()});}
+}
+
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.local.set({pokemonCenterHourlyRefreshEnabled:true,lastAutomaticRefreshAt:Date.now()});
+  chrome.storage.local.set({pokemonCenterHourlyRefreshEnabled:true,lastAutomaticRefreshAt:Date.now(),targetRefreshEnabled:true,lastTargetRefreshAt:Date.now()});
   chrome.alarms.create(REFRESH_ALARM, {
     periodInMinutes: 1
   });
@@ -180,7 +201,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.alarms.onAlarm.addListener(alarm => {
   if (alarm.name === REFRESH_ALARM) {
     flushCcnReports().catch(() => {});
-    refreshPokemonCenterTabs().catch(() => {}); // Hourly; Target reloads remain disabled.
+    refreshPokemonCenterTabs().catch(() => {});
+    refreshTargetTabs().catch(() => {});
 
   }
 });
