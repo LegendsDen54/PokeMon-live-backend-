@@ -20,7 +20,9 @@ function clean(input){
   return {retailer:input.retailer,productId:input.productId,zip:input.zip,name:String(input.name).slice(0,240),image,source:input.sourceUrl.startsWith("https://discord.com/channels/1367457689386356766/") ? "Rippin Packz stock checker" : "CCN / Zephyr stock checker",sourceUrl:input.sourceUrl,checkedAt:new Date(checked).toISOString(),result:input.result,detail:String(input.detail || "").slice(0,400),locations:input.result==="results"?locations:[]};
 }
 async function save(input){
-  const report=clean(input);await storage();
+  const report=clean(input);await checkerStorage();
+  const manual=(await pool.query("SELECT requested_at FROM inventory_check_requests WHERE retailer=$1 AND product_id=$2 AND zip=$3",[report.retailer,report.productId,report.zip])).rows[0];
+  report.privateManual=Boolean(manual && Date.parse(report.checkedAt)>=Date.parse(manual.requested_at));
   await pool.query('CREATE TABLE IF NOT EXISTS inventory_check_history (retailer TEXT NOT NULL, product_id TEXT NOT NULL, zip TEXT NOT NULL, checked_at TIMESTAMPTZ NOT NULL, data JSONB NOT NULL, PRIMARY KEY(retailer,product_id,zip,checked_at))');
   const client=await pool.connect();
   let alertLocations=[];
@@ -47,10 +49,11 @@ async function save(input){
   }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
   return {report,alertLocations};
 }
-async function list(retailer,zip){
-  await storage();
+async function list(retailer,zip,viewer){
+  await checkerStorage();
   const rows=await pool.query("SELECT data FROM ccn_inventory_reports WHERE retailer=$1 AND zip=$2",[retailer,zip]);
-  return rows.rows.map(row=>({...row.data,stale:Date.now()-Date.parse(row.data.checkedAt)>90*60000}));
+  const permitted=viewer?(await pool.query('SELECT product_id FROM inventory_search_viewers WHERE viewer_id=$1 AND retailer=$2 AND zip=$3',[viewer,retailer,zip])).rows.map(r=>r.product_id):[];
+  return rows.rows.filter(row=>permitted.includes(row.data.productId)).map(row=>({...row.data,stale:Date.now()-Date.parse(row.data.checkedAt)>90*60000}));
 }
 module.exports={save,list};
 async function newsStorage(){
@@ -157,14 +160,17 @@ module.exports.dgRequestStatus=async(productId,zip)=>{
 
 async function checkerStorage(){
   await storage();
+  await pool.query("CREATE TABLE IF NOT EXISTS inventory_search_viewers (viewer_id TEXT NOT NULL, retailer TEXT NOT NULL, product_id TEXT NOT NULL, zip TEXT NOT NULL, requested_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(viewer_id,retailer,product_id,zip))");
   await pool.query("CREATE TABLE IF NOT EXISTS inventory_check_requests (retailer TEXT NOT NULL, product_id TEXT NOT NULL, zip TEXT NOT NULL, requested_at TIMESTAMPTZ NOT NULL DEFAULT now(), priority INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(retailer,product_id,zip))");
   await pool.query("CREATE TABLE IF NOT EXISTS inventory_checker_cooldowns (retailer TEXT PRIMARY KEY, available_at TIMESTAMPTZ NOT NULL, source_url TEXT NOT NULL)");
 }
 function checkerInput(retailer,productId,zip){
   if(!['bestbuy','costco','sams','dollargeneral'].includes(retailer)||!/^\d{5}$/.test(zip)||!/^[A-Za-z0-9-]{1,40}$/.test(productId))throw Error('Choose a retailer, valid product identifier and five-digit ZIP');
 }
-module.exports.requestInventory=async(retailer,productId,zip)=>{
+module.exports.requestInventory=async(retailer,productId,zip,viewer)=>{
   checkerInput(retailer,productId,zip);await checkerStorage();
+  if(!viewer)throw Error('Private search session unavailable');
+  await pool.query('INSERT INTO inventory_search_viewers(viewer_id,retailer,product_id,zip) VALUES($1,$2,$3,$4) ON CONFLICT(viewer_id,retailer,product_id,zip) DO UPDATE SET requested_at=now()',[viewer,retailer,productId,zip]);
   const client=await pool.connect();
   try{
     await client.query('BEGIN');
@@ -177,10 +183,12 @@ module.exports.requestInventory=async(retailer,productId,zip)=>{
     await client.query('COMMIT');return {status:'queued',deduplicated:false,requestedAt:row.requested_at};
   }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
 };
-module.exports.inventoryRequestStatus=async(retailer,productId,zip)=>{
+module.exports.inventoryRequestStatus=async(retailer,productId,zip,viewer)=>{
   checkerInput(retailer,productId,zip);await checkerStorage();
   const cooldown=(await pool.query('SELECT available_at FROM inventory_checker_cooldowns WHERE retailer=$1 AND available_at>now()',[retailer])).rows[0];
   const row=(await pool.query('SELECT q.requested_at,r.data FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip WHERE q.retailer=$1 AND q.product_id=$2 AND q.zip=$3',[retailer,productId,zip])).rows[0];
+  const permitted=viewer && (await pool.query('SELECT 1 FROM inventory_search_viewers WHERE viewer_id=$1 AND retailer=$2 AND product_id=$3 AND zip=$4',[viewer,retailer,productId,zip])).rowCount;
+  if(!permitted)return {status:'idle',availableAt:cooldown?.available_at || null};
   const complete=row?.data && Date.parse(row.data.checkedAt)>=Date.parse(row.requested_at);
   return {status:complete?(row.data.result==='checker_error'?'checker_error':'completed'):row?(Date.now()-Date.parse(row.requested_at)>3600000?'expired':'queued'):'idle',requestedAt:row?.requested_at || null,checkedAt:complete?row.data.checkedAt:null,availableAt:cooldown?.available_at || null};
 };
