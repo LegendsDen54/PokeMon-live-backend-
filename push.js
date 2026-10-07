@@ -500,7 +500,9 @@ async function sendToSubscription(
    BROADCAST
 ======================================== */
 
+let lastBroadcast=null;
 async function broadcast(payload) {
+  const startedAt=Date.now();
   if (!configured) {
     return {
       ok: false,
@@ -572,7 +574,9 @@ async function broadcast(payload) {
     }
   }
 
+  lastBroadcast={startedAt:new Date(startedAt).toISOString(),completedAt:new Date().toISOString(),durationMs:Date.now()-startedAt,accepted:sent,failed,removed,phoneDisplayConfirmed:false};
   return {
+    durationMs:lastBroadcast.durationMs,
     ok:
       failed === 0,
 
@@ -715,6 +719,7 @@ async function sendPokemonCenterQueueTestAlert() {
 
 function getPushStatus() {
   return {
+    lastBroadcast,
     configured,
 
     subscriptions:
