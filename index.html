@@ -3144,6 +3144,11 @@ async function renderPublicOnline(retailer){
       const url=safeExternalUrl(item.url);
       const status=item.stale ? "Last observed · needs a fresh check" : String(item.rawStatus || item.status || "Unknown").replace(/_/g," ");
       const price=item.price!=null && Number.isFinite(Number(item.price)) ? "$"+Number(item.price).toFixed(2) : "Price not published";
+      if(['costco','sams'].includes(retailer)) {
+        if(!item.image) return '';
+        const number=item.itemNumber || item.sku || item.productId;
+        return '<article class="ccn-product-tile">'+retailerImageMarkup(item.image,item.name)+'<h4>'+(url?'<a target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">'+esc(item.name)+'</a>':esc(item.name))+'</h4>'+(number?'<small>Item '+esc(number)+'</small>':'')+(item.price!=null && Number.isFinite(Number(item.price))?'<small>$'+Number(item.price).toFixed(2)+'</small>':'')+(item.seller?'<small>'+esc(item.seller)+'</small>':'')+'</article>';
+      }
       const shipping="<small>Shipping to your ZIP: confirm at retailer</small>";
       return '<article class="retailer-product-card" style="position:relative">'+retailerImageMarkup(item.image,item.name)+'<div><strong>'+(url?'<a class="online-product-link" target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">'+esc(item.name)+'</a>':esc(item.name))+'</strong><small>'+esc(price)+'</small><small>Item / SKU: '+esc(item.sku || item.productId || "Not published")+'</small><small>'+esc(status)+'</small>'+shipping+'<small>'+(item.observedAt?esc(new Date(item.observedAt).toLocaleString()):"Not checked yet")+'</small></div></article>';
     }).join("");
