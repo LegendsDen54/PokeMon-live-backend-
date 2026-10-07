@@ -1864,6 +1864,13 @@ html,body{height:100%;overflow:hidden;}
 #dgResults .retailer-product-image-frame{height:180px;width:100%;padding:14px;}
 #dgResults .retailer-product-image-frame img{width:100%;height:100%;object-fit:contain;object-position:center;max-height:152px;}
 
+.ccn-readable-post{padding:16px;margin:12px 0;border:1px solid #334155;border-radius:12px;background:rgba(15,23,42,.65);text-align:left;overflow-wrap:anywhere}
+.ccn-readable-post h4{font-size:16px;line-height:1.45;margin:10px 0}
+.ccn-readable-post p{font-size:14px;line-height:1.65;margin:10px 0;white-space:pre-line}
+.ccn-post-meta{display:flex;gap:8px;flex-wrap:wrap;font-size:12px}
+.ccn-post-meta span{padding:4px 8px;background:#243247;border-radius:6px}
+.ccn-readable-post footer{font-size:12px;line-height:1.7;color:#b6c3d5;margin-top:12px}
+.ccn-readable-post details summary{cursor:pointer;color:#93c5fd;font-size:13px}
 </style>
 <style>
 #dgSearch{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:12px;align-items:end}#dgSearch label{display:flex;flex-direction:column;gap:6px;min-width:0}#dgSearch input,#dgSearch select{width:100%;min-width:0;height:44px;box-sizing:border-box;padding:10px;border:1px solid rgba(98,199,255,.35);border-radius:8px;background:#03101e;color:var(--text);font:inherit}#dgZip{text-align:center;font-variant-numeric:tabular-nums}#dgSearch button{grid-column:1/-1}.dg-stock-list{background:#101722;border:1px solid #334155;border-radius:10px;padding:12px;max-height:360px;overflow:auto;margin:12px 0}.dg-stock-row{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:8px;align-items:start;padding:5px 0;font-size:13px;line-height:1.5}.dg-stock-row strong{color:#86efac;font-variant-numeric:tabular-nums}.dg-stock-row span:nth-child(2){overflow-wrap:anywhere}@media(max-width:600px){#dgSearch{grid-template-columns:minmax(0,1fr) 100px}#dgSearch label:first-child{grid-column:1/-1}#dgSearch label:nth-child(2){grid-column:1/-1}#dgSearch button{min-height:44px}}
@@ -2371,7 +2378,15 @@ async function renderPokemonRestocks(){
     const response=await fetch('/api/ccn/news',{cache:'no-store'});
     const data=await response.json();
     if(!data.ok)throw new Error(data.error || 'CCN feed unavailable');
-    const rows=(data.posts || []).map(post=>'<a class="pokemon-restocks-post" href="'+esc(post.sourceUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(post.summary)+'<small>CCN'+(post.editedAt?' · Updated':'')+' · '+esc(new Date(post.updatedAt || post.publishedAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}))+'</small></a>').join('');
+    const rows=(data.posts || []).map(post=>{
+      const summary=String(post.summary || '').replace(/^CCN source report:\s*/i,'').trim();
+      const products=post.products || [];
+      const title=products.length?products.map(p=>p.name).join(' · '):summary.split(/\n/)[0].slice(0,110);
+      const retailer=({target:'Target',walmart:'Walmart',pokemoncenter:'Pokémon Center'})[post.retailer] || 'CCN';
+      const statuses=[...new Set(products.map(p=>p.status))];
+      const label=statuses.length===1?({upcoming:'Upcoming',reported_available:'Reported live',reported_unavailable:'Reported sold out',queue:'Reported queue'})[statuses[0]]:'Source update';
+      return '<article class="ccn-readable-post"><div class="ccn-post-meta"><span>'+esc(retailer)+'</span><span>'+esc(label || 'Source update')+'</span></div><h4>'+esc(title)+'</h4><p>'+esc(summary.length>190?summary.slice(0,190)+'…':summary)+'</p>'+(summary.length>190?'<details><summary>Read full update</summary><p>'+esc(summary)+'</p></details>':'')+'<footer><time>'+esc(new Date(post.publishedAt).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</time>'+(post.editedAt?' · Edited '+esc(new Date(post.editedAt).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})):'')+' · <a href="'+esc(post.sourceUrl)+'" target="_blank" rel="noopener noreferrer">View source ↗</a></footer></article>';
+    }).join('');
     pokemonRestocksCard.innerHTML=header+(rows || '<p>No CCN updates have been imported today. This is not a live Discord feed; open CCN for immediate alerts.</p>')+footer;
   }catch(error){pokemonRestocksCard.innerHTML=header+'<p>'+esc(error.message)+'</p>'+footer;}
 }
@@ -2928,8 +2943,8 @@ function watchInventoryRequest(retailer,getSelection,status,button,onCompleted){
   }
   const tick=setInterval(()=>{if(!status.isConnected){clearInterval(tick);clearInterval(poll);return;}paint();},1000);
   const poll=setInterval(async()=>{const selection=getSelection(),changed=lastKey!==selection.productId+':'+selection.zip,interval=state.status==='queued'?2000:10000;if(pollBusy || busy || (!changed && Date.now()-lastPollAt<interval))return;pollBusy=true;lastPollAt=Date.now();try{await update();}finally{pollBusy=false;}},2000);update();
-  return async()=>{const selection=getSelection();if(!selection.productId || !/^\d{5}$/.test(selection.zip)){status.textContent='Choose a product identifier and five-digit ZIP.';return;}busy=true;failure='';paint();
-    try{const r=await fetch('/api/inventory/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({retailer,...selection})});const data=await r.json();if(!r.ok)throw Error(data.error || 'Check request failed');state=data;status.textContent=data.message;await update();}catch(e){failure=e.message;status.textContent=failure;}finally{busy=false;paint();}
+  return async()=>{if(busy)return;const selection=getSelection();if(!selection.productId || !/^\d{5}$/.test(selection.zip)){status.textContent='Choose a product identifier and five-digit ZIP.';return;}busy=true;failure='';paint();
+    try{const r=await fetch('/api/inventory/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({retailer,...selection})});const data=await r.json();if(!r.ok)throw Error(data.error || 'Check request failed');if(selection.productId!==getSelection().productId || selection.zip!==getSelection().zip)return;state=data;status.textContent=data.message;await update();}catch(e){failure=e.message;status.textContent=failure;}finally{busy=false;paint();}
   };
 }
 function addInventoryRequestControl(retailer,parent){
@@ -4621,7 +4636,8 @@ async function runManualWalmartScan(){
               token
           },
 
-          body:"{}"
+          body:"{}",
+          signal:AbortSignal.timeout(90000)
         }
       );
 
@@ -4671,10 +4687,9 @@ async function runManualWalmartScan(){
     walmartManualStatus.textContent =
       "Manual scan could not run";
 
-    walmartManualStatus.textContent=error.message || "Manual scan could not run";
-
-
+    walmartManualScanRunning=false;
     await load();
+    walmartManualStatus.textContent=error.name==='TimeoutError'?'Still waiting for the scan response. Saved results remain visible.':error.message || "Manual scan could not run";
 
 
   }finally{
