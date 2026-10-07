@@ -4,6 +4,15 @@ const backendUrl = document.getElementById("backendUrl");
 const sensorToken = document.getElementById("sensorToken");
 const automaticRefresh = document.getElementById("automaticRefresh");
 const status = document.getElementById("status");
+const ccnBridge=document.getElementById('ccnBridge');
+chrome.storage.local.get(['ccnBridgeEnabled','ccnBridgeLastSuccess','ccnBridgeError','ccnPending']).then(config=>{
+  ccnBridge.checked=config.ccnBridgeEnabled!==false;
+  document.getElementById('ccnBridgeState').textContent=config.ccnBridgeError || (config.ccnBridgeLastSuccess?'Last transfer: '+new Date(config.ccnBridgeLastSuccess).toLocaleString():'Waiting for a qualifying CCN message in an open tab.')+' Pending: '+(config.ccnPending || []).length;
+});
+ccnBridge.addEventListener('change',async()=>{
+  await chrome.storage.local.set({ccnBridgeEnabled:ccnBridge.checked});
+  document.getElementById('ccnBridgeState').textContent=ccnBridge.checked?'CCN transfer enabled.':'CCN transfer paused.';
+});
 
 chrome.storage.local.get([
   "backendUrl",

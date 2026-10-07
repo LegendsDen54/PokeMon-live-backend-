@@ -6,6 +6,67 @@ const DEFAULT_BACKEND_URL =
 const REFRESH_ALARM = "pokemon-center-scheduled-refresh";
 const ACTIVE_REFRESH_MS = 5 * 60 * 1000;
 const QUIET_REFRESH_MS = 15 * 60 * 1000;
+const CCN_CHANNELS = new Set(['1424776504767680722','1514248684575920160','1460973469150875720','1424776415286657136']);
+let ccnSending = false;
+let ccnQueueChanges = Promise.resolve();
+function ccnLocked(action){const result=ccnQueueChanges.then(action);ccnQueueChanges=result.catch(()=>{});return result;}
+function ccnSenderAllowed(sender,payload){
+  try{
+    const tabUrl=new URL(sender.url || sender.tab?.url || '');
+    const source=new URL(payload.sourceUrl);
+    const parts=tabUrl.pathname.split('/');
+    return tabUrl.origin==='https://discord.com' && parts[2]==='1410547930250612828' && CCN_CHANNELS.has(parts[3]) && source.origin===tabUrl.origin && source.pathname.startsWith('/channels/1410547930250612828/'+parts[3]+'/') && /^\d+$/.test(source.pathname.split('/')[4] || '');
+  }catch{return false;}
+}
+async function queueCcnReport(payload){
+  if((await chrome.storage.local.get('ccnBridgeEnabled')).ccnBridgeEnabled===false)return {ok:false,paused:true};
+  const revision=JSON.stringify(payload);
+  await ccnLocked(async()=>{
+    const saved=await chrome.storage.local.get(['ccnPending','ccnSent']);
+    const sent=saved.ccnSent || {};
+    if(sent[payload.sourceUrl]===revision)return;
+    const pending=(saved.ccnPending || []).filter(row=>row.payload.sourceUrl!==payload.sourceUrl);
+    pending.push({payload,revision,attempts:0,nextTry:0});
+    await chrome.storage.local.set({ccnPending:pending.slice(-100)});
+  });
+  flushCcnReports().catch(()=>{});
+  return {ok:true,queued:true};
+}
+async function flushCcnReports(){
+  if(ccnSending)return;
+  if((await chrome.storage.local.get('ccnBridgeEnabled')).ccnBridgeEnabled===false)return;
+  ccnSending=true;
+  try{
+    while(true){
+      const stored=await chrome.storage.local.get('ccnPending');
+      const row=(stored.ccnPending || []).find(r=>r.nextTry<=Date.now());
+      if(!row)break;
+      const result=await post('/api/ccn/news-report',row.payload).catch(()=>({ok:false,status:503,error:'Connection temporarily unavailable'}));
+      await ccnLocked(async()=>{
+        const current=await chrome.storage.local.get(['ccnPending','ccnSent']);
+        const pending=current.ccnPending || [];
+        const matching=pending.find(r=>r.revision===row.revision);
+        if(!matching)return;
+        let remaining=pending;
+        if(result.ok || result.status===400 || Date.now()-Date.parse(row.payload.editedAt || row.payload.publishedAt)>48*3600000){
+          remaining=pending.filter(r=>r.revision!==row.revision);
+          if(result.ok){
+            const sent=current.ccnSent || {};sent[row.payload.sourceUrl]=row.revision;
+            await chrome.storage.local.set({ccnSent:Object.fromEntries(Object.entries(sent).slice(-500)),ccnBridgeLastSuccess:new Date().toISOString(),ccnBridgeError:null});
+          }else await chrome.storage.local.set({ccnBridgeError:'A source report was rejected or expired; see the scheduled collector.'});
+        }else{
+          matching.attempts++;
+          const auth=!result.configured || [401,403].includes(result.status);
+          const delay=auth?10*60000:Math.min(3600000,30000*2**Math.min(matching.attempts,7)) + Math.random()*10000;
+          matching.nextTry=Date.now()+Math.max(delay,result.retryAfterMs || 0);
+          await chrome.storage.local.set({ccnBridgeError:auth?'Saved sensor connection needs attention.':'Temporary transfer failure; report retained for retry.'});
+        }
+        await chrome.storage.local.set({ccnPending:remaining});
+      });
+      if(!result.ok)break;
+    }
+  }finally{ccnSending=false;}
+}
 
 function isPokemonRestocksUrl(value) {
   try {
@@ -142,6 +203,7 @@ chrome.runtime.onInstalled.addListener(() => {
     periodInMinutes: 1
   });
   attachOpenPokemonRestocksSensors().catch(() => {});
+  chrome.tabs.query({url:'https://discord.com/channels/1410547930250612828/*'}).then(tabs=>Promise.all(tabs.filter(tab=>CCN_CHANNELS.has(new URL(tab.url).pathname.split('/')[3])).map(tab=>chrome.scripting.executeScript({target:{tabId:tab.id},files:['ccn-discord.js']}).catch(()=>{})))).catch(()=>{});
 });
 
 chrome.runtime.onStartup.addListener(() => {
@@ -159,6 +221,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
 chrome.alarms.onAlarm.addListener(alarm => {
   if (alarm.name === REFRESH_ALARM) {
+    flushCcnReports().catch(() => {});
     refreshPokemonCenterTabs().catch(() => {});
     refreshTargetTabs().catch(() => {});
   }
@@ -232,7 +295,8 @@ async function post(path, payload) {
     ok: response.ok,
     configured: true,
     status: response.status,
-    body
+    body,
+    retryAfterMs: (()=>{const value=response.headers.get('retry-after');if(!value)return 0;const seconds=Number(value);return Number.isFinite(seconds)?Math.max(0,seconds*1000):Math.max(0,Date.parse(value)-Date.now()) || 0;})()
   };
 }
 
@@ -240,6 +304,12 @@ chrome.runtime.onMessage.addListener(
   (message, sender, sendResponse) => {
     if (!message || typeof message !== "object") {
       return;
+    }
+
+    if(message.kind==='ccnNewsReport'){
+      if(!ccnSenderAllowed(sender,message.payload || {})){sendResponse({ok:false,error:'Source channel not authorized'});return;}
+      queueCcnReport(message.payload).then(sendResponse).catch(()=>sendResponse({ok:false,error:'Could not retain report'}));
+      return true;
     }
 
     const path =

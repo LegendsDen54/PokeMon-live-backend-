@@ -1893,7 +1893,7 @@ a{
         class="tab"
         data-retailer="all"
       >
-        CCN HOME
+        CCN TCG ALERTS
       </button>
 
       <button
@@ -2341,7 +2341,7 @@ async function renderCcnOnlineProducts(retailer){
 async function renderPokemonRestocks(){
   if(pokemonRestocksCard.contains(document.activeElement) && /INPUT|BUTTON/.test(document.activeElement.tagName))return;
   const key=sessionStorage.getItem('ccnReportKey');
-  const header='<div class="pokemon-restocks-widget"><h3>CCN Alerts</h3><p>Today’s imported TCG updates · Chicago time</p>';
+  const header='<div class="pokemon-restocks-widget"><h3>CCN Pokémon TCG Alerts</h3><p>Pokémon products, restocks and upcoming drops · Chicago time</p>';
   const footer='<p><a href="https://discord.com/channels/1410547930250612828/1514248684575920160" target="_blank" rel="noopener noreferrer">OPEN CCN IN DISCORD ↗</a></p></div>';
   const session=await fetch('/api/ccn/news',{cache:'no-store'}).then(r=>r.json()).catch(()=>({ok:false}));
   if(!key && !session.ok){

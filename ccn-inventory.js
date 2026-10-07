@@ -61,7 +61,7 @@ function cleanOnlineProducts(input){
     const allowed={target:['www.target.com','target.com'],walmart:['www.walmart.com','walmart.com'],pokemoncenter:['www.pokemoncenter.com','pokemoncenter.com']};
     if(url.protocol!=='https:' || !allowed[retailer]?.includes(host) || !item.name)return null;
     const name=String(item.name).slice(0,240);const seller=String(item.seller || '').slice(0,100);
-    if(retailer==='target' && (!/^target$/i.test(seller) || !/ascended heroes|prismatic|destined rivals|30th|(?:ultra|special|super)[- ]premium collection|\b(?:upc|spc)\b/i.test(name)))return null;
+    if(retailer==='target' && ((item.status!=='upcoming' && !/^target$/i.test(seller)) || (seller && !/^target$/i.test(seller)) || !/ascended heroes|prismatic|destined rivals|30th|(?:ultra|special|super)[- ]premium collection|\b(?:upc|spc)\b/i.test(name)))return null;
     if(retailer==='walmart' && !/^(?:walmart|gt collectibles(?: and toys)?)$/i.test(seller))return null;
     if(!/pok[eé]mon|trading card/i.test(name))return null;
     if(retailer==='pokemoncenter' && !/tcg|trading card|booster|trainer box|premium collection|(?:ex|v|gx) box|tin|battle deck/i.test(name))return null;
@@ -78,6 +78,7 @@ function cleanOnlineProducts(input){
   }).filter(Boolean);
 }
 async function saveNews(input){
+  if(!/pok[eé]mon|\btcg\b|prismatic|destined rivals|ascended heroes|30th.*(?:etb|collection|bundle)/i.test(String(input.summary || "")+" "+JSON.stringify(input.products || []))) throw new Error("Only Pokémon TCG product and restock reports are accepted");
   const timestamp=Date.parse(input.publishedAt);
   const edited=input.editedAt==null?null:Date.parse(input.editedAt);
   const effective=edited ?? timestamp;
