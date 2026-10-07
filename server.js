@@ -388,6 +388,24 @@ function mergeRaffles(
   axessoItems,
   publicItems
 ) {
+  // Keep owner-requested, visibly verified drawing additions when a scan omits them.
+  // These are scheduled entries, never evidence of purchasable stock.
+  if (Date.now() < Date.parse("2026-10-09T07:00:00Z")) {
+    const additions = [
+      {walmartItemId:"18943710710", name:"Collectible Pokemon Scarlet & Violet Shrouded Fable Booster Bundle Box", price:44.99},
+      {walmartItemId:"16517213276", name:"Collectible Pokemon TCG Scarlet & Violet 10.5 Unova Poster Collection Box - 4 Packs", price:34.99}
+    ];
+    publicItems = [...(publicItems || [])];
+    for (const addition of additions) {
+      if (!publicItems.some(item => String(item.walmartItemId) === addition.walmartItemId)) {
+        publicItems.push({...addition, productId:"walmart-raffle-" + addition.walmartItemId,
+          retailer:"walmart", raffle:true, status:"upcoming", raffleStatus:"upcoming",
+          startsAt:"2026-10-08T16:00:00Z", url:"https://www.walmart.com/ip/" + addition.walmartItemId,
+          source:"walmart-public-draw-page", sourceUrl:"https://www.walmart.com/shop/collectibles/draw",
+          checkedAt:"2026-10-07T20:13:00Z", rawStatus:"Drawing listed by Walmart · availability unconfirmed"});
+      }
+    }
+  }
   const merged =
     new Map();
 
