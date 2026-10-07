@@ -2850,7 +2850,7 @@ setInterval(updateCcnCountdowns,1000);
 async function renderCcnInventory(retailer){
   const zip=document.getElementById("warehouseWatchZip")?.value || "60634";
   const section=document.createElement("section");section.className="store-checker";section.id="ccnInventoryReports";
-  section.innerHTML='<h3>CCN in-store reports</h3><p>Loading latest checks…</p>';
+  section.innerHTML='<h3>Rippin Packz in-store reports</h3><p>Loading latest checks…</p>';
   otherRetailerCard.append(section);
   if(["costco","sams"].includes(retailer)){
     const watch=document.createElement("section");watch.className="store-checker";
@@ -2858,14 +2858,14 @@ async function renderCcnInventory(retailer){
     try {
       const response=await fetch("/api/retail/watch-products?retailer="+retailer,{cache:"no-store"}).then(r=>r.json());
       if(!watch.isConnected)return;
-      const products=response.products || [];
+      const products=(response.products || []).filter(p=>retailer!=="costco" || /ascended heroes|30th/i.test(p.label || p.query || ""));
       const tiles=stage=>products.filter(p=>p.stage===stage).map(p=>'<article class="ccn-product-tile">'+(p.image?retailerImageMarkup(p.image,p.label):'<div class="product-image-frame"><p>Exact bundle image awaiting verification</p></div>')+'<h4>'+esc(p.label)+'</h4><small>'+esc(p.itemNumber?'Item '+p.itemNumber:'Identifier awaiting verification')+'</small><p>'+esc(p.evidence || 'Reported product')+' · Stock not confirmed</p><small>Source reviewed '+esc(p.verifiedAt || 'Unknown')+'</small>'+(p.url?'<p><a href="'+esc(p.url)+'" target="_blank" rel="noopener noreferrer">OPEN PRODUCT ↗</a></p>':'')+(p.sourceUrl?'<p><a href="'+esc(p.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW RELEASE REPORT ↗</a></p>':'')+'</article>').join('');
       watch.innerHTML='<h3>Products being watched</h3><details open><summary>Current / reported released</summary><div class="ccn-product-grid">'+tiles('current')+'</div></details><details><summary>Upcoming · reported, release unconfirmed</summary><div class="ccn-product-grid">'+(tiles('upcoming') || '<p>No verified upcoming listing added.</p>')+'</div></details><p>These are watched products, not a claim of local stock. Exact product images remain visible when stock is unavailable.</p>';
     }catch(error){watch.textContent='Product watch list unavailable. Please try again.';}
   }
   const key=sessionStorage.getItem("ccnReportKey");
   if(!key){
-    section.innerHTML='<h3>Private CCN in-store reports</h3><p>Enter your existing sensor pairing key to view private reports. It stays in this browser session.</p><input id="ccnReportKey" type="password" autocomplete="off" placeholder="Sensor pairing key"><button id="ccnConnectReports" type="button">CONNECT REPORTS</button>';
+    section.innerHTML='<h3>Private Rippin Packz in-store reports</h3><p>Enter your existing sensor pairing key to view private reports. It stays in this browser session.</p><input id="ccnReportKey" type="password" autocomplete="off" placeholder="Sensor pairing key"><button id="ccnConnectReports" type="button">CONNECT REPORTS</button>';
     section.querySelector('#ccnConnectReports').addEventListener('click',()=>{const value=section.querySelector('#ccnReportKey').value.trim();if(!value)return;sessionStorage.setItem('ccnReportKey',value);section.remove();renderCcnInventory(retailer);});
     return;
   }
@@ -2873,14 +2873,14 @@ async function renderCcnInventory(retailer){
     const data=await fetch("/api/ccn/inventory-reports?retailer="+encodeURIComponent(retailer)+"&zip="+encodeURIComponent(zip),{cache:"no-store",headers:{Authorization:"Bearer "+key}}).then(r=>r.json());
     if(!section.isConnected)return;
     if(!data.ok)throw new Error(data.error);
-    const productTiles=(data.reports || []).map(report=>{
+    const productTiles=(data.reports || []).filter(report=>String(report.sourceUrl || '').startsWith('https://discord.com/channels/1367457689386356766/')).map(report=>{
       const rows=(report.locations || []).map(row=>'<tr><th scope="row">'+esc(row.name)+'<small>'+esc(row.address)+'</small></th><td>'+esc(row.onOrder ?? '—')+'</td><td>'+esc(row.inTransit ?? '—')+'</td><td>'+esc(row.onHand ?? '—')+'</td></tr>').join('');
       const image=report.image;
-      return '<article class="ccn-product-tile">'+retailerImageMarkup(image,report.name)+'<h4>'+esc(report.name)+'</h4><small>Item '+esc(report.productId)+'</small><p>'+esc(report.result==='checker_error'?'Checker error · stock unknown':report.result==='no_stock_reported'?'CCN reported no stock found':'Reported warehouse stock')+(report.stale?' · STALE':'')+'</p><small>Checked '+esc(new Date(report.checkedAt).toLocaleString())+'</small>'+(rows?'<details open><summary>Locations ('+report.locations.length+')</summary><div class="ccn-location-scroll"><table><thead><tr><th>Location</th><th>Order</th><th>Transit</th><th>On hand</th></tr></thead><tbody>'+rows+'</tbody></table></div><small>— means not supplied by the checker.</small></details>':'')+(report.detail?'<details><summary>Check details</summary><p>'+esc(report.detail)+'</p></details>':'')+'<p><a href="'+esc(report.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW CCN SOURCE ↗</a></p></article>';
+      return '<article class="ccn-product-tile">'+retailerImageMarkup(image,report.name)+'<h4>'+esc(report.name)+'</h4><small>Item '+esc(report.productId)+'</small><p>'+esc(report.result==='checker_error'?'Checker error · stock unknown':report.result==='no_stock_reported'?'Checker reported no stock found':'Reported warehouse stock')+(report.stale?' · STALE':'')+'</p><small>Checked '+esc(new Date(report.checkedAt).toLocaleString())+'</small>'+(rows?'<details open><summary>Locations ('+report.locations.length+')</summary><div class="ccn-location-scroll"><table><thead><tr><th>Location</th><th>Order</th><th>Transit</th><th>On hand</th></tr></thead><tbody>'+rows+'</tbody></table></div><small>— means not supplied by the checker.</small></details>':'')+(report.detail?'<details><summary>Check details</summary><p>'+esc(report.detail)+'</p></details>':'')+'<p><a href="'+esc(report.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW RIPPIN PACKZ SOURCE ↗</a></p></article>';
     }).join('');
-    section.innerHTML='<h3>CCN in-store reports</h3><p data-ccn-next="'+data.nextCheckAt+'"></p><small>Costco and Sam’s share the hourly schedule. The countdown is planned timing, not proof a check succeeded.</small><p>ZIP '+esc(zip)+' · CCN source · Actual checker radius: 50 miles.</p><div class="ccn-product-grid">'+(productTiles || '<p>No stock-checker results imported yet.</p>')+'</div>';
+    section.innerHTML='<h3>Rippin Packz in-store reports</h3><p data-ccn-next="'+data.nextCheckAt+'"></p><small>Costco and Sam’s share the hourly schedule. The countdown is planned timing, not proof a check succeeded.</small><p>ZIP '+esc(zip)+' · Rippin Packz source · Actual checker radius: 50 miles.</p><div class="ccn-product-grid">'+(productTiles || '<p>No stock-checker results imported yet.</p>')+'</div>';
     updateCcnCountdowns();
-  }catch(error){section.innerHTML='<h3>CCN in-store reports</h3><p>'+esc(error.message)+'</p>';}
+  }catch(error){section.innerHTML='<h3>Rippin Packz in-store reports</h3><p>'+esc(error.message)+'</p>';}
 }
 async function renderExternalRetailer(retailer){
   if(retailer === "target" || (["sams","costco"].includes(retailer) && warehouseChannels[retailer] === "online")) return renderPublicOnline(retailer);
@@ -2995,6 +2995,16 @@ async function renderExternalRetailer(retailer){
   }
 }
 
+function costcoUnread(data,retailer="costco"){
+  let seen=0;try{seen=Number(localStorage.getItem(retailer+'SignalsSeen') || 0);}catch{}
+  return (data.events || []).filter(e=>Date.parse(e.observedAt)>seen && Date.now()-Date.parse(e.observedAt)<86400000);
+}
+async function updateCostcoOnlineBadge(data){
+  try{data ||= await fetch('/api/retail/online?retailer=costco',{cache:'no-store'}).then(r=>r.json());const tab=document.querySelector('[data-retailer="costco"]');if(!tab)return;
+    let badge=document.getElementById('costcoOnlineBadge');if(!badge){badge=document.createElement('span');badge.id='costcoOnlineBadge';badge.style.cssText='background:#ef4444;color:white;border-radius:12px;padding:2px 7px;margin-left:6px';tab.append(badge);}
+    const count=costcoUnread(data).length;badge.hidden=!count;badge.textContent=count;badge.setAttribute('aria-label',count+' new Costco online signals');
+  }catch{}
+}
 async function renderPublicOnline(retailer){
   renderPublicOnline.saved ||= {};
   const saved=renderPublicOnline.saved[retailer] ||= {url:"",result:""};
@@ -3016,16 +3026,28 @@ async function renderPublicOnline(retailer){
     if(activeRetailer!==retailer || (retailer!=="target" && warehouseChannels[retailer]!=="online")) return;
     const targetPreferred = item => /ascended heroes|prismatic evolutions|destined rivals|30th|ultra[- ]premium collection|super[- ]premium collection|\bupc\b|\bspc\b/i.test(String(item.name || ""));
     const eligibleItems=[...items.values()].filter(item=>retailer!=="target" || (item.sellerVerified === true && /^target$/i.test(item.seller || "")));
-    const cards=eligibleItems.filter(item=>retailer!=="target" || (!item.stale && ["instock","preorder"].includes(item.status))).map(item=>{
+    const cards=eligibleItems.filter(item=>!["target","costco","sams"].includes(retailer) || (!item.stale && ["instock","in_stock","available","preorder"].includes(item.status))).map(item=>{
       const url=safeExternalUrl(item.url);
       const status=item.stale ? "Last observed · needs a fresh check" : String(item.rawStatus || item.status || "Unknown").replace(/_/g," ");
       const price=item.price!=null && Number.isFinite(Number(item.price)) ? "$"+Number(item.price).toFixed(2) : "Price not published";
       const shipping="<small>Shipping to your ZIP: confirm at retailer</small>";
       return '<article class="retailer-product-card" style="position:relative">'+retailerImageMarkup(item.image,item.name)+'<div><strong>'+(url?'<a class="online-product-link" target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">'+esc(item.name)+'</a>':esc(item.name))+'</strong><small>'+esc(price)+'</small><small>Item / SKU: '+esc(item.sku || item.productId || "Not published")+'</small><small>'+esc(status)+'</small>'+shipping+'<small>'+(item.observedAt?esc(new Date(item.observedAt).toLocaleString()):"Not checked yet")+'</small></div></article>';
     }).join("");
-    const options=(data.catalog || []).filter(item=>item.url).map(item=>'<option value="'+esc(item.url || "")+'">'+esc(String(item.label || item.name || item.query).replace(/^(?:Confirmed(?: recent)?|Reported) · /, "").slice(0,85))+'</option>').join("");
+    const options=(data.catalog || []).filter(item=>item.url && (retailer!=="costco" || /ascended heroes|30th/i.test(item.label || item.query || ""))).map(item=>'<option value="'+esc(item.url || "")+'">'+esc(String(item.label || item.name || item.query).replace(/^(?:Confirmed(?: recent)?|Reported) · /, "").slice(0,85))+'</option>').join("");
     const header=retailer==="target" ? "" : warehouseChannelMarkup(retailer);
     otherRetailerCard.innerHTML='<strong>'+esc(labels[retailer])+'</strong>'+header+'<section class="store-checker"><h3>Online Pokémon TCG</h3><p>'+(retailer==="target"?'Only verified Target sellers appear. Public signals do not confirm a future drop.':'Online offers are separate from club and warehouse inventory.')+'</p><div class="store-checker-row"><input id="retailOnlineUrl" type="url" placeholder="Paste an official product link" aria-label="Official product link"><button id="retailOnlineCheck" type="button">CHECK PRODUCT</button></div><select id="retailOnlineCatalog" style="width:100%;max-width:420px;min-width:0;text-overflow:ellipsis" aria-label="Retailer Pokémon products"><option value="">Choose a retailer product</option>'+options+'</select><p><a href="'+esc(data.searchUrl)+'" target="_blank" rel="noopener noreferrer">FIND PRODUCTS AT '+esc(labels[retailer].toUpperCase())+'</a></p><div id="retailOnlineResult" aria-live="polite"></div></section><p>'+ (data.error?'Some public checks are unavailable: '+esc(data.error):data.running?'Checking public listings…':'Public product observations')+'</p><div class="retailer-product-grid">'+cards+'</div>'+(cards?'':retailer==='target'?'<p>No confirmed available Target products right now. Background checks continue.</p>':'<p>No verified online product observation yet. No stock is assumed.</p>');
+    if(["costco","sams"].includes(retailer)) {
+      if(retailer==="costco") updateCostcoOnlineBadge(data);
+      const section=otherRetailerCard.querySelector('.store-checker');
+      const details=document.createElement('details');const summary=document.createElement('summary');summary.textContent=retailer==='costco'?'Current and upcoming Ascended Heroes / 30th Anniversary':'Current and upcoming Sam’s Club products';details.append(summary);
+      while(section.firstChild)details.append(section.firstChild);section.append(details);
+      const catalog=document.createElement('div');
+      catalog.innerHTML=(data.catalog || []).filter(i=>/ascended heroes|30th/i.test(i.label || i.query || '') && !i.url).map(i=>'<p>'+esc(i.label || i.query)+'<br><small>'+esc(i.evidence || 'Reported product')+' · Official online listing not verified yet</small></p>').join('');details.append(catalog);
+      const watch=document.createElement('section');watch.className='store-checker';const unread=costcoUnread(data,retailer);
+      watch.innerHTML='<h3>'+esc(labels[retailer])+' online watch</h3><p>'+esc(data.running?'Checking public listings…':data.error?'Monitoring limited: '+data.error:'Scheduled public listing monitoring')+'</p><p>Catalog discovery every 30 minutes. Known listings are checked in rotating batches; access restrictions can delay checks.</p><small>Last successful check: '+esc(data.lastSuccess?new Date(data.lastSuccess).toLocaleString():'Not yet confirmed')+'<br>Next cycle: '+esc(data.nextCheck?new Date(data.nextCheck).toLocaleTimeString():'Pending')+'</small><details><summary>New signals ('+unread.length+')</summary>'+unread.map(e=>'<p><a target="_blank" rel="noopener noreferrer" href="'+esc(safeExternalUrl(e.url) || '#')+'">'+esc(e.name)+'</a><br>'+esc(e.type.replace(/_/g,' '))+' · '+esc(new Date(e.observedAt).toLocaleString())+'</p>').join('')+'<button id="costcoMarkRead" type="button">MARK SIGNALS READ</button></details><p>Available online offers appear below. Public listing changes do not confirm a future drop.</p>';
+      section.before(watch);watch.querySelector('#costcoMarkRead').addEventListener('click',()=>{try{localStorage.setItem(retailer+'SignalsSeen',String(Date.now()));}catch{}if(retailer==="costco")updateCostcoOnlineBadge(data);renderPublicOnline(retailer);});
+      const empty=otherRetailerCard.querySelector('.retailer-product-grid')?.nextElementSibling;if(empty)empty.textContent='No confirmed available online products right now.';
+    }
     if(retailer==="target") {
       const panel=document.createElement("section");panel.className="store-checker";
       const available=eligibleItems.filter(item=>targetPreferred(item) && !item.stale && ["instock","preorder"].includes(item.status));
@@ -4373,6 +4395,7 @@ async function load(){
     renderPokemonRestocks(
       statusData?.pokemonCenter
     );
+    updateCostcoOnlineBadge();
 
     if(
       ["target", "sams", "bestbuy", "costco"]

@@ -151,19 +151,21 @@ async function check(retailer, url) {
   item.observedAt=requests.get(safe)?.fetchedAt || item.observedAt;
   const before = state.items.get(safe);
   state.items.set(safe,item);
-  if (retailer === "target") {
+  if (["target","costco","sams"].includes(retailer)) {
     item.priority = targetPriority(item.name);
+    item.priority = retailer !== "target" || item.priority;
     const changes=[];
     if (before && before.source === item.source) {
       for (const [field,type] of [["price","PRICE_CHANGE"],["image","IMAGE_CHANGE"],["sku","SKU_CHANGE"],["status","AVAILABILITY_CHANGE"],["name","TITLE_CHANGE"],["releaseDate","RELEASE_DATE_CHANGE"],["quantity","PUBLISHED_QUANTITY_CHANGE"]]) {
         if (before[field] != null && item[field] != null && before[field] !== item[field]) changes.push({type,field,before:before[field],after:item[field]});
       }
     } else if (before && before.source === "public_catalog_link") changes.push({type:"LISTING_VERIFIED"});
+    if (["instock","preorder"].includes(item.status) && (!before || before.status !== item.status) && !changes.some(c=>c.type==="AVAILABILITY_CHANGE")) changes.push({type:"AVAILABILITY_CHANGE",after:item.status});
     for (const change of changes) state.events.unshift({...change,name:item.name,url:safe,observedAt:item.observedAt,priority:item.priority,detail:"Public listing change; does not confirm an upcoming drop."});
     state.events=state.events.filter(event=>Date.now()-Date.parse(event.observedAt)<24*3600000).slice(0,100);
     if (changes.length && item.priority && !["instock","preorder"].includes(item.status) && Date.now()-(before?.lastMovementAlertAt || 0)>30*60000) {
       item.lastMovementAlertAt=Date.now();
-      await push.broadcast({title:"Target — Public listing movement",body:`${item.name} · ${changes.map(c=>c.type.replace(/_/g," ").toLowerCase()).join(", ")} · Drop not confirmed`,url:safe,tag:`target-movement-${item.productId}`}).catch(()=>{});
+      await push.broadcast({title:`${configs[retailer].label} — Public listing movement`,body:`${item.name} · ${changes.map(c=>c.type.replace(/_/g," ").toLowerCase()).join(", ")} · Drop not confirmed`,url:safe,tag:`${retailer}-movement-${item.productId}`}).catch(()=>{});
     } else item.lastMovementAlertAt=before?.lastMovementAlertAt || null;
   }
   await persist(item);
@@ -182,7 +184,7 @@ async function poll(retailer) {
   state.running = true; state.lastRun = new Date().toISOString();
   state.nextCheck = Date.now() + (priorityWindow ? 5 : 30)*60000;
   try {
-    if (Date.now() - state.lastDiscovery > (priorityWindow ? 30*60000 : 24*3600000)) {
+    if (Date.now() - state.lastDiscovery > (priorityWindow || ["costco","sams"].includes(retailer) ? 30*60000 : 24*3600000)) {
       state.lastDiscovery = Date.now();
       try {
         const $ = cheerio.load(await page(configs[retailer].search));
