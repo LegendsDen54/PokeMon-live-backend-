@@ -2347,18 +2347,11 @@ async function renderCcnOnlineProducts(retailer){
 }
 async function renderPokemonRestocks(){
   if(pokemonRestocksCard.contains(document.activeElement) && /INPUT|BUTTON/.test(document.activeElement.tagName))return;
-  const key=sessionStorage.getItem('ccnReportKey');
   const header='<div class="pokemon-restocks-widget"><h3>CCN Pokémon TCG Alerts</h3><p>Pokémon products, restocks and upcoming drops · Chicago time</p>';
   const footer='<p><a href="https://discord.com/channels/1410547930250612828/1514248684575920160" target="_blank" rel="noopener noreferrer">OPEN CCN IN DISCORD ↗</a></p></div>';
-  const session=await fetch('/api/ccn/news',{cache:'no-store'}).then(r=>r.json()).catch(()=>({ok:false}));
-  if(!key && !session.ok){
-    pokemonRestocksCard.innerHTML=header+'<p>Connect once on this device. Your private feed access will be remembered for 180 days.</p><input id="ccnHomeKey" type="password" autocomplete="off" aria-label="Sensor pairing key"><button id="ccnHomeConnect" type="button">CONNECT CCN REPORTS</button>'+footer;
-    document.getElementById('ccnHomeConnect').addEventListener('click',async()=>{const value=document.getElementById('ccnHomeKey').value.trim();if(value){const res=await fetch('/api/ccn/viewer-session',{method:'POST',headers:{Authorization:'Bearer '+value}});if(!res.ok){document.getElementById('ccnHomeConnect').textContent='Key not accepted — try again';return;}document.activeElement.blur();renderPokemonRestocks();}});
-    return;
-  }
   try{
-    if(key)await fetch('/api/ccn/viewer-session',{method:'POST',headers:{Authorization:'Bearer '+key}});
-    const data=session.ok?session:await fetch('/api/ccn/news',{cache:'no-store',headers:key?{Authorization:'Bearer '+key}:{}}).then(r=>r.json());
+    const response=await fetch('/api/ccn/news',{cache:'no-store'});
+    const data=await response.json();
     if(!data.ok)throw new Error(data.error || 'CCN feed unavailable');
     const rows=(data.posts || []).map(post=>'<a class="pokemon-restocks-post" href="'+esc(post.sourceUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(post.summary)+'<small>CCN'+(post.editedAt?' · Updated':'')+' · '+esc(new Date(post.updatedAt || post.publishedAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}))+'</small></a>').join('');
     pokemonRestocksCard.innerHTML=header+(rows || '<p>No CCN updates have been imported today. This is not a live Discord feed; open CCN for immediate alerts.</p>')+footer;
@@ -2853,15 +2846,8 @@ async function renderCcnInventory(retailer){
       watch.innerHTML='<h3>Products being watched</h3><details open><summary>Current / reported released</summary><div class="ccn-product-grid">'+tiles('current')+'</div></details><details><summary>Upcoming · reported, release unconfirmed</summary><div class="ccn-product-grid">'+(tiles('upcoming') || '<p>No verified upcoming listing added.</p>')+'</div></details><p>These are watched products, not a claim of local stock. Exact product images remain visible when stock is unavailable.</p>';
     }catch(error){watch.textContent='Product watch list unavailable. Please try again.';}
   }
-  const key=sessionStorage.getItem("ccnReportKey");
-  const viewer=await fetch("/api/ccn/news",{cache:"no-store"}).then(r=>r.json()).catch(()=>({ok:false}));
-  if(!key && !viewer.ok){
-    section.innerHTML='<h3>Private Rippin Packz in-store reports</h3><p>Enter your existing sensor pairing key to view private reports. It stays in this browser session.</p><input id="ccnReportKey" type="password" autocomplete="off" placeholder="Sensor pairing key"><button id="ccnConnectReports" type="button">CONNECT REPORTS</button>';
-    section.querySelector('#ccnConnectReports').addEventListener('click',()=>{const value=section.querySelector('#ccnReportKey').value.trim();if(!value)return;sessionStorage.setItem('ccnReportKey',value);section.remove();renderCcnInventory(retailer);});
-    return;
-  }
   try{
-    const data=await fetch("/api/ccn/inventory-reports?retailer="+encodeURIComponent(retailer)+"&zip="+encodeURIComponent(zip),{cache:"no-store",headers:key?{Authorization:"Bearer "+key}:{}}).then(r=>r.json());
+    const data=await fetch("/api/ccn/inventory-reports?retailer="+encodeURIComponent(retailer)+"&zip="+encodeURIComponent(zip),{cache:"no-store"}).then(r=>r.json());
     if(!section.isConnected)return;
     if(!data.ok)throw new Error(data.error);
     const productTiles=(data.reports || []).filter(report=>String(report.sourceUrl || '').startsWith('https://discord.com/channels/1367457689386356766/')).map(report=>{

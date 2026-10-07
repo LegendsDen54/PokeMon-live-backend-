@@ -1987,17 +1987,16 @@ app.post("/api/ccn/news-report",async(req,res)=>{
 const ccnDiscordBot=require('./ccn-discord-bot');
 ccnDiscordBot.start(processCcnNews);
 app.get('/api/ccn/connection',(req,res)=>{
-  if(!hasCcnViewerAccess(req))return pokemonCenterSensorUnauthorized(res);
+  res.set("Cache-Control","no-store");
   res.json({ok:true,...ccnDiscordBot.health()});
 });
 app.get('/api/ccn/online-products',async(req,res)=>{
-  if(!hasCcnViewerAccess(req))return pokemonCenterSensorUnauthorized(res);
+  res.set("Cache-Control","no-store");
   if(!['target','walmart','pokemoncenter'].includes(req.query.retailer))return res.status(400).json({ok:false,error:'Choose retailer'});
   try{res.json({ok:true,items:await ccnInventory.onlineProducts(req.query.retailer)});}catch(error){res.status(503).json({ok:false,error:'Source reports unavailable'});}
 });
 app.get("/api/ccn/news",async(req,res)=>{
-  if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
-  if (!hasCcnViewerAccess(req)) return pokemonCenterSensorUnauthorized(res);
+  res.set("Cache-Control","no-store");
   try{res.json({ok:true,posts:await ccnInventory.news()});}catch(error){res.status(503).json({ok:false,error:"CCN news storage unavailable"});}
 });
 app.get("/api/retail/watch-products", (req,res) => {
@@ -2025,7 +2024,7 @@ const productId=String(req.body.productId || ''),zip=String(req.body.zip || '');
 if(!/^\d{5}$/.test(zip) || !require('./dollar-general.json').products.some(p=>p.upc===productId))return res.status(400).json({ok:false,error:'Choose a verified product and five-digit ZIP'});
 try{const result=await ccnInventory.requestInventory('dollargeneral',productId,zip);if(result.status==='queued')await ccnInventory.requestDg(productId,zip);res.json({ok:true,...result,message:result.status==='cooldown'?'The checker requires a cooldown.':result.deduplicated?'This lookup is already waiting for the checker.':'Fresh check queued for the authorized collector. Your last saved result remains visible.'});}catch{res.status(503).json({ok:false,error:'Request storage unavailable; try again later'});}
 });
-app.get('/api/dollargeneral/pending-checks',async(req,res)=>{if(!hasValidPokemonCenterSensorToken(req) && !hasCcnViewerAccess(req))return pokemonCenterSensorUnauthorized(res);try{res.json({ok:true,requests:await ccnInventory.pendingDg()});}catch{res.status(503).json({ok:false,error:'Request queue unavailable'});}});
+app.get('/api/dollargeneral/pending-checks',async(req,res)=>{if(!hasInventoryOwnerAccess(req))return pokemonCenterSensorUnauthorized(res);try{res.json({ok:true,requests:await ccnInventory.pendingDg()});}catch{res.status(503).json({ok:false,error:'Request queue unavailable'});}});
 app.get('/api/dollargeneral/request-status',async(req,res)=>{
   const productId=String(req.query.productId || ''),zip=String(req.query.zip || '');
   if(!/^\d{5}$/.test(zip) || !require('./dollar-general.json').products.some(p=>p.upc===productId))return res.status(400).json({error:'Choose a verified product and five-digit ZIP'});
@@ -2040,8 +2039,7 @@ if(zip===catalog.zip && !reports.some(r=>r.productId===catalog.upc))reports.push
 res.set('Cache-Control','no-store').json({...catalog,reports,storageConnected,collectionMode:'Normal Discord checker; results require authorized import',reportsUpdatedAt:reports.length?reports.map(r=>r.checkedAt).sort().at(-1):null});
 });
 app.get("/api/ccn/inventory-reports", async (req,res) => {
-  if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
-  if (!hasCcnViewerAccess(req)) return pokemonCenterSensorUnauthorized(res);
+  res.set("Cache-Control","no-store");
   if (!["costco","sams","bestbuy"].includes(req.query.retailer) || !/^\d{5}$/.test(req.query.zip || "")) return res.status(400).json({ok:false,error:"Choose retailer and ZIP"});
   try {res.json({ok:true,reports:await ccnInventory.list(req.query.retailer,req.query.zip),nextCheckAt:Math.floor(Date.now()/3600000)*3600000+3600000});}
   catch(error){res.status(503).json({ok:false,error:"CCN report storage unavailable"});}
