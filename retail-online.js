@@ -216,7 +216,7 @@ async function poll(retailer) {
       const names=new Map(catalog(retailer).map(item=>[item.url,item.query || item.label]));
       urls.sort((a,b)=>Number(targetPriority(state.items.get(b)?.name || names.get(b)))-Number(targetPriority(state.items.get(a)?.name || names.get(a))));
     }
-    const offset=priorityWindow ? 0 : state.cursor || 0;
+    const offset=state.cursor || 0;
     const batch=[...urls.slice(offset),...urls.slice(0,offset)].slice(0,12);
     state.cursor=urls.length ? (offset+batch.length)%urls.length : 0;
     state.coverage={knownListings:urls.length,scheduledThisCycle:batch.length};
