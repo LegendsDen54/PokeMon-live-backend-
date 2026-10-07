@@ -19,8 +19,17 @@ function clean(input){
   try{const u=new URL(input.image);if(u.protocol==="https:" && /(?:^|\.)(?:costco\.com|samsclub\.com|scene7\.com|bbystatic\.com|bestbuy\.com|barnesandnoble\.com|bn\.com|wal\.co)$/.test(u.hostname))image=u.href;}catch{}
   return {retailer:input.retailer,productId:input.productId,zip:input.zip,name:String(input.name).slice(0,240),image,source:input.sourceUrl.startsWith("https://discord.com/channels/1367457689386356766/") ? "Rippin Packz stock checker" : "CCN / Zephyr stock checker",sourceUrl:input.sourceUrl,checkedAt:new Date(checked).toISOString(),result:input.result,detail:String(input.detail || "").slice(0,400),locations:input.result==="results"?locations:[]};
 }
+function quantityChanges(report,previous){
+  const key=row=>(row.name+'|'+row.address).toLowerCase();
+  const prior=new Map((previous?.locations || []).map(row=>[key(row),row]));
+  return {...report,previousCheckedAt:previous?.checkedAt || null,locations:(report.locations || []).map(row=>{
+    const before=prior.get(key(row));const changes={};
+    for(const field of ['onHand','onOrder','inTransit'])if(Number.isInteger(row[field]) && Number.isInteger(before?.[field]))changes[field]={previous:before[field],current:row[field],delta:row[field]-before[field]};
+    return {...row,quantityChanges:changes};
+  })};
+}
 async function save(input){
-  const report=clean(input);await checkerStorage();
+  let report=clean(input);await checkerStorage();
   const manual=(await pool.query("SELECT requested_at FROM inventory_check_requests WHERE retailer=$1 AND product_id=$2 AND zip=$3",[report.retailer,report.productId,report.zip])).rows[0];
   report.privateManual=Boolean(manual && Date.parse(report.checkedAt)>=Date.parse(manual.requested_at));
   await pool.query('CREATE TABLE IF NOT EXISTS inventory_check_history (retailer TEXT NOT NULL, product_id TEXT NOT NULL, zip TEXT NOT NULL, checked_at TIMESTAMPTZ NOT NULL, data JSONB NOT NULL, PRIMARY KEY(retailer,product_id,zip,checked_at))');
@@ -34,6 +43,7 @@ async function save(input){
     if(previous && Date.parse(previous.checkedAt)>=Date.parse(report.checkedAt)){
       await client.query("COMMIT");await require('./inventory-completion-push').completed(previous).catch(()=>{});return {report:previous,alertLocations:[]};
     }
+    report=quantityChanges(report,previous);
     const stockStates={...(previous?.stockStates || {})};
     for(const row of report.locations){
       const locationKey=(row.name+"|"+row.address).toLowerCase();
@@ -207,7 +217,7 @@ module.exports.inventoryRequestStatus=async(retailer,productId,zip,viewer)=>{
   return {status:complete?(row.data.result==='checker_error'?'checker_error':'completed'):row?'queued':'idle',requestedAt:row?.requested_at || null,checkedAt:complete?row.data.checkedAt:null,personalAvailableAt,availableAt:personalAvailableAt && (!cooldown || Date.parse(personalAvailableAt)>Date.parse(cooldown.available_at))?personalAvailableAt:cooldown?.available_at || null};
 };
 module.exports.pendingInventory=async()=>{
-  await checkerStorage();return (await pool.query("SELECT q.retailer,q.product_id AS \"productId\",q.zip,q.requested_at AS \"requestedAt\",q.priority FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip LEFT JOIN inventory_checker_cooldowns c ON c.retailer=q.retailer WHERE q.requested_at>now()-interval '1 hour' AND (r.data IS NULL OR (r.data->>'checkedAt')::timestamptz<q.requested_at) AND (c.available_at IS NULL OR c.available_at<=now()) ORDER BY q.priority DESC,q.requested_at LIMIT 20")).rows;
+  await checkerStorage();return (await pool.query("SELECT q.retailer,q.product_id AS \"productId\",q.zip,q.requested_at AS \"requestedAt\",q.priority FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip LEFT JOIN inventory_checker_cooldowns c ON c.retailer=q.retailer WHERE (r.data IS NULL OR (r.data->>'checkedAt')::timestamptz<q.requested_at) AND (c.available_at IS NULL OR c.available_at<=now()) ORDER BY q.priority DESC,q.requested_at LIMIT 20")).rows;
 };
 module.exports.recordCheckerCooldown=async(retailer,availableAt,sourceUrl)=>{
   checkerInput(retailer,'cooldown','60634');
