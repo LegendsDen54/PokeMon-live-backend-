@@ -57,7 +57,7 @@ document.getElementById("save")
 const targetRefresh=document.getElementById('targetRefresh');
 chrome.storage.local.get(['targetRefreshEnabled','targetRefreshPaused']).then(config=>{
  targetRefresh.checked=config.targetRefreshEnabled!==false;
- const paused=config.targetRefreshPaused ? 1 : 0;document.getElementById('targetRefreshState').textContent=paused?paused+' Target tab(s) paused for queue/security protection.':'Target refresh interval: 30 minutes.';
+ const paused=config.targetRefreshPaused ? 1 : 0;document.getElementById('targetRefreshState').textContent=paused?paused+' Target tab(s) paused for queue/security protection.':'Target refresh interval: 10 minutes.';
 });
 targetRefresh.addEventListener('change',async()=>{
  await chrome.storage.local.set({targetRefreshEnabled:targetRefresh.checked,...(targetRefresh.checked?{targetRefreshPaused:false,lastTargetRefreshAt:Date.now()}:{})});

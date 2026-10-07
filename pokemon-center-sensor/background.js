@@ -171,7 +171,7 @@ async function refreshTargetTabs() {
       if(/^\/p\/.+/.test(pathname))safe.push(tab.id);
     } catch {await chrome.storage.local.set({targetRefreshPaused:true});return;}
   }
-  if(Date.now()-Number(config.lastTargetRefreshAt || 0)<30*60*1000)return;
+  if(Date.now()-Number(config.lastTargetRefreshAt || 0)<10*60*1000)return;
   if(safe.length){await chrome.tabs.reload(safe[0]);await chrome.storage.local.set({lastTargetRefreshAt:Date.now()});}
 }
 
