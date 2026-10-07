@@ -1933,6 +1933,23 @@ app.post("/api/ccn/inventory-report", async (req,res) => {
   }
   catch(error){res.status(400).json({ok:false,error:error.message});}
 });
+const ccnViewerCrypto = require('crypto');
+function ccnViewerSignature(value){return ccnViewerCrypto.createHmac('sha256',pokemonCenterSensorToken).update('ccn-viewer:'+value).digest('hex');}
+function hasCcnViewerAccess(req){
+  if(hasValidPokemonCenterSensorToken(req))return true;
+  if(!pokemonCenterSensorToken)return false;
+  const value=String(req.headers.cookie || '').split(';').map(x=>x.trim()).find(x=>x.startsWith('ccnViewer='))?.slice(10) || '';
+  const [expires,signature]=value.split('.');
+  if(!/^\d+$/.test(expires || '') || Number(expires)<Date.now() || !/^[a-f0-9]{64}$/.test(signature || ''))return false;
+  return ccnViewerCrypto.timingSafeEqual(Buffer.from(signature,'hex'),Buffer.from(ccnViewerSignature(expires),'hex'));
+}
+app.post('/api/ccn/viewer-session',(req,res)=>{
+  if(!pokemonCenterSensorToken)return pokemonCenterSensorUnavailable(res);
+  if(!hasValidPokemonCenterSensorToken(req))return pokemonCenterSensorUnauthorized(res);
+  const expires=String(Date.now()+180*86400000);
+  res.cookie('ccnViewer',expires+'.'+ccnViewerSignature(expires),{httpOnly:true,secure:process.env.NODE_ENV==='production' || req.headers['x-forwarded-proto']==='https',sameSite:'strict',maxAge:180*86400000,path:'/'});
+  res.json({ok:true});
+});
 app.get("/ccn-import", (req,res)=>res.sendFile(path.join(__dirname,"ccn-import.html")));
 app.post("/api/ccn/news-report",async(req,res)=>{
   if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
@@ -1947,7 +1964,7 @@ app.post("/api/ccn/news-report",async(req,res)=>{
 });
 app.get("/api/ccn/news",async(req,res)=>{
   if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
-  if (!hasValidPokemonCenterSensorToken(req)) return pokemonCenterSensorUnauthorized(res);
+  if (!hasCcnViewerAccess(req)) return pokemonCenterSensorUnauthorized(res);
   try{res.json({ok:true,posts:await ccnInventory.news()});}catch(error){res.status(503).json({ok:false,error:"CCN news storage unavailable"});}
 });
 app.get("/api/retail/watch-products", (req,res) => {
@@ -1956,7 +1973,7 @@ app.get("/api/retail/watch-products", (req,res) => {
 });
 app.get("/api/ccn/inventory-reports", async (req,res) => {
   if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
-  if (!hasValidPokemonCenterSensorToken(req)) return pokemonCenterSensorUnauthorized(res);
+  if (!hasCcnViewerAccess(req)) return pokemonCenterSensorUnauthorized(res);
   if (!["costco","sams","bestbuy"].includes(req.query.retailer) || !/^\d{5}$/.test(req.query.zip || "")) return res.status(400).json({ok:false,error:"Choose retailer and ZIP"});
   try {res.json({ok:true,reports:await ccnInventory.list(req.query.retailer,req.query.zip),nextCheckAt:Math.floor(Date.now()/3600000)*3600000+3600000});}
   catch(error){res.status(503).json({ok:false,error:"CCN report storage unavailable"});}
