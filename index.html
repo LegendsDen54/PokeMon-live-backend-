@@ -3152,15 +3152,11 @@ async function renderPublicOnline(retailer){
     otherRetailerCard.innerHTML='<strong>'+esc(labels[retailer])+'</strong>'+header+'<section class="store-checker"><h3>Online Pokémon TCG</h3><p>'+(retailer==="target"?'Only verified Target sellers appear. Public signals do not confirm a future drop.':'Online offers are separate from club and warehouse inventory.')+'</p><div class="store-checker-row"><input id="retailOnlineUrl" type="url" placeholder="Paste an official product link" aria-label="Official product link"><button id="retailOnlineCheck" type="button">CHECK PRODUCT</button></div><select id="retailOnlineCatalog" style="width:100%;max-width:420px;min-width:0;text-overflow:ellipsis" aria-label="Retailer Pokémon products"><option value="">Choose a retailer product</option>'+options+'</select><p><a href="'+esc(data.searchUrl)+'" target="_blank" rel="noopener noreferrer">FIND PRODUCTS AT '+esc(labels[retailer].toUpperCase())+'</a></p><div id="retailOnlineResult" aria-live="polite"></div></section><p>'+ (data.error?'Some public checks are unavailable: '+esc(data.error):data.running?'Checking public listings…':'Public product observations')+'</p><div class="retailer-product-grid">'+cards+'</div>'+(cards?'':retailer==='target'?'<p>No confirmed available Target products right now. Background checks continue.</p>':'<p>No verified online product observation yet. No stock is assumed.</p>');
     if(["costco","sams"].includes(retailer)) {
       if(retailer==="costco") updateCostcoOnlineBadge(data);
-      const section=otherRetailerCard.querySelector('.store-checker');
-      const details=document.createElement('details');const summary=document.createElement('summary');summary.textContent=retailer==='costco'?'Current and upcoming Ascended Heroes / 30th Anniversary':'Current and upcoming Sam’s Club products';details.append(summary);
-      while(section.firstChild)details.append(section.firstChild);section.append(details);
-      const catalog=document.createElement('div');
-      catalog.innerHTML=(data.catalog || []).filter(i=>/ascended heroes|30th/i.test(i.label || i.query || '') && !i.url).map(i=>'<p>'+esc(i.label || i.query)+'<br><small>'+esc(i.evidence || 'Reported product')+' · Official online listing not verified yet</small></p>').join('');details.append(catalog);
-      const statusLine=section.nextElementSibling;if(statusLine?.tagName==='P')statusLine.remove();
-      const empty=otherRetailerCard.querySelector('.retailer-product-grid')?.nextElementSibling;if(empty)empty.remove();
-    }
-    if(retailer==="target") {
+      const seen=new Set();
+      const upcomingCards=[...(data.upcoming || []),...(data.catalog || [])].filter(item=>item.image && item.url && (item.stage==='upcoming' || item.expectedWindow)).filter(item=>{const key=item.itemNumber || item.url;if(seen.has(key))return false;seen.add(key);return true;}).map(item=>'<article class="ccn-product-tile">'+retailerImageMarkup(item.image,item.name || item.label)+'<h4>'+esc(item.name || item.label)+'</h4>'+(item.itemNumber?'<small>Item '+esc(item.itemNumber)+'</small>':'')+'<p>'+esc(item.expectedWindow || 'Potential product · date not announced')+'</p></article>').join('');
+      otherRetailerCard.innerHTML='<h3>'+esc(labels[retailer])+'</h3>'+header+'<h3>Upcoming online drops</h3><div class="ccn-product-grid warehouse-watch-grid">'+upcomingCards+'</div>'+(cards?'<h3>Online products</h3><div class="ccn-product-grid warehouse-watch-grid">'+cards+'</div>':'');
+      wireWarehouseChannels(retailer);renderCcnOnlineProducts(retailer);return;
+    }    if(retailer==="target") {
       const panel=document.createElement("section");panel.className="store-checker";
       const available=eligibleItems.filter(item=>targetPreferred(item) && !item.stale && ["instock","preorder"].includes(item.status));
       const upcoming=(data.upcoming || []).filter(item=>targetPreferred(item)).map(item=>{const sku=String(item.url).match(/A-(\d+)/)?.[1];const live=available.some(row=>row.url===item.url || (sku && String(row.url).includes('A-'+sku)));return {...item,expectedWindow:live?'LIVE — fresh Target availability confirmed':item.expectedWindow};});
