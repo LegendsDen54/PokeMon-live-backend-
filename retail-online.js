@@ -146,6 +146,7 @@ function catalog(retailer) {
   return [...entries.values()];
 }
 async function check(retailer, url) {
+  if (retailer === 'target') throw new Error('Target shopping checks are disabled; use attributed Discord reports.');
   const safe = productUrl(retailer,url);
   if (!safe) throw new Error("Enter an individual product link from this retailer");
   const state = getState(retailer);
@@ -192,6 +193,7 @@ async function acceptObservation(retailer,safe,item){
   return item;
 }
 async function poll(retailer) {
+  if (retailer === 'target') return;
   const state = getState(retailer);
   const priorityWindow=retailer === "target" && targetWindow();
   if (state.running || (state.nextCheck > Date.now() && !(priorityWindow && !state.priorityWindow))) return;
