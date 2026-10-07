@@ -2035,7 +2035,7 @@ async function processCcnNews(input){
     const productAlerts=await ccnInventory.onlineAlerts(report);
     if(productAlerts.length && !pcWarning){delivery=await push.broadcast({title:'CCN — '+({target:'Target',walmart:'Walmart',pokemoncenter:'Pokémon Center'}[report.retailer])+' stock reported',body:productAlerts.map(p=>p.name).join('; ').slice(0,180),url:productAlerts[0].url,tag:'ccn-product-'+report.retailer+'-'+productAlerts[0].productId}).catch(()=>({ok:false,error:'Push send failed'}));}
     if(!pcWarning && !(report.products || []).length && (report.isNew || report.isUpdated || input.resendNotification===true) && ['target','walmart','pokemoncenter'].includes(report.retailer) && Date.now()-Date.parse(report.updatedAt || report.publishedAt)<90*60000 && /drop|restock|preorder|pre-order|queue|raffle|draw|loaded|load.?up|live|stock/i.test(report.summary)){
-      delivery=await push.broadcast({title:'CCN — '+({target:'Target',walmart:'Walmart',pokemoncenter:'Pokémon Center'}[report.retailer])+' reported update',body:report.summary.slice(0,180),url:report.sourceUrl,tag:'ccn-news-'+report.sourceUrl.split('/').pop()}).catch(()=>({ok:false,error:'Push send failed'}));
+      delivery=await push.broadcast({title:'CCN — '+({target:'Target',walmart:'Walmart',pokemoncenter:'Pokémon Center'}[report.retailer])+' reported update',body:report.summary.slice(0,180),url:report.retailer==='walmart' && /raffle|draw/i.test(report.summary)?'https://www.walmart.com/shop/collectibles/draw':report.sourceUrl,tag:'ccn-news-'+report.sourceUrl.split('/').pop()}).catch(()=>({ok:false,error:'Push send failed'}));
     }
     return {ok:true,report,push:delivery};
 }

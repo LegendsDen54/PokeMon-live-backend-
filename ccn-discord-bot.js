@@ -2,13 +2,19 @@
 
 // Official bot connection. Inactive until an owner-provided bot token is configured.
 // No user account tokens. Reads only these authorized channels; never sends messages.
-const guildId='1410547930250612828';
-const channels=new Set(['1424776504767680722','1514248684575920160','1460973469150875720','1424776415286657136']);
-const state={configured:false,connected:false,lastReceivedAt:null,lastPublishedAt:null,error:null};
+const sources=new Map([
+ ['1410547930250612828',{name:'CCN',channels:['1424776504767680722','1514248684575920160','1460973469150875720','1424776415286657136']}],
+ ['1367457689386356766',{name:'Rippin Packz Target Early Monitor',channels:['1491247646361391245']}],
+ ['1182136115981996033',{name:'Pokemon Restocks & News',channels:['1330775248613933159','1219394012406878238','1398394531484795011']}],
+ ['1190757531988000930',{name:'The Poke Gang',channels:['1343943991347118123']}]
+]);
+const channels=new Set([...sources.values()].flatMap(source=>source.channels));
+function allowed(message){return sources.get(message.guildId)?.channels.includes(message.channelId);}
+const state={configured:false,connected:false,lastReceivedAt:null,lastPublishedAt:null,error:null,watchedChannels:channels.size};
 let client;
 const text=value=>String(value || '').replace(/\s+/g,' ').trim();
 function reports(message){
-  if(message.guildId!==guildId || !channels.has(message.channelId))return [];
+  if(!allowed(message))return [];
   const embeds=message.embeds || [];
   const body=[message.content,...embeds.flatMap(e=>[e.author?.name,e.title,e.description,...(e.fields || []).map(f=>f.name+': '+f.value)])].filter(Boolean).join('\n');
   if(!/pok[eé]mon|\btcg\b|\bupc\b|\bspc\b|prismatic|destined rivals|ascended heroes|30th.*(?:etb|collection|bundle)/i.test(body))return [];
@@ -40,7 +46,7 @@ function reports(message){
       }
     }
   }
-  return [{kind:'news',retailer,sourceUrl:`https://discord.com/channels/${guildId}/${message.channelId}/${message.id}`,publishedAt:message.createdAt.toISOString(),editedAt:message.editedAt?.toISOString() || null,summary:'CCN source report: '+text(body).slice(0,940),products}];
+  return [{kind:'news',retailer,sourceUrl:`https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}`,publishedAt:message.createdAt.toISOString(),editedAt:message.editedAt?.toISOString() || null,summary:sources.get(message.guildId).name+' source report: '+text(body).slice(0,940),products}];
 }
 function start(publish){
   const token=process.env.CCN_DISCORD_BOT_TOKEN;
@@ -58,7 +64,7 @@ function start(publish){
     }}finally{flushing=false;}
   }
   async function receive(message){
-    if(message.guildId!==guildId || !channels.has(message.channelId))return;
+    if(!allowed(message))return;
     try{
       if(message.partial)message=await message.fetch();
       state.lastReceivedAt=new Date().toISOString();
