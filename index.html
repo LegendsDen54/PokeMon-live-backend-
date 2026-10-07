@@ -2389,11 +2389,12 @@ async function renderPokemonRestocks(){
     const rows=uniquePosts.map(post=>{
       const summary=String(post.summary || '').replace(/^CCN source report:\s*/i,'').trim();
       const products=post.products || [];
-      const title=products.length?products.map(p=>p.name).join(' · '):summary.split(/\n/)[0].slice(0,110);
+      const cleanSummary=summary.replace(/^.*?(?=(?:Walmart US V\d|Target Restocks|CCN source report|Just a reminder|Target has))/i,'').replace(/(?:Walmart US V\d|Target Restocks)\s*/i,'').replace(/(?:Offer Id|Copyable Pid|App Links|Links Ebay|Monitors v)[\s\S]*$/i,'').trim();
+      const title=products.length?products.map(p=>p.name).join(' · '):(cleanSummary.split(/\bPrice\b|\n/)[0] || summary).slice(0,110);
       const retailer=({target:'Target',walmart:'Walmart',pokemoncenter:'Pokémon Center'})[post.retailer] || 'CCN';
       const statuses=[...new Set(products.map(p=>p.status))];
       const label=statuses.length===1?({upcoming:'Upcoming',reported_available:'Reported live',reported_unavailable:'Reported sold out',queue:'Reported queue'})[statuses[0]]:'Source update';
-      return '<article class="ccn-readable-post"><div class="ccn-post-meta"><span>'+esc(retailer)+'</span><span>'+esc(label || 'Source update')+'</span></div><h4>'+esc(title)+'</h4><p>'+esc(summary.length>190?summary.slice(0,190)+'…':summary)+'</p>'+(summary.length>190?'<details><summary>Read full update</summary><p>'+esc(summary)+'</p></details>':'')+'<footer><time>'+esc(new Date(post.publishedAt).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</time>'+(post.editedAt?' · Edited '+esc(new Date(post.editedAt).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})):'')+' · <a href="'+esc(post.sourceUrl)+'" target="_blank" rel="noopener noreferrer">View source ↗</a></footer></article>';
+      return '<article class="ccn-readable-post"><div class="ccn-post-meta"><span>'+esc(retailer)+'</span><span>'+esc(label || 'Source update')+'</span></div><h4>'+esc(title)+'</h4><p>'+esc(cleanSummary.length>190?cleanSummary.slice(0,190)+'…':cleanSummary)+'</p>'+(summary.length>190?'<details><summary>Read full update</summary><p>'+esc(summary)+'</p></details>':'')+'<footer><time>'+esc(new Date(post.publishedAt).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</time>'+(post.editedAt?' · Edited '+esc(new Date(post.editedAt).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})):'')+' · <a href="'+esc(post.sourceUrl)+'" target="_blank" rel="noopener noreferrer">View source ↗</a></footer></article>';
     }).join('');
     pokemonRestocksCard.innerHTML=header+(rows || '<p>No CCN updates have been imported today. This is not a live Discord feed; open CCN for immediate alerts.</p>')+footer;
   }catch(error){pokemonRestocksCard.innerHTML=header+'<p>'+esc(error.message)+'</p>'+footer;}
