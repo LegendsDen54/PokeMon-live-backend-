@@ -2881,6 +2881,7 @@ function wireBestBuyChecker(provider){
 
 const warehouseChannels = { sams: "store", costco: "store" };
 function warehouseChannelMarkup(retailer){
+  if(retailer === 'sams') return '';
   const selected = warehouseChannels[retailer];
   return '<div class="store-checker-row" role="group" aria-label="Inventory channel">' +
     ['store', 'online'].map(channel => '<button type="button" data-warehouse-channel="' + channel +
@@ -2987,6 +2988,7 @@ function renderBarnes(){
 async function renderExternalRetailer(retailer){
 if(retailer==="barnes")return renderBarnes();
 if(retailer==="dollargeneral")return renderDollarGeneral();
+if(retailer==="sams")warehouseChannels.sams="store";
   if(retailer === "target" || (["sams","costco"].includes(retailer) && warehouseChannels[retailer] === "online")) return renderPublicOnline(retailer);
   if(["sams","costco"].includes(retailer) && otherRetailerCard.contains(document.activeElement) && /INPUT|SELECT|BUTTON/.test(document.activeElement.tagName)) return;
   if(retailer === "bestbuy" && document.getElementById('bestBuyProductSearch')) return;
