@@ -55,6 +55,7 @@ async function save(input){
     if(previous)await client.query('INSERT INTO inventory_check_history(retailer,product_id,zip,checked_at,data) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING',[previous.retailer,previous.productId,previous.zip,previous.checkedAt,previous]);
     await client.query('INSERT INTO inventory_check_history(retailer,product_id,zip,checked_at,data) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING',[report.retailer,report.productId,report.zip,report.checkedAt,report]);
     await client.query("INSERT INTO ccn_inventory_reports(retailer,product_id,zip,data) VALUES($1,$2,$3,$4) ON CONFLICT(retailer,product_id,zip) DO UPDATE SET data=EXCLUDED.data",[report.retailer,report.productId,report.zip,report]);
+    if(['results','no_stock_reported'].includes(report.result))await client.query('UPDATE inventory_search_viewers SET completed_at=$4 WHERE retailer=$1 AND product_id=$2 AND zip=$3 AND completed_at IS NULL AND requested_at<=$4',[report.retailer,report.productId,report.zip,report.checkedAt]);
     await client.query("COMMIT");
   }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
   await require('./inventory-completion-push').completed(report).catch(()=>console.warn('Private completion notification could not be queued'));
