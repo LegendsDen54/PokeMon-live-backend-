@@ -1969,8 +1969,23 @@ app.post('/api/ccn/viewer-session',(req,res)=>{
   res.json({ok:true});
 });
 app.get("/ccn-import", (req,res)=>res.sendFile(path.join(__dirname,"ccn-import.html")));
+const ccnEventClients=new Set();
+app.get('/api/ccn/events',(req,res)=>{
+  res.set({'Content-Type':'text/event-stream','Cache-Control':'no-cache, no-transform','Connection':'keep-alive'});
+  res.flushHeaders();
+  res.write(': connected\n\n');
+  ccnEventClients.add(res);
+  const heartbeat=setInterval(()=>res.write(': keepalive\n\n'),25000);
+  req.on('close',()=>{clearInterval(heartbeat);ccnEventClients.delete(res);});
+});
+function announceCcnUpdate(report){
+  if(!report.isNew && !report.isUpdated)return;
+  const event='event: report\ndata: '+JSON.stringify({retailer:report.retailer})+'\n\n';
+  for(const client of ccnEventClients)client.write(event);
+}
 async function processCcnNews(input){
     const report=await ccnInventory.saveNews(input);let delivery=null;
+    announceCcnUpdate(report);
     const pcWarning=report.retailer==='pokemoncenter' && (report.isNew || report.isUpdated) && Date.now()-Date.parse(report.updatedAt || report.publishedAt)<90*60000 && /drop|restock|queue|loaded|load.?up|heads.?up|watch|warning|today|soon/i.test(report.summary);
     if(pcWarning)await pokemonCenter.ingestSignal({type:'THIRD_PARTY_ALERT',source:'ccn',name:'CCN Pokémon Center early warning',url:report.sourceUrl,thirdParty:true,tcgRelevant:true,pokemonCenterRelated:true,publishedAt:report.updatedAt || report.publishedAt,watchToday:true,detail:'CCN source report, not retailer confirmation: '+report.summary});
     const productAlerts=await ccnInventory.onlineAlerts(report);

@@ -4971,6 +4971,17 @@ syncPhoneNotificationStatus();
 load();
 
 
+// Refresh public retailer reports immediately when the backend imports a Discord update.
+if('EventSource' in window){
+  const ccnEvents=new EventSource('/api/ccn/events');
+  let ccnRefreshBusy=false,ccnRefreshAgain=false;
+  ccnEvents.addEventListener('report',async()=>{
+    if(ccnRefreshBusy){ccnRefreshAgain=true;return;}
+    ccnRefreshBusy=true;
+    try{do{ccnRefreshAgain=false;await load();}while(ccnRefreshAgain);}
+    finally{ccnRefreshBusy=false;}
+  });
+}
 let resumeRefreshPending=false;
 function resumeMonitorView(){
   if(document.visibilityState==='hidden' || resumeRefreshPending)return;
