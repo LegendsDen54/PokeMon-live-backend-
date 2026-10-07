@@ -1873,11 +1873,15 @@ html,body{height:100%;overflow:hidden;}
 .ccn-readable-post details summary{cursor:pointer;color:#93c5fd;font-size:13px}
 
 #targetUpcomingDrops{margin:20px 0;padding:18px;border:0;border-radius:14px;background:transparent;}#targetUpcomingDrops>summary{font-size:1.2rem;font-weight:800;cursor:pointer;padding:4px 0 10px;}#targetUpcomingDrops .retailer-product-grid{margin-top:16px;gap:18px;}#targetUpcomingDrops .retailer-product-card{padding:16px;} 
+
+.warehouse-watch-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));align-items:start}.warehouse-watch-grid .ccn-product-tile{text-align:center}.bundle-image-pair{display:flex;gap:6px}.bundle-image-pair .retailer-product-image-frame{width:50%;padding:4px}@media(min-width:760px){#ccnInventoryReports .ccn-product-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 </style>
 <style>
 #dgSearch{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:12px;align-items:end}#dgSearch label{display:flex;flex-direction:column;gap:6px;min-width:0}#dgSearch input,#dgSearch select{width:100%;min-width:0;height:44px;box-sizing:border-box;padding:10px;border:1px solid rgba(98,199,255,.35);border-radius:8px;background:#03101e;color:var(--text);font:inherit}#dgZip{text-align:center;font-variant-numeric:tabular-nums}#dgSearch button{grid-column:1/-1}.dg-stock-list{background:#101722;border:1px solid #334155;border-radius:10px;padding:12px;max-height:360px;overflow:auto;margin:12px 0}.dg-stock-row{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:8px;align-items:start;padding:5px 0;font-size:13px;line-height:1.5}.dg-stock-row strong{color:#86efac;font-variant-numeric:tabular-nums}.dg-stock-row span:nth-child(2){overflow-wrap:anywhere}@media(max-width:600px){#dgSearch{grid-template-columns:minmax(0,1fr) 100px}#dgSearch label:first-child{grid-column:1/-1}#dgSearch label:nth-child(2){grid-column:1/-1}#dgSearch button{min-height:44px}}
 
 #targetUpcomingDrops{margin:20px 0;padding:18px;border:0;border-radius:14px;background:transparent;}#targetUpcomingDrops>summary{font-size:1.2rem;font-weight:800;cursor:pointer;padding:4px 0 10px;}#targetUpcomingDrops .retailer-product-grid{margin-top:16px;gap:18px;}#targetUpcomingDrops .retailer-product-card{padding:16px;} 
+
+.warehouse-watch-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));align-items:start}.warehouse-watch-grid .ccn-product-tile{text-align:center}.bundle-image-pair{display:flex;gap:6px}.bundle-image-pair .retailer-product-image-frame{width:50%;padding:4px}@media(min-width:760px){#ccnInventoryReports .ccn-product-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 </style>
 </head>
 
@@ -2926,8 +2930,9 @@ async function renderCcnInventory(retailer){
       const response=await fetch("/api/retail/watch-products?retailer="+retailer,{cache:"no-store"}).then(r=>r.json());
       if(!watch.isConnected)return;
       const products=(response.products || []).filter(p=>retailer!=="costco" || /ascended heroes|30th/i.test(p.label || p.query || ""));
-      const tiles=stage=>products.filter(p=>p.stage===stage).map(p=>'<article class="ccn-product-tile">'+(p.image?retailerImageMarkup(p.image,p.label):'<div class="product-image-frame"><p>Exact bundle image awaiting verification</p></div>')+'<h4>'+esc(p.label)+'</h4><small>'+esc(p.itemNumber?'Item '+p.itemNumber:'Identifier awaiting verification')+'</small><p>'+esc(p.evidence || 'Reported product')+' · Stock not confirmed</p><small>Source reviewed '+esc(p.verifiedAt || 'Unknown')+'</small>'+(p.url?'<p><a href="'+esc(p.url)+'" target="_blank" rel="noopener noreferrer">OPEN PRODUCT ↗</a></p>':'')+(p.sourceUrl?'<p><a href="'+esc(p.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW RELEASE REPORT ↗</a></p>':'')+'</article>').join('');
-      watch.innerHTML='<h3>Products being watched</h3><details open><summary>Current / reported released</summary><div class="ccn-product-grid">'+tiles('current')+'</div></details><details><summary>Upcoming · reported, release unconfirmed</summary><div class="ccn-product-grid">'+(tiles('upcoming') || '<p>No verified upcoming listing added.</p>')+'</div></details><p>These are watched products, not a claim of local stock. Exact product images remain visible when stock is unavailable.</p>';
+      const readyProducts=products.filter(p=>p.image && p.itemNumber);
+      const tiles=readyProducts.map(p=>'<article class="ccn-product-tile">'+(p.imageCount===2?'<div class="bundle-image-pair">'+retailerImageMarkup(p.image,p.label)+retailerImageMarkup(p.image,p.label)+'</div>':retailerImageMarkup(p.image,p.label))+'<h4>'+esc(p.label.replace(/^(Confirmed|Reported released|Reported current|Reported upcoming|Confirmed recent) · /,''))+'</h4><small>Item '+esc(p.itemNumber)+'</small></article>').join('');
+      watch.innerHTML='<h3>Products being watched</h3><div class="ccn-product-grid warehouse-watch-grid">'+tiles+'</div>';
     }catch(error){watch.textContent='Product watch list unavailable. Please try again.';}
   }
   try{

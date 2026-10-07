@@ -64,7 +64,9 @@
       "stage": "current",
       "evidence": "User release report; community identifier",
       "sourceUrl": "https://www.reddit.com/r/PokemonDeals/comments/1wln4lo/new_ascended_heroes_costco_sams_club_drops_are/",
-      "verifiedAt": "2026-10-06"
+      "verifiedAt": "2026-10-06",
+      "image": "https://tcgplayer-cdn.tcgplayer.com/product/719650_200w.jpg",
+      "imageSource": "https://pokefocus.com/sealed/costco-ascended-heroes-mini-tins-5-pack"
     },
     {
       "label": "Reported current · Ascended Heroes Mini Tin Bundle · 10 tins · Item 2007495",
@@ -74,7 +76,10 @@
       "verifiedAt": "2026-10-06",
       "evidence": "Community report",
       "itemNumber": "2007495",
-      "sourceUrl": "https://www.reddit.com/r/PokemonDeals/comments/1wln4lo/new_ascended_heroes_costco_sams_club_drops_are/"
+      "sourceUrl": "https://www.reddit.com/r/PokemonDeals/comments/1wln4lo/new_ascended_heroes_costco_sams_club_drops_are/",
+      "image": "https://tcgplayer-cdn.tcgplayer.com/product/719650_200w.jpg",
+      "imageSource": "https://pokefocus.com/sealed/costco-ascended-heroes-mini-tins-5-pack",
+      "imageCount": 2
     },
     {
       "label": "Reported current · Ascended Heroes Elite Trainer Box Bundle",
