@@ -2402,17 +2402,18 @@ async function renderPokemonRestocks(){
     const response=await fetch('/api/ccn/news',{cache:'no-store'});
     const data=await response.json();
     if(!data.ok)throw new Error(data.error || 'CCN feed unavailable');
-    const seenCcnPosts=new Set();
-    const uniquePosts=[...(data.posts || [])].sort((a,b)=>Date.parse(b.editedAt || b.publishedAt)-Date.parse(a.editedAt || a.publishedAt)).filter(post=>{
+    const seenCcnPosts=new Map();
+    [...(data.posts || [])].sort((a,b)=>Date.parse(b.editedAt || b.publishedAt)-Date.parse(a.editedAt || a.publishedAt)).forEach(post=>{
       const text=String(post.summary || '').replace(/^CCN source report:\s*/i,'').replace(/\s+/g,' ').trim().toLowerCase();
       const products=(post.products || []).map(p=>({id:p.productId,status:p.status,seller:p.seller,price:p.price})).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
       // The same drawing announcement may arrive as a Discord excerpt and a collector summary.
       const drawTime=text.match(/\b(\d{1,2}):([0-5]\d)\s*(am|pm)\s*pdt\b/);
       const sameDrawAnnouncement=post.retailer==='walmart' && !products.length && drawTime && /draw/.test(text) && /prismatic/.test(text) && /30th/.test(text) && /added/.test(text) && !/cancel|removed|sold out|closed|ended/.test(text);
       const key=sameDrawAnnouncement?JSON.stringify(['walmart-draw',String(post.publishedAt).slice(0,10),drawTime.slice(1), 'prismatic-etb','30th-etb']):JSON.stringify([post.retailer,text,products]);
-      if(seenCcnPosts.has(key))return false;
-      seenCcnPosts.add(key);return true;
+      const previous=seenCcnPosts.get(key);
+      if(!previous || (/^\s*\[/.test(previous.summary || '') && !/^\s*\[/.test(post.summary || '')))seenCcnPosts.set(key,post);
     });
+    const uniquePosts=[...seenCcnPosts.values()];
     const rows=uniquePosts.map(post=>{
       const summary=String(post.summary || '').replace(/^CCN source report:\s*/i,'').trim();
       const products=post.products || [];
