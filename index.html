@@ -1849,6 +1849,16 @@ a{
     flex-basis:78vw;
   }
 }
+
+/* Keep the banner still while the monitor content scrolls. */
+html,body{height:100%;overflow:hidden;}
+.app{height:100vh;height:100dvh;display:flex;flex-direction:column;}
+.app .hero{flex:none;height:clamp(140px,28dvh,280px);aspect-ratio:auto;background-size:auto,auto 307.2%;background-position:center top;}
+.app-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;padding-bottom:max(28px,env(safe-area-inset-bottom));}
+.app-scroll .status-wrap{margin-top:0;padding-top:10px;}
+#dgResults .retailer-product-image-frame{height:180px;width:100%;padding:14px;}
+#dgResults .retailer-product-image-frame img{width:100%;height:100%;object-fit:contain;object-position:center;max-height:152px;}
+
 </style>
 <style>
 #dgSearch{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:12px;align-items:end}#dgSearch label{display:flex;flex-direction:column;gap:6px;min-width:0}#dgSearch input,#dgSearch select{width:100%;min-width:0;height:44px;box-sizing:border-box;padding:10px;border:1px solid rgba(98,199,255,.35);border-radius:8px;background:#03101e;color:var(--text);font:inherit}#dgZip{text-align:center;font-variant-numeric:tabular-nums}#dgSearch button{grid-column:1/-1}.dg-stock-list{background:#101722;border:1px solid #334155;border-radius:10px;padding:12px;max-height:360px;overflow:auto;margin:12px 0}.dg-stock-row{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:8px;align-items:start;padding:5px 0;font-size:13px;line-height:1.5}.dg-stock-row strong{color:#86efac;font-variant-numeric:tabular-nums}.dg-stock-row span:nth-child(2){overflow-wrap:anywhere}@media(max-width:600px){#dgSearch{grid-template-columns:minmax(0,1fr) 100px}#dgSearch label:first-child{grid-column:1/-1}#dgSearch label:nth-child(2){grid-column:1/-1}#dgSearch button{min-height:44px}}
@@ -1863,6 +1873,7 @@ a{
 <div class="app">
 
   <div class="hero"></div>
+  <div id="appScroll" class="app-scroll">
 
 
   <!-- STATUS -->
@@ -2148,6 +2159,7 @@ a{
 
   </section>
 
+</div>
 </div>
 
 <div
@@ -2887,8 +2899,8 @@ async function renderDollarGeneral(){
 if(document.getElementById('dgSearch'))return;
 otherRetailerCard.innerHTML='<h2 style="display:flex;align-items:center;gap:10px"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2210%22%20fill%3D%22%23ffe000%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2243%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2234%22%20font-weight%3D%22900%22%20fill%3D%22%23111%22%3EDG%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Dollar General logo" width="32" height="32">Dollar General</h2><form id="dgSearch" class="store-checker"><label>Choose a Dollar General product · A–Z<select id="dgCatalog"><option value="">Select a product</option></select></label><label>ZIP code<input id="dgZip" value="60634" inputmode="numeric" maxlength="5" autocomplete="postal-code"></label><button type="submit">REQUEST FRESH STOCK CHECK</button></form><p id="dgRequestStatus" role="status"></p><div id="dgResults" aria-live="polite"></div>';
 const params=new URLSearchParams(location.search);let dgSelectedUpc=params.get('upc') || '196214158801';document.getElementById('dgZip').value=params.get('zip') || '60634';
-async function search(){const out=document.getElementById('dgResults'),zip=document.getElementById('dgZip').value.trim(),q=dgSelectedUpc;if(!/^\d{5}$/.test(zip)){out.textContent='Enter a five-digit ZIP code.';return;}if(!out.children.length)out.textContent='Loading saved results…';try{const res=await fetch('/api/dollargeneral/catalog?zip='+encodeURIComponent(zip),{cache:'no-store'});if(!res.ok)throw Error('Catalog unavailable');const data=await res.json();if(!out.isConnected || q!==dgSelectedUpc || zip!==document.getElementById('dgZip').value.trim())return;const picker=document.getElementById('dgCatalog');if(picker.options.length===1){for(const p of [...data.products].sort((a,b)=>a.name.localeCompare(b.name))){const option=document.createElement('option');option.value=p.upc;option.textContent=p.name+' · UPC '+p.upc;picker.append(option);}picker.value=dgSelectedUpc;}const matches=[...data.products].sort((a,b)=>a.name.localeCompare(b.name)).filter(p=>q && (p.upc===q || q.split(/\s+/).every(w=>p.name.toLowerCase().includes(w)))).slice(0,1);out.innerHTML='<div class="ccn-product-grid">'+(matches.map(p=>{const report=(data.reports || []).find(r=>r.productId===p.upc);const command='/instore dollar_general upc:'+p.upc+' zip:'+zip;return '<article class="ccn-product-tile">'+retailerImageMarkup(p.image || report?.image,p.name)+'<h3>'+esc(p.name)+'</h3><p>UPC '+p.upc+' · ZIP '+esc(zip)+'</p>'+(report?'<p>Latest saved check · '+esc(new Date(report.checkedAt).toLocaleString())+(Date.now()-Date.parse(report.checkedAt)>5400000?' · STALE':'')+'</p><div class="dg-stock-list" role="list" aria-label="Reported store stock">'+report.locations.map(r=>'<div class="dg-stock-row" role="listitem"><span aria-label="'+(r.onHand==null?'Stock unknown':r.onHand>0?'Positive stock reported':'Zero stock reported')+'">'+(r.onHand==null?'⚪':r.onHand>0?'🟢':'🔴')+'</span><span><a target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent('Dollar General '+r.address+' near '+zip)+'">'+esc(r.address || r.name)+' ↗</a></span><strong>['+esc(r.onHand ?? 'Unknown')+']</strong></div>').join('')+'</div><small>Only reported stores are shown. Missing stores are unknown. Confirm shelf availability before traveling.</small>':'<p>No saved result for this product and ZIP. Stock is unknown.</p>')+'</article>';}).join('') || '<p>No verified product matched.</p>')+'</div>';out.querySelectorAll('[data-command]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.command);b.textContent='COPIED — PASTE IN DISCORD';}catch{b.textContent=b.dataset.command;}});}catch(e){out.textContent=e.message;}}
-const submitDg=watchInventoryRequest('dollargeneral',()=>({productId:dgSelectedUpc,zip:document.getElementById('dgZip').value.trim()}),document.getElementById('dgRequestStatus'),document.querySelector('#dgSearch button'),search);document.getElementById('dgCatalog').onchange=e=>{dgSelectedUpc=e.target.value;search();};document.getElementById('dgSearch').onsubmit=async e=>{e.preventDefault();await submitDg();search();};search();const dgRefresh=setInterval(()=>{if(!document.getElementById('dgSearch') || activeRetailer!=='dollargeneral'){clearInterval(dgRefresh);return;}search();},30000);
+let dgLastRender='',dgCatalogCache=null;async function search(){const out=document.getElementById('dgResults'),zip=document.getElementById('dgZip').value.trim(),q=dgSelectedUpc;if(!/^\d{5}$/.test(zip)){out.textContent='Enter a five-digit ZIP code.';return;}if(!out.children.length)out.textContent='Loading saved results…';try{const res=await fetch('/api/dollargeneral/catalog?zip='+encodeURIComponent(zip),{cache:'no-store'});if(!res.ok)throw Error('Catalog unavailable');const data=await res.json();if(!out.isConnected || q!==dgSelectedUpc || zip!==document.getElementById('dgZip').value.trim())return;dgCatalogCache=data;const fingerprint=JSON.stringify({q,zip,products:data.products,reports:data.reports});if(fingerprint===dgLastRender)return;dgLastRender=fingerprint;const picker=document.getElementById('dgCatalog');if(picker.options.length===1){for(const p of [...data.products].sort((a,b)=>a.name.localeCompare(b.name))){const option=document.createElement('option');option.value=p.upc;option.textContent=p.name+' · UPC '+p.upc;picker.append(option);}picker.value=dgSelectedUpc;}const matches=[...data.products].sort((a,b)=>a.name.localeCompare(b.name)).filter(p=>q && (p.upc===q || q.split(/\s+/).every(w=>p.name.toLowerCase().includes(w)))).slice(0,1);out.innerHTML='<div class="ccn-product-grid">'+(matches.map(p=>{const report=(data.reports || []).find(r=>r.productId===p.upc);const command='/instore dollar_general upc:'+p.upc+' zip:'+zip;return '<article class="ccn-product-tile">'+retailerImageMarkup(p.image || report?.image,p.name)+(p.imageNote?'<small>'+esc(p.imageNote)+'</small>':'')+'<h3>'+esc(p.name)+'</h3><p>UPC '+p.upc+' · ZIP '+esc(zip)+'</p>'+(report?'<p>Latest saved check · '+esc(new Date(report.checkedAt).toLocaleString())+(Date.now()-Date.parse(report.checkedAt)>5400000?' · STALE':'')+'</p><div class="dg-stock-list" role="list" aria-label="Reported store stock">'+report.locations.map(r=>'<div class="dg-stock-row" role="listitem"><span aria-label="'+(r.onHand==null?'Stock unknown':r.onHand>0?'Positive stock reported':'Zero stock reported')+'">'+(r.onHand==null?'⚪':r.onHand>0?'🟢':'🔴')+'</span><span><a target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent('Dollar General '+r.address+' near '+zip)+'">'+esc(r.address || r.name)+' ↗</a></span><strong>['+esc(r.onHand ?? 'Unknown')+']</strong></div>').join('')+'</div><small>Only reported stores are shown. Missing stores are unknown. Confirm shelf availability before traveling.</small>':'<p>No saved result for this product and ZIP. Stock is unknown.</p>')+'</article>';}).join('') || '<p>No verified product matched.</p>')+'</div>';out.querySelectorAll('[data-command]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.command);b.textContent='COPIED — PASTE IN DISCORD';}catch{b.textContent=b.dataset.command;}});}catch(e){out.textContent=e.message;}}
+const submitDg=watchInventoryRequest('dollargeneral',()=>({productId:dgSelectedUpc,zip:document.getElementById('dgZip').value.trim()}),document.getElementById('dgRequestStatus'),document.querySelector('#dgSearch button'),search);document.getElementById('dgCatalog').onchange=e=>{dgSelectedUpc=e.target.value;dgLastRender='';const out=document.getElementById('dgResults'),p=dgCatalogCache?.products.find(p=>p.upc===dgSelectedUpc);if(p)out.innerHTML='<article class="ccn-product-tile">'+retailerImageMarkup(p.image,p.name)+'<h3>'+esc(p.name)+'</h3><p>Loading saved stock…</p></article>';search();};document.getElementById('dgSearch').onsubmit=async e=>{e.preventDefault();await submitDg();search();};search();const dgRefresh=setInterval(()=>{if(!document.getElementById('dgSearch') || activeRetailer!=='dollargeneral'){clearInterval(dgRefresh);return;}search();},30000);
 }
 
 async function renderExternalRetailer(retailer){
@@ -4841,6 +4853,8 @@ const pullRefreshIndicator = document.getElementById("pullRefreshIndicator");
 let pullRefreshStartY = null;
 let pullRefreshReady = false;
 let pullRefreshRunning = false;
+const monitorScroll=document.getElementById("appScroll");
+let pullRefreshStartX=null;
 const PULL_REFRESH_DISTANCE = 70;
 
 function setPullRefreshMessage(message, visible){
@@ -4849,8 +4863,11 @@ function setPullRefreshMessage(message, visible){
 }
 
 window.addEventListener("touchstart", event => {
-  if(window.scrollY <= 0 && event.touches.length === 1 && !pullRefreshRunning){
+  pullRefreshStartY=null;pullRefreshStartX=null;pullRefreshReady=false;
+  const nested=event.target.closest("input,select,button,a,.ccn-location-scroll,.pokemon-center-products");
+  if(!nested && monitorScroll.scrollTop <= 0 && event.touches.length === 1 && !pullRefreshRunning){
     pullRefreshStartY = event.touches[0].clientY;
+    pullRefreshStartX = event.touches[0].clientX;
     pullRefreshReady = false;
   }
 }, {passive:true});
@@ -4858,12 +4875,13 @@ window.addEventListener("touchstart", event => {
 window.addEventListener("touchmove", event => {
   if(pullRefreshStartY == null || pullRefreshRunning) return;
   const distance = event.touches[0].clientY - pullRefreshStartY;
-  if(distance <= 0) return;
+  if(distance <= 0 || monitorScroll.scrollTop>0 || Math.abs(event.touches[0].clientX-pullRefreshStartX)>Math.max(20,distance)){pullRefreshStartY=null;pullRefreshReady=false;setPullRefreshMessage("Pull down to refresh",false);return;}
   pullRefreshReady = distance >= PULL_REFRESH_DISTANCE;
   setPullRefreshMessage(pullRefreshReady ? "Release to refresh" : "Pull down to refresh", true);
   if(pullRefreshReady) event.preventDefault();
 }, {passive:false});
 
+window.addEventListener("touchcancel",()=>{pullRefreshStartY=null;pullRefreshReady=false;setPullRefreshMessage("Pull down to refresh",false);},{passive:true});
 window.addEventListener("touchend", async () => {
   const shouldRefresh = pullRefreshReady && !pullRefreshRunning;
   pullRefreshStartY = null;

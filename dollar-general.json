@@ -3,36 +3,54 @@
     {
       "name": "30th Anniversary Elite Trainer Box",
       "upc": "196214158801",
-      "image": "https://s7d1.scene7.com/is/image/dolgen/dg-44434201-1",
+      "image": "https://s7d1.scene7.com/is/image/dolgen/dg-44434201-1?wid=600&hei=600&fit=fit,1",
       "sourceUrl": "https://www.dollargeneral.com/p/product/196214158801",
       "verifiedAt": "2026-10-07"
     },
     {
       "name": "30th Anniversary Poster Collection",
-      "upc": "196214158757"
+      "upc": "196214158757",
+      "image": "https://www.hobby-addicts.com/cdn/shop/files/Pokemon_30th_Celebration_Poster_Collection.jpg?v=1789072919&width=600",
+      "imageSourceUrl": "https://www.hobby-addicts.com/collections/pokemon-box-sets/products/pokemon-30th-celebration-poster-collection",
+      "imageVerifiedAt": "2026-10-07"
     },
     {
       "name": "30th Anniversary Tech Sticker Collection",
       "upc": "196214158771",
-      "image": "https://s7d1.scene7.com/is/image/dolgen/dg-44434101-1",
+      "image": "https://s7d1.scene7.com/is/image/dolgen/dg-44434101-1?wid=600&hei=600&fit=fit,1",
       "sourceUrl": "https://www.dollargeneral.com/p/product/196214158771",
       "verifiedAt": "2026-10-07"
     },
     {
       "name": "30th Anniversary Knock Out Collection",
-      "upc": "196214152397"
+      "upc": "196214152397",
+      "image": "https://www.hobby-addicts.com/cdn/shop/files/Pokemon_30th_Celebration_Knock_Out_Collection.jpg?v=1789072631&width=600",
+      "imageSourceUrl": "https://www.hobby-addicts.com/collections/pokemon-box-sets/products/pokemon-30th-celebration-knock-out-collection",
+      "imageVerifiedAt": "2026-10-07"
     },
     {
       "name": "30th Anniversary ex Box",
-      "upc": "196214158726"
+      "upc": "196214158726",
+      "image": "https://www.mirajtrading.com/cdn/shop/files/Pokemon_30th_Celebration_Sylveon_Greninja_EX_Pre-Order.png?v=1783453059&width=600",
+      "imageSourceUrl": "https://www.mirajtrading.com/products/pokemon-30th-celebration-sylveon-greninja-ex-pre-order",
+      "imageVerifiedAt": "2026-10-07",
+      "imageNote": "Representative product design; assortment may vary."
     },
     {
       "name": "Ascended Heroes Mini Tins",
-      "upc": "196214141308"
+      "upc": "196214141308",
+      "image": "https://collectorsemporium.com/cdn/shop/files/pku10318-2_d0d7fae8-6520-4250-b542-a73b0b1b6bee.jpg?v=1779124716&width=600",
+      "imageSourceUrl": "https://collectorsemporium.com/products/pokemon-tcg-mega-evolution-ascended-heroes-mini-tin-random-art-2-packs",
+      "imageVerifiedAt": "2026-10-07",
+      "imageNote": "Representative product design; assortment may vary."
     },
     {
       "name": "Ascended Heroes ex Boxes",
-      "upc": "196214152076"
+      "upc": "196214152076",
+      "image": "https://www.mirajtrading.com/cdn/shop/files/raw_f0a52967-4b11-4660-84b9-41c56e60241b.png?width=600",
+      "imageSourceUrl": "https://www.mirajtrading.com/products/pokemon-me2-5-ascended-heroes-mega-meganium-emboar-feraligatr-ex-box-6",
+      "imageVerifiedAt": "2026-10-07",
+      "imageNote": "Publisher packaging preview; assortment may vary."
     }
   ],
   "checkedAt": "2026-10-07T03:40:00Z",
