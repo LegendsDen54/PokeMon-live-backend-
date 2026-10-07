@@ -2569,7 +2569,7 @@ function bestBuyCheckerMarkup(provider){
     "<p>Use an official Best Buy SKU from the finder above to check nearby stores.</p>" +
     "<div class=\"store-checker-row\"><input id=\"bestBuySkuSearch\" inputmode=\"numeric\" placeholder=\"Enter Best Buy SKU number\"" + storesDisabled + ">" +
     "<button id=\"bestBuySkuSearchButton\" type=\"button\"" + storesDisabled + ">CHECK NEARBY STORES</button></div>" +
-    "<p>" + esc(localMessage) + " Exact quantities show only when a retailer source publishes them.</p>" +
+    "<p>Fresh in-store checks use Rippin Packz. Saved results stay visible while a new request waits for the checker.</p>" +
     "<div id=\"bestBuyCheckerResults\" class=\"store-checker-results\" aria-live=\"polite\"></div></section>";
 }
 
@@ -2863,7 +2863,7 @@ async function renderCcnInventory(retailer){
   const section=document.createElement("section");section.className="store-checker";section.id="ccnInventoryReports";
   section.innerHTML='<h3>Rippin Packz in-store reports</h3><p>Loading latest checks…</p>';
   otherRetailerCard.append(section);
-  addInventoryRequestControl(retailer,otherRetailerCard);
+  if(["costco","sams"].includes(retailer))addInventoryRequestControl(retailer,otherRetailerCard);
   if(["costco","sams"].includes(retailer)){
     const watch=document.createElement("section");watch.className="store-checker";
     section.before(watch);
@@ -2942,7 +2942,7 @@ if(retailer==="dollargeneral")return renderDollarGeneral();
     ? latestStatusData.providers : []).find(item => item.retailer === retailer) || {};
   otherRetailerCard.innerHTML = "<strong>" + esc(label) + "</strong>" + channelHeader + "<p>" +
     (provider.configured ? "Loading configured inventory feed…" :
-      "Direct retailer inventory is not connected. Dated CCN reports are shown separately below.") + "</p>" +
+      "Direct retailer inventory is not connected. Dated Rippin Packz reports are shown below.") + "</p>" +
     (retailer === "bestbuy" ? bestBuyCheckerMarkup(provider) :
       (checker ? warehouseCheckerMarkup(retailer, provider) : ""));
   if(warehouse) {wireWarehouseChannels(retailer); if(checker) renderCcnInventory(retailer);}
