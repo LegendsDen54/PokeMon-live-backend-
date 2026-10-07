@@ -1,0 +1,93 @@
+{
+  "products": [
+    {
+      "name": "30th Anniversary Elite Trainer Box",
+      "upc": "196214158801"
+    },
+    {
+      "name": "30th Anniversary Poster Collection",
+      "upc": "196214158757"
+    },
+    {
+      "name": "30th Anniversary Tech Sticker Collection",
+      "upc": "196214158771"
+    },
+    {
+      "name": "30th Anniversary Knock Out Collection",
+      "upc": "196214152397"
+    },
+    {
+      "name": "30th Anniversary ex Box",
+      "upc": "196214158726"
+    },
+    {
+      "name": "Ascended Heroes Mini Tins",
+      "upc": "196214141308"
+    },
+    {
+      "name": "Ascended Heroes ex Boxes",
+      "upc": "196214152076"
+    }
+  ],
+  "checkedAt": "2026-10-07T03:40:00Z",
+  "zip": "60634",
+  "upc": "196214158801",
+  "locations": [
+    {
+      "address": "5701 W Belmont Ave",
+      "onHand": 1
+    },
+    {
+      "address": "5434 W N Ave",
+      "onHand": 2
+    },
+    {
+      "address": "10201 W Roosevelt Rd",
+      "onHand": 2
+    },
+    {
+      "address": "5018 S Cicero Ave",
+      "onHand": 2
+    },
+    {
+      "address": "6225 S Kedzie Ave",
+      "onHand": 6
+    },
+    {
+      "address": "996 W Army Trail Rd",
+      "onHand": 2
+    },
+    {
+      "address": "8636 S Cicero Ave",
+      "onHand": 2
+    },
+    {
+      "address": "417 63rd St",
+      "onHand": 2
+    },
+    {
+      "address": "1917 Martin Luther King Dr",
+      "onHand": 2
+    },
+    {
+      "address": "8821 W 87th St",
+      "onHand": 2
+    },
+    {
+      "address": "8201 S Racine Ave",
+      "onHand": 2
+    },
+    {
+      "address": "9520 S Jeffery Ave",
+      "onHand": 2
+    },
+    {
+      "address": "910 N Neltnor Blvd",
+      "onHand": 2
+    },
+    {
+      "address": "703 East 9th Street",
+      "onHand": 2
+    }
+  ]
+}

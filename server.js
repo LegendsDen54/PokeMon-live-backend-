@@ -1987,6 +1987,7 @@ app.get("/api/retail/watch-products", (req,res) => {
   if (!["costco","sams"].includes(req.query.retailer)) return res.status(400).json({ok:false,error:"Choose retailer"});
   res.json({ok:true,products:retailOnline.snapshot(req.query.retailer).catalog || []});
 });
+app.get('/api/dollargeneral/catalog',(req,res)=>res.set('Cache-Control','no-store').json(require('./dollar-general.json')));
 app.get("/api/ccn/inventory-reports", async (req,res) => {
   if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
   if (!hasCcnViewerAccess(req)) return pokemonCenterSensorUnauthorized(res);

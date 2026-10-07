@@ -1938,6 +1938,7 @@ a{
         <img class="tab-brand" src="https://www.costco.com/favicon.ico" alt="" aria-hidden="true">COSTCO
       </button>
 
+<button class="tab" data-retailer="dollargeneral">DOLLAR GENERAL</button>
     </div>
 
   </section>
@@ -2898,7 +2899,17 @@ async function renderCcnInventory(retailer){
     updateCcnCountdowns();
   }catch(error){section.innerHTML='<h3>Rippin Packz in-store reports</h3><p>'+esc(error.message)+'</p>';}
 }
+
+async function renderDollarGeneral(){
+if(document.getElementById('dgSearch'))return;
+otherRetailerCard.innerHTML='<h2>Dollar General</h2><form id="dgSearch" class="store-checker"><label>Verified Dollar General products · A–Z<select id="dgCatalog"><option value="">Browse all verified products</option></select></label><label>Product name or UPC<input id="dgProduct" placeholder="30th ETB or 196214158801"></label><label>ZIP code<input id="dgZip" value="60634" inputmode="numeric" maxlength="5" autocomplete="postal-code"></label><button type="submit">FIND PRODUCT & STOCK REPORT</button></form><div id="dgResults" aria-live="polite"></div>';
+const params=new URLSearchParams(location.search);document.getElementById('dgProduct').value=params.get('upc') || '';document.getElementById('dgZip').value=params.get('zip') || '60634';
+async function search(){const out=document.getElementById('dgResults'),zip=document.getElementById('dgZip').value.trim(),q=document.getElementById('dgProduct').value.trim().toLowerCase().replace(/\betb\b/g,'elite trainer box');if(!/^\d{5}$/.test(zip)){out.textContent='Enter a five-digit ZIP code.';return;}out.textContent='Loading saved results…';try{const res=await fetch('/api/dollargeneral/catalog',{cache:'no-store'});if(!res.ok)throw Error('Catalog unavailable');const data=await res.json();const picker=document.getElementById('dgCatalog');if(picker.options.length===1){for(const p of [...data.products].sort((a,b)=>a.name.localeCompare(b.name))){const option=document.createElement('option');option.value=p.upc;option.textContent=p.name+' · UPC '+p.upc;picker.append(option);}}const matches=[...data.products].sort((a,b)=>a.name.localeCompare(b.name)).filter(p=>!q || p.upc===q || q.split(/\s+/).every(w=>p.name.toLowerCase().includes(w)));out.innerHTML='<p>Fresh checks use the Rippin Packz checker. Saved results below are dated, not a new live scan.</p><div class="ccn-product-grid">'+(matches.map(p=>{const command='/instore dollar_general upc:'+p.upc+' zip:'+zip;return '<article class="ccn-product-tile"><h3>'+esc(p.name)+'</h3><p>UPC '+p.upc+' · ZIP '+esc(zip)+'</p><a href="/?retailer=dollargeneral&upc='+p.upc+'&zip='+zip+'">PRODUCT MONITOR LINK ↗</a><p><button type="button" data-command="'+esc(command)+'">COPY STOCK CHECK COMMAND</button></p><a href="https://discord.com/channels/1367457689386356766/1384210429504393226" target="_blank" rel="noopener noreferrer">OPEN DISCORD CHECKER ↗</a>'+(data.zip===zip && data.upc===p.upc?'<p>Checked '+esc(new Date(data.checkedAt).toLocaleString())+(Date.now()-Date.parse(data.checkedAt)>5400000?' · STALE':'')+'</p><div class="ccn-location-scroll"><table><thead><tr><th>Location</th><th>Reported quantity</th></tr></thead><tbody>'+data.locations.map(r=>'<tr><td>'+esc(r.address)+'</td><td>'+r.onHand+'</td></tr>').join('')+'</tbody></table></div><small>Positive rows only. Missing stores are unknown. Confirm shelf availability before traveling.</small>':'<p>No saved result for this product and ZIP. Stock is unknown.</p>')+'</article>';}).join('') || '<p>No verified product matched.</p>')+'</div>';out.querySelectorAll('[data-command]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.command);b.textContent='COPIED — PASTE IN DISCORD';}catch{b.textContent=b.dataset.command;}});}catch(e){out.textContent=e.message;}}
+document.getElementById('dgCatalog').onchange=e=>{document.getElementById('dgProduct').value=e.target.value;search();};document.getElementById('dgSearch').onsubmit=e=>{e.preventDefault();search();};search();
+}
+
 async function renderExternalRetailer(retailer){
+if(retailer==="dollargeneral")return renderDollarGeneral();
   if(retailer === "target" || (["sams","costco"].includes(retailer) && warehouseChannels[retailer] === "online")) return renderPublicOnline(retailer);
   if(["sams","costco"].includes(retailer) && otherRetailerCard.contains(document.activeElement) && /INPUT|SELECT|BUTTON/.test(document.activeElement.tagName)) return;
   if(retailer === "bestbuy" && bestBuyPickerIsInUse()) return;
@@ -4894,9 +4905,7 @@ window.addEventListener("touchend", async () => {
    START
 ========================================= */
 
-setRetailer(
-  "all"
-);
+setRetailer(new URLSearchParams(location.search).get("retailer")==="dollargeneral" ? "dollargeneral" : "all");
 
 syncPhoneNotificationStatus();
 
