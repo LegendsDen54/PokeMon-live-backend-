@@ -2040,6 +2040,10 @@ app.get('/api/inventory/notification-status',async(req,res)=>{
   const viewer=inventoryViewer(req,res);if(!viewer)return res.status(401).json({ok:false,error:'Private search session unavailable'});
   try{res.set('Cache-Control','no-store').json({ok:true,...await require('./inventory-completion-push').status(viewer)});}catch{res.status(503).json({ok:false,error:'Notification status unavailable'});}
 });
+app.get('/api/inventory/owner-notification-status',async(req,res)=>{
+  if(!hasInventoryOwnerAccess(req))return pokemonCenterSensorUnauthorized(res);
+  try{res.set('Cache-Control','no-store').json({ok:true,...await require('./inventory-completion-push').ownerStatus()});}catch{res.status(503).json({ok:false,error:'Notification status unavailable'});}
+});
 app.get('/api/inventory/worker-status',(req,res)=>res.set('Cache-Control','no-store').json({ok:true,...inventoryCommandWorker.health()}));
 app.post('/api/inventory/check',async(req,res)=>{
   const retailer=String(req.body.retailer || ''),productId=String(req.body.productId || '').trim(),zip=String(req.body.zip || '').trim();
