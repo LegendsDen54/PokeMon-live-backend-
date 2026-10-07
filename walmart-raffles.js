@@ -629,6 +629,32 @@ function normalizeRaffle(item) {
     return null;
   }
 
+  /*
+    Raffle inventory must come from Walmart's own draw offer.
+    GT Collectibles / GT-MJ Holdings remain valid for the normal
+    Walmart live-items feed, but marketplace seller movement must
+    never be promoted into the Weekly Raffle.
+  */
+  const sellerText =
+    normalize([
+      item?.sellerName,
+      item?.seller,
+      item?.sellerDisplayName,
+      item?.sellerInfo?.name,
+      item?.sellerInfo?.displayName,
+      item?.sellerDisplayName,
+      item?.offer?.sellerName,
+      item?.offer?.seller
+    ].filter(Boolean).join(" "));
+
+  if (
+    sellerText.includes("gt collectibles") ||
+    sellerText.includes("gt mj holdings") ||
+    sellerText.includes("gt-mj holdings")
+  ) {
+    return null;
+  }
+
   const itemId =
     getItemId(item);
 
