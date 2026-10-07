@@ -2613,10 +2613,9 @@ function bestBuyCheckerMarkup(provider){
   const catalogMessage = provider.catalogSearch
     ? "Search by set or product type. Results come from the official Best Buy catalog and show the exact Best Buy SKU."
     : "Choose an exact product from the verified Best Buy SKU list. Marketplace offers are excluded. Local stock is checked separately through Rippin Packz.";
-  return "<section class=\"store-checker\"><h3>Official Best Buy Product &amp; SKU Finder</h3>" +
-    "<p>" + esc(catalogMessage) + "</p>" +
-    "<div class=\"store-checker-row\"><input id=\"bestBuyProductSearch\" type=\"search\" placeholder=\"Product name or Best Buy link, e.g. Prismatic ETB\"" + catalogDisabled + ">" +
-    "<button id=\"bestBuyProductSearchButton\" type=\"button\"" + catalogDisabled + ">FIND PRODUCT &amp; SKU</button></div>" +
+  return "<section class=\"store-checker\"><h3>Best Buy In-Store Checker</h3>" +
+    "<p>Enter your ZIP code, then choose an era, set, and product to check nearby stores.</p>" +
+    "<input id=\"bestBuySkuSearch\" type=\"hidden\"><div id=\"bestBuyZipRow\" class=\"store-checker-row\"></div>" +
     "<div class=\"bestbuy-era-tabs\" aria-label=\"Pokémon TCG eras\">" +
       Object.entries(BESTBUY_ERA_SETS).map(([key, era]) =>
         "<button type=\"button\" data-bestbuy-era=\"" + esc(key) + "\" aria-pressed=\"false\">" + esc(era.label) + "</button>"
@@ -2632,11 +2631,8 @@ function bestBuyCheckerMarkup(provider){
       "</div>" +
       "<button id=\"bestBuyEraSearchButton\" class=\"bestbuy-era-search\" type=\"button\" disabled>CHECK SELECTED PRODUCT</button><p id=\"bestBuyVerifiedStatus\" role=\"status\">Loading verified product list…</p>" +
     "</div>" +
-    "<div id=\"bestBuyCatalogResults\" class=\"store-checker-results\" aria-live=\"polite\"></div></section>" +
-    "<section class=\"store-checker\"><h3>Best Buy In-Store Checker</h3>" +
-    "<p>Use an official Best Buy SKU from the finder above to check nearby stores.</p>" +
-    "<div class=\"store-checker-row\"><input id=\"bestBuySkuSearch\" inputmode=\"numeric\" placeholder=\"Enter Best Buy SKU number\"" + storesDisabled + ">" +
-    "<button id=\"bestBuySkuSearchButton\" type=\"button\"" + storesDisabled + ">CHECK NEARBY STORES</button></div>" +
+    "<div id=\"bestBuyCatalogResults\" class=\"store-checker-results\" aria-live=\"polite\"></div>" +
+    "<button id=\"bestBuySkuSearchButton\" type=\"button\" hidden>CHECK NEARBY STORES</button>" +
     "<p>Fresh in-store checks use Rippin Packz. Saved results stay visible while a new request waits for the checker.</p>" +
     "<div id=\"bestBuyCheckerResults\" class=\"store-checker-results\" aria-live=\"polite\"></div></section>";
 }
@@ -2846,7 +2842,7 @@ function wireBestBuyChecker(provider){
     }catch(error){ showCatalog("<p>" + esc(error.message) + "</p>"); }
     finally{ productButton.disabled = false; }
   };
-  const requestStatus=document.createElement('p');requestStatus.setAttribute('role','status');const checkerZip=document.createElement('input');checkerZip.setAttribute('aria-label','Best Buy checker ZIP');checkerZip.inputMode='numeric';checkerZip.maxLength=5;checkerZip.placeholder='Enter your ZIP code';checkerZip.value=sessionStorage.getItem('inventoryZip:bestbuy') || '';skuButton.before(checkerZip);skuButton.closest("section").append(requestStatus);
+  const requestStatus=document.createElement('p');requestStatus.setAttribute('role','status');const checkerZip=document.createElement('input');checkerZip.setAttribute('aria-label','Best Buy checker ZIP');checkerZip.inputMode='numeric';checkerZip.maxLength=5;checkerZip.placeholder='Enter your ZIP code';checkerZip.value=sessionStorage.getItem('inventoryZip:bestbuy') || '';document.getElementById('bestBuyZipRow').append(checkerZip);skuButton.closest("section").append(requestStatus);
   let verifiedProducts=[],selectedEra='',selectedProduct=null;
   const verifiedStatus=document.getElementById('bestBuyVerifiedStatus');
   async function showSelectedStock(){
@@ -2869,7 +2865,7 @@ function wireBestBuyChecker(provider){
     verifiedStatus.textContent=matches.length?'Only verified Best Buy-sold products are listed.':'No verified SKU has been added for this set yet.';
   }
   function selectVerifiedProduct(item){
-    selectedProduct=item;skuInput.value=item.sku;productInput.value=item.name;
+    selectedProduct=item;skuInput.value=item.sku;if(productInput)productInput.value=item.name;
     showCatalog('<p><strong>'+esc(item.name)+'</strong><br>Best Buy SKU <strong>'+esc(item.sku)+'</strong> · Sold by Best Buy<br><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">OPEN BEST BUY PRODUCT ↗</a></p><small>SKU matched to retailer listing · verified '+esc(item.verifiedAt)+'. This does not confirm local inventory.</small>');
     eraSearchButton.disabled=false;showSelectedStock();
   }
@@ -2880,7 +2876,7 @@ function wireBestBuyChecker(provider){
     if(selectedEra)updateVerifiedOptions();
   }).catch(()=>{if(verifiedStatus.isConnected)verifiedStatus.textContent='Verified product list unavailable. Reload to try again.';});
   eraSet.addEventListener('change',updateVerifiedOptions);
-  eraProductType.addEventListener('change',async()=>{const item=verifiedProducts.find(p=>p.sku===eraProductType.value && p.era===selectedEra && (!eraSet.value || p.set===eraSet.value));if(!item)return;selectVerifiedProduct(item);await check();});
+  eraProductType.addEventListener('change',async()=>{const item=verifiedProducts.find(p=>p.sku===eraProductType.value && p.era===selectedEra && (!eraSet.value || p.set===eraSet.value));if(!item)return;selectVerifiedProduct(item);});
   if(productButton) productButton.addEventListener("click", search);
   if(skuButton) skuButton.addEventListener("click", check);
   if(productInput) productInput.addEventListener("keydown", event => { if(event.key === "Enter") search(); });
@@ -3034,7 +3030,7 @@ if(retailer==="barnes")return renderBarnes();
 if(retailer==="dollargeneral")return renderDollarGeneral();
   if(retailer === "target" || (["sams","costco"].includes(retailer) && warehouseChannels[retailer] === "online")) return renderPublicOnline(retailer);
   if(["sams","costco"].includes(retailer) && otherRetailerCard.contains(document.activeElement) && /INPUT|SELECT|BUTTON/.test(document.activeElement.tagName)) return;
-  if(retailer === "bestbuy" && document.getElementById('bestBuyProductSearch')) return;
+  if(retailer === "bestbuy" && document.getElementById('bestBuyEraPicker')) return;
   const labels = {target:"Target", sams:"Sam's Club", bestbuy:"Best Buy", costco:"Costco"};
   const label = labels[retailer] || retailer;
   const warehouse = retailer === "sams" || retailer === "costco";
