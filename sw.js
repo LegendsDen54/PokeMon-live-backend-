@@ -158,98 +158,27 @@ self.addEventListener(
    NOTIFICATION CLICK
 ======================================== */
 
-self.addEventListener(
-  "notificationclick",
-  event => {
-
-    event.notification.close();
-
-
-    const targetUrl =
-      event.notification
-        ?.data
-        ?.url ||
-      "/";
-
-
-    event.waitUntil(
-
-      clients
-        .matchAll({
-
-          type:
-            "window",
-
-          includeUncontrolled:
-            true
-
-        })
-
-        .then(
-          async windowClients => {
-
-            for (
-              const client
-              of windowClients
-            ) {
-
-              if (
-                "focus" in client
-              ) {
-
-                try {
-
-                  if (
-                    "navigate" in client &&
-                    targetUrl
-                  ) {
-
-                    await client
-                      .navigate(
-                        targetUrl
-                      );
-
-                  }
-
-                } catch (error) {
-
-                  console.log(
-                    "[SW] Existing window navigation failed:",
-                    error
-                  );
-
-                }
-
-
-                return client.focus();
-
-              }
-
-            }
-
-
-            if (
-              clients.openWindow
-            ) {
-
-              return clients
-                .openWindow(
-                  targetUrl
-                );
-
-            }
-
-
-            return null;
-
-          }
-        )
-
-    );
-
-  }
-);
-
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  let target;
+  try { target=new URL(event.notification?.data?.url || '/',self.location.origin); }
+  catch { target=new URL('/',self.location.origin); }
+  if(!['https:','http:'].includes(target.protocol))target=new URL('/',self.location.origin);
+  event.waitUntil((async()=>{
+    const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+    const app=windows.find(client=>new URL(client.url).origin===self.location.origin);
+    if(target.origin!==self.location.origin){
+      // Keep the installed monitor document intact while opening a retailer.
+      if(app)app.postMessage({type:'MONITOR_RESUME'});
+      return self.clients.openWindow(target.href);
+    }
+    if(app){
+      const navigated=await app.navigate(target.href).catch(()=>null);
+      return (navigated || app).focus();
+    }
+    return self.clients.openWindow(target.href);
+  })());
+});
 
 /* ========================================
    MESSAGE HANDLER

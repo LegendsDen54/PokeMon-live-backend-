@@ -4886,6 +4886,16 @@ syncPhoneNotificationStatus();
 
 load();
 
+
+let resumeRefreshPending=false;
+function resumeMonitorView(){
+  if(document.visibilityState==='hidden' || resumeRefreshPending)return;
+  resumeRefreshPending=true;
+  Promise.resolve(load()).catch(()=>{}).finally(()=>{resumeRefreshPending=false;});
+}
+window.addEventListener('pageshow',resumeMonitorView);
+document.addEventListener('visibilitychange',resumeMonitorView);
+if('serviceWorker' in navigator)navigator.serviceWorker.addEventListener('message',event=>{if(event.data?.type==='MONITOR_RESUME')resumeMonitorView();});
 </script>
 
 </body>
