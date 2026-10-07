@@ -2406,7 +2406,10 @@ async function renderPokemonRestocks(){
     const uniquePosts=[...(data.posts || [])].sort((a,b)=>Date.parse(b.editedAt || b.publishedAt)-Date.parse(a.editedAt || a.publishedAt)).filter(post=>{
       const text=String(post.summary || '').replace(/^CCN source report:\s*/i,'').replace(/\s+/g,' ').trim().toLowerCase();
       const products=(post.products || []).map(p=>({id:p.productId,status:p.status,seller:p.seller,price:p.price})).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
-      const key=JSON.stringify([post.retailer,text,products]);
+      // The same drawing announcement may arrive as a Discord excerpt and a collector summary.
+      const drawTime=text.match(/\b(\d{1,2}):([0-5]\d)\s*(am|pm)\s*pdt\b/);
+      const sameDrawAnnouncement=post.retailer==='walmart' && !products.length && drawTime && /draw/.test(text) && /prismatic/.test(text) && /30th/.test(text) && /added/.test(text) && !/cancel|removed|sold out|closed|ended/.test(text);
+      const key=sameDrawAnnouncement?JSON.stringify(['walmart-draw',String(post.publishedAt).slice(0,10),drawTime.slice(1), 'prismatic-etb','30th-etb']):JSON.stringify([post.retailer,text,products]);
       if(seenCcnPosts.has(key))return false;
       seenCcnPosts.add(key);return true;
     });
