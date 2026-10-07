@@ -1,0 +1,117 @@
+{
+  "verifiedAt": "2026-10-07T15:08:00Z",
+  "guild": "Rippin Packz",
+  "channelUrl": "https://discord.com/channels/1367457689386356766/1384210429504393226",
+  "zip": "60634",
+  "checkers": [
+    {
+      "bot": "Wiglett",
+      "retailer": "bestbuy",
+      "command": "/bestbuystore",
+      "parameters": [
+        "sku",
+        "zip (optional)"
+      ],
+      "verification": "Test October 6 10:14 PM Chicago: SKU 6624825 ZIP 60634; Discord reported The application did not respond. Stock unknown."
+    },
+    {
+      "bot": "Wiglett",
+      "retailer": "costco",
+      "command": "/costcostore",
+      "parameters": [
+        "url",
+        "zip (optional)"
+      ],
+      "verification": "Command visible; response not yet compared"
+    },
+    {
+      "bot": "Wiglett",
+      "retailer": "sams",
+      "command": "/samsclubstore",
+      "parameters": [
+        "sku",
+        "additional parameter not yet verified"
+      ],
+      "verification": "Command visible; response not yet compared"
+    },
+    {
+      "bot": "Rippin Packzz x Zephyr",
+      "retailer": "bestbuy",
+      "command": "/instore bestbuy",
+      "parameters": [
+        "sku",
+        "zip"
+      ],
+      "verification": "Normal command returned aggregate No stock found for 6624825 and 6685559; individual store quantities unknown"
+    },
+    {
+      "bot": "Rippin Packzz x Zephyr",
+      "retailer": "bestbuy",
+      "command": "/instore bestbuy_exact",
+      "restriction": "One use per six hours",
+      "verification": "Command and restriction visible; not used"
+    },
+    {
+      "bot": "Rippin Packzz x Zephyr",
+      "retailer": "costco",
+      "command": "/instore costco",
+      "verification": "Observed response with red availability indicators; did not provide on-order or in-transit quantities"
+    },
+    {
+      "bot": "Rippin Packzz x Zephyr",
+      "retailer": "sams",
+      "command": "/samsclub_instore",
+      "parameters": [
+        "product_id",
+        "sku_id",
+        "zipcode"
+      ],
+      "verification": "Command visible; required internal identifiers remain unverified for watched bundles"
+    },
+    {
+      "bot": "Rip Radar",
+      "retailer": "bestbuy",
+      "channelUrl": "https://discord.com/channels/1367457689386356766/1548379934207254649",
+      "command": "Search Stock button",
+      "parameters": [
+        "retailer",
+        "ZIP"
+      ],
+      "verification": "Live normal form menu verified October 7. Best Buy tracked inventory, Costco Ascended Heroes inventory, Sams Club Ascended Heroes bundles. Exact product must match actual subsequent results.",
+      "advertisedCooldownMinutes": 60,
+      "directApiConnected": false
+    },
+    {
+      "bot": "Rip Radar",
+      "retailer": "costco",
+      "channelUrl": "https://discord.com/channels/1367457689386356766/1548379934207254649",
+      "command": "Search Stock button",
+      "parameters": [
+        "retailer",
+        "ZIP"
+      ],
+      "verification": "Live normal form menu verified October 7. Best Buy tracked inventory, Costco Ascended Heroes inventory, Sams Club Ascended Heroes bundles. Exact product must match actual subsequent results.",
+      "advertisedCooldownMinutes": 60,
+      "directApiConnected": false
+    },
+    {
+      "bot": "Rip Radar",
+      "retailer": "sams",
+      "channelUrl": "https://discord.com/channels/1367457689386356766/1548379934207254649",
+      "command": "Search Stock button",
+      "parameters": [
+        "retailer",
+        "ZIP"
+      ],
+      "verification": "Live normal form menu verified October 7. Best Buy tracked inventory, Costco Ascended Heroes inventory, Sams Club Ascended Heroes bundles. Exact product must match actual subsequent results.",
+      "advertisedCooldownMinutes": 60,
+      "directApiConnected": false
+    }
+  ],
+  "rules": [
+    "Do not rank checkers by accuracy until same-product, same-ZIP actual responses are compared",
+    "Preserve bot and command attribution",
+    "No matching reports or aggregate no stock is not an explicit per-store zero",
+    "Import onOrder, inTransit and onHand only when actually supplied"
+  ]
+}
