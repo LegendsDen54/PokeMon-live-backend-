@@ -10,6 +10,7 @@ async function storage(){
 }
 exports.connect=async(viewer,endpoint,visible)=>{await storage();await pool.query('INSERT INTO inventory_push_devices(endpoint,viewer_id,visible) VALUES($1,$2,$3) ON CONFLICT(endpoint) DO UPDATE SET viewer_id=EXCLUDED.viewer_id,visible=EXCLUDED.visible,seen_at=now()',[endpoint,viewer,visible]);};
 exports.presence=async(viewer,visible)=>{await storage();await pool.query('UPDATE inventory_push_devices SET visible=$2,seen_at=now() WHERE viewer_id=$1',[viewer,visible]);};
+exports.status=async(viewer)=>{await storage();const rows=(await pool.query('SELECT retailer,product_id AS "productId",zip,requested_at AS "requestedAt",state,attempts FROM inventory_completion_notices WHERE viewer_id=$1 ORDER BY requested_at DESC LIMIT 10',[viewer])).rows;return {notifications:rows,phoneDisplayConfirmed:false};};
 exports.completed=async(report)=>{
   await storage();
   const viewers=(await pool.query(`SELECT v.viewer_id,v.requested_at FROM inventory_search_viewers v WHERE v.retailer=$1 AND v.product_id=$2 AND v.zip=$3 AND v.requested_at<=$4 AND v.requested_at>now()-interval '1 hour' AND EXISTS(SELECT 1 FROM inventory_push_devices d WHERE d.viewer_id=v.viewer_id)`,[report.retailer,report.productId,report.zip,report.checkedAt])).rows;

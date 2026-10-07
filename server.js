@@ -2036,6 +2036,10 @@ app.post('/api/inventory/presence',async(req,res)=>{
   const viewer=inventoryViewer(req,res);if(!viewer)return res.sendStatus(204);
   try{await require('./inventory-completion-push').presence(viewer,req.body.visible===true);res.sendStatus(204);}catch{res.sendStatus(503);}
 });
+app.get('/api/inventory/notification-status',async(req,res)=>{
+  const viewer=inventoryViewer(req,res);if(!viewer)return res.status(401).json({ok:false,error:'Private search session unavailable'});
+  try{res.set('Cache-Control','no-store').json({ok:true,...await require('./inventory-completion-push').status(viewer)});}catch{res.status(503).json({ok:false,error:'Notification status unavailable'});}
+});
 app.get('/api/inventory/worker-status',(req,res)=>res.set('Cache-Control','no-store').json({ok:true,...inventoryCommandWorker.health()}));
 app.post('/api/inventory/check',async(req,res)=>{
   const retailer=String(req.body.retailer || ''),productId=String(req.body.productId || '').trim(),zip=String(req.body.zip || '').trim();
