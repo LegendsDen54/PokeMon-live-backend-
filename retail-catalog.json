@@ -117,8 +117,9 @@
       "reportedAt": "2026-10-06T16:12:00Z",
       "sourceUrl": "https://discord.com/channels/1410547930250612828/1424776504767680722/1557062971744850072",
       "sourceName": "CCN",
-      "expectedWindow": "Potential drop · mid–late October · CCN report",
-      "reportedPrice": 57.99
+      "expectedWindow": "Potential drop · mid–late October · sales channel unconfirmed",
+      "reportedPrice": 57.99,
+      "salesChannel": "unconfirmed"
     },
     {
       "label": "Confirmed recent · Crown Zenith ETB + Koraidon ex + Miraidon Tins",

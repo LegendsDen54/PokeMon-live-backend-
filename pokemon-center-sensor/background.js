@@ -47,7 +47,7 @@ async function handleTargetDropReport(report) {
   for(const product of products){
     const id=new URL(product.url).pathname.match(/A-(\d+)/)[1];
     const key=report.sourceUrl+':'+id+':'+product.status;
-    if(seen[key])continue;
+    if(seen[key] || (product.status==='reported_available' && Date.now()-Number(seen['live:'+id] || 0)<10*60000))continue;
     const existing=tabs.find(t=>new URL(t.url).pathname.match(/A-(\d+)/)?.[1]===id);
     if(existing){if(product.status==='reported_available')await chrome.tabs.reload(existing.id);}
     else await chrome.tabs.create({url:'https://www.target.com/p/-/A-'+id,active:false});
