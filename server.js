@@ -1921,7 +1921,7 @@ app.post(
 
 app.post("/api/ccn/inventory-report", async (req,res) => {
   if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
-  if (!hasValidPokemonCenterSensorToken(req)) return pokemonCenterSensorUnauthorized(res);
+  if (!hasInventoryOwnerAccess(req)) return pokemonCenterSensorUnauthorized(res);
   try {
     const saved=await ccnInventory.save(req.body);
     let delivery=null;
@@ -1943,6 +1943,23 @@ function hasCcnViewerAccess(req){
   if(!/^\d+$/.test(expires || '') || Number(expires)<Date.now() || !/^[a-f0-9]{64}$/.test(signature || ''))return false;
   return ccnViewerCrypto.timingSafeEqual(Buffer.from(signature,'hex'),Buffer.from(ccnViewerSignature(expires),'hex'));
 }
+function hasInventoryOwnerAccess(req){
+  if(hasValidPokemonCenterSensorToken(req))return true;
+  if(!pokemonCenterSensorToken)return false;
+  const raw=String(req.headers.cookie || '').split(';').map(x=>x.trim()).find(x=>x.startsWith('inventoryOwner='))?.slice(15) || '';
+  const [expires,signature]=raw.split('.');
+  if(!/^\d+$/.test(expires || '') || Number(expires)<Date.now() || !/^[a-f0-9]{64}$/.test(signature || ''))return false;
+  const expected=ccnViewerCrypto.createHmac('sha256',pokemonCenterSensorToken).update('inventory-owner:'+expires).digest('hex');
+  return ccnViewerCrypto.timingSafeEqual(Buffer.from(signature,'hex'),Buffer.from(expected,'hex'));
+}
+app.get('/api/inventory/owner-session',(req,res)=>res.set('Cache-Control','no-store').json({ok:true,connected:hasInventoryOwnerAccess(req)}));
+app.post('/api/inventory/owner-session',(req,res)=>{
+  if(!hasValidPokemonCenterSensorToken(req))return pokemonCenterSensorUnauthorized(res);
+  const expires=String(Date.now()+30*86400000);
+  const signature=ccnViewerCrypto.createHmac('sha256',pokemonCenterSensorToken).update('inventory-owner:'+expires).digest('hex');
+  res.cookie('inventoryOwner',expires+'.'+signature,{httpOnly:true,secure:true,sameSite:'strict',maxAge:30*86400000,path:'/'});
+  res.json({ok:true,connected:true});
+});
 app.post('/api/ccn/viewer-session',(req,res)=>{
   if(!pokemonCenterSensorToken)return pokemonCenterSensorUnavailable(res);
   if(!hasValidPokemonCenterSensorToken(req))return pokemonCenterSensorUnauthorized(res);
@@ -1964,7 +1981,7 @@ async function processCcnNews(input){
 }
 app.post("/api/ccn/news-report",async(req,res)=>{
   if(!pokemonCenterSensorToken)return pokemonCenterSensorUnavailable(res);
-  if(!hasValidPokemonCenterSensorToken(req))return pokemonCenterSensorUnauthorized(res);
+  if(!hasInventoryOwnerAccess(req))return pokemonCenterSensorUnauthorized(res);
   try{res.json(await processCcnNews(req.body));}catch(error){res.status(400).json({ok:false,error:error.message});}
 });
 const ccnDiscordBot=require('./ccn-discord-bot');
@@ -1996,11 +2013,11 @@ app.get('/api/inventory/request-status',async(req,res)=>{
   try{res.set('Cache-Control','no-store').json({ok:true,...await ccnInventory.inventoryRequestStatus(String(req.query.retailer || ''),String(req.query.productId || ''),String(req.query.zip || ''))});}catch(error){res.status(/Choose a retailer/.test(error.message)?400:503).json({ok:false,error:'Request status unavailable'});}
 });
 app.get('/api/inventory/pending-checks',async(req,res)=>{
-  if(!hasValidPokemonCenterSensorToken(req))return pokemonCenterSensorUnauthorized(res);
+  if(!hasInventoryOwnerAccess(req))return pokemonCenterSensorUnauthorized(res);
   try{res.set('Cache-Control','no-store').json({ok:true,requests:await ccnInventory.pendingInventory()});}catch{res.status(503).json({ok:false,error:'Request queue unavailable'});}
 });
 app.post('/api/inventory/checker-cooldown',async(req,res)=>{
-  if(!hasValidPokemonCenterSensorToken(req))return pokemonCenterSensorUnauthorized(res);
+  if(!hasInventoryOwnerAccess(req))return pokemonCenterSensorUnauthorized(res);
   try{await ccnInventory.recordCheckerCooldown(req.body.retailer,req.body.availableAt,req.body.sourceUrl);res.json({ok:true});}catch(error){res.status(400).json({ok:false,error:error.message});}
 });
 app.post('/api/dollargeneral/check',async(req,res)=>{
