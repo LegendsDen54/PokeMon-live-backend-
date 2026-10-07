@@ -3165,7 +3165,11 @@ async function renderPublicOnline(retailer){
       upcomingSection.addEventListener('toggle',()=>{saved.upcomingOpen=upcomingSection.open;});
 
     }
-    if(retailer==='target')renderCcnOnlineProducts('target');
+    if(retailer==='target'){
+      otherRetailerCard.querySelector('.store-checker:not(:first-child)')?.remove();
+      Array.from(otherRetailerCard.children).filter(el=>el.tagName==='STRONG' || el.tagName==='P' || el.classList.contains('retailer-product-grid') || el.tagName==='SMALL').forEach(el=>el.remove());
+      renderCcnOnlineProducts('target');return;
+    }
     if(retailer!=="target") wireWarehouseChannels(retailer);
     const input=document.getElementById("retailOnlineUrl");
     input.value=saved.url;
