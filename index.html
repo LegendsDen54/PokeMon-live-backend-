@@ -2379,6 +2379,7 @@ let pokemonCenterToastTimer = null;
 let walmartManualScanRunning = false;
 
 async function renderCcnOnlineProducts(retailer){
+  if(retailer==='target'){document.getElementById('ccnOnline-target')?.remove();return;}
   const parent=retailer==='walmart'?walmartSection:retailer==='pokemoncenter'?document.getElementById('pokemonCenterSection'):otherRetailerCard;
   try{
     const key=sessionStorage.getItem('ccnReportKey');
