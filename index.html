@@ -2916,6 +2916,7 @@ async function renderCcnInventory(retailer){
 
 function inventoryCheckText(state){
   if(state.availableAt && Date.parse(state.availableAt)>Date.now()){const seconds=Math.ceil((Date.parse(state.availableAt)-Date.now())/1000);return 'Next inventory check available in '+Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');}
+  if(state.status==='queued'){const started=Date.parse(state.requestedAt),seconds=Number.isFinite(started)?Math.max(0,Math.floor((Date.now()-started)/1000)):null;return 'Waiting for checker'+(seconds===null?'':' · Waited '+Math.floor(seconds/60)+'m '+String(seconds%60).padStart(2,'0')+'s')+' · Completion time not provided. Saved results remain below.';}
   return ({idle:'Ready to check inventory',cooldown:'Ready to check inventory',queued:'Waiting for checker · saved results remain below',completed:'Fresh check completed · '+new Date(state.checkedAt).toLocaleString(),checker_error:'Checker error · current stock unknown. Ready to try another check.',expired:'Request expired without a fresh response. Ready to check again.'})[state.status] || 'Request status unavailable';
 }
 function watchInventoryRequest(retailer,getSelection,status,button,onCompleted){
