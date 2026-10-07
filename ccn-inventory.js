@@ -69,8 +69,12 @@ function cleanOnlineProducts(input){
     const msrp=typeof item.msrp==='number' && Number.isFinite(item.msrp)&&item.msrp>0?item.msrp:null;
     const withinPriceRule=retailer!=='walmart' || price!==null && msrp!==null && price<=msrp*1.5;
     let image=null;try{const im=new URL(item.image);if(im.protocol==='https:' && /(?:^|\.)(?:target\.com|scene7\.com|walmartimages\.com|pokemoncenter\.com)$/.test(im.hostname))image=im.href;}catch{}
+    const id=retailer==='target'?url.pathname.match(/\/A-(\d+)/)?.[1]:retailer==='walmart'?url.pathname.match(/\/ip\/(?:[^/]+\/)?(\d+)\/?$/)?.[1]:url.pathname.match(/\/product\/([^/]+)/)?.[1];
+    if(!id)return null;
+    if(retailer==='walmart')url=new URL('https://www.walmart.com/ip/'+id);
+    if(retailer==='target')url=new URL('https://www.target.com/p/-/A-'+id);
     url.search='';url.hash='';
-    return {name,url:url.href,image,seller,price,msrp,withinPriceRule,status:['reported_available','upcoming','reported_unavailable','queue'].includes(item.status)?item.status:'upcoming',productId:String(item.productId || '').slice(0,50)};
+    return {name,url:url.href,image,seller,price,msrp,withinPriceRule,status:['reported_available','upcoming','reported_unavailable','queue'].includes(item.status)?item.status:'upcoming',productId:id,expectedWindow:String(item.expectedWindow || '').slice(0,250)};
   }).filter(Boolean);
 }
 async function saveNews(input){
