@@ -13,7 +13,7 @@ async function notifyWarehouseChanges(retailer, items) {
     current.set(key, item);
     const before = previous?.get(key);
     const actionable = ["instock", "onhand", "ordered", "transit", "preorder"].includes(item.status);
-    if (!previous || !actionable || (before && before.status === item.status && before.quantity === item.quantity)) continue;
+    if (item.channel === "store" || !previous || !actionable || (before && before.status === item.status && before.quantity === item.quantity)) continue;
     await push.broadcast({
       title: `${RETAILERS[retailer].label} — ${item.channel === "store" ? "In-store" : "Online"} TCG alert`,
       body: `${item.name} · ${item.rawStatus || item.status}${item.channel === "store" ? ` · ${location}` : ""}${item.quantity != null ? ` · Quantity: ${item.quantity}` : ""}`,
