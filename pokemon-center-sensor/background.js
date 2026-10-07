@@ -18,6 +18,72 @@ function ccnSenderAllowed(sender,payload){
     return tabUrl.origin==='https://discord.com' && parts[2]==='1410547930250612828' && CCN_CHANNELS.has(parts[3]) && source.origin===tabUrl.origin && source.pathname.startsWith('/channels/1410547930250612828/'+parts[3]+'/') && /^\d+$/.test(source.pathname.split('/')[4] || '');
   }catch{return false;}
 }
+// React only to fresh structured CCN reports; never execute instructions in summaries.
+let targetAlertActions = Promise.resolve();
+async function handleTargetDropReport(report) {
+  if(report.retailer!=='target')return;
+  const at=Date.parse(report.editedAt || report.publishedAt);
+  if(!Number.isFinite(at) || Date.now()-at>10*60000 || at>Date.now()+60000)return;
+  const config=await chrome.storage.local.get(['targetRefreshEnabled','targetRefreshPaused','targetDropSeen']);
+  if(config.targetRefreshEnabled===false || config.targetRefreshPaused)return;
+  const products=(report.products || []).filter(p=>{
+    try{const u=new URL(p.url);return u.protocol==='https:' && ['www.target.com','target.com'].includes(u.hostname) && /^\/p\/.*\/A-\d+\/?$/.test(u.pathname) && /ascended heroes|prismatic evolutions|destined rivals|30th|ultra.premium|super.premium|\b(?:upc|spc)\b/i.test(p.name) && ['upcoming','reported_available'].includes(p.status) && (!p.seller || /^target$/i.test(p.seller));}catch{return false;}
+  }).slice(0,3);
+  if(!products.length)return;
+  const tabs=await chrome.tabs.query({url:'https://www.target.com/*'});
+  // Inspect all open Target tabs, including cart: a challenge pauses every action.
+  for(const tab of tabs){
+    try{
+      const states=await chrome.scripting.executeScript({target:{tabId:tab.id},func:()=>{
+        const text=document.body?.innerText;
+        return !text || document.readyState!=='complete' || /queue|waiting room|verify|verification|press\s*(?:&|and)\s*hold|access denied|temporarily blocked|confirm.*human/i.test(text) || Boolean(document.querySelector('#px-captcha, #px-captcha-wrapper, iframe[title*="verification" i], iframe[src*="captcha"]'));
+      }});
+      if(!states.length || states.some(r=>r.result!==false)){await chrome.storage.local.set({targetRefreshPaused:true});return;}
+      if(/\/(?:cart|checkout)(?:\/|$)/i.test(new URL(tab.url).pathname))return;
+    }catch{await chrome.storage.local.set({targetRefreshPaused:true});return;}
+  }
+  const seen=config.targetDropSeen || {};
+  // One product action per received revision avoids bursts; remaining links stay in the app.
+  for(const product of products){
+    const id=new URL(product.url).pathname.match(/A-(\d+)/)[1];
+    const key=report.sourceUrl+':'+id+':'+product.status;
+    if(seen[key])continue;
+    const existing=tabs.find(t=>new URL(t.url).pathname.match(/A-(\d+)/)?.[1]===id);
+    if(existing){if(product.status==='reported_available')await chrome.tabs.reload(existing.id);}
+    else await chrome.tabs.create({url:'https://www.target.com/p/-/A-'+id,active:false});
+    seen[key]=Date.now();
+    await chrome.storage.local.set({targetDropSeen:Object.fromEntries(Object.entries(seen).slice(-500)),lastTargetRefreshAt:Date.now(),targetDropLastAction:{productId:id,sourceUrl:report.sourceUrl,at:new Date().toISOString(),action:existing?'matched existing tab':'opened product tab'}});
+    break;
+  }
+}
+
+async function handlePokemonCenterDropReport(report){
+  if(report.retailer!=='pokemoncenter')return;
+  const at=Date.parse(report.editedAt || report.publishedAt);
+  if(!Number.isFinite(at) || Date.now()-at>10*60000 || at>Date.now()+60000)return;
+  const config=await chrome.storage.local.get(['pokemonCenterRefreshPaused','pcDropSeen']);
+  if(config.pokemonCenterRefreshPaused)return;
+  const product=(report.products || []).find(p=>{
+    try{const u=new URL(p.url);return u.protocol==='https:' && ['www.pokemoncenter.com','pokemoncenter.com'].includes(u.hostname) && /^\/product\/[^/]+/.test(u.pathname) && /tcg|trading card|booster|elite trainer|premium collection/i.test(p.name) && ['upcoming','reported_available'].includes(p.status);}catch{return false;}
+  });
+  if(!product)return;
+  const tabs=await chrome.tabs.query({url:'https://www.pokemoncenter.com/*'});
+  for(const tab of tabs){
+    if(/\/(?:cart|checkout)(?:\/|$)/i.test(new URL(tab.url).pathname))return;
+    try{const states=await chrome.scripting.executeScript({target:{tabId:tab.id},func:()=>{
+      const text=document.body?.innerText;
+      return !text || document.readyState!=='complete' || /queue|waiting[ -]?room|you are in line|your turn|estimated wait|verify|verification|press and hold|access denied|temporarily blocked/i.test(text) || Boolean(document.querySelector('.imperva-error-modal,#imperva-error-modal,iframe[src*="captcha"],iframe[src*="queue-it"]'));
+    }});if(!states.length || states.some(r=>r.result!==false)){await chrome.storage.local.set({pokemonCenterRefreshPaused:true});return;}}
+    catch{await chrome.storage.local.set({pokemonCenterRefreshPaused:true});return;}
+  }
+  const url=new URL(product.url),id=url.pathname.split('/')[2];
+  const seen=config.pcDropSeen || {},key=report.sourceUrl+':'+id;
+  if(seen[key])return;
+  // Never refresh an existing Pokemon Center tab on a Discord alert.
+  if(!tabs.some(t=>new URL(t.url).pathname.split('/')[2]===id))await chrome.tabs.create({url:url.href,active:false});
+  seen[key]=Date.now();await chrome.storage.local.set({pcDropSeen:Object.fromEntries(Object.entries(seen).slice(-500)),lastAutomaticRefreshAt:Date.now()});
+}
+
 async function queueCcnReport(payload){
   if((await chrome.storage.local.get('ccnBridgeEnabled')).ccnBridgeEnabled===false)return {ok:false,paused:true};
   const revision=JSON.stringify(payload);
@@ -30,6 +96,7 @@ async function queueCcnReport(payload){
     await chrome.storage.local.set({ccnPending:pending.slice(-100)});
   });
   flushCcnReports().catch(()=>{});
+  targetAlertActions=targetAlertActions.then(()=>Promise.all([handleTargetDropReport(payload),handlePokemonCenterDropReport(payload)])).catch(()=>{});
   return {ok:true,queued:true};
 }
 async function flushCcnReports(){
