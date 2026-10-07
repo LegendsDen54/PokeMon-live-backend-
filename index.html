@@ -2500,8 +2500,10 @@ function renderPokemonCenter(state){
     "<p class=\"pokemon-center-activity\">" + (clues.length?'Current evidence clues: '+clues.length:activity) + "</p>" +
     outlook +
     (dailyWatchlist?'<h3>Today’s Pokémon Center watchlist</h3>'+dailyWatchlist:'')+
-    (evidenceCards?'<h3>Readiness evidence</h3><small>Evidence score, not a probability. Today’s discussion contributes a small clue; repeated source reports share one contribution. Older warnings lose weight. Daily clues reset at midnight Chicago time.</small>'+evidenceCards:'')+
+    (evidenceCards?'<details id="pokemonReadinessEvidence"'+(sessionStorage.getItem('pokemonEvidenceOpen')==='true'?' open':'')+'><summary>Readiness evidence</summary><small>Evidence score, not a probability. Today’s discussion contributes a small clue; repeated source reports share one contribution. Older warnings lose weight. Daily clues reset at midnight Chicago time.</small>'+evidenceCards+'</details>':'')+
     "<a class=\"source-link\" href=\"https://www.pokemoncenter.com/\" target=\"_blank\" rel=\"noopener noreferrer\"><span class=\"pokemon-center-mark\" aria-hidden=\"true\"></span>Open Pokémon Center</a>";
+  const evidenceDisclosure=document.getElementById('pokemonReadinessEvidence');
+  if(evidenceDisclosure)evidenceDisclosure.addEventListener('toggle',()=>sessionStorage.setItem('pokemonEvidenceOpen',String(evidenceDisclosure.open)));
   showNewPokemonCenterSignal(events[0]);
 }
 
