@@ -115,7 +115,7 @@ async function onlineProducts(retailer){
     if(latest.has(product.url))continue;
     latest.set(product.url,{...product,source:post.source,sourceUrl:post.sourceUrl,reportedAt:post.updatedAt || post.publishedAt,stale:Date.now()-Date.parse(post.updatedAt || post.publishedAt)>30*60000});
   }
-  return [...latest.values()].filter(p=>p.withinPriceRule && p.status!=='reported_unavailable');
+  return [...latest.values()].filter(p=>p.status!=='reported_unavailable' && (p.withinPriceRule || p.price===null || p.msrp===null));
 }
 module.exports.onlineProducts=onlineProducts;
 
