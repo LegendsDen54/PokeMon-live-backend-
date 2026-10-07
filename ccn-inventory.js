@@ -80,7 +80,7 @@ function cleanOnlineProducts(input){
     if(retailer==='walmart')url=new URL('https://www.walmart.com/ip/'+id);
     if(retailer==='target')url=new URL('https://www.target.com/p/-/A-'+id);
     url.search='';url.hash='';
-    return {name,url:url.href,image,seller,price,msrp,withinPriceRule,status:['reported_available','upcoming','reported_unavailable','queue'].includes(item.status)?item.status:'upcoming',productId:id,expectedWindow:String(item.expectedWindow || '').slice(0,250)};
+    return {name,url:url.href,image,seller,price,msrp,withinPriceRule,status:['reported_available','upcoming','reported_unavailable','queue'].includes(item.status)?item.status:'upcoming',productId:id,expectedWindow:String(item.expectedWindow || '').slice(0,250),dropClassification:item.retailerConfirmed===true && item.confirmationUrl && String(item.confirmationUrl).startsWith(url.origin+'/')?'known':'potential'};
   }).filter(Boolean);
 }
 async function saveNews(input){
