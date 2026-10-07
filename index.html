@@ -2957,7 +2957,7 @@ async function renderCcnInventory(retailer){
   const stockParams=new URLSearchParams(location.search);
   const linkedZip=stockParams.get('retailer')===retailer && /^\d{5}$/.test(stockParams.get('zip') || '')?stockParams.get('zip'):'';
   if(linkedZip)sessionStorage.setItem('inventoryZip:'+retailer,linkedZip);
-  const zip=sessionStorage.getItem("inventoryZip:"+retailer) || "";
+  const zip=sessionStorage.getItem('inventoryLastResultZip:'+retailer) || sessionStorage.getItem("inventoryZip:"+retailer) || "";
   const section=document.createElement("section");section.className="store-checker";section.id="ccnInventoryReports";
   const reportBody=document.createElement('div');reportBody.innerHTML='<p>Loading latest checks…</p>';section.append(reportBody);
   otherRetailerCard.append(section);
@@ -3021,7 +3021,7 @@ function addInventoryRequestControl(retailer,parent){
   if(products.some(p=>String(p.itemNumber)===selected)){picker.value=selected;picker.dispatchEvent(new Event('change'));}
  }).catch(()=>{status.textContent='Product list unavailable. Please try again.';});
  picker.onchange=()=>{sessionStorage.setItem('inventoryProduct:'+retailer,picker.value);const p=products.find(p=>String(p.itemNumber)===picker.value);preview.innerHTML=p?'<article class="ccn-product-tile">'+(p.image?retailerImageMarkup(p.image,p.label):'')+'<h4>'+esc(p.label.replace(/^(Confirmed|Reported released|Reported current|Reported upcoming|Confirmed recent) · /,''))+'</h4><small>Item '+esc(p.itemNumber)+'</small>'+(p.price!=null && Number.isFinite(Number(p.price))?'<small>$'+Number(p.price).toFixed(2)+'</small>':'')+(p.reportedPrice!=null?'<small>Reported $'+Number(p.reportedPrice).toFixed(2)+'</small>':'')+'</article>':'';};
- const submit=watchInventoryRequest(retailer,()=>({productId:picker.value,zip:zipField.value.trim()}),status,button,data=>{const completedKey=picker.value+':'+zipField.value.trim()+':'+data.checkedAt;if(sessionStorage.getItem('inventoryRendered:'+retailer)===completedKey)return;sessionStorage.setItem('inventoryRendered:'+retailer,completedKey);sessionStorage.setItem('inventoryLastSearch:'+retailer,picker.value);renderExternalRetailer(retailer);});
+ const submit=watchInventoryRequest(retailer,()=>({productId:picker.value,zip:zipField.value.trim()}),status,button,data=>{const completedKey=picker.value+':'+zipField.value.trim()+':'+data.checkedAt;if(sessionStorage.getItem('inventoryRendered:'+retailer)===completedKey)return;sessionStorage.setItem('inventoryRendered:'+retailer,completedKey);sessionStorage.setItem('inventoryLastSearch:'+retailer,picker.value);sessionStorage.setItem('inventoryLastResultZip:'+retailer,zipField.value.trim());renderExternalRetailer(retailer);});
  if(['costco','sams'].includes(retailer)){const note=document.createElement('p');note.textContent='Rip Radar · 60-minute advertised search limit. A confirmed cooldown shows the remaining time and next available search above.';form.append(note);}
  form.onsubmit=async e=>{e.preventDefault();if(/^\d{5}$/.test(zipField.value.trim()))sessionStorage.setItem('inventoryZip:'+retailer,zipField.value.trim());await submit();};
 }
