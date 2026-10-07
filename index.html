@@ -2438,7 +2438,7 @@ async function renderTrustedReadiness(retailer){
     if(!reports.length)return;
     const parent=retailer==='walmart'?walmartSection:otherRetailerCard;
     const section=document.createElement('section');section.id='trustedSourceReadiness';section.className='store-checker';
-    section.innerHTML='<h3>Source readiness · Watch</h3><small>Trusted Discord reports · availability requires confirmation</small>'+reports.slice(0,5).map(p=>'<article class="ccn-readable-post"><strong>'+esc(p.source || 'CCN')+'</strong><p>'+esc(p.summary)+'</p><footer>'+esc(new Date(p.publishedAt).toLocaleString())+' · <a href="'+esc(p.sourceUrl)+'" target="_blank" rel="noopener noreferrer">View source ↗</a></footer></article>').join('');parent.append(section);
+    section.innerHTML='<h3>Source readiness · Watch · '+esc(data.retailers[retailer].score)+'/100</h3><small>Watch today · drop time unconfirmed · evidence score, not a probability</small>'+reports.slice(0,5).map(p=>'<article class="ccn-readable-post"><strong>'+esc(p.source || 'CCN')+'</strong><p>'+esc(p.summary)+'</p><footer>'+esc(new Date(p.publishedAt).toLocaleString())+' · <a href="'+esc(p.sourceUrl)+'" target="_blank" rel="noopener noreferrer">View source ↗</a></footer></article>').join('');parent.append(section);
   }catch{}
 }
 

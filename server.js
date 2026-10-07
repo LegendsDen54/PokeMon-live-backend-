@@ -2019,8 +2019,10 @@ app.get('/api/source-readiness',async(req,res)=>{
     const posts=await ccnInventory.news();
     const retailers={};
     for(const retailer of ['target','walmart','pokemoncenter','bestbuy','costco','sams','barnes','dollargeneral']){
-      const reports=posts.filter(p=>p.retailer===retailer && Date.now()-Date.parse(p.editedAt || p.publishedAt)<6*3600000);
-      retailers[retailer]={level:reports.length?'Watch':'No current source warning',reports};
+      const day=t=>new Date(t).toLocaleDateString('en-CA',{timeZone:'America/Chicago'});
+      const reports=posts.filter(p=>p.retailer===retailer && day(p.editedAt || p.publishedAt)===day(Date.now()));
+      const warning=reports.some(p=>/heads.?up|warning|drop|restock|invite|invitation|loaded|soon|draw|queue/i.test(p.summary));
+      retailers[retailer]={level:reports.length?'Watch':'No current source warning',score:reports.length?(warning?12:4):0,window:reports.length?'Watch today · drop time unconfirmed':'No reliable window',reports};
     }
     res.set('Cache-Control','no-store').json({ok:true,retailers});
   }catch{res.status(503).json({ok:false,error:'Source readiness unavailable'});}
