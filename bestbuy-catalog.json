@@ -2,6 +2,54 @@
   "updatedAt": "2026-10-07",
   "complete": false,
   "products": [
+    {
+      "sku": "6606082",
+      "name": "Trading Card Game: Scarlet & Violet - Prismatic Evolutions Elite Trainer Box",
+      "set": "Prismatic Evolutions",
+      "era": "scarletViolet",
+      "seller": "Best Buy",
+      "url": "https://www.bestbuy.com/product/pokemon-trading-card-game-scarlet-violet-prismatic-evolutions-elite-trainer-box/6606082",
+      "sourceUrl": "https://www.bestbuy.com/product/pokemon-trading-card-game-scarlet-violet-prismatic-evolutions-elite-trainer-box/6606082",
+      "verifiedAt": "2026-10-07",
+      "status": "stock not checked",
+      "image": null
+    },
+    {
+      "sku": "6607717",
+      "name": "Trading Card Game: Scarlet & Violet - Prismatic Evolutions Surprise Box",
+      "set": "Prismatic Evolutions",
+      "era": "scarletViolet",
+      "seller": "Best Buy",
+      "url": "https://www.bestbuy.com/product/pokemon-trading-card-game-scarlet-violet-prismatic-evolutions-surprise-box/JJG2TLCK6H/sku/6607717",
+      "sourceUrl": "https://www.bestbuy.com/product/pokemon-trading-card-game-scarlet-violet-prismatic-evolutions-surprise-box/JJG2TLCK6H/sku/6607717",
+      "verifiedAt": "2026-10-07",
+      "status": "stock not checked",
+      "image": null
+    },
+    {
+      "sku": "6607719",
+      "name": "Trading Card Game: Scarlet & Violet - Prismatic Evolutions Mini Tin (1 Mini Tin per Order) - Styles May Vary",
+      "set": "Prismatic Evolutions",
+      "era": "scarletViolet",
+      "seller": "Best Buy",
+      "url": "https://www.bestbuy.com/product/pokemon-trading-card-game-scarlet-violet-prismatic-evolutions-mini-tin-styles-may-vary/6607719",
+      "sourceUrl": "https://www.bestbuy.com/product/pokemon-trading-card-game-scarlet-violet-prismatic-evolutions-mini-tin-styles-may-vary/6607719",
+      "verifiedAt": "2026-10-07",
+      "status": "stock not checked",
+      "image": null
+    },
+    {
+      "sku": "6606078",
+      "name": "Trading Card Game: Scarlet & Violet - Prismatic Evolutions Tech Sticker Collection (1 Tech Sticker Collection per Order) - Styles May Vary",
+      "set": "Prismatic Evolutions",
+      "era": "scarletViolet",
+      "seller": "Best Buy",
+      "url": "https://www.bestbuy.com/product/pokemon-trading-card-game-scarlet-violet-prismatic-evolutions-tech-sticker-collection-1-tech-sticker-collection-per-order-styles-may-vary/JJG2TL2XVL",
+      "sourceUrl": "https://www.bestbuy.com/product/pokemon-trading-card-game-scarlet-violet-prismatic-evolutions-tech-sticker-collection-1-tech-sticker-collection-per-order-styles-may-vary/JJG2TL2XVL",
+      "verifiedAt": "2026-10-07",
+      "status": "stock not checked",
+      "image": null
+    },
 
     {
       "sku": "6632399",
