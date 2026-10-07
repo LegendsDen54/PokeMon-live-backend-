@@ -1926,7 +1926,7 @@ app.post("/api/ccn/inventory-report", async (req,res) => {
     const saved=await ccnInventory.save(req.body);
     let delivery=null;
     if(saved.alertLocations.length){
-      const labels={bestbuy:"Best Buy",sams:"Sam's Club",costco:"Costco"};
+      const labels={bestbuy:"Best Buy",sams:"Sam's Club",costco:"Costco",dollargeneral:"Dollar General"};
       delivery=await push.broadcast({title:labels[saved.report.retailer]+" — In-store stock reported",body:saved.report.name+" — "+saved.alertLocations.map(row=>row.name+": "+row.onHand+" reported on hand").join("; ").slice(0,180),url:"/?retailer="+saved.report.retailer,tag:"instore-"+saved.report.retailer+"-"+saved.report.productId+"-"+saved.report.zip}).catch(error=>({error:error.message}));
     }
     res.json({ok:true,report:saved.report,push:delivery});
@@ -1987,7 +1987,13 @@ app.get("/api/retail/watch-products", (req,res) => {
   if (!["costco","sams"].includes(req.query.retailer)) return res.status(400).json({ok:false,error:"Choose retailer"});
   res.json({ok:true,products:retailOnline.snapshot(req.query.retailer).catalog || []});
 });
-app.get('/api/dollargeneral/catalog',(req,res)=>res.set('Cache-Control','no-store').json(require('./dollar-general.json')));
+app.get('/api/dollargeneral/catalog',async(req,res)=>{
+const zip=String(req.query.zip || '60634');if(!/^\d{5}$/.test(zip))return res.status(400).json({error:'Enter a five-digit ZIP'});
+const catalog=require('./dollar-general.json');let reports=[];let storageConnected=false;
+try{reports=await ccnInventory.list('dollargeneral',zip);storageConnected=true;}catch{}
+if(zip===catalog.zip && !reports.some(r=>r.productId===catalog.upc))reports.push({productId:catalog.upc,zip,checkedAt:catalog.checkedAt,locations:catalog.locations,result:'results',source:'Rippin Packz / Zephyr saved snapshot',sourceUrl:'https://discord.com/channels/1367457689386356766/1384210429504393226',detail:'Positive rows only; missing stores are unknown.'});
+res.set('Cache-Control','no-store').json({...catalog,reports,storageConnected,collectionMode:'Normal Discord checker; results require authorized import',reportsUpdatedAt:reports.length?reports.map(r=>r.checkedAt).sort().at(-1):null});
+});
 app.get("/api/ccn/inventory-reports", async (req,res) => {
   if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
   if (!hasCcnViewerAccess(req)) return pokemonCenterSensorUnauthorized(res);
