@@ -4,9 +4,11 @@ document.getElementById('save').addEventListener('click',async()=>{
   const status=document.getElementById('status');const button=document.getElementById('save');button.disabled=true;
   try{
     if(!key.value.trim())throw new Error('Enter the existing sensor pairing key.');
-    const report=JSON.parse(document.getElementById('report').value);
+    const prepared=document.getElementById('report').value.trim();
+    if(!prepared)throw new Error('The prepared report is empty. An actual Discord result must be prepared before saving.');
+    let report;try{report=JSON.parse(prepared);}catch{throw new Error('The prepared report is incomplete or invalid. Please use a complete prepared report.');}
     const response=await fetch(report.kind==='news'?'/api/ccn/news-report':'/api/ccn/inventory-report',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key.value.trim()},body:JSON.stringify(report)});
-    const data=await response.json();if(!response.ok || !data.ok)throw new Error(data.error || 'Report could not be saved');
+    let data;try{data=await response.json();}catch{throw new Error('The monitor returned an incomplete response. Keep this report and try again after the connection recovers.');}if(!response.ok || !data.ok)throw new Error(data.error || 'Report could not be saved');
     sessionStorage.setItem('ccnReportKey',key.value.trim());status.textContent='Saved actual check result. The monitor will show it on its next update.';
   }catch(error){status.textContent=error.message;}finally{button.disabled=false;}
 });

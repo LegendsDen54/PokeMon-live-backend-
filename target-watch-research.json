@@ -39,5 +39,40 @@
     "Actual source post timestamp vs detection timestamp",
     "First confirmed purchasable state and final alert provider acceptance",
     "Multiple comparable drops before claiming a predictive pattern"
-  ]
+  ],
+  "ccnEditedReport": {
+    "sourceUrl": "https://discord.com/channels/1410547930250612828/1424776504767680722/1556370406703759574",
+    "originalPublishedAt": "2026-10-04T18:20:00Z",
+    "editedAt": "2026-10-06T21:23:00Z",
+    "reportedStartChicago": "2026-10-07 02:00",
+    "retailerConfirmed": false,
+    "quantityVerified": false,
+    "products": [
+      {
+        "name": "30th Celebration Binder Collection",
+        "tcin": "1010892074"
+      },
+      {
+        "name": "30th Celebration Elite Trainer Box",
+        "tcin": "1010892076"
+      },
+      {
+        "name": "30th Celebration Booster Bundle",
+        "tcin": "1011407490"
+      },
+      {
+        "name": "30th Celebration Mini Tin",
+        "tcin": "1012422107"
+      },
+      {
+        "name": "30th Celebration Poster Collection",
+        "tcin": "1010892067"
+      },
+      {
+        "name": "30th Celebration Sylveon ex Box",
+        "tcin": "1010892068"
+      }
+    ],
+    "collectionImprovement": "Inspect edits to existing source posts as well as new messages; retain original and edited timestamps and deduplicate revisions by content."
+  }
 }

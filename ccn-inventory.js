@@ -56,15 +56,30 @@ async function newsStorage(){
 }
 async function saveNews(input){
   const timestamp=Date.parse(input.publishedAt);
-  if(!/^https:\/\/discord\.com\/channels\/1410547930250612828\/\d+\/\d+$/.test(input.sourceUrl || "") || !input.summary || !Number.isFinite(timestamp) || timestamp>Date.now()+60000 || Date.now()-timestamp>48*3600000) throw new Error("Provide a recent actual CCN message link, summary and publication time");
-  const report={sourceUrl:input.sourceUrl,summary:String(input.summary).slice(0,1000),retailer:["costco","sams","bestbuy","target","pokemoncenter","walmart"].includes(input.retailer)?input.retailer:null,publishedAt:new Date(timestamp).toISOString(),source:"CCN",importedAt:new Date().toISOString()};
+  const edited=input.editedAt==null?null:Date.parse(input.editedAt);
+  const effective=edited ?? timestamp;
+  if(!/^https:\/\/discord\.com\/channels\/1410547930250612828\/\d+\/\d+$/.test(input.sourceUrl || "") || !input.summary || !Number.isFinite(timestamp) || !Number.isFinite(effective) || timestamp>Date.now()+60000 || effective<timestamp || effective>Date.now()+60000 || Date.now()-effective>48*3600000) throw new Error("Provide an actual CCN message link, summary and publication time; old messages need their recent actual edit time");
+  const report={sourceUrl:input.sourceUrl,summary:String(input.summary).trim().slice(0,1000),retailer:["costco","sams","bestbuy","target","pokemoncenter","walmart"].includes(input.retailer)?input.retailer:null,publishedAt:new Date(timestamp).toISOString(),editedAt:edited===null?null:new Date(edited).toISOString(),updatedAt:new Date(effective).toISOString(),source:"CCN",importedAt:new Date().toISOString()};
   await newsStorage();
-  const inserted=await pool.query("INSERT INTO ccn_news_reports(source_url,data) VALUES($1,$2) ON CONFLICT(source_url) DO NOTHING RETURNING source_url",[report.sourceUrl,report]);
-  return {...report,isNew:inserted.rowCount===1};
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',['ccn-news:'+report.sourceUrl]);
+    const previous=(await client.query('SELECT data FROM ccn_news_reports WHERE source_url=$1',[report.sourceUrl])).rows[0]?.data;
+    if(previous && Date.parse(previous.updatedAt || previous.publishedAt)>effective){await client.query('COMMIT');return {...previous,isNew:false,isUpdated:false};}
+    const revision=require('crypto').createHash('sha256').update(JSON.stringify([report.retailer,report.summary])).digest('hex');
+    const seen=previous?.seenRevisions || [];
+    const changed=!previous || previous.summary!==report.summary || previous.retailer!==report.retailer;
+    const unseen=!seen.includes(revision);
+    report.seenRevisions=[...new Set([...seen,revision])].slice(-100);
+    await client.query('INSERT INTO ccn_news_reports(source_url,data) VALUES($1,$2) ON CONFLICT(source_url) DO UPDATE SET data=EXCLUDED.data',[report.sourceUrl,report]);
+    await client.query('COMMIT');
+    return {...report,isNew:!previous,isUpdated:Boolean(previous && changed && unseen)};
+  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 }
 async function news(){
   await newsStorage();
-  const result=await pool.query("SELECT data FROM ccn_news_reports WHERE (data->>'publishedAt')::timestamptz >= date_trunc('day',now() AT TIME ZONE 'America/Chicago') AT TIME ZONE 'America/Chicago' ORDER BY (data->>'publishedAt')::timestamptz DESC LIMIT 40");
+  const result=await pool.query("SELECT data FROM ccn_news_reports WHERE (COALESCE(data->>'updatedAt',data->>'publishedAt'))::timestamptz >= date_trunc('day',now() AT TIME ZONE 'America/Chicago') AT TIME ZONE 'America/Chicago' ORDER BY (COALESCE(data->>'updatedAt',data->>'publishedAt'))::timestamptz DESC LIMIT 40");
   return result.rows.map(row=>row.data);
 }
 module.exports.saveNews=saveNews;module.exports.news=news;

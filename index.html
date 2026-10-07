@@ -2338,7 +2338,7 @@ async function renderPokemonRestocks(){
   try{
     const data=await fetch('/api/ccn/news',{cache:'no-store',headers:{Authorization:'Bearer '+key}}).then(r=>r.json());
     if(!data.ok)throw new Error(data.error || 'CCN feed unavailable');
-    const rows=(data.posts || []).map(post=>'<a class="pokemon-restocks-post" href="'+esc(post.sourceUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(post.summary)+'<small>CCN · '+esc(new Date(post.publishedAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}))+'</small></a>').join('');
+    const rows=(data.posts || []).map(post=>'<a class="pokemon-restocks-post" href="'+esc(post.sourceUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(post.summary)+'<small>CCN'+(post.editedAt?' · Updated':'')+' · '+esc(new Date(post.updatedAt || post.publishedAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}))+'</small></a>').join('');
     pokemonRestocksCard.innerHTML=header+(rows || '<p>No CCN updates have been imported today. This is not a live Discord feed; open CCN for immediate alerts.</p>')+footer;
   }catch(error){pokemonRestocksCard.innerHTML=header+'<p>'+esc(error.message)+'</p>'+footer;}
 }

@@ -1939,7 +1939,7 @@ app.post("/api/ccn/news-report",async(req,res)=>{
   if (!hasValidPokemonCenterSensorToken(req)) return pokemonCenterSensorUnauthorized(res);
   try{
     const report=await ccnInventory.saveNews(req.body);let delivery=null;
-    if(report.isNew && ['target','walmart','pokemoncenter'].includes(report.retailer) && Date.now()-Date.parse(report.publishedAt)<90*60000 && /drop|restock|preorder|pre-order|queue|raffle|draw|loaded|load.?up|live|stock/i.test(report.summary)){
+    if((report.isNew || report.isUpdated) && ['target','walmart','pokemoncenter'].includes(report.retailer) && Date.now()-Date.parse(report.updatedAt || report.publishedAt)<90*60000 && /drop|restock|preorder|pre-order|queue|raffle|draw|loaded|load.?up|live|stock/i.test(report.summary)){
       delivery=await push.broadcast({title:'CCN — '+({target:'Target',walmart:'Walmart',pokemoncenter:'Pokémon Center'}[report.retailer])+' reported update',body:report.summary.slice(0,180),url:report.sourceUrl,tag:'ccn-news-'+report.sourceUrl.split('/').pop()}).catch(()=>({ok:false,error:'Push send failed'}));
     }
     res.json({ok:true,report,push:delivery});
