@@ -2944,7 +2944,7 @@ async function renderCcnInventory(retailer){
       const image=report.image;
       return '<article class="ccn-product-tile">'+retailerImageMarkup(image,report.name)+'<h4>'+esc(report.name)+'</h4><small>Item '+esc(report.productId)+'</small><p>'+esc(report.result==='checker_error'?'Checker error · stock unknown':report.result==='no_stock_reported'?'Checker reported no stock found':'Reported warehouse stock')+(report.stale?' · STALE':'')+'</p><small>Checked '+esc(new Date(report.checkedAt).toLocaleString())+'</small>'+(rows?'<details open><summary>Locations ('+report.locations.length+')</summary><div class="ccn-location-scroll"><table><thead><tr><th>Location</th><th>Order</th><th>Transit</th><th>On hand</th></tr></thead><tbody>'+rows+'</tbody></table></div><small>— means not supplied by the checker.</small></details>':'')+(report.detail?'<details><summary>Check details</summary><p>'+esc(report.detail)+'</p></details>':'')+'<p><a href="'+esc(report.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW RIPPIN PACKZ SOURCE ↗</a></p></article>';
     }).join('');
-    reportBody.innerHTML='<p data-ccn-next="'+data.nextCheckAt+'"></p><small>Costco and Sam’s share the hourly schedule. The countdown is planned timing, not proof a check succeeded.</small><p>ZIP '+esc(zip)+' · Rippin Packz source · Actual checker radius: 50 miles.</p><div class="ccn-product-grid">'+(productTiles || '<p>No stock-checker results imported yet.</p>')+'</div>';
+    reportBody.hidden=!productTiles;reportBody.innerHTML=productTiles?'<div class="ccn-product-grid">'+productTiles+'</div>':'';
     updateCcnCountdowns();
   }catch(error){reportBody.innerHTML='<p>'+esc(error.message)+'</p>';}
 }
