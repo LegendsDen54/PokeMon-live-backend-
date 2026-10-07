@@ -1851,6 +1851,10 @@ a{
 }
 
 /* Keep the banner still while the monitor content scrolls. */
+.inventory-check-pending{display:flex;align-items:center;gap:10px;}
+.inventory-check-pending::before{content:"";flex:none;width:17px;height:17px;border:2px solid rgba(255,255,255,.25);border-top-color:#facc15;border-radius:50%;animation:inventory-check-spin .85s linear infinite;}
+@keyframes inventory-check-spin{to{transform:rotate(360deg);}}
+@media(prefers-reduced-motion:reduce){.inventory-check-pending::before{animation:none;}}
 html,body{height:100%;overflow:hidden;}
 .app{height:100vh;height:100dvh;display:flex;flex-direction:column;}
 .app .hero{flex:none;height:clamp(140px,28dvh,280px);aspect-ratio:auto;background-size:auto,auto 307.2%;background-position:center top;}
@@ -2916,14 +2920,14 @@ function inventoryCheckText(state){
 }
 function watchInventoryRequest(retailer,getSelection,status,button,onCompleted){
   let state={status:'idle'},busy=false,lastKey='',failure='';
-  const paint=()=>{if(!status.isConnected)return;status.textContent=failure || (busy?'Submitting check request…':inventoryCheckText(state));button.disabled=busy || !!(state.availableAt && Date.parse(state.availableAt)>Date.now());};
+  const paint=()=>{if(!status.isConnected)return;const cooldown=!!(state.availableAt && Date.parse(state.availableAt)>Date.now()),pending=!failure && !cooldown && (busy || state.status==='queued');status.classList.toggle('inventory-check-pending',pending);status.setAttribute('aria-busy',String(pending));status.textContent=failure || (busy?'Submitting check request…':inventoryCheckText(state));button.disabled=busy || cooldown;};
   async function update(){const selection=getSelection(),key=selection.productId+':'+selection.zip;if(!selection.productId || !/^\d{5}$/.test(selection.zip))return;if(key!==lastKey){lastKey=key;state={status:'idle'};paint();}
     try{const r=await fetch('/api/inventory/request-status?retailer='+encodeURIComponent(retailer)+'&productId='+encodeURIComponent(selection.productId)+'&zip='+encodeURIComponent(selection.zip),{cache:'no-store'});const data=await r.json();if(!r.ok)throw Error();if(key!==getSelection().productId+':'+getSelection().zip || !status.isConnected)return;const newlyCompleted=data.status==='completed' && (state.status!=='completed' || state.checkedAt!==data.checkedAt);state=data;failure="";paint();if(newlyCompleted && onCompleted)onCompleted();}catch{if(status.isConnected)failure='Request status unavailable · saved stock is unchanged';}
   }
   const tick=setInterval(()=>{if(!status.isConnected){clearInterval(tick);clearInterval(poll);return;}paint();},1000);
   const poll=setInterval(update,5000);update();
   return async()=>{const selection=getSelection();if(!selection.productId || !/^\d{5}$/.test(selection.zip)){status.textContent='Choose a product identifier and five-digit ZIP.';return;}busy=true;failure='';paint();
-    try{const r=await fetch('/api/inventory/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({retailer,...selection})});const data=await r.json();if(!r.ok)throw Error(data.error || 'Check request failed');state=data;status.textContent=data.message;await update();}catch(e){failure=e.message;status.textContent=failure;}finally{busy=false;button.disabled=!!(state.availableAt && Date.parse(state.availableAt)>Date.now());}
+    try{const r=await fetch('/api/inventory/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({retailer,...selection})});const data=await r.json();if(!r.ok)throw Error(data.error || 'Check request failed');state=data;status.textContent=data.message;await update();}catch(e){failure=e.message;status.textContent=failure;}finally{busy=false;paint();}
   };
 }
 function addInventoryRequestControl(retailer,parent){
