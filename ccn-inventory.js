@@ -164,6 +164,7 @@ module.exports.dgRequestStatus=async(productId,zip)=>{
 async function checkerStorage(){
   await storage();
   await pool.query("CREATE TABLE IF NOT EXISTS inventory_search_viewers (viewer_id TEXT NOT NULL, retailer TEXT NOT NULL, product_id TEXT NOT NULL, zip TEXT NOT NULL, requested_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(viewer_id,retailer,product_id,zip))");
+  await pool.query("ALTER TABLE inventory_search_viewers ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ");
   await pool.query("CREATE TABLE IF NOT EXISTS inventory_check_requests (retailer TEXT NOT NULL, product_id TEXT NOT NULL, zip TEXT NOT NULL, requested_at TIMESTAMPTZ NOT NULL DEFAULT now(), priority INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(retailer,product_id,zip))");
   await pool.query("CREATE TABLE IF NOT EXISTS inventory_checker_cooldowns (retailer TEXT PRIMARY KEY, available_at TIMESTAMPTZ NOT NULL, source_url TEXT NOT NULL)");
 }
@@ -172,7 +173,9 @@ function checkerInput(retailer,productId,zip){
 }
 async function personalSearchWindow(retailer,viewer){
   if(!viewer || !['sams','costco'].includes(retailer))return null;
-  const row=(await pool.query("SELECT max((r.data->>'checkedAt')::timestamptz)+interval '1 hour' AS available_at FROM inventory_search_viewers v JOIN ccn_inventory_reports r ON r.retailer=v.retailer AND r.product_id=v.product_id AND r.zip=v.zip WHERE v.viewer_id=$1 AND v.retailer=$2 AND (r.data->>'checkedAt')::timestamptz>=v.requested_at AND r.data->>'result' IN ('results','no_stock_reported')",[viewer,retailer])).rows[0];
+  await pool.query('CREATE TABLE IF NOT EXISTS inventory_check_history (retailer TEXT NOT NULL, product_id TEXT NOT NULL, zip TEXT NOT NULL, checked_at TIMESTAMPTZ NOT NULL, data JSONB NOT NULL, PRIMARY KEY(retailer,product_id,zip,checked_at))');
+  await pool.query("UPDATE inventory_search_viewers v SET completed_at=(SELECT min(h.checked_at) FROM inventory_check_history h WHERE h.retailer=v.retailer AND h.product_id=v.product_id AND h.zip=v.zip AND h.checked_at>=v.requested_at AND h.data->>'result' IN ('results','no_stock_reported')) WHERE v.viewer_id=$1 AND v.retailer=$2 AND v.completed_at IS NULL",[viewer,retailer]);
+  const row=(await pool.query("SELECT max(completed_at)+interval '1 hour' AS available_at FROM inventory_search_viewers WHERE viewer_id=$1 AND retailer=$2",[viewer,retailer])).rows[0];
   return row?.available_at && Date.parse(row.available_at)>Date.now()?row.available_at:null;
 }
 module.exports.requestInventory=async(retailer,productId,zip,viewer)=>{
@@ -180,7 +183,7 @@ module.exports.requestInventory=async(retailer,productId,zip,viewer)=>{
   if(!viewer)throw Error('Private search session unavailable');
   const personalAvailableAt=await personalSearchWindow(retailer,viewer);
   if(personalAvailableAt)return {status:'personal_cooldown',personalAvailableAt,availableAt:personalAvailableAt};
-  await pool.query('INSERT INTO inventory_search_viewers(viewer_id,retailer,product_id,zip) VALUES($1,$2,$3,$4) ON CONFLICT(viewer_id,retailer,product_id,zip) DO UPDATE SET requested_at=now()',[viewer,retailer,productId,zip]);
+  await pool.query('INSERT INTO inventory_search_viewers(viewer_id,retailer,product_id,zip) VALUES($1,$2,$3,$4) ON CONFLICT(viewer_id,retailer,product_id,zip) DO UPDATE SET requested_at=now(),completed_at=NULL',[viewer,retailer,productId,zip]);
   const client=await pool.connect();
   try{
     await client.query('BEGIN');

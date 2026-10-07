@@ -164,6 +164,7 @@ self.addEventListener(
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   const alert=event.notification.data || {};
+  if(alert.url==='https://www.walmart.com/shop/collectibles/draw'){event.waitUntil(self.clients.openWindow(alert.url));return;}
   const target=new URL('/',self.location.origin);
   target.hash='notification='+encodeURIComponent(JSON.stringify({title:alert.title || event.notification.title,body:alert.body || event.notification.body,url:alert.url,retailer:alert.retailer,receivedAt:alert.receivedAt}));
   event.waitUntil((async()=>{
