@@ -104,6 +104,7 @@ async function saveNews(input){
   const match=String(input.sourceUrl || '').match(/^https:\/\/discord\.com\/channels\/(\d+)\/\d+\/\d+$/);
   if(!match || !sources[match[1]] || !input.summary || !Number.isFinite(timestamp) || !Number.isFinite(effective) || timestamp>Date.now()+60000 || effective<timestamp || effective>Date.now()+60000 || Date.now()-effective>48*3600000) throw new Error("Provide an actual trusted Discord message link, summary and publication time; old messages need their recent actual edit time");
   const report={sourceUrl:input.sourceUrl,summary:String(input.summary).trim().slice(0,1000),retailer:["costco","sams","bestbuy","target","pokemoncenter","walmart","barnes","dollargeneral"].includes(input.retailer)?input.retailer:null,publishedAt:new Date(timestamp).toISOString(),editedAt:edited===null?null:new Date(edited).toISOString(),updatedAt:new Date(effective).toISOString(),source:sources[match[1]],importedAt:new Date().toISOString()};
+  report.products=cleanOnlineProducts(input);
   await newsStorage();
   const client=await pool.connect();
   try{
