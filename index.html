@@ -3014,7 +3014,7 @@ function addInventoryRequestControl(retailer,parent){
  let products=[];
  fetch('/api/retail/watch-products?retailer='+encodeURIComponent(retailer),{cache:'no-store'}).then(r=>r.json()).then(data=>{
   if(!form.isConnected)return;
-  products=(data.products || []).filter(p=>p.itemNumber);
+  products=(data.products || []).filter(p=>p.itemNumber && (retailer!=='costco' || /ascended heroes/i.test(p.label || p.query || '')));
   picker.innerHTML='<option value="">Choose a product by name</option>'+products.map(p=>'<option value="'+esc(p.itemNumber)+'">'+esc(p.label.replace(/^(Confirmed|Reported released|Reported current|Reported upcoming|Confirmed recent) · /,''))+'</option>').join('');
   const linked=new URLSearchParams(location.search);const selected=linked.get('retailer')===retailer?linked.get('productId'):sessionStorage.getItem('inventoryProduct:'+retailer);
   if(products.some(p=>String(p.itemNumber)===selected)){picker.value=selected;picker.dispatchEvent(new Event('change'));}
