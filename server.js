@@ -395,6 +395,8 @@ function mergeRaffles(
   // These are scheduled entries, never evidence of purchasable stock.
   if (Date.now() < Date.parse("2026-10-09T07:00:00Z")) {
     const additions = [
+      {walmartItemId:"17497369978", name:"Prismatic Evolutions Premium Figure Collection", price:149.99, checkedAt:"2026-10-07T21:08:59.726Z", image:"https://i5.walmartimages.com/seo/Pokemon-TCG-Scarlet-Violet-Prismatic-Evolutions-Premium-Figure-Collection_4f367479-7528-4793-9a62-66353e39308a.8d66656dfbc0d828bcaf3c9837096bf4.jpeg?odnHeight=576&odnWidth=576&odnBg=FFFFFF"},
+      {walmartItemId:"20161351456", name:"Mega Evolution Pitch Black Elite Trainer Box", price:61.99, checkedAt:"2026-10-07T21:08:59.726Z", image:"https://i5.walmartimages.com/seo/Pok-mon-TCG-Mega-Evolution-Pitch-Black-Elite-Trainer-Box_3fb027f4-f9c4-4566-8855-dd4e30c383ee.4a5ede8e7b90fe196fb4e1240366698c.jpeg?odnHeight=576&odnWidth=576&odnBg=FFFFFF"},
       {walmartItemId:"18943710710", name:"Collectible Pokemon Scarlet & Violet Shrouded Fable Booster Bundle Box", price:44.99,
         image:"https://i5.walmartimages.com/seo/Pokemon-Scarlet-Violet-Shrouded-Fable-Booster-Bundle-Box_8054b68c-4660-425e-a3eb-dadca4c5501b.da694f4440f5c713739c62d58dd3dea8.jpeg?odnHeight=576&odnWidth=576&odnBg=FFFFFF"},
       {walmartItemId:"16517213276", name:"Collectible Pokemon TCG Scarlet & Violet 10.5 Unova Poster Collection Box - 4 Packs", price:34.99,
@@ -409,7 +411,7 @@ function mergeRaffles(
           retailer:"walmart", raffle:true, status:"upcoming", raffleStatus:"upcoming",
           startsAt:"2026-10-08T16:00:00Z", url:"https://www.walmart.com/ip/" + addition.walmartItemId,
           source:"walmart-public-draw-page", sourceUrl:"https://www.walmart.com/shop/collectibles/draw",
-          checkedAt:"2026-10-07T20:13:00Z", rawStatus:"Drawing listed by Walmart · availability unconfirmed"});
+          checkedAt:addition.checkedAt || "2026-10-07T20:13:00Z", rawStatus:"Drawing listed by Walmart · availability unconfirmed"});
       }
     }
   }
