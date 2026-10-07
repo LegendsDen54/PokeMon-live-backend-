@@ -2112,7 +2112,7 @@ async function sendPushForEvent(
     lastAlertFingerprint
   ){
 
-    return;
+    return {ok:true,skipped:true,reason:'Duplicate alert',sent:0,failed:0};
 
   }
 
@@ -2121,7 +2121,7 @@ async function sendPushForEvent(
     fingerprint;
 
 
-  await alertHandler({
+  return await alertHandler({
 
     title,
 
@@ -2559,6 +2559,7 @@ async function processSignal(
     Duplicate suppression prevents the
     exact same alert from repeating.
   */
+  let notificationReceipt=null;
   if(
     (
       score >= 20 &&
@@ -2573,7 +2574,7 @@ async function processSignal(
 
     try{
 
-      await sendPushForEvent(
+      notificationReceipt=await sendPushForEvent(
         event,
         score,
         level
@@ -2584,6 +2585,7 @@ async function processSignal(
 
       state.lastAlertError =
         error.message;
+      notificationReceipt={ok:false,sent:0,failed:1};
 
     }
 
@@ -2597,6 +2599,8 @@ async function processSignal(
 
     duplicate:
       false,
+
+    notificationReceipt,
 
     event,
 

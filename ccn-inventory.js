@@ -105,6 +105,8 @@ async function saveNews(input){
   if(!match || !sources[match[1]] || !input.summary || !Number.isFinite(timestamp) || !Number.isFinite(effective) || timestamp>Date.now()+60000 || effective<timestamp || effective>Date.now()+60000 || Date.now()-effective>48*3600000) throw new Error("Provide an actual trusted Discord message link, summary and publication time; old messages need their recent actual edit time");
   const report={sourceUrl:input.sourceUrl,summary:String(input.summary).trim().slice(0,1000),retailer:["costco","sams","bestbuy","target","pokemoncenter","walmart","barnes","dollargeneral"].includes(input.retailer)?input.retailer:null,publishedAt:new Date(timestamp).toISOString(),editedAt:edited===null?null:new Date(edited).toISOString(),updatedAt:new Date(effective).toISOString(),source:sources[match[1]],importedAt:new Date().toISOString()};
   report.products=cleanOnlineProducts(input);
+  const detected=Date.parse(input.detectedAt);
+  report.detectedAt=Number.isFinite(detected) && detected>=effective && detected<=Date.now()+60000?new Date(detected).toISOString():null;
   await newsStorage();
   const client=await pool.connect();
   try{
@@ -116,6 +118,7 @@ async function saveNews(input){
     const seen=previous?.seenRevisions || [];
     const changed=!previous || previous.summary!==report.summary || previous.retailer!==report.retailer || JSON.stringify(previous.products || [])!==JSON.stringify(report.products);
     const unseen=!seen.includes(revision);
+    if(previous && !changed){await client.query('COMMIT');return {...previous,isNew:false,isUpdated:false};}
     report.seenRevisions=[...new Set([...seen,revision])].slice(-100);
     await client.query('INSERT INTO ccn_news_reports(source_url,data) VALUES($1,$2) ON CONFLICT(source_url) DO UPDATE SET data=EXCLUDED.data',[report.sourceUrl,report]);
     await client.query('COMMIT');
@@ -128,6 +131,14 @@ async function news(){
   return result.rows.map(row=>row.data);
 }
 module.exports.saveNews=saveNews;module.exports.news=news;
+module.exports.recordNewsReceipt=async(report,delivery,savedAt)=>{
+  if(!report.isNew && !report.isUpdated)return null;
+  const completedAt=new Date().toISOString(),sourceAt=report.updatedAt || report.publishedAt;
+  const status=delivery?.skipped?'suppressed':delivery==null?'not_triggered':delivery.subscriptions===0?'no_connected_push_device':delivery.sent>0?'sent_to_push_service':delivery.ok===false?'failed':'suppressed';
+  const pipeline={sourceAt,detectedAt:report.detectedAt || null,savedAt,completedAt,sourceToSavedMs:Date.parse(savedAt)-Date.parse(sourceAt),detectionToSavedMs:report.detectedAt?Math.max(0,Date.parse(savedAt)-Date.parse(report.detectedAt)):null,processingMs:Date.parse(completedAt)-Date.parse(savedAt),notification:{status,acceptedAt:delivery?.sent>0?delivery.completedAt || completedAt:null,sent:delivery?.sent || 0,failed:delivery?.failed || 0,subscriptions:delivery?.subscriptions ?? null,phoneDisplayConfirmed:false}};
+  await pool.query("UPDATE ccn_news_reports SET data=jsonb_set(data,'{pipeline}',$2::jsonb) WHERE source_url=$1 AND data->>'updatedAt'=$3",[report.sourceUrl,JSON.stringify(pipeline),report.updatedAt]);return pipeline;
+};
+module.exports.newsReceipts=async()=>{await newsStorage();return (await pool.query("SELECT data->>'sourceUrl' AS \"sourceUrl\",data->>'source' AS source,data->>'retailer' AS retailer,data->'pipeline' AS pipeline FROM ccn_news_reports WHERE data ? 'pipeline' ORDER BY data->'pipeline'->>'completedAt' DESC LIMIT 20")).rows;};
 
 async function onlineProducts(retailer){
   await newsStorage();
