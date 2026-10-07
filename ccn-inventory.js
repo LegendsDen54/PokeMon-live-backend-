@@ -88,8 +88,10 @@ async function saveNews(input){
   const timestamp=Date.parse(input.publishedAt);
   const edited=input.editedAt==null?null:Date.parse(input.editedAt);
   const effective=edited ?? timestamp;
-  if(!/^https:\/\/discord\.com\/channels\/1410547930250612828\/\d+\/\d+$/.test(input.sourceUrl || "") || !input.summary || !Number.isFinite(timestamp) || !Number.isFinite(effective) || timestamp>Date.now()+60000 || effective<timestamp || effective>Date.now()+60000 || Date.now()-effective>48*3600000) throw new Error("Provide an actual CCN message link, summary and publication time; old messages need their recent actual edit time");
-  const report={sourceUrl:input.sourceUrl,summary:String(input.summary).trim().slice(0,1000),retailer:["costco","sams","bestbuy","target","pokemoncenter","walmart"].includes(input.retailer)?input.retailer:null,publishedAt:new Date(timestamp).toISOString(),editedAt:edited===null?null:new Date(edited).toISOString(),updatedAt:new Date(effective).toISOString(),source:"CCN",importedAt:new Date().toISOString()};
+  const sources={'1410547930250612828':'CCN','1367457689386356766':'Rippin Packz','1190757531988000930':'The Poke Gang','1182136115981996033':'Pokemon Restocks & News'};
+  const match=String(input.sourceUrl || '').match(/^https:\/\/discord\.com\/channels\/(\d+)\/\d+\/\d+$/);
+  if(!match || !sources[match[1]] || !input.summary || !Number.isFinite(timestamp) || !Number.isFinite(effective) || timestamp>Date.now()+60000 || effective<timestamp || effective>Date.now()+60000 || Date.now()-effective>48*3600000) throw new Error("Provide an actual trusted Discord message link, summary and publication time; old messages need their recent actual edit time");
+  const report={sourceUrl:input.sourceUrl,summary:String(input.summary).trim().slice(0,1000),retailer:["costco","sams","bestbuy","target","pokemoncenter","walmart"].includes(input.retailer)?input.retailer:null,publishedAt:new Date(timestamp).toISOString(),editedAt:edited===null?null:new Date(edited).toISOString(),updatedAt:new Date(effective).toISOString(),source:sources[match[1]],importedAt:new Date().toISOString()};
   await newsStorage();
   const client=await pool.connect();
   try{

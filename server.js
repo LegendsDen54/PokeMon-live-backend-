@@ -1524,7 +1524,7 @@ app.get(
 
 app.get(
   "/api/status",
-  (req,res) => {
+  async (req,res) => {
     const data =
       getLatest();
 
@@ -1601,8 +1601,7 @@ app.get(
           .getState(),
 
       pokemonCenter:
-        pokemonCenter
-          .getState(),
+        await require('./pokemon-center-evidence').withEvidence(pokemonCenter.getState(),await ccnInventory.news().catch(()=>[])),
 
       push:
         push
@@ -1986,8 +1985,8 @@ function announceCcnUpdate(report){
 async function processCcnNews(input){
     const report=await ccnInventory.saveNews(input);let delivery=null;
     announceCcnUpdate(report);
-    const pcWarning=report.retailer==='pokemoncenter' && (report.isNew || report.isUpdated) && Date.now()-Date.parse(report.updatedAt || report.publishedAt)<90*60000 && /drop|restock|queue|loaded|load.?up|heads.?up|watch|warning|today|soon/i.test(report.summary);
-    if(pcWarning)await pokemonCenter.ingestSignal({type:'THIRD_PARTY_ALERT',source:'ccn',name:'CCN Pokémon Center early warning',url:report.sourceUrl,thirdParty:true,tcgRelevant:true,pokemonCenterRelated:true,publishedAt:report.updatedAt || report.publishedAt,watchToday:true,detail:'CCN source report, not retailer confirmation: '+report.summary});
+    const pcWarning=report.retailer==='pokemoncenter' && (report.isNew || report.isUpdated) && Date.now()-Date.parse(report.updatedAt || report.publishedAt)<90*60000 && /drop|restock|queue|loaded|load.?up|heads.?up|watch|warning|today|soon|invitation|invite/i.test(report.summary);
+    if(pcWarning)await pokemonCenter.ingestSignal({type:'THIRD_PARTY_ALERT',source:'ccn',name:report.source+' Pokémon Center early warning',url:report.sourceUrl,thirdParty:true,tcgRelevant:true,pokemonCenterRelated:true,publishedAt:report.updatedAt || report.publishedAt,watchToday:true,detail:report.source+' trusted source report, not retailer confirmation: '+report.summary});
     const productAlerts=await ccnInventory.onlineAlerts(report);
     if(productAlerts.length && !pcWarning){delivery=await push.broadcast({title:'CCN — '+({target:'Target',walmart:'Walmart',pokemoncenter:'Pokémon Center'}[report.retailer])+' stock reported',body:productAlerts.map(p=>p.name).join('; ').slice(0,180),url:productAlerts[0].url,tag:'ccn-product-'+report.retailer+'-'+productAlerts[0].productId}).catch(()=>({ok:false,error:'Push send failed'}));}
     if(!pcWarning && !(report.products || []).length && (report.isNew || report.isUpdated) && ['target','walmart','pokemoncenter'].includes(report.retailer) && Date.now()-Date.parse(report.updatedAt || report.publishedAt)<90*60000 && /drop|restock|preorder|pre-order|queue|raffle|draw|loaded|load.?up|live|stock/i.test(report.summary)){
@@ -2014,6 +2013,17 @@ app.get('/api/ccn/online-products',async(req,res)=>{
 app.get("/api/ccn/news",async(req,res)=>{
   res.set("Cache-Control","no-store");
   try{res.json({ok:true,posts:await ccnInventory.news()});}catch(error){res.status(503).json({ok:false,error:"CCN news storage unavailable"});}
+});
+app.get('/api/source-readiness',async(req,res)=>{
+  try{
+    const posts=await ccnInventory.news();
+    const retailers={};
+    for(const retailer of ['target','walmart','pokemoncenter','bestbuy','costco','sams','barnes','dollargeneral']){
+      const reports=posts.filter(p=>p.retailer===retailer && Date.now()-Date.parse(p.editedAt || p.publishedAt)<6*3600000);
+      retailers[retailer]={level:reports.length?'Watch':'No current source warning',reports};
+    }
+    res.set('Cache-Control','no-store').json({ok:true,retailers});
+  }catch{res.status(503).json({ok:false,error:'Source readiness unavailable'});}
 });
 app.get("/api/retail/watch-products", (req,res) => {
   if (!["costco","sams"].includes(req.query.retailer)) return res.status(400).json({ok:false,error:"Choose retailer"});

@@ -32,6 +32,8 @@ function availabilityFrom(pageText) {
     return "queue";
   }
 
+  if (/requires an invitation code|invitation.only|invite.only/.test(value))return "invitation_only";
+
   if (/out of stock|sold out|unavailable/.test(value)) {
     return "out_of_stock";
   }
@@ -40,7 +42,7 @@ function availabilityFrom(pageText) {
     return "preorder";
   }
 
-  if (/add to cart|add to bag|in stock/.test(value)) {
+  if (/in stock/.test(value) || [...document.querySelectorAll('main button')].some(b=>/add to cart|add to bag/i.test(b.textContent || '') && !b.disabled && b.getAttribute('aria-disabled')!=='true')) {
     return "in_stock";
   }
 

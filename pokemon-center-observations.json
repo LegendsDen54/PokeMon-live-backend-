@@ -1,0 +1,22 @@
+[
+  {
+    "source": "Pokémon Center official product page",
+    "sourceUrl": "https://www.pokemoncenter.com/product/10-10315-108/pokemon-tcg-mega-evolution-ascended-heroes-pokemon-center-elite-trainer-box",
+    "product": "Ascended Heroes Pokémon Center ETB",
+    "productId": "10-10315-108",
+    "at": "2026-10-07T13:31:02.895Z",
+    "summary": "The official listing states that an invitation code is required. Add to Cart is disabled. Listed price is $59.99. This does not establish that a new invitation batch has been sent.",
+    "invitationOnly": true,
+    "thirdParty": false,
+    "availabilityConfirmed": false
+  },
+  {
+    "source":"The Poke Gang · moderator",
+    "sourceUrl":"https://discord.com/channels/1190757531988000930/1207024128108920852/1557385212801843254",
+    "at":"2026-10-07T13:32:49.550Z",
+    "summary":"Moderator KingPIN Patch says the pin is last month's and does not affect the chance of a Pokémon Center drop today. This is context, not a positive stock or backend-movement report.",
+    "thirdParty":true,
+    "readinessEligible":false,
+    "availabilityConfirmed":false
+  }
+]

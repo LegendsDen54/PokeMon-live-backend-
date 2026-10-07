@@ -2396,7 +2396,7 @@ async function renderCcnOnlineProducts(retailer){
 }
 async function renderPokemonRestocks(){
   if(pokemonRestocksCard.contains(document.activeElement) && /INPUT|BUTTON/.test(document.activeElement.tagName))return;
-  const header='<div class="pokemon-restocks-widget"><h3>CCN Pokémon TCG Alerts</h3><p>Pokémon products, restocks and upcoming drops · Chicago time</p>';
+  const header='<div class="pokemon-restocks-widget"><h3>Pokémon TCG Source Alerts</h3><p>CCN · Rippin Packz · The Poke Gang · Pokémon Restocks & News</p>';
   const footer='<p><a href="https://discord.com/channels/1410547930250612828/1514248684575920160" target="_blank" rel="noopener noreferrer">OPEN CCN IN DISCORD ↗</a></p></div>';
   try{
     const response=await fetch('/api/ccn/news',{cache:'no-store'});
@@ -2426,6 +2426,20 @@ async function renderPokemonRestocks(){
     }).join('');
     pokemonRestocksCard.innerHTML=header+(rows || '<p>No CCN updates have been imported today. This is not a live Discord feed; open CCN for immediate alerts.</p>')+footer;
   }catch(error){pokemonRestocksCard.innerHTML=header+'<p>'+esc(error.message)+'</p>'+footer;}
+}
+
+async function renderTrustedReadiness(retailer){
+  if(!retailer || retailer==='pokemoncenter' || retailer==='pokemon')return;
+  try{
+    const data=await fetch('/api/source-readiness',{cache:'no-store'}).then(r=>r.json());
+    if(activeRetailer!==retailer || !data.ok)return;
+    document.getElementById('trustedSourceReadiness')?.remove();
+    const reports=data.retailers?.[retailer]?.reports || [];
+    if(!reports.length)return;
+    const parent=retailer==='walmart'?walmartSection:otherRetailerCard;
+    const section=document.createElement('section');section.id='trustedSourceReadiness';section.className='store-checker';
+    section.innerHTML='<h3>Source readiness · Watch</h3><small>Trusted Discord reports · availability requires confirmation</small>'+reports.slice(0,5).map(p=>'<article class="ccn-readable-post"><strong>'+esc(p.source || 'CCN')+'</strong><p>'+esc(p.summary)+'</p><footer>'+esc(new Date(p.publishedAt).toLocaleString())+' · <a href="'+esc(p.sourceUrl)+'" target="_blank" rel="noopener noreferrer">View source ↗</a></footer></article>').join('');parent.append(section);
+  }catch{}
 }
 
 function renderPokemonCenter(state){
@@ -2486,6 +2500,9 @@ function renderPokemonCenter(state){
     ? "Latest TCG signal: " + esc(events[0].type || "Activity") +
       (events[0].at ? " · " + esc(new Date(events[0].at).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})) : "")
     : "No verified Pokémon Center TCG activity yet.";
+  const clues=pc.evidenceClues || [];
+  const evidenceCards=clues.map(c=>'<article class="ccn-readable-post"><div class="ccn-post-meta">'+esc(c.source)+(c.thirdParty?' · Source report':' · Direct observation')+'</div><p>'+esc(c.summary)+'</p><footer>'+esc(new Date(c.at).toLocaleString())+(c.editedAt?' · Edited '+esc(new Date(c.editedAt).toLocaleString()):'')+' · <a href="'+esc(c.sourceUrl)+'" target="_blank" rel="noopener noreferrer">View source ↗</a></footer></article>').join('');
+  const dailyWatchlist=(pc.dayWatchlist || []).map(item=>'<article class="retailer-product-card"><div><h4>'+esc(item.name)+'</h4><small>'+esc(item.status)+'</small><small>'+esc(item.reports.map(r=>r.source).filter((s,i,a)=>a.indexOf(s)===i).join(' + '))+'</small></div></article>').join('');
   pokemonCenterCard.innerHTML =
     "<div class=\"pokemon-center-heading\"><span class=\"pokemon-center-mark\" aria-hidden=\"true\"></span><div class=\"panel-title\">Pokémon Center</div></div>" +
     "<div class=\"signal-summary\"><div><div class=\"signal-summary-label\">Pokémon Center readiness</div><div class=\"signal-summary-value\">" + score + "/100</div></div><div class=\"signal-score\">" + esc(level) + "</div></div>" +
@@ -2494,8 +2511,10 @@ function renderPokemonCenter(state){
     queueAction +
     predictedProduct +
     (productBoxes ? "<div class=\"pokemon-center-products\">" + productBoxes + "</div>" : "") +
-    "<p class=\"pokemon-center-activity\">" + activity + "</p>" +
+    "<p class=\"pokemon-center-activity\">" + (clues.length?'Current evidence clues: '+clues.length:activity) + "</p>" +
     outlook +
+    (dailyWatchlist?'<h3>Today’s Pokémon Center watchlist</h3>'+dailyWatchlist:'')+
+    (evidenceCards?'<h3>Readiness evidence</h3><small>Evidence score, not a probability. Source reports share one contribution; invitation-only wording adds a separate clue. Clues expire after six hours.</small>'+evidenceCards:'')+
     "<a class=\"source-link\" href=\"https://www.pokemoncenter.com/\" target=\"_blank\" rel=\"noopener noreferrer\"><span class=\"pokemon-center-mark\" aria-hidden=\"true\"></span>Open Pokémon Center</a>";
   showNewPokemonCenterSignal(events[0]);
 }
@@ -2507,7 +2526,7 @@ function renderPokemonOutlook(pc, events, score, level, supportOk, sourceCount){
   const activity = events.length ? (events[0].type || "Verified activity") : "";
   const evidence = score === 0
     ? "No verified movement supports a drop estimate today."
-    : "This score updates only from verified public signals; it is not a guarantee.";
+    : "Readiness reflects attributed source reports and public observations. It does not confirm a drop or a purchase invitation.";
   return "<div class=\"panel-title\" style=\"margin-top:18px\">Signal details</div>" +
     "<div class=\"outlook-grid\"><div class=\"outlook-fact\"><span>Readiness window</span><strong>" + esc(readiness) + "</strong></div><div class=\"outlook-fact\"><span>Latest evidence</span><strong>" + esc(activity) + "</strong></div><div class=\"outlook-fact\"><span>Official sources</span><strong>" + supportOk + "/" + sourceCount + " responding</strong></div><div class=\"outlook-fact\"><span>Queue</span><strong>" + (pc.queueActive ? "Signal active" : "No signal") + "</strong></div></div>" +
     "<p class=\"outlook-note\">" + esc(evidence) + "</p>";
@@ -4547,6 +4566,7 @@ async function load(){
     );
     renderCcnOnlineProducts('walmart');
     renderCcnOnlineProducts('pokemoncenter');
+    renderTrustedReadiness(activeRetailer);
     updateCostcoOnlineBadge();
 
     if(
@@ -4763,6 +4783,8 @@ function setRetailer(
 
   activeRetailer =
     retailer;
+  document.getElementById('trustedSourceReadiness')?.remove();
+  renderTrustedReadiness(retailer);
 
   document
     .querySelectorAll(
