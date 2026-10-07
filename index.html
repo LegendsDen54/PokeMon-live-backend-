@@ -2378,7 +2378,15 @@ async function renderPokemonRestocks(){
     const response=await fetch('/api/ccn/news',{cache:'no-store'});
     const data=await response.json();
     if(!data.ok)throw new Error(data.error || 'CCN feed unavailable');
-    const rows=(data.posts || []).map(post=>{
+    const seenCcnPosts=new Set();
+    const uniquePosts=[...(data.posts || [])].sort((a,b)=>Date.parse(b.editedAt || b.publishedAt)-Date.parse(a.editedAt || a.publishedAt)).filter(post=>{
+      const text=String(post.summary || '').replace(/^CCN source report:\s*/i,'').replace(/\s+/g,' ').trim().toLowerCase();
+      const products=(post.products || []).map(p=>({id:p.productId,status:p.status,seller:p.seller,price:p.price})).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+      const key=JSON.stringify([post.retailer,text,products]);
+      if(seenCcnPosts.has(key))return false;
+      seenCcnPosts.add(key);return true;
+    });
+    const rows=uniquePosts.map(post=>{
       const summary=String(post.summary || '').replace(/^CCN source report:\s*/i,'').trim();
       const products=post.products || [];
       const title=products.length?products.map(p=>p.name).join(' · '):summary.split(/\n/)[0].slice(0,110);
