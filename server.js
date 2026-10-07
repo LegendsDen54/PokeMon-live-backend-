@@ -21,6 +21,7 @@ const multiStore = require("./multi-store");
 const retailOnline = require("./retail-online");
 const nearbyRetail = require("./nearby-retail");
 const ccnInventory = require("./ccn-inventory");
+const bestBuyVerifiedCatalog = require("./bestbuy-catalog.json");
 
 
 const {
@@ -39,6 +40,10 @@ const walmart30thDiscovery =
 ======================================== */
 
 const app = express();
+app.get('/api/bestbuy/verified-catalog', (req,res) => {
+  res.set('Cache-Control','no-store');
+  res.json({ok:true,...bestBuyVerifiedCatalog,products:bestBuyVerifiedCatalog.products.filter(p=>p.seller==='Best Buy' && /^\d{7,8}$/.test(p.sku))});
+});
 
 const port =
   Number(

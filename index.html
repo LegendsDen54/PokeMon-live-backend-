@@ -2518,7 +2518,7 @@ const BESTBUY_ERA_SETS = {
   },
   megaEvolution: {
     label: "Mega Evolution",
-    sets: ["Mega Evolution", "Mega Evolution Phantasmal Flames", "Mega Evolution Perfect Order", "Mega Evolution Chaos Rising", "Mega Evolution Pitch Black", "Mega Evolution 30th Anniversary"]
+    sets: ["Mega Evolution", "Phantasmal Flames", "Ascended Heroes", "Perfect Order", "Chaos Rising", "Pitch Black", "30th Celebration", "Delta Reign"]
   }
 };
 
@@ -2550,7 +2550,7 @@ function bestBuyCheckerMarkup(provider){
     : "A saved ZIP code is required before a SKU can check nearby stores.";
   const catalogMessage = provider.catalogSearch
     ? "Search by set or product type. Results come from the official Best Buy catalog and show the exact Best Buy SKU."
-    : "Paste an individual Best Buy product-page link to check it now. Keyword and SKU catalog results will unlock when the verified Best Buy catalog connection is approved.";
+    : "Choose an exact product from the verified Best Buy SKU list. Marketplace offers are excluded. Local stock is checked separately through Rippin Packz.";
   return "<section class=\"store-checker\"><h3>Official Best Buy Product &amp; SKU Finder</h3>" +
     "<p>" + esc(catalogMessage) + "</p>" +
     "<div class=\"store-checker-row\"><input id=\"bestBuyProductSearch\" type=\"search\" placeholder=\"Product name or Best Buy link, e.g. Prismatic ETB\"" + catalogDisabled + ">" +
@@ -2564,11 +2564,11 @@ function bestBuyCheckerMarkup(provider){
       "<strong id=\"bestBuyEraPickerTitle\">Choose a set and product type</strong>" +
       "<div class=\"bestbuy-era-picker-grid\">" +
         "<select id=\"bestBuyEraSet\" aria-label=\"Best Buy Pokémon set\"></select>" +
-        "<select id=\"bestBuyEraProductType\" aria-label=\"Best Buy Pokémon product type\">" +
-          BESTBUY_PRODUCT_TYPES.map(type => "<option value=\"" + esc(type === "All product types" ? "" : type) + "\">" + esc(type) + "</option>").join("") +
+        "<select id=\"bestBuyEraProductType\" aria-label=\"Best Buy exact Pokémon product\">" +
+          '<option value="">Choose a set first</option>' +
         "</select>" +
       "</div>" +
-      "<button id=\"bestBuyEraSearchButton\" class=\"bestbuy-era-search\" type=\"button\">FIND THIS PRODUCT</button>" +
+      "<button id=\"bestBuyEraSearchButton\" class=\"bestbuy-era-search\" type=\"button\" disabled>CHECK SELECTED PRODUCT</button><p id=\"bestBuyVerifiedStatus\" role=\"status\">Loading verified product list…</p>" +
     "</div>" +
     "<div id=\"bestBuyCatalogResults\" class=\"store-checker-results\" aria-live=\"polite\"></div></section>" +
     "<section class=\"store-checker\"><h3>Best Buy In-Store Checker</h3>" +
@@ -2695,7 +2695,7 @@ function bestBuyCheckerCard(item){
       (Number.isFinite(distance) ? "<small>" + esc(distance.toFixed(1)) + " miles away</small>" : "") +
       "<small class=\"store-availability\">" + (Number.isFinite(quantity) ? "Quantity: " + esc(quantity) : (item.lowStock ? "Low stock · exact quantity not published" : "Available · exact quantity not published")) + "</small>"
     : "";
-  const price = Number(item.price);
+  const price = item.price == null ? NaN : Number(item.price);
   const tax = Number.isFinite(price) ? Math.round(price * CHICAGO_SALES_TAX_RATE * 100) / 100 : null;
   const total = Number.isFinite(price) ? Math.round((price + tax) * 100) / 100 : null;
   const priceInfo = Number.isFinite(price)
@@ -2751,7 +2751,7 @@ function wireBestBuyChecker(provider){
         const productUrl = safeExternalUrl(query);
         const publicProduct = {name: data.title, url: productUrl, image: data.image, price: data.price, status: data.availability};
         bestBuyManualProduct = publicProduct;
-        showCatalog("<p>Public availability: " + esc(String(data.availability || "unknown").replace(/_/g, " ")) + "<br>Checked " + esc(new Date(report.checkedAt).toLocaleString()) + "</p><div class=\"retailer-product-grid\">" + bestBuyCheckerCard(publicProduct) + "</div>");
+        showCatalog("<p>Public availability: " + esc(String(data.availability || "unknown").replace(/_/g, " ")) + "<br>Checked " + esc(new Date(data.checkedAt || Date.now()).toLocaleString()) + "</p><div class=\"retailer-product-grid\">" + bestBuyCheckerCard(publicProduct) + "</div>");
       }catch(error){
         const fallbackUrl = safeExternalUrl(query);
         bestBuyManualProduct = fallbackUrl
@@ -2768,7 +2768,13 @@ function wireBestBuyChecker(provider){
       finally{ productButton.disabled = false; }
       return;
     }
-    if(!provider.catalogSearch) return showCatalog("<p>Keyword search is waiting for the approved Best Buy catalog connection. You can still paste a public Best Buy product link above to check that page now.</p>");
+    const tokens=query.toLowerCase().replace(/\betb\b/g,'elite trainer box').replace(/\bspc\b/g,'super premium collection').replace(/\bupc\b/g,'ultra premium collection').split(/[^a-z0-9]+/).filter(Boolean);
+    const matches=verifiedProducts.filter(p=>tokens.every(t=>(p.name+' '+p.sku).toLowerCase().replace(/[^a-z0-9]+/g,' ').includes(t)));
+    if(matches.length){
+      if(matches.length===1){selectVerifiedProduct(matches[0]);await check();return;}
+      showCatalog('<label for="bestBuySearchMatch">'+matches.length+' verified matches · choose an exact item</label><select id="bestBuySearchMatch" style="width:100%;max-width:100%;min-width:0"><option value="">Select product</option>'+matches.map(p=>'<option value="'+esc(p.sku)+'">'+esc(p.name)+' · SKU '+esc(p.sku)+'</option>').join('')+'</select>');return;
+    }
+    if(!provider.catalogSearch) return showCatalog('<p>No verified match is in the saved catalog yet. No SKU has been guessed. Try the set picker or an individual Best Buy product link.</p>');
     productButton.disabled = true; showCatalog("<p>Searching official Best Buy product listings…</p>");
     try{
       const response = await fetch("/api/bestbuy/search?q=" + encodeURIComponent(query), {cache:"no-store"});
@@ -2779,7 +2785,40 @@ function wireBestBuyChecker(provider){
     finally{ productButton.disabled = false; }
   };
   const requestStatus=document.createElement('p');requestStatus.setAttribute('role','status');const checkerZip=document.createElement('input');checkerZip.setAttribute('aria-label','Best Buy checker ZIP');checkerZip.inputMode='numeric';checkerZip.maxLength=5;checkerZip.value='60634';skuButton.before(checkerZip);skuButton.closest("section").append(requestStatus);
-  const check=watchInventoryRequest('bestbuy',()=>({productId:String(skuInput?.value || '').trim(),zip:checkerZip.value.trim()}),requestStatus,skuButton);
+  let verifiedProducts=[],selectedEra='',selectedProduct=null;
+  const verifiedStatus=document.getElementById('bestBuyVerifiedStatus');
+  async function showSelectedStock(){
+    const sku=String(skuInput?.value || '').trim(),zip=checkerZip.value.trim();
+    if(!sku)return;
+    try{
+      const data=await fetch('/api/ccn/inventory-reports?retailer=bestbuy&zip='+encodeURIComponent(zip),{cache:'no-store'}).then(r=>r.json());
+      if(!results.isConnected || sku!==skuInput.value.trim() || zip!==checkerZip.value.trim())return;
+      const report=(data.reports || []).find(r=>r.productId===sku && String(r.sourceUrl || '').startsWith('https://discord.com/channels/1367457689386356766/'));
+      if(!report){show('<p>No saved check for this product and ZIP. A fresh request will show here when the collector returns it.</p>');return;}
+      const rows=(report.locations || []).map(r=>'<tr><th scope="row">'+esc(r.name)+'<small>'+esc(r.address || '')+'</small></th><td>'+esc(r.onHand ?? 'Unknown')+'</td></tr>').join('');
+      show('<h4>'+esc(report.name)+'</h4><p>'+esc(report.result==='checker_error'?'Checker error · stock unknown':report.result==='no_stock_reported'?'No stock reported · missing stores remain unknown':'Rippin Packz reported stock')+'</p><small>Checked '+esc(new Date(report.checkedAt).toLocaleString())+(report.stale?' · STALE':'')+'</small>'+(rows?'<div class="ccn-location-scroll"><table><thead><tr><th>Store</th><th>On hand</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'')+'<p>'+esc(report.detail || '')+'</p>');
+    }catch{show('<p>Saved check unavailable. Try again shortly.</p>');}
+  }
+  const check=watchInventoryRequest('bestbuy',()=>({productId:String(skuInput?.value || '').trim(),zip:checkerZip.value.trim()}),requestStatus,skuButton,showSelectedStock);
+  function updateVerifiedOptions(){
+    const matches=verifiedProducts.filter(p=>p.era===selectedEra && (!eraSet.value || p.set===eraSet.value));
+    eraProductType.innerHTML='<option value="">Choose an exact product ('+matches.length+')</option>'+matches.sort((a,b)=>a.name.localeCompare(b.name)).map(p=>'<option value="'+esc(p.sku)+'">'+esc(p.name.replace(/^.*?Trading Card Game[: -]*/,'').replace(/\(.*?\)/g,'').trim())+'</option>').join('');
+    eraSearchButton.disabled=true;selectedProduct=null;
+    verifiedStatus.textContent=matches.length?'Only verified Best Buy-sold products are listed.':'No verified SKU has been added for this set yet.';
+  }
+  function selectVerifiedProduct(item){
+    selectedProduct=item;skuInput.value=item.sku;productInput.value=item.name;
+    showCatalog('<p><strong>'+esc(item.name)+'</strong><br>Best Buy SKU <strong>'+esc(item.sku)+'</strong> · Sold by Best Buy<br><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">OPEN BEST BUY PRODUCT ↗</a></p><small>SKU matched to retailer listing · verified '+esc(item.verifiedAt)+'. This does not confirm local inventory.</small>');
+    eraSearchButton.disabled=false;showSelectedStock();
+  }
+  fetch('/api/bestbuy/verified-catalog',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.json();}).then(data=>{
+    if(!verifiedStatus.isConnected)return;
+    verifiedProducts=(data.products || []).filter(p=>p.seller==='Best Buy' && /^\d{7,8}$/.test(p.sku));
+    verifiedStatus.textContent=verifiedProducts.length+' verified SKU matches available. Catalog coverage is still expanding.';
+    if(selectedEra)updateVerifiedOptions();
+  }).catch(()=>{if(verifiedStatus.isConnected)verifiedStatus.textContent='Verified product list unavailable. Reload to try again.';});
+  eraSet.addEventListener('change',updateVerifiedOptions);
+  eraProductType.addEventListener('change',async()=>{const item=verifiedProducts.find(p=>p.sku===eraProductType.value && p.era===selectedEra && (!eraSet.value || p.set===eraSet.value));if(!item)return;selectVerifiedProduct(item);await check();});
   if(productButton) productButton.addEventListener("click", search);
   if(skuButton) skuButton.addEventListener("click", check);
   if(productInput) productInput.addEventListener("keydown", event => { if(event.key === "Enter") search(); });
@@ -2788,20 +2827,17 @@ function wireBestBuyChecker(provider){
     const era = BESTBUY_ERA_SETS[button.dataset.bestbuyEra || ""];
     if(!era || !eraPicker || !eraSet) return;
     document.querySelectorAll("[data-bestbuy-era]").forEach(tab => tab.setAttribute("aria-pressed", String(tab === button)));
-    if(eraPickerTitle) eraPickerTitle.textContent = era.label + " — choose a set and product type";
+    selectedEra=button.dataset.bestbuyEra;
+    if(eraPickerTitle) eraPickerTitle.textContent = era.label + " — choose a set and exact product";
     eraSet.innerHTML = "<option value=\"\">All " + esc(era.label) + " products</option>" + era.sets.map(set =>
       "<option value=\"" + esc(set) + "\">" + esc(set) + "</option>"
     ).join("");
-    if(eraProductType) eraProductType.value = "";
+    updateVerifiedOptions();
     eraPicker.hidden = false;
     eraSet.focus();
   }));
   if(eraSearchButton) eraSearchButton.addEventListener("click", () => {
-    const query = [eraSet && eraSet.value, eraProductType && eraProductType.value].filter(Boolean).join(" ");
-    if(productInput) productInput.value = query || "Pokemon TCG";
-    if(eraPicker) eraPicker.hidden = true;
-    document.querySelectorAll("[data-bestbuy-era]").forEach(tab => tab.setAttribute("aria-pressed", "false"));
-    search();
+    if(selectedProduct){skuInput.value=selectedProduct.sku;check();}
   });
   catalogResults.addEventListener("click", event => {
     const button = event.target.closest("[data-bestbuy-sku]");
@@ -2810,6 +2846,7 @@ function wireBestBuyChecker(provider){
     skuInput.focus();
     show("<p>SKU " + esc(skuInput.value) + " is ready. Select <strong>CHECK NEARBY STORES</strong> to look around your saved ZIP code.</p>");
   });
+  catalogResults.addEventListener('change',async event=>{if(event.target.id!=='bestBuySearchMatch')return;const item=verifiedProducts.find(p=>p.sku===event.target.value);if(item){selectVerifiedProduct(item);await check();}});
 }
 
 
@@ -2908,7 +2945,7 @@ async function renderExternalRetailer(retailer){
 if(retailer==="dollargeneral")return renderDollarGeneral();
   if(retailer === "target" || (["sams","costco"].includes(retailer) && warehouseChannels[retailer] === "online")) return renderPublicOnline(retailer);
   if(["sams","costco"].includes(retailer) && otherRetailerCard.contains(document.activeElement) && /INPUT|SELECT|BUTTON/.test(document.activeElement.tagName)) return;
-  if(retailer === "bestbuy" && bestBuyPickerIsInUse()) return;
+  if(retailer === "bestbuy" && document.getElementById('bestBuyProductSearch')) return;
   const labels = {target:"Target", sams:"Sam's Club", bestbuy:"Best Buy", costco:"Costco"};
   const label = labels[retailer] || retailer;
   const warehouse = retailer === "sams" || retailer === "costco";
