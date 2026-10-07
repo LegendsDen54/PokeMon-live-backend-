@@ -105,13 +105,20 @@
       "evidence": "Community report"
     },
     {
-      "label": "Reported upcoming · 30th Celebration ETB + Booster Bundle Collection",
       "query": "Pokemon TCG 30th Celebration Elite Trainer Box Booster Bundle Collection",
       "url": null,
       "stage": "upcoming",
       "verifiedAt": "2026-10-06",
-      "evidence": "Community report",
-      "sourceUrl": "https://www.reddit.com/r/PokemonDealsUSA/comments/1wr57ic/costco_pok%C3%A9mon_30th_celebration_bundle_incoming/"
+      "imageSourceUrl": "https://discord.com/channels/1410547930250612828/1424776504767680722/1557062971744850072",
+      "priceVerified": false,
+      "image": "https://d24n0m32eirf1b.cloudfront.net/media/api/newspost/products/costco_30th_2_pack_app.jpg?v=2ed6cbe0-m",
+      "evidence": "CCN potential release report; Costco has not confirmed the drop, date or price",
+      "label": "Potential drop · 30th Celebration ETB + Booster Bundle",
+      "reportedAt": "2026-10-06T16:12:00Z",
+      "sourceUrl": "https://discord.com/channels/1410547930250612828/1424776504767680722/1557062971744850072",
+      "sourceName": "CCN",
+      "expectedWindow": "Potential drop · mid–late October · CCN report",
+      "reportedPrice": 57.99
     },
     {
       "label": "Confirmed recent · Crown Zenith ETB + Koraidon ex + Miraidon Tins",
