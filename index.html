@@ -4980,6 +4980,24 @@ window.addEventListener("touchend", async () => {
 ========================================= */
 
 setRetailer(new URLSearchParams(location.search).get("retailer")==="dollargeneral" ? "dollargeneral" : "all");
+function openClickedNotification(){
+  if(!location.hash.startsWith('#notification='))return;
+  let alert;try{alert=JSON.parse(decodeURIComponent(location.hash.slice(14)));}catch{return;}
+  if(!alert || typeof alert!=='object')return;
+  const retailer=alert.retailer || (/pok[eé]mon center/i.test(alert.title || '')?'pokemoncenter':/target/i.test(alert.title || '')?'target':/walmart/i.test(alert.title || '')?'walmart':null);
+  if(retailer && document.querySelector('.tab[data-retailer="'+CSS.escape(retailer)+'"]'))setRetailer(retailer);
+  document.getElementById('clickedNotification')?.remove();
+  const card=document.createElement('section');card.id='clickedNotification';card.tabIndex=-1;
+  card.style.cssText='margin:20px auto;padding:24px;max-width:900px;border:2px solid #f5cc53;border-radius:16px;background:#172033;color:white;scroll-margin-top:20px';
+  const heading=document.createElement('h2');heading.textContent=alert.title || 'Notification';card.append(heading);
+  const body=document.createElement('p');body.textContent=alert.body || '';card.append(body);
+  if(alert.receivedAt){const time=document.createElement('p');time.textContent='Notification received '+new Date(alert.receivedAt).toLocaleString();card.append(time);}
+  try{const url=new URL(alert.url,location.origin);if(['https:','http:'].includes(url.protocol) && url.href!==location.origin+'/'){const link=document.createElement('a');link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Open alert source ↗';card.append(link);}}catch{}
+  const close=document.createElement('button');close.textContent='Dismiss';close.style.marginLeft='20px';close.onclick=()=>{card.remove();history.replaceState(null,'',location.pathname+location.search);};card.append(close);
+  document.body.prepend(card);card.focus();card.scrollIntoView({block:'start'});
+}
+openClickedNotification();
+window.addEventListener('hashchange',openClickedNotification);
 
 syncPhoneNotificationStatus();
 

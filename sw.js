@@ -120,6 +120,9 @@ self.addEventListener(
         true,
 
       data: {
+        title,
+        body: data.body || data.message || "A Pokémon product may be available.",
+        receivedAt: new Date().toISOString(),
 
         url:
           data.url ||
@@ -160,18 +163,12 @@ self.addEventListener(
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  let target;
-  try { target=new URL(event.notification?.data?.url || '/',self.location.origin); }
-  catch { target=new URL('/',self.location.origin); }
-  if(!['https:','http:'].includes(target.protocol))target=new URL('/',self.location.origin);
+  const alert=event.notification.data || {};
+  const target=new URL('/',self.location.origin);
+  target.hash='notification='+encodeURIComponent(JSON.stringify({title:alert.title || event.notification.title,body:alert.body || event.notification.body,url:alert.url,retailer:alert.retailer,receivedAt:alert.receivedAt}));
   event.waitUntil((async()=>{
     const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
     const app=windows.find(client=>new URL(client.url).origin===self.location.origin);
-    if(target.origin!==self.location.origin){
-      // Keep the installed monitor document intact while opening a retailer.
-      if(app)app.postMessage({type:'MONITOR_RESUME'});
-      return self.clients.openWindow(target.href);
-    }
     if(app){
       const navigated=await app.navigate(target.href).catch(()=>null);
       return (navigated || app).focus();
