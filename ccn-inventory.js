@@ -59,8 +59,8 @@ async function saveNews(input){
   if(!/^https:\/\/discord\.com\/channels\/1410547930250612828\/\d+\/\d+$/.test(input.sourceUrl || "") || !input.summary || !Number.isFinite(timestamp) || timestamp>Date.now()+60000 || Date.now()-timestamp>48*3600000) throw new Error("Provide a recent actual CCN message link, summary and publication time");
   const report={sourceUrl:input.sourceUrl,summary:String(input.summary).slice(0,1000),retailer:["costco","sams","bestbuy","target","pokemoncenter","walmart"].includes(input.retailer)?input.retailer:null,publishedAt:new Date(timestamp).toISOString(),source:"CCN",importedAt:new Date().toISOString()};
   await newsStorage();
-  await pool.query("INSERT INTO ccn_news_reports(source_url,data) VALUES($1,$2) ON CONFLICT(source_url) DO UPDATE SET data=EXCLUDED.data",[report.sourceUrl,report]);
-  return report;
+  const inserted=await pool.query("INSERT INTO ccn_news_reports(source_url,data) VALUES($1,$2) ON CONFLICT(source_url) DO NOTHING RETURNING source_url",[report.sourceUrl,report]);
+  return {...report,isNew:inserted.rowCount===1};
 }
 async function news(){
   await newsStorage();

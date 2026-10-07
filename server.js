@@ -1937,7 +1937,13 @@ app.get("/ccn-import", (req,res)=>res.sendFile(path.join(__dirname,"ccn-import.h
 app.post("/api/ccn/news-report",async(req,res)=>{
   if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
   if (!hasValidPokemonCenterSensorToken(req)) return pokemonCenterSensorUnauthorized(res);
-  try{res.json({ok:true,report:await ccnInventory.saveNews(req.body)});}catch(error){res.status(400).json({ok:false,error:error.message});}
+  try{
+    const report=await ccnInventory.saveNews(req.body);let delivery=null;
+    if(report.isNew && ['target','walmart','pokemoncenter'].includes(report.retailer) && Date.now()-Date.parse(report.publishedAt)<90*60000 && /drop|restock|preorder|pre-order|queue|raffle|draw|loaded|load.?up|live|stock/i.test(report.summary)){
+      delivery=await push.broadcast({title:'CCN — '+({target:'Target',walmart:'Walmart',pokemoncenter:'Pokémon Center'}[report.retailer])+' reported update',body:report.summary.slice(0,180),url:report.sourceUrl,tag:'ccn-news-'+report.sourceUrl.split('/').pop()}).catch(()=>({ok:false,error:'Push send failed'}));
+    }
+    res.json({ok:true,report,push:delivery});
+  }catch(error){res.status(400).json({ok:false,error:error.message});}
 });
 app.get("/api/ccn/news",async(req,res)=>{
   if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
