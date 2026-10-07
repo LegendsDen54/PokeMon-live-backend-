@@ -17,13 +17,13 @@ ccnBridge.addEventListener('change',async()=>{
 chrome.storage.local.get([
   "backendUrl",
   "sensorToken",
-  "automaticRefreshEnabled"
+  "pokemonCenterHourlyRefreshEnabled"
 ]).then(stored => {
   backendUrl.value =
     stored.backendUrl ||
     "https://pokemon-live-backend.onrender.com";
   sensorToken.value = stored.sensorToken || "";
-  automaticRefresh.checked = false; automaticRefresh.disabled = true;
+  automaticRefresh.checked = stored.pokemonCenterHourlyRefreshEnabled !== false;
 });
 
 document.getElementById("save")
@@ -39,8 +39,8 @@ document.getElementById("save")
     await chrome.storage.local.set({
       backendUrl: url,
       sensorToken: token,
-      automaticRefreshEnabled: automaticRefresh.checked,
-      lastAutomaticRefreshAt: 0
+      pokemonCenterHourlyRefreshEnabled: automaticRefresh.checked,
+      lastAutomaticRefreshAt: Date.now()
     });
 
     chrome.runtime.sendMessage({kind: "heartbeat", payload: {}})

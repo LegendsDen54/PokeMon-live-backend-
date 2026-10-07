@@ -4,7 +4,7 @@ const DEFAULT_BACKEND_URL =
   "https://pokemon-live-backend.onrender.com";
 
 const REFRESH_ALARM = "pokemon-center-scheduled-refresh";
-const ACTIVE_REFRESH_MS = 5 * 60 * 1000;
+const ACTIVE_REFRESH_MS = 60 * 60 * 1000;
 const QUIET_REFRESH_MS = 15 * 60 * 1000;
 const CCN_CHANNELS = new Set(['1424776504767680722','1514248684575920160','1460973469150875720','1424776415286657136']);
 let ccnSending = false;
@@ -121,17 +121,15 @@ function activeWatchWindow() {
 
 async function refreshPokemonCenterTabs() {
   const settings = await chrome.storage.local.get([
-    "automaticRefreshEnabled",
+    "pokemonCenterHourlyRefreshEnabled",
     "lastAutomaticRefreshAt"
   ]);
 
-  if (settings.automaticRefreshEnabled === false) {
+  if (settings.pokemonCenterHourlyRefreshEnabled === false) {
     return;
   }
 
-  if (!activeWatchWindow()) {
-    return;
-  }
+
 
   const interval = ACTIVE_REFRESH_MS;
 
@@ -199,6 +197,7 @@ async function refreshTargetTabs(){
 }
 
 chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.set({pokemonCenterHourlyRefreshEnabled:true,lastAutomaticRefreshAt:Date.now()});
   chrome.alarms.create(REFRESH_ALARM, {
     periodInMinutes: 1
   });
@@ -222,7 +221,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.alarms.onAlarm.addListener(alarm => {
   if (alarm.name === REFRESH_ALARM) {
     flushCcnReports().catch(() => {});
-    // Retailer reloads disabled: observe open pages and Discord reports only.
+    refreshPokemonCenterTabs().catch(() => {}); // Hourly; Target reloads remain disabled.
 
   }
 });

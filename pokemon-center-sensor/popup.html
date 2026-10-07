@@ -20,9 +20,9 @@
     <input id="sensorToken" type="password" autocomplete="off">
     <label class="toggle" for="automaticRefresh">
       <input id="automaticRefresh" type="checkbox">
-      Refresh Pokémon Center automatically
+      Refresh Pokémon Center once per hour
     </label>
-    <small>Automatic retailer refresh is disabled. The sensor observes visible page changes and CCN reports without reloading shopping pages.</small>
+    <small>Refreshes open Pokémon Center pages at most once per hour. Queues, security challenges, cart and checkout pages are skipped. Discord reporting continues separately.</small>
     <label for="targetRefresh"><input id="targetRefresh" type="checkbox">Refresh Target product tabs every 5 minutes</label>
     <small>Chrome and product tabs must stay open; tabs can stay in the background. Pauses on detected queues or security checks. Turn off, then on to resume after resolving a paused page.</small>
     <small id="targetRefreshState"></small>
