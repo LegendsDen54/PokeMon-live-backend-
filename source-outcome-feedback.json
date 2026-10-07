@@ -1,0 +1,4 @@
+{
+  "description": "User-confirmed checkout outcomes used to review source usefulness. No outcomes are inferred from clicks or notifications.",
+  "outcomes": []
+}

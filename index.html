@@ -4566,7 +4566,6 @@ async function load(){
     );
     renderCcnOnlineProducts('walmart');
     renderCcnOnlineProducts('pokemoncenter');
-    renderTrustedReadiness(activeRetailer);
     updateCostcoOnlineBadge();
 
     if(
@@ -4784,7 +4783,6 @@ function setRetailer(
   activeRetailer =
     retailer;
   document.getElementById('trustedSourceReadiness')?.remove();
-  renderTrustedReadiness(retailer);
 
   document
     .querySelectorAll(
