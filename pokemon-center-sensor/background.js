@@ -113,6 +113,30 @@ async function refreshPokemonCenterTabs() {
   });
 }
 
+async function refreshTargetTabs(){
+ const config=await chrome.storage.local.get(['targetRefreshEnabled','targetRefreshTimes','targetRefreshPaused']);
+ if(config.targetRefreshEnabled===false)return;
+ const times=config.targetRefreshTimes || {};const paused=config.targetRefreshPaused || {};
+ const tabs=await chrome.tabs.query({url:'https://www.target.com/p/*'});
+ for(const tab of tabs){
+  if(!Number.isInteger(tab.id) || paused[tab.id] || Date.now()-Number(times[tab.id] || 0)<5*60000)continue;
+  try{
+   const results=await chrome.scripting.executeScript({target:{tabId:tab.id},func:()=>{
+    const text=document.body?.innerText || '';
+    if(/virtual queue|you are in line|waiting room|estimated wait|verify you are human|captcha|press and hold|access denied|unusual traffic|too many requests/i.test(text))return 'protection';
+    if(/\/(?:cart|checkout|account)(?:\/|$)/i.test(location.pathname) || document.querySelector('input:focus,textarea:focus,select:focus'))return 'busy';
+    return 'ready';
+   }});
+   if(!results.length)continue;
+   if(results.some(r=>r.result==='protection')){paused[tab.id]=new Date().toISOString();continue;}
+   if(results.some(r=>r.result!=='ready'))continue;
+   await chrome.tabs.reload(tab.id);times[tab.id]=Date.now();
+  }catch{}
+ }
+ const open=new Set(tabs.map(t=>String(t.id)));for(const id of Object.keys(times))if(!open.has(id))delete times[id];for(const id of Object.keys(paused))if(!open.has(id))delete paused[id];
+ await chrome.storage.local.set({targetRefreshTimes:times,targetRefreshPaused:paused});
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create(REFRESH_ALARM, {
     periodInMinutes: 1
@@ -136,6 +160,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.alarms.onAlarm.addListener(alarm => {
   if (alarm.name === REFRESH_ALARM) {
     refreshPokemonCenterTabs().catch(() => {});
+    refreshTargetTabs().catch(() => {});
   }
 });
 

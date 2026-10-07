@@ -23,3 +23,5 @@ script. Pokémon Center and X monitoring retain their existing scripts.
 The pairing key is not stored in this repository and must not be shared with other people. It only authorizes observations sent to this monitor; it does not grant access to Pokémon Center, Discord, or any retailer account.
 
 Version 1.4.11 adds optional Target product-page observations. Reload the unpacked extension and approve the Target site permission, then reload the Target product tabs once. It reports structured offers explicitly sold by Target and visible changes, without automatic Target reloads, queue actions or checkout. An idle tab cannot discover changes that Target never sends to it.
+
+Version 1.4.12 adds five-minute automatic Target product-tab reloads. Enabled by default for the requested watch. Chrome and these tabs must remain open, but may stay in the background. Queues/security challenges latch a pause until the user resolves the page and toggles Target refresh off/on. No cart, checkout or account page is reloaded.

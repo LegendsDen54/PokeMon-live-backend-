@@ -44,3 +44,13 @@ document.getElementById("save")
         status.textContent = `Connection failed: ${error.message}`;
       });
   });
+
+const targetRefresh=document.getElementById('targetRefresh');
+chrome.storage.local.get(['targetRefreshEnabled','targetRefreshPaused']).then(config=>{
+ targetRefresh.checked=config.targetRefreshEnabled!==false;
+ const paused=Object.keys(config.targetRefreshPaused || {}).length;document.getElementById('targetRefreshState').textContent=paused?paused+' Target tab(s) paused for queue/security protection.':'Target refresh interval: 5 minutes.';
+});
+targetRefresh.addEventListener('change',async()=>{
+ await chrome.storage.local.set({targetRefreshEnabled:targetRefresh.checked,...(targetRefresh.checked?{targetRefreshPaused:{},targetRefreshTimes:{}}:{})});
+ document.getElementById('targetRefreshState').textContent=targetRefresh.checked?'Target refresh enabled.':'Target refresh stopped. Current pages stay open.';
+});
