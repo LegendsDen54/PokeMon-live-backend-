@@ -222,8 +222,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.alarms.onAlarm.addListener(alarm => {
   if (alarm.name === REFRESH_ALARM) {
     flushCcnReports().catch(() => {});
-    refreshPokemonCenterTabs().catch(() => {});
-    refreshTargetTabs().catch(() => {});
+    // Retailer reloads disabled: observe open pages and Discord reports only.
+
   }
 });
 

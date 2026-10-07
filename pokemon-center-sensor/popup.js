@@ -23,7 +23,7 @@ chrome.storage.local.get([
     stored.backendUrl ||
     "https://pokemon-live-backend.onrender.com";
   sensorToken.value = stored.sensorToken || "";
-  automaticRefresh.checked = stored.automaticRefreshEnabled !== false;
+  automaticRefresh.checked = false; automaticRefresh.disabled = true;
 });
 
 document.getElementById("save")
@@ -56,8 +56,8 @@ document.getElementById("save")
 
 const targetRefresh=document.getElementById('targetRefresh');
 chrome.storage.local.get(['targetRefreshEnabled','targetRefreshPaused']).then(config=>{
- targetRefresh.checked=config.targetRefreshEnabled!==false;
- const paused=Object.keys(config.targetRefreshPaused || {}).length;document.getElementById('targetRefreshState').textContent=paused?paused+' Target tab(s) paused for queue/security protection.':'Target refresh interval: 5 minutes.';
+ targetRefresh.checked=false; targetRefresh.disabled=true;
+ const paused=Object.keys(config.targetRefreshPaused || {}).length;document.getElementById('targetRefreshState').textContent=paused?paused+' Target tab(s) paused for queue/security protection.':'Automatic Target refresh is disabled.';
 });
 targetRefresh.addEventListener('change',async()=>{
  await chrome.storage.local.set({targetRefreshEnabled:targetRefresh.checked,...(targetRefresh.checked?{targetRefreshPaused:{},targetRefreshTimes:{}}:{})});
