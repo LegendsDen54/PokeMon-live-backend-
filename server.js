@@ -470,6 +470,18 @@ function mergeRaffles(
         item?.raffle === true &&
         String(item?.name || "").trim()
     )
+    .map(item => {
+      // Product-specific reported schedule; an opening time is not live-stock confirmation.
+      const id = String(item.walmartItemId || item.productId || "");
+      const url = String(item.url || "");
+      if (!item.startsAt && (["20640569221", "18170913799"].includes(id)
+          || /\/(20640569221|18170913799)(?:[?/#]|$)/.test(url))) {
+        return {...item, startsAt:"2026-10-07T21:00:00Z",
+          scheduleSourceUrl:"https://discord.com/channels/1410547930250612828/1424776504767680722/1556903535952789505",
+          scheduleAttribution:"CCN reported opening time"};
+      }
+      return item;
+    })
     .sort(
       (a,b) =>
         (
