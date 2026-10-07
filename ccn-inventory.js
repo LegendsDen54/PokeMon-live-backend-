@@ -170,9 +170,16 @@ async function checkerStorage(){
 function checkerInput(retailer,productId,zip){
   if(!['bestbuy','costco','sams','dollargeneral','barnes'].includes(retailer)||!/^\d{5}$/.test(zip)||!/^[A-Za-z0-9-]{1,40}$/.test(productId))throw Error('Choose a retailer, valid product identifier and five-digit ZIP');
 }
+async function personalSearchWindow(retailer,viewer){
+  if(!viewer || !['sams','costco'].includes(retailer))return null;
+  const row=(await pool.query("SELECT max((r.data->>'checkedAt')::timestamptz)+interval '1 hour' AS available_at FROM inventory_search_viewers v JOIN ccn_inventory_reports r ON r.retailer=v.retailer AND r.product_id=v.product_id AND r.zip=v.zip WHERE v.viewer_id=$1 AND v.retailer=$2 AND (r.data->>'checkedAt')::timestamptz>=v.requested_at AND r.data->>'result' IN ('results','no_stock_reported')",[viewer,retailer])).rows[0];
+  return row?.available_at && Date.parse(row.available_at)>Date.now()?row.available_at:null;
+}
 module.exports.requestInventory=async(retailer,productId,zip,viewer)=>{
   checkerInput(retailer,productId,zip);await checkerStorage();
   if(!viewer)throw Error('Private search session unavailable');
+  const personalAvailableAt=await personalSearchWindow(retailer,viewer);
+  if(personalAvailableAt)return {status:'personal_cooldown',personalAvailableAt,availableAt:personalAvailableAt};
   await pool.query('INSERT INTO inventory_search_viewers(viewer_id,retailer,product_id,zip) VALUES($1,$2,$3,$4) ON CONFLICT(viewer_id,retailer,product_id,zip) DO UPDATE SET requested_at=now()',[viewer,retailer,productId,zip]);
   const client=await pool.connect();
   try{
@@ -190,10 +197,11 @@ module.exports.inventoryRequestStatus=async(retailer,productId,zip,viewer)=>{
   checkerInput(retailer,productId,zip);await checkerStorage();
   const cooldown=(await pool.query('SELECT available_at FROM inventory_checker_cooldowns WHERE retailer=$1 AND available_at>now()',[retailer])).rows[0];
   const row=(await pool.query('SELECT q.requested_at,r.data FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip WHERE q.retailer=$1 AND q.product_id=$2 AND q.zip=$3',[retailer,productId,zip])).rows[0];
+  const personalAvailableAt=await personalSearchWindow(retailer,viewer);
   const permitted=viewer && (await pool.query('SELECT 1 FROM inventory_search_viewers WHERE viewer_id=$1 AND retailer=$2 AND product_id=$3 AND zip=$4',[viewer,retailer,productId,zip])).rowCount;
-  if(!permitted)return {status:'idle',availableAt:cooldown?.available_at || null};
+  if(!permitted)return {status:personalAvailableAt?'personal_cooldown':'idle',personalAvailableAt,availableAt:personalAvailableAt || cooldown?.available_at || null};
   const complete=row?.data && Date.parse(row.data.checkedAt)>=Date.parse(row.requested_at);
-  return {status:complete?(row.data.result==='checker_error'?'checker_error':'completed'):row?(Date.now()-Date.parse(row.requested_at)>3600000?'expired':'queued'):'idle',requestedAt:row?.requested_at || null,checkedAt:complete?row.data.checkedAt:null,availableAt:cooldown?.available_at || null};
+  return {status:complete?(row.data.result==='checker_error'?'checker_error':'completed'):row?(Date.now()-Date.parse(row.requested_at)>3600000?'expired':'queued'):'idle',requestedAt:row?.requested_at || null,checkedAt:complete?row.data.checkedAt:null,personalAvailableAt,availableAt:personalAvailableAt && (!cooldown || Date.parse(personalAvailableAt)>Date.parse(cooldown.available_at))?personalAvailableAt:cooldown?.available_at || null};
 };
 module.exports.pendingInventory=async()=>{
   await checkerStorage();return (await pool.query("SELECT q.retailer,q.product_id AS \"productId\",q.zip,q.requested_at AS \"requestedAt\",q.priority FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip LEFT JOIN inventory_checker_cooldowns c ON c.retailer=q.retailer WHERE q.requested_at>now()-interval '1 hour' AND (r.data IS NULL OR (r.data->>'checkedAt')::timestamptz<q.requested_at) AND (c.available_at IS NULL OR c.available_at<=now()) ORDER BY q.priority DESC,q.requested_at LIMIT 20")).rows;
