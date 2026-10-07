@@ -4330,7 +4330,16 @@ function buildRaffleCard(
    RENDER RAFFLES
 ========================================= */
 
+function isCurrentRaffle(item){
+  const end = Date.parse(item.endsAt || item.closesAt);
+  return isRaffleItem(item)
+    && !/closed|ended|completed/i.test(String(item.raffleStatus || item.status || ""))
+    && (!Number.isFinite(end) || end > Date.now());
+}
+
 function renderRaffles(){
+
+  currentRaffles = currentRaffles.filter(isCurrentRaffle);
 
   const seen =
     getSeenRaffles();
@@ -4524,12 +4533,11 @@ function renderWalmartStatus(
 
 
   currentRaffles =
-    raffleItems.filter(
-      isRaffleItem
-    );
+    raffleItems.filter(isCurrentRaffle);
 
 
   updateRaffleBadge();
+  if(raffleModal.classList.contains("open")) renderRaffles();
 }
 
 
@@ -4987,6 +4995,15 @@ setInterval(
   load,
   15000
 );
+
+// Remove a drawing at its verified end without refreshing the page.
+setInterval(() => {
+  const active = currentRaffles.filter(isCurrentRaffle);
+  if(active.length === currentRaffles.length) return;
+  currentRaffles = active;
+  updateRaffleBadge();
+  if(raffleModal.classList.contains("open")) renderRaffles();
+}, 1000);
 
 /* Pull down at the top of the monitor to request fresh data immediately. */
 const pullRefreshIndicator = document.getElementById("pullRefreshIndicator");

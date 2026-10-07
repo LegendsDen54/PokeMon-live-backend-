@@ -54,12 +54,18 @@ function start(publish){
   state.configured=true;
   const {Client,GatewayIntentBits,Partials}=require('discord.js');
   client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent],partials:[Partials.Message,Partials.Channel]});
-  const pending=new Map();let flushing=false;
+  const pending=new Map(),publishedRevisions=new Map();let flushing=false;
+  const revision=report=>require('crypto').createHash('sha256').update(JSON.stringify(report)).digest('hex');
   async function drain(){
     if(flushing)return;flushing=true;
     try{for(const [key,row] of pending){
       if(row.nextTry>Date.now())continue;
-      try{await publish(row.report);pending.delete(key);state.lastPublishedAt=new Date().toISOString();state.error=null;}
+      try{await publish(row.report);
+        publishedRevisions.set(key,row.revision);
+        while(publishedRevisions.size>1000)publishedRevisions.delete(publishedRevisions.keys().next().value);
+        // An edit can replace this row while publishing is awaiting storage/push.
+        if(pending.get(key)===row)pending.delete(key);
+        state.lastPublishedAt=new Date().toISOString();state.error=null;}
       catch{row.attempts++;row.nextTry=Date.now()+Math.min(3600000,15000*2**Math.min(row.attempts,8))+Math.random()*5000;state.error='Report publishing failed; retry pending.';}
     }}finally{flushing=false;}
   }
@@ -68,20 +74,24 @@ function start(publish){
     try{
       if(message.partial)message=await message.fetch();
       state.lastReceivedAt=new Date().toISOString();
+      let queued=false;
       for(const report of reports(message)){
         const at=Date.parse(report.editedAt || report.publishedAt);
         if(Date.now()-at>48*3600000)continue;
-        pending.set(report.sourceUrl,{report,attempts:0,nextTry:0});
+        const fingerprint=revision(report),previous=pending.get(report.sourceUrl);
+        if(publishedRevisions.get(report.sourceUrl)===fingerprint || previous?.revision===fingerprint)continue;
+        if(previous && Date.parse(previous.report.editedAt || previous.report.publishedAt)>at)continue;
+        pending.set(report.sourceUrl,{report,revision:fingerprint,attempts:0,nextTry:0});queued=true;
       }
       while(pending.size>100)pending.delete(pending.keys().next().value);
-      await drain();
+      if(queued){await drain();if(!flushing && [...pending.values()].some(row=>row.nextTry<=Date.now()))await drain();}
     }catch{state.error='Cannot read an authorized channel message. Check bot permissions.';}
   }
   async function catchUp(){
     for(const id of channels){
       try{const channel=await client.channels.fetch(id);if(!channel?.isTextBased() || !channel.messages)continue;
         const messages=await channel.messages.fetch({limit:25});
-        for(const message of [...messages.values()].reverse())await receive(message);
+        for(const message of [...messages.values()].sort((a,b)=>(b.editedTimestamp || b.createdTimestamp)-(a.editedTimestamp || a.createdTimestamp)))await receive(message);
       }catch{state.error='A configured channel is not accessible. Check bot channel permissions.';}
     }
   }

@@ -511,6 +511,9 @@ function mergeRaffles(
       }
       return item;
     })
+    .map(item => Date.parse(item.startsAt) === Date.parse("2026-10-07T21:00:00Z")
+      ? {...item, endsAt:item.endsAt || item.closesAt || "2026-10-07T22:00:00Z"}
+      : item)
     .sort(
       (a,b) =>
         (
@@ -2795,8 +2798,15 @@ app.get(
 app.get(
   "/api/walmart/raffles",
   (req,res) => {
+    const items = (raffleState.items || []).filter(item => {
+      const end = Date.parse(item.endsAt || item.closesAt);
+      return !/closed|ended|completed/i.test(String(item.raffleStatus || item.status || ""))
+        && (!Number.isFinite(end) || end > Date.now());
+    });
     res.json({
       ...raffleState,
+      items,
+      count:items.length,
 
       pollMinutes:
         rafflePollMinutes,
