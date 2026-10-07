@@ -2583,29 +2583,7 @@ function bestBuyManualProductName(url){
   }
 }
 
-function warehouseCheckerMarkup(retailer, provider){
-  const label = retailer === "sams" ? "Sam's Club" : "Costco";
-  const sourceName = retailer === "sams" ? "club pickup" : "warehouse availability";
-  const isConfigured = provider && provider.configured;
-  const selected = warehouseWatchSelections[retailer] || "";
-  const watchlist = WAREHOUSE_TCG_WATCHLIST[retailer] || [];
-  const selectedItem = watchlist.find(item => item.query === selected);
-  const options = watchlist.map(item => "<option value=\"" + esc(item.query) + "\"" + (item.query === selected ? " selected" : "") + ">" + esc(item.label) + "</option>").join("");
-  const productLink = selectedItem && selectedItem.url ? "<a href=\"" + esc(selectedItem.url) + "\" target=\"_blank\" rel=\"noopener noreferrer\">OPEN RETAILER LISTING</a>" : "Select an item with a public retailer listing to open it.";
-  return "<section class=\"store-checker\"><h3>" + esc(label) + " TCG Store Watch</h3>" +
-    "<p>Choose a product and ZIP code to check confirmed public " + sourceName + " signals within 75 miles.</p>" +
-    "<div class=\"store-checker-row\"><select id=\"warehouseWatchProduct\" aria-label=\"Pokémon TCG product\"><option value=\"\">Choose a Pokémon TCG product</option>" + options + "</select><input id=\"warehouseWatchZip\" inputmode=\"numeric\" maxlength=\"10\" placeholder=\"ZIP code\" value=\"60634\"><button id=\"warehouseWatchButton\" type=\"button\">CHECK NEARBY STORES</button><button id=\"warehouseBrowserButton\" type=\"button\">SHOW CHROME PAGE SIGNAL</button></div>" +
-    "<p><span id=\"warehouseWatchItemLink\">" + productLink + "</span></p>" +
-    "<p><button id=\"warehouseLocationsButton\" type=\"button\">FIND NEARBY LOCATIONS</button> <a href=\"" + (retailer === "sams" ? "https://www.samsclub.com/club-finder" : "https://www.costco.com/w/-/locations") + "\" target=\"_blank\" rel=\"noopener noreferrer\">OFFICIAL STORE LOCATOR</a></p>" +
-    "<div id=\"warehouseWatchResults\" class=\"store-checker-results\" aria-live=\"polite\"></div>" +
-    "<div class=\"warehouse-signal-grid\">" +
-      "<div class=\"warehouse-signal\"><strong>On order</strong>Only shown when published by a connected source.</div>" +
-      "<div class=\"warehouse-signal\"><strong>In transit</strong>Only shown when published by a connected source.</div>" +
-      "<div class=\"warehouse-signal\"><strong>On hand</strong>Availability and quantity only when published.</div>" +
-      "<div class=\"warehouse-signal\"><strong>Online date</strong>Confirmed public date changes appear here.</div>" +
-    "</div>" +
-    "<p>" + (isConfigured ? "Connected source is loading confirmed Pokémon TCG signals." : "No real provider is connected yet, so no stock is being assumed.") + "</p></section>";
-}
+function warehouseCheckerMarkup(retailer, provider){return ''; }
 
 function wireWarehouseChecker(retailer){
   const label = retailer === "sams" ? "Sam's Club" : "Costco";
