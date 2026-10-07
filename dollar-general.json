@@ -2,7 +2,10 @@
   "products": [
     {
       "name": "30th Anniversary Elite Trainer Box",
-      "upc": "196214158801"
+      "upc": "196214158801",
+      "image": "https://s7d1.scene7.com/is/image/dolgen/dg-44434201-1",
+      "sourceUrl": "https://www.dollargeneral.com/p/product/196214158801",
+      "verifiedAt": "2026-10-07"
     },
     {
       "name": "30th Anniversary Poster Collection",
@@ -10,7 +13,10 @@
     },
     {
       "name": "30th Anniversary Tech Sticker Collection",
-      "upc": "196214158771"
+      "upc": "196214158771",
+      "image": "https://s7d1.scene7.com/is/image/dolgen/dg-44434101-1",
+      "sourceUrl": "https://www.dollargeneral.com/p/product/196214158771",
+      "verifiedAt": "2026-10-07"
     },
     {
       "name": "30th Anniversary Knock Out Collection",
