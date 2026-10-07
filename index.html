@@ -2954,6 +2954,9 @@ function updateCcnCountdowns(){
 setInterval(updateCcnCountdowns,1000);
 async function renderCcnInventory(retailer){
   let knownProducts=[];
+  const stockParams=new URLSearchParams(location.search);
+  const linkedZip=stockParams.get('retailer')===retailer && /^\d{5}$/.test(stockParams.get('zip') || '')?stockParams.get('zip'):'';
+  if(linkedZip)sessionStorage.setItem('inventoryZip:'+retailer,linkedZip);
   const zip=sessionStorage.getItem("inventoryZip:"+retailer) || "";
   const section=document.createElement("section");section.className="store-checker";section.id="ccnInventoryReports";
   const reportBody=document.createElement('div');reportBody.innerHTML='<p>Loading latest checks…</p>';section.append(reportBody);
@@ -2978,7 +2981,7 @@ async function renderCcnInventory(retailer){
     if(!section.isConnected)return;
     if(!data.ok)throw new Error(data.error);
     const productTiles=(data.reports || []).filter(report=>String(report.sourceUrl || '').startsWith('https://discord.com/channels/1367457689386356766/')).map(report=>{
-      const rows=(report.locations || []).map(row=>'<tr><th scope="row">'+esc(row.name)+'<small>'+esc(row.address)+'</small></th><td>'+esc(row.onOrder ?? '—')+'</td><td>'+esc(row.inTransit ?? '—')+'</td><td>'+esc(row.onHand ?? '—')+'</td></tr>').join('');
+      const rows=(report.locations || []).map(row=>'<tr><th scope="row">'+esc(row.name)+'<small>'+esc(row.address)+'</small><small>'+esc(row.status || '')+'</small></th><td>'+esc(row.onOrder ?? '—')+'</td><td>'+esc(row.inTransit ?? '—')+'</td><td>'+esc(row.onHand ?? '—')+'</td></tr>').join('');
       const image=report.image || knownProducts.find(p=>String(p.itemNumber)===String(report.productId))?.image;
       return '<article class="ccn-product-tile">'+retailerImageMarkup(image,report.name)+'<h4>'+esc(report.name)+'</h4><small>Item '+esc(report.productId)+'</small><p>'+esc(report.result==='checker_error'?'Checker error · stock unknown':report.result==='no_stock_reported'?'Checker reported no stock found':'Reported warehouse stock')+(report.stale?' · STALE':'')+'</p><small>Checked '+esc(new Date(report.checkedAt).toLocaleString())+'</small>'+(rows?'<details open><summary>Locations ('+report.locations.length+')</summary><div class="ccn-location-scroll"><table><thead><tr><th>Location</th><th>Order</th><th>Transit</th><th>On hand</th></tr></thead><tbody>'+rows+'</tbody></table></div><small>— means not supplied by the checker.</small></details>':'')+(report.detail?'<details><summary>Check details</summary><p>'+esc(report.detail)+'</p></details>':'')+'<p><a href="'+esc(report.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW RIPPIN PACKZ SOURCE ↗</a></p></article>';
     }).join('');
@@ -2988,9 +2991,9 @@ async function renderCcnInventory(retailer){
 }
 
 function inventoryCheckText(state){
-  if(state.availableAt && Date.parse(state.availableAt)>Date.now()){const seconds=Math.ceil((Date.parse(state.availableAt)-Date.now())/1000);return 'Next inventory check in '+Math.floor(seconds/3600)+':'+String(Math.floor(seconds%3600/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0')+' · Available '+new Date(state.availableAt).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});}
+  if(state.availableAt && Date.parse(state.availableAt)>Date.now()){const seconds=Math.ceil((Date.parse(state.availableAt)-Date.now())/1000);return 'Next inventory check in '+Math.floor(seconds/3600)+':'+String(Math.floor(seconds%3600/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0')+' · Available '+new Date(state.availableAt).toLocaleString([], {timeZone:'America/Chicago',hour:'numeric',minute:'2-digit',second:'2-digit',timeZoneName:'short'});}
   if(state.status==='queued')return 'Request saved · waiting for the stock checker. You can leave the app; enabled push alerts will notify you when a delayed search finishes.';
-  return ({idle:'Next search available now · no cooldown reported',cooldown:'Next search available now',completed:'Fresh check completed · '+new Date(state.checkedAt).toLocaleString()+' · Next search available now',checker_error:'Checker error · current stock unknown. Next search available now.',expired:'Request expired without a fresh response. Next search available now.'})[state.status] || 'Request status unavailable';
+  return ({idle:'No confirmed cooldown received',cooldown:'Reported cooldown ended · another check may be requested',completed:'Response collected · '+new Date(state.checkedAt).toLocaleString()+' · Check source record dates below. No confirmed next-search time received.',checker_error:'Checker error · current stock unknown. No confirmed next-search time received.',expired:'Request expired without a fresh response. No confirmed next-search time received.'})[state.status] || 'Request status unavailable';
 }
 function watchInventoryRequest(retailer,getSelection,status,button,onCompleted){
   let state={status:'idle'},busy=false,lastKey='',failure='',pollBusy=false,lastPollAt=0;
@@ -3013,8 +3016,10 @@ function addInventoryRequestControl(retailer,parent){
   if(!form.isConnected)return;
   products=(data.products || []).filter(p=>p.itemNumber);
   picker.innerHTML='<option value="">Choose a product by name</option>'+products.map(p=>'<option value="'+esc(p.itemNumber)+'">'+esc(p.label.replace(/^(Confirmed|Reported released|Reported current|Reported upcoming|Confirmed recent) · /,''))+'</option>').join('');
+  const linked=new URLSearchParams(location.search);const selected=linked.get('retailer')===retailer?linked.get('productId'):sessionStorage.getItem('inventoryProduct:'+retailer);
+  if(products.some(p=>String(p.itemNumber)===selected)){picker.value=selected;picker.dispatchEvent(new Event('change'));}
  }).catch(()=>{status.textContent='Product list unavailable. Please try again.';});
- picker.onchange=()=>{const p=products.find(p=>String(p.itemNumber)===picker.value);preview.innerHTML=p?'<article class="ccn-product-tile">'+(p.image?retailerImageMarkup(p.image,p.label):'')+'<h4>'+esc(p.label.replace(/^(Confirmed|Reported released|Reported current|Reported upcoming|Confirmed recent) · /,''))+'</h4><small>Item '+esc(p.itemNumber)+'</small>'+(p.price!=null && Number.isFinite(Number(p.price))?'<small>$'+Number(p.price).toFixed(2)+'</small>':'')+(p.reportedPrice!=null?'<small>Reported $'+Number(p.reportedPrice).toFixed(2)+'</small>':'')+'</article>':'';};
+ picker.onchange=()=>{sessionStorage.setItem('inventoryProduct:'+retailer,picker.value);const p=products.find(p=>String(p.itemNumber)===picker.value);preview.innerHTML=p?'<article class="ccn-product-tile">'+(p.image?retailerImageMarkup(p.image,p.label):'')+'<h4>'+esc(p.label.replace(/^(Confirmed|Reported released|Reported current|Reported upcoming|Confirmed recent) · /,''))+'</h4><small>Item '+esc(p.itemNumber)+'</small>'+(p.price!=null && Number.isFinite(Number(p.price))?'<small>$'+Number(p.price).toFixed(2)+'</small>':'')+(p.reportedPrice!=null?'<small>Reported $'+Number(p.reportedPrice).toFixed(2)+'</small>':'')+'</article>':'';};
  const submit=watchInventoryRequest(retailer,()=>({productId:picker.value,zip:zipField.value.trim()}),status,button,()=>renderExternalRetailer(retailer));
  if(['costco','sams'].includes(retailer)){const note=document.createElement('p');note.textContent='Rip Radar · 60-minute advertised search limit. A confirmed cooldown shows the remaining time and next available search above.';form.append(note);}
  form.onsubmit=e=>{e.preventDefault();if(/^\d{5}$/.test(zipField.value.trim()))sessionStorage.setItem('inventoryZip:'+retailer,zipField.value.trim());submit();};
