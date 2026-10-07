@@ -492,11 +492,13 @@ function mergeRaffles(
       // Product-specific reported schedule; an opening time is not live-stock confirmation.
       const id = String(item.walmartItemId || item.productId || "");
       const url = String(item.url || "");
-      if (!item.startsAt && (["20640569221", "18170913799"].includes(id)
-          || /\/(20640569221|18170913799)(?:[?/#]|$)/.test(url))) {
+      const todayIds = ["20640569221", "18170913799", "19624258216", "19536452232",
+        "3523128211", "366065723", "9773718591", "15176752663", "13908966148", "19429601742"];
+      if (!item.startsAt && (todayIds.includes(id)
+          || todayIds.some(value => new RegExp("/" + value + "(?:[?/#]|$)").test(url)))) {
         return {...item, startsAt:"2026-10-07T21:00:00Z",
-          scheduleSourceUrl:"https://discord.com/channels/1410547930250612828/1424776504767680722/1556903535952789505",
-          scheduleAttribution:"CCN reported opening time"};
+          scheduleSourceUrl:"https://www.walmart.com/shop/collectibles/draw",
+          scheduleAttribution:"Walmart drawing page"};
       }
       return item;
     })
