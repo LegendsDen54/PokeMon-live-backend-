@@ -108,7 +108,9 @@ async function news(){
 module.exports.saveNews=saveNews;module.exports.news=news;
 
 async function onlineProducts(retailer){
-  const posts=await news();const latest=new Map();
+  await newsStorage();
+  const rows=await pool.query("SELECT data FROM ccn_news_reports WHERE data->>'retailer'=$1 AND (COALESCE(data->>'updatedAt',data->>'publishedAt'))::timestamptz > now()-interval '7 days' ORDER BY (COALESCE(data->>'updatedAt',data->>'publishedAt'))::timestamptz DESC LIMIT 200",[retailer]);
+  const posts=rows.rows.map(row=>row.data);const latest=new Map();
   for(const post of posts.filter(p=>p.retailer===retailer))for(const product of post.products || []){
     if(latest.has(product.url))continue;
     latest.set(product.url,{...product,source:post.source,sourceUrl:post.sourceUrl,reportedAt:post.updatedAt || post.publishedAt,stale:Date.now()-Date.parse(post.updatedAt || post.publishedAt)>30*60000});
