@@ -13,6 +13,7 @@ const {
 
 const walmart = require("./walmart");
 const walmartRaffles = require("./walmart-raffles");
+const scheduledRaffleAlerts=require("./raffle-scheduled-alerts");
 const pokemonCenter = require("./pokemon-center");
 const push = require("./push");
 const discovery = require("./discovery");
@@ -372,6 +373,8 @@ let raffleState = {
   items: []
 };
 
+
+setInterval(()=>scheduledRaffleAlerts.tick(raffleState.items,push),5000).unref();
 
 function raffleKey(item) {
   return String(
@@ -815,6 +818,7 @@ async function runRaffleScan() {
     await processRaffleAlerts(
       items
     );
+    await scheduledRaffleAlerts.tick(items,push);
 
     return {
       ...raffleState
@@ -2005,6 +2009,7 @@ app.post('/api/ccn/viewer-session',(req,res)=>{
   res.cookie('ccnViewer',expires+'.'+ccnViewerSignature(expires),{httpOnly:true,secure:process.env.NODE_ENV==='production' || req.headers['x-forwarded-proto']==='https',sameSite:'strict',maxAge:180*86400000,path:'/'});
   res.json({ok:true});
 });
+app.get("/api/raffle-alert-schedule",(req,res)=>res.json(scheduledRaffleAlerts.status()));
 app.get("/ccn-import", (req,res)=>res.sendFile(path.join(__dirname,"ccn-import.html")));
 const ccnEventClients=new Set();
 app.get('/api/ccn/events',(req,res)=>{
