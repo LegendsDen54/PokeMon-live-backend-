@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Pokémon Center Signal Sensor",
-  "version": "1.4.10",
-  "description": "Sends visible Pokémon Center, Best Buy, Sam's Club, and Costco product availability to the owner's private monitor.",
+  "version": "1.4.11",
+  "description": "Public product sensor for Pokémon Center, Target, Best Buy, Sam's Club and Costco.",
   "permissions": [
     "storage",
     "tabs",
@@ -15,7 +15,8 @@
     "https://www.samsclub.com/*",
     "https://www.costco.com/*",
     "https://x.com/PokemonRestocks*",
-    "https://pokemon-live-backend.onrender.com/*"
+    "https://pokemon-live-backend.onrender.com/*",
+    "https://www.target.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -68,6 +69,15 @@
       ],
       "js": [
         "retail-product.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.target.com/p/*"
+      ],
+      "js": [
+        "target.js"
       ],
       "run_at": "document_idle"
     }

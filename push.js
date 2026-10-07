@@ -491,7 +491,8 @@ async function sendToSubscription(
     subscription,
     JSON.stringify(
       payload
-    )
+    ),
+    {timeout:15000,TTL:300,urgency:"high"}
   );
 }
 
@@ -529,13 +530,9 @@ async function broadcast(payload) {
 
   const errors = [];
 
-  for (
-    const [
-      endpoint,
-      subscription
-    ]
-    of subscriptions.entries()
-  ) {
+  const recipients=[...subscriptions.entries()];
+  for(let offset=0;offset<recipients.length;offset+=4){
+    await Promise.all(recipients.slice(offset,offset+4).map(async([endpoint,subscription])=>{
     try {
       await sendToSubscription(
         subscription,
@@ -572,6 +569,7 @@ async function broadcast(payload) {
         removed += 1;
       }
     }
+    }));
   }
 
   lastBroadcast={startedAt:new Date(startedAt).toISOString(),completedAt:new Date().toISOString(),durationMs:Date.now()-startedAt,accepted:sent,failed,removed,phoneDisplayConfirmed:false};

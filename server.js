@@ -326,6 +326,11 @@ app.use(
   express.json()
 );
 
+app.post('/api/target/browser-observation',async(req,res)=>{
+ if(!pokemonCenterSensorToken)return pokemonCenterSensorUnavailable(res);
+ if(!hasValidPokemonCenterSensorToken(req))return pokemonCenterSensorUnauthorized(res);
+ try{res.json({ok:true,item:await retailOnline.browserObservation(req.body)});}catch(error){res.status(400).json({ok:false,error:error.message});}
+});
 app.get("/api/retail/online", (req,res) => {
   try {res.json({ok:true,...retailOnline.snapshot(String(req.query.retailer || ""))});}
   catch(error) {res.status(400).json({ok:false,error:error.message});}
@@ -1921,8 +1926,8 @@ app.post("/api/ccn/inventory-report", async (req,res) => {
     const saved=await ccnInventory.save(req.body);
     let delivery=null;
     if(saved.alertLocations.length){
-      const labels={bestbuy:"Best Buy",sams:"Sam’s Club",costco:"Costco"};
-      delivery=await push.broadcast({title:labels[saved.report.retailer]+" — In-store stock reported",body:saved.report.name+" · "+saved.alertLocations.map(row=>row.name+": "+row.onHand+" reported on hand").join("; ").slice(0,180),url:"/?retailer="+saved.report.retailer,tag:"instore-"+saved.report.retailer+"-"+saved.report.productId+"-"+saved.report.zip}).catch(error=>({error:error.message}));
+      const labels={bestbuy:"Best Buy",sams:"Sam's Club",costco:"Costco"};
+      delivery=await push.broadcast({title:labels[saved.report.retailer]+" â€” In-store stock reported",body:saved.report.name+" â€” "+saved.alertLocations.map(row=>row.name+": "+row.onHand+" reported on hand").join("; ").slice(0,180),url:"/?retailer="+saved.report.retailer,tag:"instore-"+saved.report.retailer+"-"+saved.report.productId+"-"+saved.report.zip}).catch(error=>({error:error.message}));
     }
     res.json({ok:true,report:saved.report,push:delivery});
   }

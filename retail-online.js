@@ -152,7 +152,12 @@ async function check(retailer, url) {
   const item = parseProduct(retailer,safe,await page(safe));
   if (!item) throw new Error("No card-containing Pokémon product data was published on this page");
   item.observedAt=requests.get(safe)?.fetchedAt || item.observedAt;
+  return acceptObservation(retailer,safe,item);
+}
+async function acceptObservation(retailer,safe,item){
+  const state=getState(retailer);
   const before = state.items.get(safe);
+  item.patternHistory=before?.patternHistory || [];
   state.items.set(safe,item);
   if (["target","costco","sams"].includes(retailer)) {
     item.priority = targetPriority(item.name);
@@ -164,6 +169,7 @@ async function check(retailer, url) {
       }
     } else if (before && before.source === "public_catalog_link") changes.push({type:"LISTING_VERIFIED"});
     if (["instock","preorder"].includes(item.status) && (!before || before.status !== item.status) && !changes.some(c=>c.type==="AVAILABILITY_CHANGE")) changes.push({type:"AVAILABILITY_CHANGE",after:item.status});
+    item.patternHistory=[...item.patternHistory,...changes.map(change=>({...change,observedAt:item.observedAt,detectedAt:new Date().toISOString(),source:item.source}))].filter(e=>Date.now()-Date.parse(e.observedAt)<28*86400000).slice(-200);
     for (const change of changes) state.events.unshift({...change,name:item.name,url:safe,observedAt:item.observedAt,priority:item.priority,detail:"Public listing change; does not confirm an upcoming drop."});
     state.events=state.events.filter(event=>Date.now()-Date.parse(event.observedAt)<24*3600000).slice(0,100);
     if (changes.length && item.priority && !["instock","preorder"].includes(item.status) && Date.now()-(before?.lastMovementAlertAt || 0)>30*60000) {
@@ -223,11 +229,18 @@ async function poll(retailer) {
 }
 function snapshot(retailer) {
   const state=getState(retailer);
-  return {...state, health:state.error?"limited":!state.lastSuccess?"waiting":Date.now()-Date.parse(state.lastSuccess)>60*60000?"stale":"responding", items:[...state.items.values()].map(item => ({...item, stale:Boolean(requests.get(item.url)?.error || state.checkFailures?.[item.url]) || Date.now()-Date.parse(item.observedAt)>60*60000})), upcoming:retailer === "target" ? require("./target-drop-reports.json").filter(report=>productUrl("target",report.url) && /^https:\/\//.test(report.sourceUrl || "") && report.name && report.sourceName && report.expectedWindow && Date.parse(report.expiresAt)>Date.now() && Date.parse(report.reportedAt)<=Date.now()) : [], catalog:catalog(retailer), searchUrl:configs[retailer].search, locatorUrl:configs[retailer].locator};
+  return {...state, health:state.error?"limited":!state.lastSuccess?"waiting":Date.now()-Date.parse(state.lastSuccess)>60*60000?"stale":"responding", items:[...state.items.values()].map(item => ({...item, stale:item.source==="browser_product_page"?Date.now()-Date.parse(item.observedAt)>5*60000:Boolean(requests.get(item.url)?.error || state.checkFailures?.[item.url]) || Date.now()-Date.parse(item.observedAt)>60*60000})), upcoming:retailer === "target" ? require("./target-drop-reports.json").filter(report=>productUrl("target",report.url) && /^https:\/\//.test(report.sourceUrl || "") && report.name && report.sourceName && report.expectedWindow && Date.parse(report.expiresAt)>Date.now() && Date.parse(report.reportedAt)<=Date.now()) : [], catalog:catalog(retailer), searchUrl:configs[retailer].search, locatorUrl:configs[retailer].locator};
 }
 async function start() {
   await restore();
   const tick=() => Promise.allSettled(Object.keys(configs).map(poll));
   tick(); const timer=setInterval(tick,60000);timer.unref();
 }
-module.exports={start,snapshot,check,isTcg,parseProduct,productUrl,targetPriority};
+async function browserObservation(input){
+ const safe=productUrl('target',input.url);if(!safe || !isTcg(input.title) || !/^target$/i.test(input.seller || ''))throw new Error('Verified Target card product required');
+ const status=({available:'instock',unavailable:'out',preorder:'preorder',unknown:'unknown'})[input.availability];if(!status)throw new Error('Invalid availability');
+ const price=input.price!=null && Number.isFinite(Number(input.price)) && Number(input.price)>=0?Number(input.price):null;
+ const item=await acceptObservation('target',safe,{retailer:'target',channel:'online',name:String(input.title).slice(0,240),url:safe,productId:new URL(safe).pathname.match(/A-(\d+)/)?.[1],sku:String(input.itemNumber || '').slice(0,40),status,rawStatus:status,image:String(input.image || '').startsWith('https://')?String(input.image).slice(0,1000):null,price,quantity:null,seller:'Target',sellerVerified:true,source:'browser_product_page',observedAt:new Date().toISOString()});
+ getState('target').lastBrowserObservationAt=item.observedAt;return item;
+}
+module.exports={start,snapshot,check,isTcg,parseProduct,productUrl,targetPriority,browserObservation};
