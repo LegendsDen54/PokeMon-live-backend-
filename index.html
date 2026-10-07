@@ -2918,7 +2918,7 @@ function updateCcnCountdowns(){
 }
 setInterval(updateCcnCountdowns,1000);
 async function renderCcnInventory(retailer){
-  const zip=document.getElementById("warehouseWatchZip")?.value || "60634";
+  const zip=sessionStorage.getItem("inventoryZip:"+retailer) || "";
   const section=document.createElement("section");section.className="store-checker";section.id="ccnInventoryReports";
   const reportBody=document.createElement('div');reportBody.innerHTML='<p>Loading latest checks…</p>';section.append(reportBody);
   otherRetailerCard.append(section);
@@ -2935,6 +2935,7 @@ async function renderCcnInventory(retailer){
       watch.innerHTML='<h3>Products being watched</h3><div class="ccn-product-grid warehouse-watch-grid">'+tiles+'</div>';
     }catch(error){watch.textContent='Product watch list unavailable. Please try again.';}
   }
+  if(!/^\d{5}$/.test(zip)){reportBody.hidden=true;return;}
   try{
     const data=await fetch("/api/ccn/inventory-reports?retailer="+encodeURIComponent(retailer)+"&zip="+encodeURIComponent(zip),{cache:"no-store"}).then(r=>r.json());
     if(!section.isConnected)return;
@@ -2967,10 +2968,18 @@ function watchInventoryRequest(retailer,getSelection,status,button,onCompleted){
   };
 }
 function addInventoryRequestControl(retailer,parent){
- const form=document.createElement('form');form.className='store-checker';form.innerHTML='<h3>Request an in-store check</h3><div class="store-checker-row"><input aria-label="Stock checker product identifier" placeholder="Verified retailer SKU / checker ID" required maxlength="40"><input aria-label="Stock checker ZIP code" value="60634" inputmode="numeric" maxlength="5" required><button type="submit">CHECK INVENTORY</button></div><p role="status">Ready to check inventory</p><small>Fresh responses require the authorized Rippin Packz collector. A queued request is not confirmed stock.</small>';
- parent.prepend(form);const fields=form.querySelectorAll('input'),status=form.querySelector('[role="status"]'),button=form.querySelector('button');
- const submit=watchInventoryRequest(retailer,()=>({productId:fields[0].value.trim(),zip:fields[1].value.trim()}),status,button);
- form.onsubmit=e=>{e.preventDefault();submit();};
+ const form=document.createElement('form');form.className='store-checker';form.innerHTML='<h3>Check a product near you</h3><div class="store-checker-row"><select aria-label="Choose stock checker product" required><option value="">Choose a product by name</option></select><input aria-label="Stock checker ZIP code" placeholder="Enter your ZIP code" inputmode="numeric" maxlength="5" required><button type="submit">CHECK INVENTORY</button></div><div class="inventory-product-preview"></div><p role="status">Choose a product and enter your ZIP.</p>';
+ parent.prepend(form);const picker=form.querySelector('select'),zipField=form.querySelector('input'),status=form.querySelector('[role="status"]'),button=form.querySelector('button'),preview=form.querySelector('.inventory-product-preview');
+ zipField.value=sessionStorage.getItem('inventoryZip:'+retailer) || '';
+ let products=[];
+ fetch('/api/retail/watch-products?retailer='+encodeURIComponent(retailer),{cache:'no-store'}).then(r=>r.json()).then(data=>{
+  if(!form.isConnected)return;
+  products=(data.products || []).filter(p=>p.itemNumber);
+  picker.innerHTML='<option value="">Choose a product by name</option>'+products.map(p=>'<option value="'+esc(p.itemNumber)+'">'+esc(p.label.replace(/^(Confirmed|Reported released|Reported current|Reported upcoming|Confirmed recent) · /,''))+'</option>').join('');
+ }).catch(()=>{status.textContent='Product list unavailable. Please try again.';});
+ picker.onchange=()=>{const p=products.find(p=>String(p.itemNumber)===picker.value);preview.innerHTML=p?'<article class="ccn-product-tile">'+(p.image?retailerImageMarkup(p.image,p.label):'')+'<h4>'+esc(p.label.replace(/^(Confirmed|Reported released|Reported current|Reported upcoming|Confirmed recent) · /,''))+'</h4><small>Item '+esc(p.itemNumber)+'</small>'+(p.price!=null && Number.isFinite(Number(p.price))?'<small>$'+Number(p.price).toFixed(2)+'</small>':'')+'</article>':'';};
+ const submit=watchInventoryRequest(retailer,()=>({productId:picker.value,zip:zipField.value.trim()}),status,button,()=>renderExternalRetailer(retailer));
+ form.onsubmit=e=>{e.preventDefault();if(/^\d{5}$/.test(zipField.value.trim()))sessionStorage.setItem('inventoryZip:'+retailer,zipField.value.trim());submit();};
 }
 
 async function renderDollarGeneral(){
