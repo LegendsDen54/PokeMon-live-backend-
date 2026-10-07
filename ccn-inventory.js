@@ -183,29 +183,29 @@ async function checkerStorage(){
 function checkerInput(retailer,productId,zip){
   if(!['bestbuy','costco','sams','dollargeneral','barnes'].includes(retailer)||!/^\d{5}$/.test(zip)||!/^[A-Za-z0-9-]{1,40}$/.test(productId))throw Error('Choose a retailer, valid product identifier and five-digit ZIP');
 }
-async function personalSearchWindow(retailer,viewer){
+async function personalSearchWindow(retailer,viewer,db=pool){
   if(!viewer || !['sams','costco'].includes(retailer))return null;
-  await pool.query('CREATE TABLE IF NOT EXISTS inventory_check_history (retailer TEXT NOT NULL, product_id TEXT NOT NULL, zip TEXT NOT NULL, checked_at TIMESTAMPTZ NOT NULL, data JSONB NOT NULL, PRIMARY KEY(retailer,product_id,zip,checked_at))');
-  await pool.query("UPDATE inventory_search_viewers v SET completed_at=(SELECT min(h.checked_at) FROM inventory_check_history h WHERE h.retailer=v.retailer AND h.product_id=v.product_id AND h.zip=v.zip AND h.checked_at>=v.requested_at AND h.data->>'result' IN ('results','no_stock_reported')) WHERE v.viewer_id=$1 AND v.retailer=$2 AND v.completed_at IS NULL",[viewer,retailer]);
-  const row=(await pool.query("SELECT max(completed_at)+interval '1 hour' AS available_at FROM inventory_search_viewers WHERE viewer_id=$1 AND retailer=$2",[viewer,retailer])).rows[0];
+  const row=(await db.query("SELECT max(requested_at)+interval '1 hour' AS available_at FROM inventory_search_viewers WHERE viewer_id=$1 AND retailer=$2",[viewer,retailer])).rows[0];
   return row?.available_at && Date.parse(row.available_at)>Date.now()?row.available_at:null;
 }
 module.exports.requestInventory=async(retailer,productId,zip,viewer)=>{
   checkerInput(retailer,productId,zip);await checkerStorage();
   if(!viewer)throw Error('Private search session unavailable');
-  const personalAvailableAt=await personalSearchWindow(retailer,viewer);
-  if(personalAvailableAt)return {status:'personal_cooldown',personalAvailableAt,availableAt:personalAvailableAt};
-  await pool.query('INSERT INTO inventory_search_viewers(viewer_id,retailer,product_id,zip) VALUES($1,$2,$3,$4) ON CONFLICT(viewer_id,retailer,product_id,zip) DO UPDATE SET requested_at=now(),completed_at=NULL',[viewer,retailer,productId,zip]);
   const client=await pool.connect();
   try{
     await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',['manual-viewer:'+viewer+':'+retailer]);
+    const currentPersonalWindow=await personalSearchWindow(retailer,viewer,client);
+    if(currentPersonalWindow){await client.query('COMMIT');return {status:'personal_cooldown',personalAvailableAt:currentPersonalWindow,availableAt:currentPersonalWindow};}
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',['manual-check:'+retailer+':'+productId+':'+zip]);
     const cooldown=(await client.query('SELECT available_at FROM inventory_checker_cooldowns WHERE retailer=$1 AND available_at>now()',[retailer])).rows[0];
-    if(cooldown){await client.query('COMMIT');return {status:'cooldown',availableAt:cooldown.available_at};}
+    if(cooldown){await client.query('COMMIT');return {status:'cooldown',checkerAvailableAt:cooldown.available_at,availableAt:cooldown.available_at};}
+    const accepted=(await client.query('INSERT INTO inventory_search_viewers(viewer_id,retailer,product_id,zip) VALUES($1,$2,$3,$4) ON CONFLICT(viewer_id,retailer,product_id,zip) DO UPDATE SET requested_at=now(),completed_at=NULL RETURNING requested_at',[viewer,retailer,productId,zip])).rows[0];
+    const personalAvailableAt=['costco','sams'].includes(retailer)?new Date(Date.parse(accepted.requested_at)+3600000).toISOString():null;
     const existing=(await client.query("SELECT q.requested_at FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip WHERE q.retailer=$1 AND q.product_id=$2 AND q.zip=$3 AND (r.data IS NULL OR (r.data->>'checkedAt')::timestamptz<q.requested_at)",[retailer,productId,zip])).rows[0];
-    if(existing){await client.query('COMMIT');return {status:'queued',deduplicated:true,requestedAt:existing.requested_at};}
+    if(existing){await client.query('COMMIT');return {status:'queued',deduplicated:true,requestedAt:accepted.requested_at,personalAvailableAt,availableAt:personalAvailableAt};}
     const row=(await client.query('INSERT INTO inventory_check_requests(retailer,product_id,zip,priority) VALUES($1,$2,$3,1) ON CONFLICT(retailer,product_id,zip) DO UPDATE SET requested_at=now(),priority=1 RETURNING requested_at',[retailer,productId,zip])).rows[0];
-    await client.query('COMMIT');return {status:'queued',deduplicated:false,requestedAt:row.requested_at};
+    await client.query('COMMIT');return {status:'queued',deduplicated:false,requestedAt:row.requested_at,personalAvailableAt,availableAt:personalAvailableAt};
   }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
 };
 module.exports.inventoryRequestStatus=async(retailer,productId,zip,viewer)=>{
@@ -214,9 +214,11 @@ module.exports.inventoryRequestStatus=async(retailer,productId,zip,viewer)=>{
   const row=(await pool.query('SELECT q.requested_at,r.data FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip WHERE q.retailer=$1 AND q.product_id=$2 AND q.zip=$3',[retailer,productId,zip])).rows[0];
   const personalAvailableAt=await personalSearchWindow(retailer,viewer);
   const permitted=viewer && (await pool.query('SELECT 1 FROM inventory_search_viewers WHERE viewer_id=$1 AND retailer=$2 AND product_id=$3 AND zip=$4',[viewer,retailer,productId,zip])).rowCount;
-  if(!permitted)return {status:personalAvailableAt?'personal_cooldown':'idle',personalAvailableAt,availableAt:personalAvailableAt || cooldown?.available_at || null};
+  const checkerAvailableAt=cooldown?.available_at || null;
+  const availableAt=personalAvailableAt && (!checkerAvailableAt || Date.parse(personalAvailableAt)>Date.parse(checkerAvailableAt))?personalAvailableAt:checkerAvailableAt;
+  if(!permitted)return {status:personalAvailableAt?'personal_cooldown':checkerAvailableAt?'cooldown':'idle',personalAvailableAt,checkerAvailableAt,availableAt};
   const complete=row?.data && Date.parse(row.data.checkedAt)>=Date.parse(row.requested_at);
-  return {status:complete?(row.data.result==='checker_error'?'checker_error':'completed'):row?'queued':'idle',requestedAt:row?.requested_at || null,checkedAt:complete?row.data.checkedAt:null,personalAvailableAt,availableAt:personalAvailableAt && (!cooldown || Date.parse(personalAvailableAt)>Date.parse(cooldown.available_at))?personalAvailableAt:cooldown?.available_at || null};
+  return {status:complete?(row.data.result==='checker_error'?'checker_error':'completed'):row?'queued':'idle',requestedAt:row?.requested_at || null,checkedAt:complete?row.data.checkedAt:null,personalAvailableAt,checkerAvailableAt,availableAt};
 };
 module.exports.pendingInventory=async()=>{
   await checkerStorage();return (await pool.query("SELECT q.retailer,q.product_id AS \"productId\",q.zip,q.requested_at AS \"requestedAt\",q.priority FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip LEFT JOIN inventory_checker_cooldowns c ON c.retailer=q.retailer WHERE (r.data IS NULL OR (r.data->>'checkedAt')::timestamptz<q.requested_at) AND (c.available_at IS NULL OR c.available_at<=now()) ORDER BY q.priority DESC,q.requested_at LIMIT 20")).rows;
