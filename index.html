@@ -4555,38 +4555,7 @@ async function runManualWalmartScan(){
     return;
   }
 
-  let token =
-    localStorage.getItem(
-      "pokemonMonitorScanToken"
-    ) ||
-    "";
-
-
-  if(
-    !token
-  ){
-
-    token =
-      prompt(
-        "Enter your MANUAL_SCAN_TOKEN from Render:"
-      ) ||
-      "";
-
-
-    if(
-      !token
-    ){
-      return;
-    }
-
-
-    localStorage.setItem(
-      "pokemonMonitorScanToken",
-      token
-    );
-
-  }
-
+  const token=localStorage.getItem("pokemonMonitorScanToken") || "";
 
   livePanel.classList.add(
     "open"
@@ -4665,18 +4634,8 @@ async function runManualWalmartScan(){
       response.status === 401
     ){
 
-      localStorage.removeItem(
-        "pokemonMonitorScanToken"
-      );
-
-
-      alert(
-        "Scan key was rejected. Tap SCAN WALMART NOW again and enter the correct key."
-      );
-
-      walmartManualStatus.textContent =
-        "Manual scan needs your scan key";
-
+      walmartManualStatus.textContent="Connect the owner collector to authorize a fresh Walmart scan.";
+      liveProducts.innerHTML='<div class="compact-empty">A fresh retailer scan requires the connected owner session. Existing reports remain available.</div>';
       return;
     }
 
@@ -4699,6 +4658,7 @@ async function runManualWalmartScan(){
       published Walmart scan.
     */
 
+    walmartManualScanRunning=false;
     await load();
 
     walmartManualStatus.textContent =
@@ -4711,9 +4671,7 @@ async function runManualWalmartScan(){
     walmartManualStatus.textContent =
       "Manual scan could not run";
 
-    alert(
-      error.message
-    );
+    walmartManualStatus.textContent=error.message || "Manual scan could not run";
 
 
     await load();

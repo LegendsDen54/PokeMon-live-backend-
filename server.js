@@ -2955,7 +2955,7 @@ app.all(
 app.post(
   "/api/walmart/scan",
   async (req,res) => {
-    if (!manualScanToken) {
+    if (!manualScanToken && !hasInventoryOwnerAccess(req)) {
       return res
         .status(503)
         .json({
@@ -2967,9 +2967,7 @@ app.post(
     }
 
     if (
-      !hasValidManualToken(
-        req
-      )
+      !hasValidManualToken(req) && !hasInventoryOwnerAccess(req)
     ) {
       return res
         .status(401)
