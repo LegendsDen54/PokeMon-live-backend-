@@ -2874,12 +2874,12 @@ function wireBestBuyChecker(provider){
     showCatalog('<p><strong>'+esc(item.name)+'</strong><br>Best Buy SKU <strong>'+esc(item.sku)+'</strong> · Sold by Best Buy<br><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">OPEN BEST BUY PRODUCT ↗</a></p><small>SKU matched to retailer listing · verified '+esc(item.verifiedAt)+'. This does not confirm local inventory.</small>');
     eraSearchButton.disabled=false;showSelectedStock();
   }
-  fetch('/api/bestbuy/verified-catalog',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.json();}).then(data=>{
+  fetch('/api/bestbuy/verified-catalog',{cache:'no-store',signal:AbortSignal.timeout(15000)}).then(r=>{if(!r.ok)throw Error();return r.json();}).then(data=>{
     if(!verifiedStatus.isConnected)return;
     verifiedProducts=(data.products || []).filter(p=>p.seller==='Best Buy' && /^\d{7,8}$/.test(p.sku));
     verifiedStatus.textContent=verifiedProducts.length+' verified SKU matches available. Catalog coverage is still expanding.';
-    if(selectedEra)updateVerifiedOptions();
-  }).catch(()=>{if(verifiedStatus.isConnected)verifiedStatus.textContent='Verified product list unavailable. Reload to try again.';});
+    if(selectedEra)updateVerifiedOptions();else document.querySelector('[data-bestbuy-era]').click();
+  }).catch(()=>{if(verifiedStatus.isConnected){verifiedStatus.textContent='Product list could not load. ';const retry=document.createElement('button');retry.type='button';retry.textContent='RETRY PRODUCT LIST';retry.onclick=()=>{otherRetailerCard.innerHTML='';renderExternalRetailer('bestbuy');};verifiedStatus.append(retry);}});
   eraSet.addEventListener('change',updateVerifiedOptions);
   eraProductType.addEventListener('change',async()=>{const item=verifiedProducts.find(p=>p.sku===eraProductType.value && p.era===selectedEra && (!eraSet.value || p.set===eraSet.value));if(!item)return;selectVerifiedProduct(item);});
   if(productButton) productButton.addEventListener("click", search);
@@ -3050,6 +3050,7 @@ if(retailer==="dollargeneral")return renderDollarGeneral();
     (retailer === "bestbuy" ? bestBuyCheckerMarkup(provider) :
       (checker ? warehouseCheckerMarkup(retailer, provider) : ""));
   if(warehouse) {wireWarehouseChannels(retailer); if(checker) renderCcnInventory(retailer);}
+  if(retailer === "bestbuy"){wireBestBuyChecker(provider);return;}
   // Best Buy displays only the selected SKU's report in its checker.
   if(!provider.configured && !(warehouse && selectedChannel === "online")){
     if(retailer === "bestbuy") wireBestBuyChecker(provider);
