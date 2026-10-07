@@ -392,11 +392,15 @@ function mergeRaffles(
   // These are scheduled entries, never evidence of purchasable stock.
   if (Date.now() < Date.parse("2026-10-09T07:00:00Z")) {
     const additions = [
-      {walmartItemId:"18943710710", name:"Collectible Pokemon Scarlet & Violet Shrouded Fable Booster Bundle Box", price:44.99},
-      {walmartItemId:"16517213276", name:"Collectible Pokemon TCG Scarlet & Violet 10.5 Unova Poster Collection Box - 4 Packs", price:34.99}
+      {walmartItemId:"18943710710", name:"Collectible Pokemon Scarlet & Violet Shrouded Fable Booster Bundle Box", price:44.99,
+        image:"https://i5.walmartimages.com/seo/Pokemon-Scarlet-Violet-Shrouded-Fable-Booster-Bundle-Box_8054b68c-4660-425e-a3eb-dadca4c5501b.da694f4440f5c713739c62d58dd3dea8.jpeg?odnHeight=576&odnWidth=576&odnBg=FFFFFF"},
+      {walmartItemId:"16517213276", name:"Collectible Pokemon TCG Scarlet & Violet 10.5 Unova Poster Collection Box - 4 Packs", price:34.99,
+        image:"https://i5.walmartimages.com/seo/Pokemon-TCG-Scarlet-Violet-10-5-Unova-Poster-Collection-Box-4-Packs_74b655c0-e889-4e79-9de8-72775a389bbc.eefb0d0142ad03afba4ee8aafef3ecc3.jpeg?odnHeight=576&odnWidth=576&odnBg=FFFFFF"}
     ];
     publicItems = [...(publicItems || [])];
     for (const addition of additions) {
+      publicItems = publicItems.map(item => String(item.walmartItemId) === addition.walmartItemId
+        ? {...item, image:item.image || addition.image} : item);
       if (!publicItems.some(item => String(item.walmartItemId) === addition.walmartItemId)) {
         publicItems.push({...addition, productId:"walmart-raffle-" + addition.walmartItemId,
           retailer:"walmart", raffle:true, status:"upcoming", raffleStatus:"upcoming",
