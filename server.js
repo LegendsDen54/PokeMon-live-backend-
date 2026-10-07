@@ -1993,6 +1993,12 @@ if(!/^\d{5}$/.test(zip) || !require('./dollar-general.json').products.some(p=>p.
 try{await ccnInventory.requestDg(productId,zip);res.json({ok:true,status:'queued',message:'Stock check requested. Scheduled collection checks requests every 10 minutes; Discord access and cooldowns may delay completion.'});}catch{res.status(503).json({ok:false,error:'Request storage unavailable; try again later'});}
 });
 app.get('/api/dollargeneral/pending-checks',async(req,res)=>{if(!hasValidPokemonCenterSensorToken(req) && !hasCcnViewerAccess(req))return pokemonCenterSensorUnauthorized(res);try{res.json({ok:true,requests:await ccnInventory.pendingDg()});}catch{res.status(503).json({ok:false,error:'Request queue unavailable'});}});
+app.get('/api/dollargeneral/request-status',async(req,res)=>{
+  const productId=String(req.query.productId || ''),zip=String(req.query.zip || '');
+  if(!/^\d{5}$/.test(zip) || !require('./dollar-general.json').products.some(p=>p.upc===productId))return res.status(400).json({error:'Choose a verified product and five-digit ZIP'});
+  try{res.set('Cache-Control','no-store').json(await ccnInventory.dgRequestStatus(productId,zip));}
+  catch{res.status(503).json({error:'Request status unavailable'});}
+});
 app.get('/api/dollargeneral/catalog',async(req,res)=>{
 const zip=String(req.query.zip || '60634');if(!/^\d{5}$/.test(zip))return res.status(400).json({error:'Enter a five-digit ZIP'});
 const catalog=require('./dollar-general.json');let reports=[];let storageConnected=false;

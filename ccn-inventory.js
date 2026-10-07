@@ -144,3 +144,10 @@ module.exports.onlineAlerts=onlineAlerts;
 async function dgQueueStorage(){await storage();await pool.query("CREATE TABLE IF NOT EXISTS dg_check_requests (product_id TEXT NOT NULL, zip TEXT NOT NULL, requested_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(product_id,zip))");}
 module.exports.requestDg=async(productId,zip)=>{await dgQueueStorage();await pool.query("INSERT INTO dg_check_requests(product_id,zip) VALUES($1,$2) ON CONFLICT(product_id,zip) DO UPDATE SET requested_at=now() WHERE dg_check_requests.requested_at < now()-interval '10 minutes'",[productId,zip]);};
 module.exports.pendingDg=async()=>{await dgQueueStorage();const r=await pool.query("SELECT q.product_id AS \"productId\",q.zip,q.requested_at AS \"requestedAt\" FROM dg_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer='dollargeneral' AND r.product_id=q.product_id AND r.zip=q.zip WHERE q.requested_at>now()-interval '1 hour' AND (r.data IS NULL OR (r.data->>'checkedAt')::timestamptz<q.requested_at) ORDER BY q.requested_at LIMIT 10");return r.rows;};
+module.exports.dgRequestStatus=async(productId,zip)=>{
+  await dgQueueStorage();
+  const {rows}=await pool.query('SELECT q.requested_at AS "requestedAt", r.data FROM dg_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=\'dollargeneral\' AND r.product_id=q.product_id AND r.zip=q.zip WHERE q.product_id=$1 AND q.zip=$2',[productId,zip]);
+  if(!rows.length)return {status:'idle'};
+  const row=rows[0],completed=row.data && Date.parse(row.data.checkedAt)>=Date.parse(row.requestedAt);
+  return {requestedAt:row.requestedAt,status:completed?(row.data.result==='checker_error'?'checker_error':'completed'):Date.now()-Date.parse(row.requestedAt)>3600000?'expired':'queued',checkedAt:completed?row.data.checkedAt:null};
+};
