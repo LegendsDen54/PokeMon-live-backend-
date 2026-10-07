@@ -224,11 +224,12 @@ module.exports.inventoryRequestStatus=async(retailer,productId,zip,viewer)=>{
   const cooldown=(await pool.query('SELECT available_at FROM inventory_checker_cooldowns WHERE retailer=$1 AND available_at>now()',[retailer])).rows[0];
   const row=(await pool.query('SELECT q.requested_at,r.data FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip WHERE q.retailer=$1 AND q.product_id=$2 AND q.zip=$3',[retailer,productId,zip])).rows[0];
   const personalAvailableAt=await personalSearchWindow(retailer,viewer);
-  const permitted=viewer && (await pool.query('SELECT 1 FROM inventory_search_viewers WHERE viewer_id=$1 AND retailer=$2 AND product_id=$3 AND zip=$4',[viewer,retailer,productId,zip])).rowCount;
+  const viewerRequest=viewer && (await pool.query('SELECT requested_at FROM inventory_search_viewers WHERE viewer_id=$1 AND retailer=$2 AND product_id=$3 AND zip=$4',[viewer,retailer,productId,zip])).rows[0];
+  const permitted=Boolean(viewerRequest);
   const checkerAvailableAt=cooldown?.available_at || null;
   const availableAt=personalAvailableAt && (!checkerAvailableAt || Date.parse(personalAvailableAt)>Date.parse(checkerAvailableAt))?personalAvailableAt:checkerAvailableAt;
   if(!permitted)return {status:personalAvailableAt?'personal_cooldown':checkerAvailableAt?'cooldown':'idle',personalAvailableAt,checkerAvailableAt,availableAt};
-  const complete=row?.data && Date.parse(row.data.checkedAt)>=Date.parse(row.requested_at);
+  const complete=row?.data && Date.parse(row.data.checkedAt)>=Math.max(Date.parse(row.requested_at),Date.parse(viewerRequest.requested_at));
   return {status:complete?(row.data.result==='checker_error'?'checker_error':'completed'):row?'queued':'idle',requestedAt:row?.requested_at || null,checkedAt:complete?row.data.checkedAt:null,personalAvailableAt,checkerAvailableAt,availableAt};
 };
 module.exports.pendingInventory=async()=>{
