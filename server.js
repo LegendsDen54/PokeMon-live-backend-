@@ -1418,6 +1418,8 @@ app.post(
           .addSubscription(
             req.body
           );
+      const privateViewer=inventoryViewer(req,res,true);
+      if(privateViewer)await require('./inventory-completion-push').connect(privateViewer,req.body.endpoint,req.body.monitorVisible===true);
 
       res.json({
         ...result,
@@ -2030,6 +2032,10 @@ function inventoryViewer(req,res,create=false){
   return fresh;
 }
 const inventoryCommandWorker=require('./inventory-command-worker')(ccnInventory);
+app.post('/api/inventory/presence',async(req,res)=>{
+  const viewer=inventoryViewer(req,res);if(!viewer)return res.sendStatus(204);
+  try{await require('./inventory-completion-push').presence(viewer,req.body.visible===true);res.sendStatus(204);}catch{res.sendStatus(503);}
+});
 app.get('/api/inventory/worker-status',(req,res)=>res.set('Cache-Control','no-store').json({ok:true,...inventoryCommandWorker.health()}));
 app.post('/api/inventory/check',async(req,res)=>{
   const retailer=String(req.body.retailer || ''),productId=String(req.body.productId || '').trim(),zip=String(req.body.zip || '').trim();

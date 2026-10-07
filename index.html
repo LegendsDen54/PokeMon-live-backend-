@@ -2979,7 +2979,7 @@ async function renderCcnInventory(retailer){
 
 function inventoryCheckText(state){
   if(state.availableAt && Date.parse(state.availableAt)>Date.now()){const seconds=Math.ceil((Date.parse(state.availableAt)-Date.now())/1000);return 'Next inventory check available in '+Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');}
-  if(state.status==='queued')return 'Waiting for checker…';
+  if(state.status==='queued')return 'Request saved · waiting for the stock checker. You can leave the app; enabled push alerts will notify you when a delayed search finishes.';
   return ({idle:'Next search available now · no cooldown reported',cooldown:'Next search available now',completed:'Fresh check completed · '+new Date(state.checkedAt).toLocaleString()+' · Next search available now',checker_error:'Checker error · current stock unknown. Next search available now.',expired:'Request expired without a fresh response. Next search available now.'})[state.status] || 'Request status unavailable';
 }
 function watchInventoryRequest(retailer,getSelection,status,button,onCompleted){
@@ -3319,6 +3319,7 @@ async function syncPhoneNotificationStatus(){
   try{
     const registration = await getMonitorServiceWorker();
     const subscription = await registration.pushManager.getSubscription();
+    if(subscription)await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...subscription.toJSON(),monitorVisible:document.visibilityState==='visible'})});
     setNotificationButton(
       subscription ? "PUSH ALERTS ENABLED · TAP TO TURN OFF" : "ENABLE PUSH ALERTS"
     );
@@ -3360,7 +3361,7 @@ async function enablePhoneNotifications(){
     const saveResponse = await fetch("/api/push/subscribe", {
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(subscription)
+      body:JSON.stringify({...subscription.toJSON(),monitorVisible:document.visibilityState==='visible'})
     });
 
     if(!saveResponse.ok) throw new Error("Could not save phone alerts");
@@ -4991,18 +4992,32 @@ window.addEventListener("touchend", async () => {
    START
 ========================================= */
 
-setRetailer(new URLSearchParams(location.search).get("retailer")==="dollargeneral" ? "dollargeneral" : "all");
+const initialSearchParams=new URLSearchParams(location.search);
+const initialSearchRetailer=initialSearchParams.get('retailer');
+if(['bestbuy','costco','sams','dollargeneral','barnes'].includes(initialSearchRetailer) && /^\d{5}$/.test(initialSearchParams.get('zip') || ''))sessionStorage.setItem('inventoryZip:'+initialSearchRetailer,initialSearchParams.get('zip'));
+setRetailer(['bestbuy','costco','sams','dollargeneral','barnes'].includes(initialSearchRetailer)?initialSearchRetailer:'all');
 function openClickedNotification(){
   if(!location.hash.startsWith('#notification='))return;
   let alert;try{alert=JSON.parse(decodeURIComponent(location.hash.slice(14)));}catch{return;}
   if(!alert || typeof alert!=='object')return;
   const retailer=alert.retailer || (/pok[eé]mon center/i.test(alert.title || '')?'pokemoncenter':/target/i.test(alert.title || '')?'target':/walmart/i.test(alert.title || '')?'walmart':null);
+  let searchParams;try{const u=new URL(alert.url,location.origin);if(u.origin===location.origin && /^\d{5}$/.test(u.searchParams.get('zip') || '') && u.searchParams.get('productId')){searchParams=u.searchParams;sessionStorage.setItem('inventoryZip:'+retailer,searchParams.get('zip'));}}catch{}
   if(retailer && document.querySelector('.tab[data-retailer="'+CSS.escape(retailer)+'"]'))setRetailer(retailer);
   document.getElementById('clickedNotification')?.remove();
   const card=document.createElement('section');card.id='clickedNotification';card.tabIndex=-1;
   card.style.cssText='margin:20px auto;padding:24px;max-width:900px;border:2px solid #f5cc53;border-radius:16px;background:#172033;color:white;scroll-margin-top:20px';
   const heading=document.createElement('h2');heading.textContent=alert.title || 'Notification';card.append(heading);
   const body=document.createElement('p');body.textContent=alert.body || '';card.append(body);
+  if(searchParams){
+    const result=document.createElement('div');result.textContent='Loading your saved search result…';card.append(result);
+    fetch('/api/ccn/inventory-reports?retailer='+encodeURIComponent(retailer)+'&zip='+searchParams.get('zip'),{cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.json();}).then(data=>{
+      const report=(data.reports || []).find(r=>r.productId===searchParams.get('productId'));
+      if(!report){result.textContent='This search belongs to the browser that requested it. Open the monitor on that device to see its private result.';return;}
+      result.textContent='';const detail=document.createElement('p');detail.textContent=report.source+' · '+report.detail;result.append(detail);
+      for(const store of report.locations || []){const row=document.createElement('p');row.textContent=store.name+(store.address?' · '+store.address:'')+' · On hand: '+(store.onHand ?? 'Unknown')+' · '+store.status;result.append(row);}
+      const checked=document.createElement('small');checked.textContent='Checked '+new Date(report.checkedAt).toLocaleString();result.append(checked);
+    }).catch(()=>{result.textContent='Saved result could not load. Reopen this notification to try again.';});
+  }
   if(alert.receivedAt){const time=document.createElement('p');time.textContent='Notification received '+new Date(alert.receivedAt).toLocaleString();card.append(time);}
   try{const url=new URL(alert.url,location.origin);if(['https:','http:'].includes(url.protocol) && url.href!==location.origin+'/'){const link=document.createElement('a');link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Open alert source ↗';card.append(link);}}catch{}
   const close=document.createElement('button');close.textContent='Dismiss';close.style.marginLeft='20px';close.onclick=()=>{card.remove();history.replaceState(null,'',location.pathname+location.search);};card.append(close);
@@ -5012,6 +5027,10 @@ openClickedNotification();
 window.addEventListener('hashchange',openClickedNotification);
 
 syncPhoneNotificationStatus();
+function updateInventoryPresence(){fetch('/api/inventory/presence',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({visible:document.visibilityState==='visible'}),keepalive:true}).catch(()=>{});}
+document.addEventListener('visibilitychange',updateInventoryPresence);
+window.addEventListener('pagehide',()=>{navigator.sendBeacon('/api/inventory/presence',new Blob([JSON.stringify({visible:false})],{type:'application/json'}));});
+setInterval(updateInventoryPresence,20000);
 
 load();
 

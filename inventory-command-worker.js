@@ -14,9 +14,17 @@ module.exports=function createWorker(storage){
       do{
         rerun=false;
         const pending=await storage.pendingInventory();
+        // Separate retailer lanes avoid a slow lookup blocking unrelated stores.
+        // One request per retailer per cycle preserves shared checker cooldowns.
+        const lanes=[],selectedRetailers=new Set();
         for(const request of pending){
           const key=[request.retailer,request.productId,request.zip].join(':');
           if((retryAfter.get(key)||0)>Date.now())continue;
+          if(selectedRetailers.has(request.retailer))continue;
+          selectedRetailers.add(request.retailer);lanes.push(request);if(lanes.length===3)break;
+        }
+        await Promise.all(lanes.map(async request=>{
+          const key=[request.retailer,request.productId,request.zip].join(':');
           try{
             const url=new URL(endpoint);
             if(url.protocol!=='https:')throw Error('Relay requires HTTPS');
@@ -37,7 +45,7 @@ module.exports=function createWorker(storage){
             retryAfter.set(key,Date.now()+30000);
             state.error='Provider relay failed; request remains queued for the collector.';
           }
-        }
+        }));
       }while(rerun);
     }catch{state.error='Request queue unavailable';}
     finally{state.running=false;}

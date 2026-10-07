@@ -32,7 +32,7 @@ async function save(input){
     const prior=await client.query("SELECT data FROM ccn_inventory_reports WHERE retailer=$1 AND product_id=$2 AND zip=$3",[report.retailer,report.productId,report.zip]);
     const previous=prior.rows[0]?.data;
     if(previous && Date.parse(previous.checkedAt)>=Date.parse(report.checkedAt)){
-      await client.query("COMMIT");return {report:previous,alertLocations:[]};
+      await client.query("COMMIT");await require('./inventory-completion-push').completed(previous).catch(()=>{});return {report:previous,alertLocations:[]};
     }
     const stockStates={...(previous?.stockStates || {})};
     for(const row of report.locations){
@@ -47,6 +47,7 @@ async function save(input){
     await client.query("INSERT INTO ccn_inventory_reports(retailer,product_id,zip,data) VALUES($1,$2,$3,$4) ON CONFLICT(retailer,product_id,zip) DO UPDATE SET data=EXCLUDED.data",[report.retailer,report.productId,report.zip,report]);
     await client.query("COMMIT");
   }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
+  await require('./inventory-completion-push').completed(report).catch(()=>console.warn('Private completion notification could not be queued'));
   return {report,alertLocations};
 }
 async function list(retailer,zip,viewer){

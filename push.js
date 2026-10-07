@@ -768,6 +768,12 @@ function getPushStatus() {
 ======================================== */
 
 module.exports = {
+  async sendPrivate(endpoint,payload){
+    const subscription=subscriptions.get(endpoint);
+    if(!subscription)return {ok:false,expired:true};
+    try{await sendToSubscription(subscription,payload);return {ok:true,phoneDisplayConfirmed:false};}
+    catch(error){const expired=[404,410].includes(error.statusCode);if(expired)await removeSubscription(endpoint).catch(()=>{});return {ok:false,expired};}
+  },
   initializePushDatabase,
 
   getPublicKey,
