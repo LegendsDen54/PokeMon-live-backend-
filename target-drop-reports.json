@@ -9,7 +9,8 @@
     "expectedWindow": "Watch overnight October 6–7. Community window: October 7, 2–5 a.m. Chicago; timing not confirmed by Target.",
     "expiresAt": "2026-10-07T12:00:00Z",
     "priorityStartsAt": "2026-10-07T07:00:00Z",
-    "priorityEndsAt": "2026-10-07T10:00:00Z"
+    "priorityEndsAt": "2026-10-07T10:00:00Z",
+    "keepWatching": true
   },
   {
     "name": "Pokemon TCG 30th Celebration Elite Trainer Box",
