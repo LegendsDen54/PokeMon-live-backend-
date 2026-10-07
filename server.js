@@ -2078,7 +2078,7 @@ res.set('Cache-Control','no-store').json({...catalog,reports,storageConnected,co
 });
 app.get("/api/ccn/inventory-reports", async (req,res) => {
   res.set("Cache-Control","no-store");
-  if (!["costco","sams","bestbuy","barnes"].includes(req.query.retailer) || !/^\d{5}$/.test(req.query.zip || "")) return res.status(400).json({ok:false,error:"Choose retailer and ZIP"});
+  if (!["costco","sams","bestbuy","barnes","dollargeneral"].includes(req.query.retailer) || !/^\d{5}$/.test(req.query.zip || "")) return res.status(400).json({ok:false,error:"Choose retailer and ZIP"});
   try {res.json({ok:true,reports:await ccnInventory.list(req.query.retailer,req.query.zip,inventoryViewer(req,res)),nextCheckAt:Math.floor(Date.now()/3600000)*3600000+3600000});}
   catch(error){res.status(503).json({ok:false,error:"CCN report storage unavailable"});}
 });
