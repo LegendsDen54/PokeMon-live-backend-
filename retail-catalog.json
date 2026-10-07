@@ -91,7 +91,10 @@
       "sourceUrl": "https://www.reddit.com/r/PokemonDeals/comments/1wln4lo/new_ascended_heroes_costco_sams_club_drops_are/",
       "image": "https://tcgplayer-cdn.tcgplayer.com/product/719650_200w.jpg",
       "imageSource": "https://pokefocus.com/sealed/costco-ascended-heroes-mini-tins-5-pack",
-      "imageCount": 2
+      "imageCount": 2,
+      "reportedPrice": 76.49,
+      "priceSourceUrl": "https://costcofan.com/costco-pokemon-cards/",
+      "priceVerified": false
     },
     {
       "label": "Reported current · Ascended Heroes Elite Trainer Box Bundle",
