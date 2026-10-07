@@ -2325,6 +2325,19 @@ let newestPokemonCenterSignal = null;
 let pokemonCenterToastTimer = null;
 let walmartManualScanRunning = false;
 
+async function renderCcnOnlineProducts(retailer){
+  const parent=retailer==='walmart'?walmartSection:retailer==='pokemoncenter'?document.getElementById('pokemonCenterSection'):otherRetailerCard;
+  try{
+    const key=sessionStorage.getItem('ccnReportKey');
+    const data=await fetch('/api/ccn/online-products?retailer='+retailer,{cache:'no-store',headers:key?{Authorization:'Bearer '+key}:{}}).then(r=>r.json());
+    if(!data.ok || (retailer==='target' && activeRetailer!=='target'))return;
+    let section=parent.querySelector('#ccnOnline-'+retailer);
+    if(!section){section=document.createElement('section');section.id='ccnOnline-'+retailer;section.className='store-checker';if(retailer==='target')parent.querySelector('#targetUpcomingDrops')?.append(section);else parent.append(section);}
+    if(!section.isConnected)return;
+    const cards=(data.items || []).map(item=>'<article class="retailer-product-card">'+retailerImageMarkup(item.image,item.name)+'<div><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a><small>'+esc(item.status==='reported_available'?(item.stale?'Earlier availability report · recheck at retailer':'CCN reports available · confirm at retailer'):item.status==='queue'?'CCN reports a queue':'Potential upcoming drop')+'</small><small>'+esc(item.seller)+(item.price!==null?' · USD '+Number(item.price).toFixed(2):'')+'</small><small>Reported '+esc(new Date(item.reportedAt).toLocaleString())+'</small><a href="'+esc(item.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW SOURCE ↗</a></div></article>').join('');
+    section.innerHTML='<h3>CCN product reports</h3><small>Source reports are separate from direct retailer availability. Collection runs every 10 minutes.</small><div class="retailer-product-grid">'+(cards || '<p>No qualifying product reports collected today.</p>')+'</div>';
+  }catch{}
+}
 async function renderPokemonRestocks(){
   if(pokemonRestocksCard.contains(document.activeElement) && /INPUT|BUTTON/.test(document.activeElement.tagName))return;
   const key=sessionStorage.getItem('ccnReportKey');
@@ -2348,7 +2361,7 @@ async function renderPokemonRestocks(){
 function renderPokemonCenter(state){
   const pc = state || {};
   const allEvents = Array.isArray(pc.latestEvents) ? pc.latestEvents : [];
-  const events = allEvents.filter(event => event && event.thirdParty !== true).slice(0, 8);
+  const events = allEvents.filter(event => event && (event.thirdParty !== true || event.source === "ccn")).slice(0, 8);
   const level = String(pc.level || "normal").replace(/_/g, " ").toUpperCase();
   const sensor = pc.browserSensorOnline === true ? "CONNECTED" : "PAIR CHROME SENSOR";
   const sources = Array.isArray(pc.supportHealth) ? pc.supportHealth : [];
@@ -3071,6 +3084,7 @@ async function renderPublicOnline(retailer){
         panel.querySelector('#targetOpenStatus').textContent=opened+' product tabs opened.'+(blocked?' Your browser blocked '+blocked+' tabs; use the product links below.':'')+' No cart or checkout action was performed.';
       });
     }
+    if(retailer==='target')renderCcnOnlineProducts('target');
     if(retailer!=="target") wireWarehouseChannels(retailer);
     const input=document.getElementById("retailOnlineUrl");
     input.value=saved.url;
@@ -4406,6 +4420,8 @@ async function load(){
     renderPokemonRestocks(
       statusData?.pokemonCenter
     );
+    renderCcnOnlineProducts('walmart');
+    renderCcnOnlineProducts('pokemoncenter');
     updateCostcoOnlineBadge();
 
     if(

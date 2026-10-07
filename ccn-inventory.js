@@ -54,6 +54,25 @@ async function newsStorage(){
   await storage();
   await pool.query("CREATE TABLE IF NOT EXISTS ccn_news_reports (source_url TEXT PRIMARY KEY, data JSONB NOT NULL)");
 }
+function cleanOnlineProducts(input){
+  return (Array.isArray(input.products)?input.products:[]).slice(0,40).map(item=>{
+    let url;try{url=new URL(item.url);}catch{return null;}
+    const host=url.hostname.toLowerCase();const retailer=input.retailer;
+    const allowed={target:['www.target.com','target.com'],walmart:['www.walmart.com','walmart.com'],pokemoncenter:['www.pokemoncenter.com','pokemoncenter.com']};
+    if(url.protocol!=='https:' || !allowed[retailer]?.includes(host) || !item.name)return null;
+    const name=String(item.name).slice(0,240);const seller=String(item.seller || '').slice(0,100);
+    if(retailer==='target' && (!/^target$/i.test(seller) || !/ascended heroes|prismatic|destined rivals|30th|(?:ultra|special|super)[- ]premium collection|\b(?:upc|spc)\b/i.test(name)))return null;
+    if(retailer==='walmart' && !/^(?:walmart|gt collectibles(?: and toys)?)$/i.test(seller))return null;
+    if(!/pok[eé]mon|trading card/i.test(name))return null;
+    if(retailer==='pokemoncenter' && !/tcg|trading card|booster|trainer box|premium collection|(?:ex|v|gx) box|tin|battle deck/i.test(name))return null;
+    const price=typeof item.price==='number' && Number.isFinite(item.price)&&item.price>0?item.price:null;
+    const msrp=typeof item.msrp==='number' && Number.isFinite(item.msrp)&&item.msrp>0?item.msrp:null;
+    const withinPriceRule=retailer!=='walmart' || price!==null && msrp!==null && price<=msrp*1.5;
+    let image=null;try{const im=new URL(item.image);if(im.protocol==='https:' && /(?:^|\.)(?:target\.com|scene7\.com|walmartimages\.com|pokemoncenter\.com)$/.test(im.hostname))image=im.href;}catch{}
+    url.search='';url.hash='';
+    return {name,url:url.href,image,seller,price,msrp,withinPriceRule,status:['reported_available','upcoming','reported_unavailable','queue'].includes(item.status)?item.status:'upcoming',productId:String(item.productId || '').slice(0,50)};
+  }).filter(Boolean);
+}
 async function saveNews(input){
   const timestamp=Date.parse(input.publishedAt);
   const edited=input.editedAt==null?null:Date.parse(input.editedAt);
@@ -67,9 +86,9 @@ async function saveNews(input){
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',['ccn-news:'+report.sourceUrl]);
     const previous=(await client.query('SELECT data FROM ccn_news_reports WHERE source_url=$1',[report.sourceUrl])).rows[0]?.data;
     if(previous && Date.parse(previous.updatedAt || previous.publishedAt)>effective){await client.query('COMMIT');return {...previous,isNew:false,isUpdated:false};}
-    const revision=require('crypto').createHash('sha256').update(JSON.stringify([report.retailer,report.summary])).digest('hex');
+    const revision=require('crypto').createHash('sha256').update(JSON.stringify([report.retailer,report.summary,report.products])).digest('hex');
     const seen=previous?.seenRevisions || [];
-    const changed=!previous || previous.summary!==report.summary || previous.retailer!==report.retailer;
+    const changed=!previous || previous.summary!==report.summary || previous.retailer!==report.retailer || JSON.stringify(previous.products || [])!==JSON.stringify(report.products);
     const unseen=!seen.includes(revision);
     report.seenRevisions=[...new Set([...seen,revision])].slice(-100);
     await client.query('INSERT INTO ccn_news_reports(source_url,data) VALUES($1,$2) ON CONFLICT(source_url) DO UPDATE SET data=EXCLUDED.data',[report.sourceUrl,report]);
@@ -83,3 +102,34 @@ async function news(){
   return result.rows.map(row=>row.data);
 }
 module.exports.saveNews=saveNews;module.exports.news=news;
+
+async function onlineProducts(retailer){
+  const posts=await news();const latest=new Map();
+  for(const post of posts.filter(p=>p.retailer===retailer))for(const product of post.products || []){
+    if(latest.has(product.url))continue;
+    latest.set(product.url,{...product,source:post.source,sourceUrl:post.sourceUrl,reportedAt:post.updatedAt || post.publishedAt,stale:Date.now()-Date.parse(post.updatedAt || post.publishedAt)>30*60000});
+  }
+  return [...latest.values()].filter(p=>p.withinPriceRule && p.status!=='reported_unavailable');
+}
+module.exports.onlineProducts=onlineProducts;
+
+async function onlineAlerts(report){
+  await newsStorage();
+  await pool.query('CREATE TABLE IF NOT EXISTS ccn_online_alert_states (product_key TEXT PRIMARY KEY, data JSONB NOT NULL)');
+  const client=await pool.connect();const alerts=[];
+  try{
+    await client.query('BEGIN');
+    for(const item of [...(report.products || [])].sort((a,b)=>a.url.localeCompare(b.url))){
+      const key=report.retailer+':'+item.url;
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[key]);
+      const previous=(await client.query('SELECT data FROM ccn_online_alert_states WHERE product_key=$1',[key])).rows[0]?.data;
+      const at=Date.parse(report.updatedAt || report.publishedAt);
+      if(previous && Date.parse(previous.reportedAt)>=at)continue;
+      const changed=!previous || previous.status!==item.status;
+      if(changed && item.withinPriceRule && ['reported_available','queue'].includes(item.status) && Date.now()-at<30*60000)alerts.push(item);
+      await client.query('INSERT INTO ccn_online_alert_states(product_key,data) VALUES($1,$2) ON CONFLICT(product_key) DO UPDATE SET data=EXCLUDED.data',[key,{status:item.status,reportedAt:new Date(at).toISOString()}]);
+    }
+    await client.query('COMMIT');return alerts;
+  }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
+}
+module.exports.onlineAlerts=onlineAlerts;

@@ -1956,11 +1956,20 @@ app.post("/api/ccn/news-report",async(req,res)=>{
   if (!hasValidPokemonCenterSensorToken(req)) return pokemonCenterSensorUnauthorized(res);
   try{
     const report=await ccnInventory.saveNews(req.body);let delivery=null;
-    if((report.isNew || report.isUpdated) && ['target','walmart','pokemoncenter'].includes(report.retailer) && Date.now()-Date.parse(report.updatedAt || report.publishedAt)<90*60000 && /drop|restock|preorder|pre-order|queue|raffle|draw|loaded|load.?up|live|stock/i.test(report.summary)){
+    const pcWarning=report.retailer==='pokemoncenter' && (report.isNew || report.isUpdated) && Date.now()-Date.parse(report.updatedAt || report.publishedAt)<90*60000 && /drop|restock|queue|loaded|load.?up|heads.?up|watch|warning|today|soon/i.test(report.summary);
+    if(pcWarning)await pokemonCenter.ingestSignal({type:'THIRD_PARTY_ALERT',source:'ccn',name:'CCN Pokémon Center early warning',url:report.sourceUrl,thirdParty:true,tcgRelevant:true,pokemonCenterRelated:true,publishedAt:report.updatedAt || report.publishedAt,watchToday:true,detail:'CCN source report, not retailer confirmation: '+report.summary});
+    const productAlerts=await ccnInventory.onlineAlerts(report);
+    if(productAlerts.length && !pcWarning){delivery=await push.broadcast({title:'CCN — '+({target:'Target',walmart:'Walmart',pokemoncenter:'Pokémon Center'}[report.retailer])+' stock reported',body:productAlerts.map(p=>p.name).join('; ').slice(0,180),url:productAlerts[0].url,tag:'ccn-product-'+report.retailer+'-'+productAlerts[0].productId}).catch(()=>({ok:false,error:'Push send failed'}));}
+    if(!pcWarning && !(report.products || []).length && (report.isNew || report.isUpdated) && ['target','walmart','pokemoncenter'].includes(report.retailer) && Date.now()-Date.parse(report.updatedAt || report.publishedAt)<90*60000 && /drop|restock|preorder|pre-order|queue|raffle|draw|loaded|load.?up|live|stock/i.test(report.summary)){
       delivery=await push.broadcast({title:'CCN — '+({target:'Target',walmart:'Walmart',pokemoncenter:'Pokémon Center'}[report.retailer])+' reported update',body:report.summary.slice(0,180),url:report.sourceUrl,tag:'ccn-news-'+report.sourceUrl.split('/').pop()}).catch(()=>({ok:false,error:'Push send failed'}));
     }
     res.json({ok:true,report,push:delivery});
   }catch(error){res.status(400).json({ok:false,error:error.message});}
+});
+app.get('/api/ccn/online-products',async(req,res)=>{
+  if(!hasCcnViewerAccess(req))return pokemonCenterSensorUnauthorized(res);
+  if(!['target','walmart','pokemoncenter'].includes(req.query.retailer))return res.status(400).json({ok:false,error:'Choose retailer'});
+  try{res.json({ok:true,items:await ccnInventory.onlineProducts(req.query.retailer)});}catch(error){res.status(503).json({ok:false,error:'Source reports unavailable'});}
 });
 app.get("/api/ccn/news",async(req,res)=>{
   if (!pokemonCenterSensorToken) return pokemonCenterSensorUnavailable(res);
