@@ -9,7 +9,14 @@
     const walk=v=>{if(Array.isArray(v)) return v.forEach(walk);if(!v || typeof v!=="object")return;if([].concat(v["@type"] || []).includes("Product"))nodes.push(v);if(v["@graph"])walk(v["@graph"]);};
     document.querySelectorAll('script[type="application/ld+json"]').forEach(el=>{try{walk(JSON.parse(el.textContent));}catch{}});
     const product=nodes.find(p=>/pok[eé]mon/i.test(p.name || ""));
-    if(!product) return;
+    if(!product){
+      const title=document.querySelector('#pdp-product-title-id')?.textContent?.trim();if(!title || !/pok[eé]mon/i.test(title))return;
+      const area=document.querySelector('[class*="AboveTheFold"]');const visible=area?.innerText || '';const seller=/sold (?:and|&) shipped by target/i.test(visible)?'Target':'';
+      const button=area?.querySelector('button[data-test="orderPickupButton"],button[data-test="shippingButton"]');
+      const availability=seller && button && !button.disabled && /add to cart|preorder/i.test(button.innerText)?(/preorder/i.test(button.innerText)?'preorder':'available'):'unknown';
+      const priceText=area?.querySelector('[data-test="product-price"]')?.textContent || '';const match=priceText.match(/\$(\d+(?:\.\d{2})?)/);
+      chrome.runtime.sendMessage({kind:'targetObservation',payload:{url:location.href,title,seller,availability,price:match?Number(match[1]):null,image:document.querySelector('#PdpImageGallerySection img')?.currentSrc,itemNumber:location.pathname.match(/A-(\d+)/)?.[1]}}).catch(()=>{});return;
+    }
     const offer=[].concat(product.offers || []).find(o=>/^target$/i.test(o?.seller?.name || ""));
     if(!offer)return;
     const status=String(offer.availability || "").split("/").pop();

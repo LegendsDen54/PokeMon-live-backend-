@@ -237,10 +237,11 @@ async function start() {
   tick(); const timer=setInterval(tick,60000);timer.unref();
 }
 async function browserObservation(input){
- const safe=productUrl('target',input.url);if(!safe || !isTcg(input.title) || !/^target$/i.test(input.seller || ''))throw new Error('Verified Target card product required');
+ const safe=productUrl('target',input.url);if(!safe || !isTcg(input.title))throw new Error('Verified Target card product required');
  const status=({available:'instock',unavailable:'out',preorder:'preorder',unknown:'unknown'})[input.availability];if(!status)throw new Error('Invalid availability');
+ const verified=/^target$/i.test(input.seller || '');if(status!=="unknown" && !verified)throw new Error('Target seller not verified');
  const price=input.price!=null && Number.isFinite(Number(input.price)) && Number(input.price)>=0?Number(input.price):null;
- const item=await acceptObservation('target',safe,{retailer:'target',channel:'online',name:String(input.title).slice(0,240),url:safe,productId:new URL(safe).pathname.match(/A-(\d+)/)?.[1],sku:String(input.itemNumber || '').slice(0,40),status,rawStatus:status,image:String(input.image || '').startsWith('https://')?String(input.image).slice(0,1000):null,price,quantity:null,seller:'Target',sellerVerified:true,source:'browser_product_page',observedAt:new Date().toISOString()});
+ const item=await acceptObservation('target',safe,{retailer:'target',channel:'online',name:String(input.title).slice(0,240),url:safe,productId:new URL(safe).pathname.match(/A-(\d+)/)?.[1],sku:String(input.itemNumber || '').slice(0,40),status,rawStatus:status,image:String(input.image || '').startsWith('https://')?String(input.image).slice(0,1000):null,price,quantity:null,seller:verified?'Target':null,sellerVerified:verified,source:'browser_product_page',observedAt:new Date().toISOString()});
  getState('target').lastBrowserObservationAt=item.observedAt;return item;
 }
 module.exports={start,snapshot,check,isTcg,parseProduct,productUrl,targetPriority,browserObservation};
