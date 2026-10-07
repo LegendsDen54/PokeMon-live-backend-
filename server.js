@@ -2017,6 +2017,7 @@ function inventoryViewer(req,res,create=false){
 }
 app.post('/api/inventory/check',async(req,res)=>{
   const retailer=String(req.body.retailer || ''),productId=String(req.body.productId || '').trim(),zip=String(req.body.zip || '').trim();
+  if(retailer==='barnes' && !/^\d{13}$/.test(productId))return res.status(400).json({ok:false,error:'Enter the exact 13-digit Barnes & Noble EAN'});
   if(retailer==='dollargeneral' && !require('./dollar-general.json').products.some(p=>p.upc===productId))return res.status(400).json({ok:false,error:'Choose a verified Dollar General product'});
   try{const result=await ccnInventory.requestInventory(retailer,productId,zip,inventoryViewer(req,res,true));if(retailer==='dollargeneral' && result.status==='queued')if(result.status==='queued')await ccnInventory.requestDg(productId,zip);res.json({ok:true,...result,processingMode:'authorized_collector',message:result.status==='cooldown'?'The checker requires a cooldown.':result.deduplicated?'This lookup is already waiting for the checker.':'Request queued for the authorized collector. Saved results remain visible until a fresh response is imported.'});}catch(error){res.status(/Choose a retailer/.test(error.message)?400:503).json({ok:false,error:/Choose a retailer/.test(error.message)?error.message:'Request storage unavailable. Your saved results are unchanged.'});}
 });
@@ -2051,7 +2052,7 @@ res.set('Cache-Control','no-store').json({...catalog,reports,storageConnected,co
 });
 app.get("/api/ccn/inventory-reports", async (req,res) => {
   res.set("Cache-Control","no-store");
-  if (!["costco","sams","bestbuy"].includes(req.query.retailer) || !/^\d{5}$/.test(req.query.zip || "")) return res.status(400).json({ok:false,error:"Choose retailer and ZIP"});
+  if (!["costco","sams","bestbuy","barnes"].includes(req.query.retailer) || !/^\d{5}$/.test(req.query.zip || "")) return res.status(400).json({ok:false,error:"Choose retailer and ZIP"});
   try {res.json({ok:true,reports:await ccnInventory.list(req.query.retailer,req.query.zip,inventoryViewer(req,res)),nextCheckAt:Math.floor(Date.now()/3600000)*3600000+3600000});}
   catch(error){res.status(503).json({ok:false,error:"CCN report storage unavailable"});}
 });

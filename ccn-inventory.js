@@ -8,7 +8,7 @@ async function storage(){
   await ready;
 }
 function clean(input){
-  if(!["costco","sams","bestbuy","dollargeneral"].includes(input.retailer) || !/^\d{5}$/.test(input.zip || "") || !/^[a-zA-Z0-9-]{1,40}$/.test(input.productId || "")) throw new Error("Invalid retailer, product identifier or ZIP");
+  if(!["costco","sams","bestbuy","dollargeneral","barnes"].includes(input.retailer) || !/^\d{5}$/.test(input.zip || "") || !/^[a-zA-Z0-9-]{1,40}$/.test(input.productId || "")) throw new Error("Invalid retailer, product identifier or ZIP");
   if(!input.name || !/^https:\/\/discord\.com\/channels\//.test(input.sourceUrl || "")) throw new Error("Product name and CCN message or channel link are required");
   const checked=Date.parse(input.checkedAt);
   if(!Number.isFinite(checked) || checked>Date.now()+60000 || Date.now()-checked>6*3600000) throw new Error("Report must have a recent actual check time");
@@ -16,7 +16,7 @@ function clean(input){
   const quantity=value=>value==null?null:Number.isInteger(value)&&value>=0?value:null;
   const locations=(input.locations || []).slice(0,100).map(row=>({name:String(row.name || "").slice(0,150),address:String(row.address || "").slice(0,250),onOrder:quantity(row.onOrder),inTransit:quantity(row.inTransit),onHand:quantity(row.onHand),distanceMiles:Number.isFinite(row.distanceMiles)&&row.distanceMiles>=0?row.distanceMiles:null,status:String(row.status || "Not published").slice(0,100)}));
   let image=null;
-  try{const u=new URL(input.image);if(u.protocol==="https:" && /(?:^|\.)(?:costco\.com|samsclub\.com|scene7\.com|bbystatic\.com|bestbuy\.com|wal\.co)$/.test(u.hostname))image=u.href;}catch{}
+  try{const u=new URL(input.image);if(u.protocol==="https:" && /(?:^|\.)(?:costco\.com|samsclub\.com|scene7\.com|bbystatic\.com|bestbuy\.com|barnesandnoble\.com|bn\.com|wal\.co)$/.test(u.hostname))image=u.href;}catch{}
   return {retailer:input.retailer,productId:input.productId,zip:input.zip,name:String(input.name).slice(0,240),image,source:input.sourceUrl.startsWith("https://discord.com/channels/1367457689386356766/") ? "Rippin Packz stock checker" : "CCN / Zephyr stock checker",sourceUrl:input.sourceUrl,checkedAt:new Date(checked).toISOString(),result:input.result,detail:String(input.detail || "").slice(0,400),locations:input.result==="results"?locations:[]};
 }
 async function save(input){
@@ -165,7 +165,7 @@ async function checkerStorage(){
   await pool.query("CREATE TABLE IF NOT EXISTS inventory_checker_cooldowns (retailer TEXT PRIMARY KEY, available_at TIMESTAMPTZ NOT NULL, source_url TEXT NOT NULL)");
 }
 function checkerInput(retailer,productId,zip){
-  if(!['bestbuy','costco','sams','dollargeneral'].includes(retailer)||!/^\d{5}$/.test(zip)||!/^[A-Za-z0-9-]{1,40}$/.test(productId))throw Error('Choose a retailer, valid product identifier and five-digit ZIP');
+  if(!['bestbuy','costco','sams','dollargeneral','barnes'].includes(retailer)||!/^\d{5}$/.test(zip)||!/^[A-Za-z0-9-]{1,40}$/.test(productId))throw Error('Choose a retailer, valid product identifier and five-digit ZIP');
 }
 module.exports.requestInventory=async(retailer,productId,zip,viewer)=>{
   checkerInput(retailer,productId,zip);await checkerStorage();
