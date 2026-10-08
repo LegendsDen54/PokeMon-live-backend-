@@ -267,7 +267,7 @@ module.exports.cancelPendingInventory=async(requests)=>{
  for(const request of requests){
   checkerInput(request.retailer,request.productId,request.zip);
   if(!Number.isFinite(Date.parse(request.requestedAt)))throw Error('Original request time required');
-  const result=await pool.query("UPDATE inventory_check_requests q SET cancelled_at=now() WHERE retailer=$1 AND product_id=$2 AND zip=$3 AND requested_at=$4 AND cancelled_at IS NULL AND NOT EXISTS (SELECT 1 FROM ccn_inventory_reports r WHERE r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip AND (r.data->>'checkedAt')::timestamptz>=q.requested_at)",[request.retailer,request.productId,request.zip,request.requestedAt]);
+  const result=await pool.query("UPDATE inventory_check_requests q SET cancelled_at=now() WHERE retailer=$1 AND product_id=$2 AND zip=$3 AND date_trunc('milliseconds',requested_at)=$4::timestamptz AND cancelled_at IS NULL AND NOT EXISTS (SELECT 1 FROM ccn_inventory_reports r WHERE r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip AND (r.data->>'checkedAt')::timestamptz>=q.requested_at)",[request.retailer,request.productId,request.zip,request.requestedAt]);
   cleared+=result.rowCount;
  }
  return {cleared};
