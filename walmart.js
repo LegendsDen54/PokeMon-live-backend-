@@ -3080,6 +3080,19 @@ async function discoverProduct(
       search.results
     );
 
+  // A successful search response can still omit a known item.
+  // Use the existing backup provider before reporting no match.
+  if (!match && product?.walmartItemId && HASDATA_API_KEY) {
+    try {
+      const backupResults = await hasDataSearch(keyword);
+      updateDiscoveryState(backupResults);
+      const backupMatch = chooseBestMatch(product, backupResults);
+      if (backupMatch) return makeResult(product, backupMatch, 'hasdata-walmart-backup');
+    } catch (error) {
+      return emptyResult(product, 'walmart-provider-error', error.message);
+    }
+  }
+
   if (!match) {
     return emptyResult(
       product,
@@ -3362,11 +3375,24 @@ async function checkProductsBatch(
     for (
       const product of group
     ) {
-      const match =
+      let match =
         chooseBestMatch(
           product,
           results
         );
+
+      let matchedSource = 'axesso-walmart-search';
+      if (!match && product?.walmartItemId && HASDATA_API_KEY) {
+        try {
+          const backupResults = await hasDataSearch(product.searchTerm || product.name);
+          allResults.push(...backupResults);
+          match = chooseBestMatch(product, backupResults);
+          matchedSource = 'hasdata-walmart-backup';
+        } catch (error) {
+          output.push(emptyResult(product, 'walmart-provider-error', error.message));
+          continue;
+        }
+      }
 
       if (!match) {
         output.push(
@@ -3384,7 +3410,7 @@ async function checkProductsBatch(
         makeResult(
           product,
           match,
-          "axesso-walmart-search"
+          matchedSource
         )
       );
     }
