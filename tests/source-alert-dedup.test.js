@@ -8,6 +8,7 @@ const base={game:'pokemon',retailer:'walmart',sourceUrl:'https://discord.com/cha
 const repost={...base,sourceUrl:'https://discord.com/channels/1182136115981996033/1219394012406878238/1557583309662457931',summary:'Prismatic Evolutions & 30th Celebration Walmart Drawing Results Going Out Now! Check your email.'};
 assert.equal(identity(base).event,identity(repost).event);
 assert.notEqual(identity(base).event,identity({...base,summary:'Walmart drawings open now!'}).event);
+assert.notEqual(identity(base).event,identity({...base,summary:'Walmart drawings tomorrow. If selected, your order will be placed automatically. Results expected soon.'}).event);
 assert.notEqual(identity(base).event,identity({...base,retailer:'target'}).event);
 assert.notEqual(identity(base).event,identity({...base,game:'onepiece'}).event);
 assert.equal(identity(base).revision,identity({...base,summary:'A differently worded summary'}).revision);

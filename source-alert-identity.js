@@ -15,7 +15,7 @@ function identity(report){
   // Drawing outcomes are one event even when another source names the winning sets.
   // Opening, closing, queues and new inventory use different identities.
   const drawingResults=report.retailer==='walmart' && /draw(?:ing)?s?/.test(text) &&
-    /(?:orders?|results?|confirmations?).{0,45}(?:rolling|going|coming|sending|sent|processing|placed)|(?:rolling|going|sending).{0,30}(?:orders?|results?|confirmations?)/.test(text);
+    /(?:orders?|results?|confirmations?)(?: are| is)? (?:rolling|going|coming) out|(?:orders?|results?|confirmations?)(?: are| is)? (?:being sent|now sending)|(?:rolling|sending) out (?:orders?|results?|confirmations?)/.test(text);
   const event=drawingResults?scope+':drawing-results:'+day:scope+':content:'+hash(text);
   const revision=scope+':source:'+report.sourceUrl+':'+at;
   return {revision,event,id:hash(event+'|'+revision),at};
