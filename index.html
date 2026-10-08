@@ -2446,18 +2446,21 @@ async function renderCcnOnlineProducts(retailer){
     let section=parent.querySelector('#ccnOnline-'+retailer);
     if(!section){section=document.createElement('section');section.id='ccnOnline-'+retailer;section.className='store-checker';if(retailer==='target')parent.querySelector('#targetUpcomingDrops')?.append(section);else parent.append(section);}
     if(!section.isConnected)return;
+    const drawings=retailer==='walmart'?await fetch('/api/walmart/raffles',{cache:'no-store'}).then(r=>r.json()).catch(()=>({items:[]})):{items:[]};
+    const scheduledDrawings=new Map((drawings.items || []).filter(isConfirmedScheduledDrawing).map(item=>[String(item.walmartItemId || '').replace(/^walmart-raffle-/,''),item]));
     const cards=(data.items || []).map(item=>{
       const source=item.source || 'Trusted source';
       const live=item.status==='reported_available' && !item.stale;
-      const state=live?source+' reports live · confirm at retailer':item.status==='reported_available'?'Earlier availability report · recheck at retailer':item.status==='queue'?source+' reports a queue':item.dropClassification==='known'?'Scheduled drop · availability unconfirmed':'Potential drop · availability unconfirmed';
+      const scheduled=scheduledDrawings.get(String(item.productId || ''));
+      const state=scheduled?'Confirmed scheduled drop · Walmart drawing':live?source+' reports live · confirm at retailer':item.status==='reported_available'?'Earlier availability report · recheck at retailer':item.status==='queue'?source+' reports a queue':item.dropClassification==='known'?'Scheduled drop · availability unconfirmed':'Potential drop · availability unconfirmed';
       const pending=!item.withinPriceRule?'<small>Seller / price verification pending</small>':'';
       const action={walmart:'OPEN WALMART',target:'OPEN TARGET',sams:"OPEN SAM’S CLUB",costco:'OPEN COSTCO',pokemoncenter:'OPEN POKÉMON CENTER'}[retailer];
-      return '<article class="retailer-product-card">'+retailerImageMarkup(item.image,item.name)+'<div><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a><small>'+esc(state)+'</small>'+(item.imageLabel?'<small>'+esc(item.imageLabel)+'</small>':'')+pending+(item.expectedWindow?'<small>'+esc(item.expectedWindow)+'</small>':'')+'<small>'+esc(item.seller || 'Seller unverified')+(item.price!==null?' · USD '+Number(item.price).toFixed(2):' · Price unverified')+'</small><small>Announced '+esc(new Date(item.reportedAt).toLocaleString())+'</small><a class="retailer-link" href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(action)+' ↗</a><a href="'+esc(item.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW SOURCE ↗</a></div></article>';
+      const actionUrl=scheduled?'https://www.walmart.com/shop/collectibles/draw':item.url;
+      return '<article class="retailer-product-card">'+retailerImageMarkup(item.image || scheduled?.image,item.name)+'<div><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a><small>'+esc(state)+'</small>'+(scheduled?'<small>'+esc(raffleScheduleLabel(scheduled))+' · Entry not open yet</small>':'')+(item.imageLabel?'<small>'+esc(item.imageLabel)+'</small>':'')+pending+(item.expectedWindow?'<small>'+esc(item.expectedWindow)+'</small>':'')+'<small>'+esc(item.seller || 'Seller unverified')+(item.price!==null?' · USD '+Number(item.price).toFixed(2):' · Price unverified')+'</small><small>Announced '+esc(new Date(item.reportedAt).toLocaleString())+'</small><a class="retailer-link" href="'+esc(actionUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(scheduled?'OPEN WALMART DRAWINGS':action)+' ↗</a><a href="'+esc(item.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW SOURCE ↗</a></div></article>';
     }).join('');
     if(retailer==='pokemoncenter'){section.hidden=!cards;section.innerHTML=cards?'<div class="retailer-product-grid">'+cards+'</div>':'';return;}
     section.innerHTML='<h3>'+(retailer==='walmart'?'Legends Den Watchlist':"Today’s Potential Drops / Watchlist")+'</h3><div class="retailer-product-grid">'+(cards || '<p>No qualifying new product announcements today.</p>')+'</div>';
     if(retailer==='walmart'){
-      const drawings=await fetch('/api/walmart/raffles',{cache:'no-store'}).then(r=>r.json());
       const pages=(drawings.items || []).filter(p=>/30th.*celebration|celebration.*30th/i.test(p.name) && /elite trainer|booster bundle/i.test(p.name));
       if(pages.length && section.isConnected){const links=document.createElement('div');links.className='retailer-product-grid';links.innerHTML='<h4>30th Celebration product pages</h4>'+pages.map(p=>'<article class="retailer-product-card">'+retailerImageMarkup(p.image,p.name)+'<div><a href="https://www.walmart.com/ip/'+esc(p.walmartItemId)+'" target="_blank" rel="noopener noreferrer">'+esc(p.name)+'</a><small>Verified Walmart listing · availability unconfirmed. Drawing entries use the Weekly Raffle Items page.</small></div></article>').join('');section.append(links);}
     }
@@ -4215,6 +4218,14 @@ function isRaffleItem(item){
 }
 
 
+function isConfirmedScheduledDrawing(item){
+  const startsAt=Date.parse(item?.startsAt);
+  const officialSource=item?.source==='walmart-public-draw-page' ||
+    [item?.sourceUrl,item?.scheduleSourceUrl].some(url=>String(url || '').split('?')[0]==='https://www.walmart.com/shop/collectibles/draw');
+  return officialSource && Number.isFinite(startsAt) && startsAt>Date.now() &&
+    !/closed|ended|completed|cancel/i.test(String(item?.raffleStatus || item?.status || ''));
+}
+
 function raffleScheduleLabel(item){
 
   if(
@@ -4336,7 +4347,7 @@ function buildRaffleCard(
             ${
               esc(
                 (
-                  item.dropType ||
+                  isConfirmedScheduledDrawing(item)?'CONFIRMED SCHEDULED DROP':item.dropType ||
                   item.status ||
                   "RAFFLE"
                 ).toUpperCase()
