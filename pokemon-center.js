@@ -2010,13 +2010,6 @@ async function sendPushForEvent(
     );
 
 
-  // Quiet evening display: keep all detection, alerts and event history intact.
-  // Never hide an actual recent signal, active queue or confirmed live state.
-  const localHour = zonedParts().hour;
-  const quietEvening = localHour > PEAK_END_HOUR && recent.length === 0;
-  const displayScore = quietEvening ? 0 : score;
-  const displayLevel = quietEvening ? "normal" : level;
-
   const predicted =
     bestProductFromRecentEvents();
 
@@ -3594,6 +3587,10 @@ function refreshState(
   const predicted =
     bestProductFromRecentEvents();
 
+
+  const quietEvening = zonedParts().hour > PEAK_END_HOUR && recent.length === 0;
+  const displayScore = quietEvening ? 0 : score;
+  const displayLevel = quietEvening ? "normal" : level;
 
   state = {
 
