@@ -2508,7 +2508,7 @@ async function renderCcnOnlineProducts(retailer){
       const reportedBuyable=live&&verifiedSeller&&(ownerVerifiedLive||(item.withinPriceRule&&isWithinPriceRule(item)));
       const purchasable=retailer==='walmart'?(item.scannerLive?qualifiesForBuyNow(item):reportedBuyable):onlinePurchaseAvailable(item,retailer);
       const scheduled=purchasable?null:scheduledDrawings.get(String(item.productId || ''));
-      const state=purchasable?(item.scannerLive?'LIVE NOW · Available to buy':ownerVerifiedLive?'LIVE NOW · Owner verified checkout available':source+' reports live · confirm at retailer'):scheduled?'Confirmed scheduled drop · Walmart drawing':live?source+' reports live · confirm at retailer':item.status==='reported_available'?'Earlier availability report · recheck at retailer':item.status==='queue'?source+' reports a queue':item.dropClassification==='known'?'Scheduled drop · availability unconfirmed':'Potential drop · availability unconfirmed';
+      const state=purchasable?(item.scannerLive?'LIVE NOW · Available to buy':ownerVerifiedLive?(item.ownerVerifiedAvailability==='add_to_cart'?'LIVE NOW · Add to cart available':'LIVE NOW · Owner verified checkout available'):source+' reports live · confirm at retailer'):scheduled?'Confirmed scheduled drop · Walmart drawing':live?source+' reports live · confirm at retailer':item.status==='reported_available'?'Earlier availability report · recheck at retailer':item.status==='queue'?source+' reports a queue':item.dropClassification==='known'?'Scheduled drop · availability unconfirmed':'Potential drop · availability unconfirmed';
       const pending=!purchasable&&!item.withinPriceRule?'<small>Seller / price verification pending</small>':'';
       const action={walmart:'OPEN WALMART',target:'OPEN TARGET',sams:"OPEN SAM’S CLUB",costco:'OPEN COSTCO',pokemoncenter:'OPEN POKÉMON CENTER'}[retailer];
       const actionUrl=scheduled?'https://www.walmart.com/shop/collectibles/draw':item.url;
@@ -3119,6 +3119,7 @@ async function renderCcnInventory(retailer){
       watch.innerHTML='<h3>Products being watched</h3><div class="ccn-product-grid warehouse-watch-grid">'+tiles+'</div>'+(upcomingTiles?'<h3>Upcoming in-store drops</h3><div class="ccn-product-grid warehouse-watch-grid">'+upcomingTiles+'</div>':'');
     }catch(error){watch.textContent='Product watch list unavailable. Please try again.';}
   }
+  if(retailer==='costco'){reportBody.remove();return;}
   if(!/^\d{5}$/.test(zip))reportBody.hidden=true;
   let lastReportsFingerprint="";
   async function refreshReports(){const zip=savedInventoryChoice('inventoryZip:'+retailer) || savedInventoryChoice('inventoryLastResultZip:'+retailer) || linkedZip;if(!/^\d{5}$/.test(zip))return;try{

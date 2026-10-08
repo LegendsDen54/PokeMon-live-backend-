@@ -11,6 +11,7 @@ module.exports = function applyOwnerOfferVerification(items) {
     const msrp = Number(item.msrp);
     if (msrp > 0 && Number(item.price) > msrp * 1.5) return item;
     return {...item, stale:false, ownerVerifiedOffer:true,
-      ownerVerifiedAt:confirmation.confirmedAt};
+      ownerVerifiedAt:approved.confirmedAt || confirmation.confirmedAt,
+      ownerVerifiedAvailability:approved.availability || null};
   });
 };

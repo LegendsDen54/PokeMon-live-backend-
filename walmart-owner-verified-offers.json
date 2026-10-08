@@ -5,6 +5,7 @@
     { "productId": "19380764160", "seller": "GT Collectibles and Toys", "price": 36.99 },
     { "productId": "19952559023", "seller": "GT Collectibles and Toys", "price": 24.99 },
     { "productId": "20140716298", "seller": "GT Collectibles and Toys", "price": 164.99 },
-    { "productId": "19376602103", "seller": "GT Collectibles and Toys", "price": 164.99 }
+    { "productId": "19376602103", "seller": "GT Collectibles and Toys", "price": 164.99 },
+    { "productId": "20243261734", "seller": "GT Collectibles and Toys", "price": 36.99, "confirmedAt": "2026-10-08T07:09:52.664Z", "availability": "add_to_cart", "basis": "Owner confirmed this live offer is within their price parameters; normal Walmart UI independently showed $36.99, GT Collectibles and Toys, and Add to cart. No checkout submission or inferred MSRP." }
   ]
 }
