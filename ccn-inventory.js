@@ -186,8 +186,9 @@ async function onlineProducts(retailer){
   const posts=rows.rows.map(row=>row.data);const latest=new Map();
   for(const post of posts)for(const product of post.products || []){
     if(retailer==='onepiece'?(post.game!=='onepiece' && product.game!=='onepiece'):(post.game==='onepiece' || product.game==='onepiece'))continue;
-    if(latest.has(product.url))continue;
-    latest.set(product.url,{...product,...(product.productId==='20964873413' && post.retailer==='walmart'?{image:'https://pokemon-live-backend.onrender.com/delta-reign-illustration.png',imageLabel:'Custom illustration · official product art unavailable'}:{}),source:post.source,sourceUrl:post.sourceUrl,reportedAt:post.updatedAt || post.publishedAt,stale:Date.now()-Date.parse(post.updatedAt || post.publishedAt)>30*60000});
+    const productKey=retailer==='walmart'?String(product.productId || product.url):product.url;
+    if(latest.has(productKey))continue;
+    latest.set(productKey,{...product,...(product.productId==='20964873413' && post.retailer==='walmart'?{image:'https://pokemon-live-backend.onrender.com/delta-reign-illustration.png',imageLabel:'Custom illustration · official product art unavailable'}:{}),source:post.source,sourceUrl:post.sourceUrl,reportedAt:post.updatedAt || post.publishedAt,stale:Date.now()-Date.parse(post.updatedAt || post.publishedAt)>30*60000});
   }
   const chicagoDay=value=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
   const today=chicagoDay(Date.now());

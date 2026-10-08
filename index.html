@@ -2462,7 +2462,7 @@ async function renderCcnOnlineProducts(retailer){
       const source=item.source || 'Trusted source';
       const live=item.status==='reported_available' && !item.stale;
       const verifiedSeller=Boolean(String(item.seller||'').trim())&&!/^(unknown|marketplace seller)$/i.test(String(item.seller||'').trim());
-      const ownerVerifiedLive=item.ownerVerifiedOffer===true&&Date.now()<Date.parse(item.ownerVerificationExpiresAt);
+      const ownerVerifiedLive=item.ownerVerifiedOffer===true;
       const reportedBuyable=live&&verifiedSeller&&(ownerVerifiedLive||(item.withinPriceRule&&isWithinPriceRule(item)));
       const purchasable=retailer==='walmart'&&(item.scannerLive?qualifiesForBuyNow(item):reportedBuyable);
       const scheduled=purchasable?null:scheduledDrawings.get(String(item.productId || ''));

@@ -3,7 +3,6 @@ const confirmation = require('./walmart-owner-verified-offers.json');
 // An explicit owner verification applies only to the exact reported offer.
 // Preserve unknown MSRP and never extend this to new sellers or prices.
 module.exports = function applyOwnerOfferVerification(items) {
-  if (Date.now() >= Date.parse(confirmation.expiresAt)) return items;
   return items.map(item => {
     const approved = confirmation.offers.find(offer =>
       offer.productId === String(item.productId) &&
@@ -12,7 +11,6 @@ module.exports = function applyOwnerOfferVerification(items) {
     const msrp = Number(item.msrp);
     if (msrp > 0 && Number(item.price) > msrp * 1.5) return item;
     return {...item, stale:false, ownerVerifiedOffer:true,
-      ownerVerifiedAt:confirmation.confirmedAt,
-      ownerVerificationExpiresAt:confirmation.expiresAt};
+      ownerVerifiedAt:confirmation.confirmedAt};
   });
 };
