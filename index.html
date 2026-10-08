@@ -877,6 +877,9 @@ a{
   color:var(--text);
 }
 
+.watchlist-product-photo{width:76px;min-width:0;}
+.retailer-product-card .watchlist-buy-button{display:block;box-sizing:border-box;width:100%;margin-top:6px;padding:6px 3px;border-radius:6px;background:#b8f36e;color:#102008;font-size:9px;font-weight:800;line-height:1.25;text-align:center;text-decoration:none;}
+
 .ccn-product-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px;margin-top:16px;}
 .ccn-product-tile{min-width:0;padding:16px;background:#06111f;border:1px solid #26475f;border-radius:14px;text-align:left;}
 .ccn-product-tile .retailer-product-image-frame,.ccn-product-tile .retailer-product-image-placeholder{width:100%;height:180px;}
@@ -2448,15 +2451,26 @@ async function renderCcnOnlineProducts(retailer){
     if(!section.isConnected)return;
     const drawings=retailer==='walmart'?await fetch('/api/walmart/raffles',{cache:'no-store'}).then(r=>r.json()).catch(()=>({items:[]})):{items:[]};
     const scheduledDrawings=new Map((drawings.items || []).filter(isConfirmedScheduledDrawing).map(item=>[String(item.walmartItemId || '').replace(/^walmart-raffle-/,''),item]));
-    const cards=(data.items || []).map(item=>{
+    const watchItems=new Map();
+    for(const item of (data.items || []))watchItems.set(retailer==='walmart'?walmartProductKey(item):item.productId||item.url,item);
+    if(retailer==='walmart')for(const product of currentLiveProducts){
+      const id=walmartProductKey(product);
+      const original=watchItems.get(id);
+      watchItems.set(id,{...original,...product,source:original?.source,sourceUrl:original?.sourceUrl,reportedAt:original?.reportedAt,scannerLive:true});
+    }
+    const cards=Array.from(watchItems.values()).map(item=>{
       const source=item.source || 'Trusted source';
       const live=item.status==='reported_available' && !item.stale;
-      const scheduled=scheduledDrawings.get(String(item.productId || ''));
-      const state=scheduled?'Confirmed scheduled drop · Walmart drawing':live?source+' reports live · confirm at retailer':item.status==='reported_available'?'Earlier availability report · recheck at retailer':item.status==='queue'?source+' reports a queue':item.dropClassification==='known'?'Scheduled drop · availability unconfirmed':'Potential drop · availability unconfirmed';
-      const pending=!item.withinPriceRule?'<small>Seller / price verification pending</small>':'';
+      const purchasable=retailer==='walmart'&&item.scannerLive&&qualifiesForBuyNow(item);
+      const scheduled=purchasable?null:scheduledDrawings.get(String(item.productId || ''));
+      const state=purchasable?'LIVE NOW · Available to buy':scheduled?'Confirmed scheduled drop · Walmart drawing':live?source+' reports live · confirm at retailer':item.status==='reported_available'?'Earlier availability report · recheck at retailer':item.status==='queue'?source+' reports a queue':item.dropClassification==='known'?'Scheduled drop · availability unconfirmed':'Potential drop · availability unconfirmed';
+      const pending=!purchasable&&!item.withinPriceRule?'<small>Seller / price verification pending</small>':'';
       const action={walmart:'OPEN WALMART',target:'OPEN TARGET',sams:"OPEN SAM’S CLUB",costco:'OPEN COSTCO',pokemoncenter:'OPEN POKÉMON CENTER'}[retailer];
       const actionUrl=scheduled?'https://www.walmart.com/shop/collectibles/draw':item.url;
-      return '<article class="retailer-product-card">'+retailerImageMarkup(item.image || scheduled?.image,item.name)+'<div><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a><small>'+esc(state)+'</small>'+(scheduled?'<small>'+esc(raffleScheduleLabel(scheduled))+' · Entry not open yet</small>':'')+(item.imageLabel?'<small>'+esc(item.imageLabel)+'</small>':'')+pending+(item.expectedWindow?'<small>'+esc(item.expectedWindow)+'</small>':'')+'<small>'+esc(item.seller || 'Seller unverified')+(item.price!==null?' · USD '+Number(item.price).toFixed(2):' · Price unverified')+'</small><small>Announced '+esc(new Date(item.reportedAt).toLocaleString())+'</small><a class="retailer-link" href="'+esc(actionUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(scheduled?'OPEN WALMART DRAWINGS':action)+' ↗</a><a href="'+esc(item.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW SOURCE ↗</a></div></article>';
+      const photo=retailerImageMarkup(item.image || scheduled?.image,item.name);
+      const photoAction=purchasable?'<div class="watchlist-product-photo">'+photo+'<a class="watchlist-buy-button" href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">LIVE NOW<br>BUY NOW ↗</a></div>':photo;
+      const reportTime=item.reportedAt?'<small>Announced '+esc(new Date(item.reportedAt).toLocaleString())+'</small>':item.checkedAt?'<small>Found '+esc(new Date(item.checkedAt).toLocaleString())+'</small>':'';
+      return '<article class="retailer-product-card">'+photoAction+'<div><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a><small>'+esc(state)+'</small>'+(scheduled?'<small>'+esc(raffleScheduleLabel(scheduled))+' · Entry not open yet</small>':'')+(item.imageLabel?'<small>'+esc(item.imageLabel)+'</small>':'')+pending+(item.expectedWindow?'<small>'+esc(item.expectedWindow)+'</small>':'')+'<small>'+esc(item.seller || 'Seller unverified')+(item.price!=null?' · USD '+Number(item.price).toFixed(2):' · Price unverified')+'</small>'+reportTime+(!purchasable?'<a class="retailer-link" href="'+esc(actionUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(scheduled?'OPEN WALMART DRAWINGS':action)+' ↗</a>':'')+(item.sourceUrl?'<a href="'+esc(item.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW SOURCE ↗</a>':'')+'</div></article>';
     }).join('');
     if(retailer==='pokemoncenter'){section.hidden=!cards;section.innerHTML=cards?'<div class="retailer-product-grid">'+cards+'</div>':'';return;}
     section.innerHTML='<h3>'+(retailer==='walmart'?'Legends Den Watchlist':"Today’s Potential Drops / Watchlist")+'</h3><div class="retailer-product-grid">'+(cards || '<p>No qualifying new product announcements today.</p>')+'</div>';
@@ -4027,7 +4041,7 @@ function readWalmartLiveCache(){
   try{const v=JSON.parse(localStorage.getItem(walmartLiveCacheKey)||"[]");return Array.isArray(v)?v:[];}catch(e){return [];}
 }
 function renderLiveProducts(items){
-  livePanel.classList.add('open');
+  livePanel.classList.remove('open');
   const saved=new Map();
   for(const p of readWalmartLiveCache()) if(qualifiesForBuyNow(p)) saved.set(walmartProductKey(p),p);
   for(const p of (Array.isArray(items)?items:[])){
@@ -4673,7 +4687,6 @@ async function load(){
     renderPokemonRestocks(
       statusData?.pokemonCenter
     );
-    renderCcnOnlineProducts('walmart');
     renderCcnOnlineProducts('pokemoncenter');
     renderOnePieceProducts();
     updateCostcoOnlineBadge();
@@ -4714,6 +4727,8 @@ async function load(){
       );
     }
 
+
+    renderCcnOnlineProducts('walmart');
 
     lastUpdated.textContent =
       `Updated ${new Date().toLocaleTimeString()}`;
