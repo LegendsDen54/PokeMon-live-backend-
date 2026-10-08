@@ -2463,7 +2463,7 @@ async function renderPokemonRestocks(){
   const game=activeRetailer==='onepiecenews'?'onepiece':'pokemon';
   if(!['all','onepiecenews'].includes(activeRetailer))return;
   if(pokemonRestocksCard.contains(document.activeElement) && /INPUT|BUTTON/.test(document.activeElement.tagName))return;
-  const header='<div class="pokemon-restocks-widget"><h3>'+(game==='onepiece'?'One Piece News':'Pokémon News')+'</h3><p>'+(game==='onepiece'?'New products · Set release dates · Potential online drops · Queues':'Announcements · drops · product updates')+'</p>';
+  const header='<div class="pokemon-restocks-widget"><h3>'+(game==='onepiece'?'One Piece News':'Pokémon News')+'</h3><p>'+(game==='onepiece'?'One Piece news · New products · Release dates · Online drops and queues':'Announcements · drops · product updates')+'</p>';
   const footer='<p><a href="https://discord.com/channels/1410547930250612828/'+(game==='onepiece'?'1460973555092033650':'1514248684575920160')+'" target="_blank" rel="noopener noreferrer">OPEN SOURCE CHANNEL ↗</a></p></div>';
   try{
     const response=await fetch('/api/ccn/news?game='+game,{cache:'no-store'});
@@ -2473,7 +2473,6 @@ async function renderPokemonRestocks(){
     const seenCcnPosts=new Map();
     [...(data.posts || [])].sort((a,b)=>Date.parse(b.editedAt || b.publishedAt)-Date.parse(a.editedAt || a.publishedAt)).forEach(post=>{
       const text=String(post.summary || '').replace(/^CCN source report:\s*/i,'').replace(/\s+/g,' ').trim().toLowerCase();
-      if(game==='onepiece' && !/new product|new set|release|launch|upcoming|potential|queue|preorder|pre-order|announcement|announced|online drop/.test(text))return;
       const products=(post.products || []).map(p=>({id:p.productId,status:p.status,seller:p.seller,price:p.price})).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
       // The same drawing announcement may arrive as a Discord excerpt and a collector summary.
       const drawTime=text.match(/\b(\d{1,2}):([0-5]\d)\s*(am|pm)\s*pdt\b/);
