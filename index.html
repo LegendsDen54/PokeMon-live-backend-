@@ -3854,17 +3854,11 @@ function qualifiesForBuyNow(product){
 
 
   /*
-    Primary seller rule:
-    Walmart or approved GT seller.
-
-    We also preserve the explicitly requested
-    under-MSRP discovery behavior for products
-    already returned by our monitored search.
+    Any verified seller qualifies within the product-specific price limit.
   */
 
-  const sellerQualified =
-    Boolean(String(product.seller || '').trim()) &&
-    !/^(?:unknown|marketplace seller)$/i.test(String(product.seller).trim());
+  const sellerName=normalize(product.seller||"");
+  const sellerQualified=Boolean(sellerName)&&!/^(unknown|marketplace seller)$/.test(sellerName);
 
   if(
     !sellerQualified
@@ -3954,11 +3948,9 @@ function buildLiveCard(product){
           "
         >
 
-        <span class="live-flag">
-          ● LIVE
-        </span>
-
       </div>
+
+      <div class="live-flag" style="display:block;text-align:center;margin:6px auto 2px;width:max-content;">● LIVE</div>
 
 
       <div class="product-body">
@@ -4021,61 +4013,39 @@ function buildLiveCard(product){
    LIVE RESULTS
 ========================================= */
 
+const walmartLiveCacheKey = "pokemonWalmartConfirmedLiveV2";
+function walmartProductKey(p){
+  const urlId=String(p.url||"").match(/\/ip\/(?:[^/?]+\/)?(\d+)(?:[/?]|$)/i)?.[1];
+  const id=p.walmartItemId||p.itemId||p.usItemId||urlId||p.productId;
+  return id ? "id:"+String(id) : "name:"+normalize(p.name||p.title).replace(/[^a-z0-9]+/g," ").trim();
+}
+function walmartIsConfirmedOOS(p){
+  const state=normalize(p.status||p.rawStatus);
+  return /^(out of stock|outofstock|sold out|oos)$/.test(state);
+}
+function readWalmartLiveCache(){
+  try{const v=JSON.parse(localStorage.getItem(walmartLiveCacheKey)||"[]");return Array.isArray(v)?v:[];}catch(e){return [];}
+}
 function renderLiveProducts(items){
-
-  // Catalog, discovery and deal searches can return the same Walmart item.
-  const unique = new Map();
-  for(const item of Array.isArray(items) ? items : []){
-    if(!qualifiesForBuyNow(item)) continue;
-    const urlId=String(item.url || '').match(/\/ip\/(?:[^/?]+\/)?(\d+)(?:[/?]|$)/)?.[1];
-    const key=String(item.walmartItemId || item.itemId || urlId || item.productId || item.name);
-    const previous=unique.get(key);
-    const time=Date.parse(item.checkedAt || item.updatedAt || '') || 0;
-    const previousTime=Date.parse(previous?.checkedAt || previous?.updatedAt || '') || 0;
-    if(!previous || time>previousTime || (time===previousTime && Number(item.price)<Number(previous.price))){
-      unique.set(key,item);
+  livePanel.classList.add('open');
+  const saved=new Map();
+  for(const p of readWalmartLiveCache()) if(qualifiesForBuyNow(p)) saved.set(walmartProductKey(p),p);
+  for(const p of (Array.isArray(items)?items:[])){
+    if(normalize(p.retailer)!=="walmart")continue;
+    const key=walmartProductKey(p);
+    if(walmartIsConfirmedOOS(p))saved.delete(key);
+    else if(qualifiesForBuyNow(p)){
+      const old=saved.get(key);
+      const observedAt=Date.parse(p.checkedAt||p.updatedAt||0)||0;
+      const previousAt=Date.parse(old?.checkedAt||old?.updatedAt||0)||0;
+      if(!old||observedAt>previousAt||(observedAt===previousAt&&Number(p.price||Infinity)<Number(old.price||Infinity)))saved.set(key,p);
     }
   }
-  livePanel.classList.add('open');
-
-  currentLiveProducts =
-      Array.from(unique.values())
-        .sort(
-          (a,b) =>
-            Number(a.price || Infinity) -
-            Number(b.price || Infinity)
-        );
-
-
-  liveCount.textContent =
-    `${currentLiveProducts.length} FOUND`;
-
-
-  if(
-    !currentLiveProducts.length
-  ){
-
-    liveProducts.innerHTML =
-      `
-      <div class="compact-empty">
-        No qualifying Walmart products
-        are live for purchase right now.
-        <br><br>
-        The monitor is still watching
-        in the background.
-      </div>
-      `;
-
-    return;
-  }
-
-
-  liveProducts.innerHTML =
-    currentLiveProducts
-      .map(buildLiveCard)
-      .join("");
+  currentLiveProducts=Array.from(saved.values()).sort((a,b)=>Number(a.price||Infinity)-Number(b.price||Infinity));
+  try{localStorage.setItem(walmartLiveCacheKey,JSON.stringify(currentLiveProducts));}catch(e){console.warn(e);}
+  liveCount.textContent=`${currentLiveProducts.length} FOUND`;
+  liveProducts.innerHTML=currentLiveProducts.length?currentLiveProducts.map(buildLiveCard).join(""):'<div class="compact-empty">No qualifying Walmart products are live for purchase right now.<br><br>The monitor is still watching in the background.</div>';
 }
-
 
 /* =========================================
    RAFFLE ID
@@ -4793,31 +4763,10 @@ async function runManualWalmartScan(){
     "Manual scan running…";
 
 
-  liveProducts.innerHTML =
-    `
-    <div class="compact-empty">
+  // Keep existing cards visible while the scan is running.
+  if(!currentLiveProducts.length)liveProducts.innerHTML='<div class="compact-empty">Scanning Walmart now…</div>';
 
-      <div>
-        <span class="scanning-animation">
-          <span></span>
-          <span></span>
-          <span></span>
-        </span>
-
-        Scanning Walmart now…
-      </div>
-
-      <br>
-
-      Only live products that pass
-      our seller and price rules
-      will appear here.
-
-    </div>
-    `;
-
-
-  manualWalmartScan.disabled =
+    manualWalmartScan.disabled =
     true;
 
 
@@ -4856,7 +4805,7 @@ async function runManualWalmartScan(){
     ){
 
       walmartManualStatus.textContent="Connect the owner collector to authorize a fresh Walmart scan.";
-      liveProducts.innerHTML='<div class="compact-empty">A fresh retailer scan requires the connected owner session. Existing reports remain available.</div>';
+      if(currentLiveProducts.length)renderLiveProducts([]);
       return;
     }
 
