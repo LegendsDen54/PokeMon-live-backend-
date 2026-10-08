@@ -2460,7 +2460,8 @@ async function renderCcnOnlineProducts(retailer){
       const original=watchItems.get(id);
       watchItems.set(id,{...original,...product,source:original?.source,sourceUrl:original?.sourceUrl,reportedAt:original?.reportedAt,scannerLive:true});
     }
-    const cards=Array.from(watchItems.values()).map(item=>{
+    const watchItemBuyable=item=>retailer==='walmart'?(item.scannerLive?qualifiesForBuyNow(item):item.status==='reported_available'&&!item.stale&&Boolean(item.seller)&&(item.ownerVerifiedOffer===true || item.withinPriceRule&&isWithinPriceRule(item))):onlinePurchaseAvailable(item,retailer);
+    const cards=Array.from(watchItems.values()).sort((a,b)=>Number(watchItemBuyable(b))-Number(watchItemBuyable(a))).map(item=>{
       const source=item.source || 'Trusted source';
       const live=item.status==='reported_available' && !item.stale;
       const verifiedSeller=Boolean(String(item.seller||'').trim())&&!/^(unknown|marketplace seller)$/i.test(String(item.seller||'').trim());
@@ -3319,7 +3320,7 @@ async function renderPublicOnline(retailer){
     }
     if(activeRetailer!==retailer || (retailer!=="target" && warehouseChannels[retailer]!=="online")) return;
     const targetPreferred = item => /ascended heroes|prismatic evolutions|destined rivals|30th|ultra[- ]premium collection|super[- ]premium collection|\bupc\b|\bspc\b/i.test(String(item.name || ""));
-    const eligibleItems=[...items.values()].filter(item=>retailer!=="target" || (item.sellerVerified === true && /^target$/i.test(item.seller || "")));
+    const eligibleItems=[...items.values()].filter(item=>retailer!=="target" || (item.sellerVerified === true && /^target$/i.test(item.seller || ""))).sort((a,b)=>Number(onlinePurchaseAvailable(b,retailer))-Number(onlinePurchaseAvailable(a,retailer)));
     const cards=eligibleItems.filter(item=>!["target","costco","sams"].includes(retailer) || (!item.stale && ["instock","in_stock","available","preorder"].includes(item.status))).map(item=>{
       const url=safeExternalUrl(item.url);
       const status=item.stale ? "Last observed · needs a fresh check" : String(item.rawStatus || item.status || "Unknown").replace(/_/g," ");
@@ -3327,7 +3328,7 @@ async function renderPublicOnline(retailer){
       if(['costco','sams'].includes(retailer)) {
         if(!item.image) return '';
         const number=item.itemNumber || item.sku || item.productId;
-        return '<article class="ccn-product-tile">'+retailerImageMarkup(item.image,item.name)+'<h4>'+(url?'<a target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">'+esc(item.name)+'</a>':esc(item.name))+'</h4>'+(number?'<small>Item '+esc(number)+'</small>':'')+(item.price!=null && Number.isFinite(Number(item.price))?'<small>$'+Number(item.price).toFixed(2)+'</small>':'')+(item.seller?'<small>'+esc(item.seller)+'</small>':'')+'</article>';
+        return '<article class="ccn-product-tile">'+purchasePhotoMarkup(item,retailer)+'<h4>'+(url?'<a target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">'+esc(item.name)+'</a>':esc(item.name))+'</h4>'+(number?'<small>Item '+esc(number)+'</small>':'')+(item.price!=null && Number.isFinite(Number(item.price))?'<small>$'+Number(item.price).toFixed(2)+'</small>':'')+(item.seller?'<small>'+esc(item.seller)+'</small>':'')+'</article>';
       }
       const shipping="<small>Shipping to your ZIP: confirm at retailer</small>";
       return '<article class="retailer-product-card" style="position:relative">'+purchasePhotoMarkup(item,retailer)+'<div><strong>'+(url?'<a class="online-product-link" target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">'+esc(item.name)+'</a>':esc(item.name))+'</strong><small>'+esc(price)+'</small><small>Item / SKU: '+esc(item.sku || item.productId || "Not published")+'</small><small>'+esc(status)+'</small>'+shipping+'<small>'+(item.observedAt?esc(new Date(item.observedAt).toLocaleString()):"Not checked yet")+'</small></div></article>';
@@ -3354,7 +3355,7 @@ async function renderPublicOnline(retailer){
       const targetProductKey=item=>String(item.url).match(/A-(\d+)/)?.[1] || item.url;
       const targetWatch=new Map((data.upcoming || []).filter(item=>targetPreferred(item)).map(item=>[targetProductKey(item),item]));
       for(const item of sourceProducts){const key=targetProductKey(item),prior=targetWatch.get(key);if(!prior || Date.parse(item.reportedAt)>=Date.parse(prior.reportedAt))targetWatch.set(key,{...prior,...item,image:item.image || prior?.image,sourceName:item.source || 'Discord source',expectedWindow:item.expectedWindow || prior?.expectedWindow || 'Potential drop · date and availability unconfirmed'});}
-      const upcoming=[...targetWatch.values()].map(item=>{const live=available.some(row=>targetProductKey(row)===targetProductKey(item));const label=live?'LIVE NOW — fresh Target availability confirmed':item.status==='reported_available'?item.stale?'Earlier live report · current availability unconfirmed':'REPORTED LIVE — source reports available; confirm at Target':item.status==='reported_unavailable'?'Reported sold out · watching for another drop':item.status==='queue'?'Reported queue · availability unconfirmed':item.expectedWindow || 'Potential drop · date and availability unconfirmed';return {...item,expectedWindow:label,purchaseAvailable:live || onlinePurchaseAvailable(item,'target')};});
+      const upcoming=[...targetWatch.values()].map(item=>{const live=available.some(row=>targetProductKey(row)===targetProductKey(item));const label=live?'LIVE NOW — fresh Target availability confirmed':item.status==='reported_available'?item.stale?'Earlier live report · current availability unconfirmed':'REPORTED LIVE — source reports available; confirm at Target':item.status==='reported_unavailable'?'Reported sold out · watching for another drop':item.status==='queue'?'Reported queue · availability unconfirmed':item.expectedWindow || 'Potential drop · date and availability unconfirmed';return {...item,expectedWindow:label,purchaseAvailable:live || onlinePurchaseAvailable(item,'target')};}).sort((a,b)=>Number(b.purchaseAvailable)-Number(a.purchaseAvailable));
       panel.innerHTML='<h3>Target Drop</h3><details id="targetUpcomingDrops"><summary>Upcoming Drops</summary>'+ (upcoming.length?'<div class="retailer-product-grid">'+upcoming.map(item=>'<article class="retailer-product-card">'+purchasePhotoMarkup(item,'target',item.purchaseAvailable)+'<p><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a><br>'+esc(item.expectedWindow)+'<br><small>Reported '+esc(new Date(item.reportedAt).toLocaleString())+(item.editedAt?' · Edited '+esc(new Date(item.editedAt).toLocaleString()):'')+'</small><br><a href="'+esc(item.sourceUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(item.sourceName)+'</a></p></article>').join('')+'</div>':'<p>No current verified drop report. Background checks continue.</p>')+'</details><small>Prices exclude tax and shipping. Checkout determines the final total. Availability does not reserve stock.</small>';
       otherRetailerCard.prepend(panel);
       const upcomingSection=panel.querySelector('#targetUpcomingDrops');
