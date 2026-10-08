@@ -2083,7 +2083,11 @@ app.get('/api/ccn/connection',(req,res)=>{
 app.get('/api/ccn/online-products',async(req,res)=>{
   res.set("Cache-Control","no-store");
   if(!['target','walmart','pokemoncenter','sams','costco','onepiece'].includes(req.query.retailer))return res.status(400).json({ok:false,error:'Choose retailer'});
-  try{res.json({ok:true,items:await ccnInventory.onlineProducts(req.query.retailer)});}catch(error){res.status(503).json({ok:false,error:'Source reports unavailable'});}
+  try{
+    let items=await ccnInventory.onlineProducts(req.query.retailer);
+    if(req.query.retailer==='walmart')items=require('./walmart-owner-verified-offers')(items);
+    res.json({ok:true,items});
+  }catch(error){res.status(503).json({ok:false,error:'Source reports unavailable'});}
 });
 app.get("/api/ccn/news",async(req,res)=>{
   res.set("Cache-Control","no-store");

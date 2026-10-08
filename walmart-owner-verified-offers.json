@@ -1,0 +1,11 @@
+{
+  "confirmedAt": "2026-10-08T04:37:03Z",
+  "expiresAt": "2026-10-08T06:07:03Z",
+  "basis": "Owner confirmed these previously alerted offers are approved for seller and price and remain available for checkout. MSRP is not inferred.",
+  "offers": [
+    { "productId": "19380764160", "seller": "GT Collectibles and Toys", "price": 36.99 },
+    { "productId": "19952559023", "seller": "GT Collectibles and Toys", "price": 24.99 },
+    { "productId": "20140716298", "seller": "GT Collectibles and Toys", "price": 164.99 },
+    { "productId": "19376602103", "seller": "GT Collectibles and Toys", "price": 164.99 }
+  ]
+}
