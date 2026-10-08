@@ -80,19 +80,21 @@ function cleanOnlineProducts(input){
     if(url.protocol!=='https:' || !allowed[retailer]?.includes(host) || !item.name)return null;
     const name=String(item.name).slice(0,240);const seller=String(item.seller || '').slice(0,100);
     if(retailer==='target' && ((item.status!=='upcoming' && !/^target$/i.test(seller)) || (seller && !/^target$/i.test(seller)) || !/ascended heroes|prismatic|destined rivals|30th|(?:ultra|special|super)[- ]premium collection|\b(?:upc|spc)\b/i.test(name)))return null;
-    if(retailer==='walmart' && !/^(?:walmart|gt collectibles(?: and toys)?)$/i.test(seller))return null;
+    const sellerVerified=retailer!=='walmart' || /^(?:walmart|gt collectibles(?: and toys)?)$/i.test(seller);
+    // Unknown sellers may appear as upcoming source reports, never as eligible stock.
+    if(retailer==='walmart' && !sellerVerified && (seller || item.status!=='upcoming'))return null;
     if(!/pok[eé]mon|trading card/i.test(name))return null;
     if(retailer==='pokemoncenter' && !/tcg|trading card|booster|trainer box|premium collection|(?:ex|v|gx) box|tin|battle deck/i.test(name))return null;
     const price=typeof item.price==='number' && Number.isFinite(item.price)&&item.price>0?item.price:null;
     const msrp=typeof item.msrp==='number' && Number.isFinite(item.msrp)&&item.msrp>0?item.msrp:null;
-    const withinPriceRule=retailer!=='walmart' || price!==null && msrp!==null && price<=msrp*1.5;
+    const withinPriceRule=retailer!=='walmart' || sellerVerified && price!==null && msrp!==null && price<=msrp*1.5;
     let image=null;try{const im=new URL(item.image);if(im.protocol==='https:' && /(?:^|\.)(?:target\.com|scene7\.com|walmartimages\.com|pokemoncenter\.com)$/.test(im.hostname))image=im.href;}catch{}
     const id=retailer==='target'?url.pathname.match(/\/A-(\d+)/)?.[1]:retailer==='walmart'?url.pathname.match(/\/ip\/(?:[^/]+\/)?(\d+)\/?$/)?.[1]:url.pathname.match(/\/product\/([^/]+)/)?.[1];
     if(!id)return null;
     if(retailer==='walmart')url=new URL('https://www.walmart.com/ip/'+id);
     if(retailer==='target')url=new URL('https://www.target.com/p/-/A-'+id);
     url.search='';url.hash='';
-    return {name,url:url.href,image,seller,price,msrp,withinPriceRule,status:['reported_available','upcoming','reported_unavailable','queue'].includes(item.status)?item.status:'upcoming',productId:id,expectedWindow:String(item.expectedWindow || '').slice(0,250),dropClassification:item.retailerConfirmed===true && item.confirmationUrl && String(item.confirmationUrl).startsWith(url.origin+'/')?'known':'potential'};
+    return {name,url:url.href,image,seller,price,msrp,sellerVerified,withinPriceRule,status:['reported_available','upcoming','reported_unavailable','queue'].includes(item.status)?item.status:'upcoming',productId:id,expectedWindow:String(item.expectedWindow || '').slice(0,250),dropClassification:item.retailerConfirmed===true && item.confirmationUrl && String(item.confirmationUrl).startsWith(url.origin+'/')?'known':'potential'};
   }).filter(Boolean);
 }
 async function saveNews(input){
@@ -148,7 +150,12 @@ async function onlineProducts(retailer){
     if(latest.has(product.url))continue;
     latest.set(product.url,{...product,source:post.source,sourceUrl:post.sourceUrl,reportedAt:post.updatedAt || post.publishedAt,stale:Date.now()-Date.parse(post.updatedAt || post.publishedAt)>30*60000});
   }
-  return [...latest.values()].filter(p=>(retailer==='target' || p.status!=='reported_unavailable') && (p.withinPriceRule || p.price===null || p.msrp===null));
+  const chicagoDay=value=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
+  const today=chicagoDay(Date.now());
+  return [...latest.values()].filter(p=>{
+    const dailyPotential=p.status==='upcoming' && p.dropClassification!=='known' && !p.expectedWindow;
+    return (!dailyPotential || chicagoDay(p.reportedAt)===today) && (retailer==='target' || p.status!=='reported_unavailable') && (p.withinPriceRule || p.price===null || p.msrp===null);
+  });
 }
 module.exports.onlineProducts=onlineProducts;
 
@@ -163,10 +170,16 @@ async function onlineAlerts(report){
       await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[key]);
       const previous=(await client.query('SELECT data FROM ccn_online_alert_states WHERE product_key=$1',[key])).rows[0]?.data;
       const at=Date.parse(report.updatedAt || report.publishedAt);
-      if(previous && Date.parse(previous.reportedAt)>=at)continue;
-      const changed=!previous || previous.status!==item.status;
-      if(changed && item.withinPriceRule && ['reported_available','queue'].includes(item.status) && Date.now()-at<30*60000)alerts.push(item);
-      await client.query('INSERT INTO ccn_online_alert_states(product_key,data) VALUES($1,$2) ON CONFLICT(product_key) DO UPDATE SET data=EXCLUDED.data',[key,{status:item.status,reportedAt:new Date(at).toISOString()}]);
+      if(previous && Date.parse(previous.reportedAt)>at)continue;
+      const early=item.status==='upcoming';
+      const eligibility=item.withinPriceRule===true;
+      const chicagoDay=value=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
+      const freshDay=early && previous && chicagoDay(previous.reportedAt)!==chicagoDay(at);
+      const changed=!previous || previous.status!==item.status || previous.eligible!==eligibility || previous.expectedWindow!==item.expectedWindow || freshDay;
+      const priceExcluded=report.retailer==='walmart' && item.price!==null && item.msrp!==null && item.price>item.msrp*1.5;
+      const sourceAnnouncement=['upcoming','reported_available','queue'].includes(item.status);
+      if(changed && !priceExcluded && sourceAnnouncement && Date.now()-at<(early || !eligibility?90:30)*60000)alerts.push({...item,alertKind:early?'early':eligibility?'stock':'source'});
+      await client.query('INSERT INTO ccn_online_alert_states(product_key,data) VALUES($1,$2) ON CONFLICT(product_key) DO UPDATE SET data=EXCLUDED.data',[key,{status:item.status,eligible:eligibility,expectedWindow:item.expectedWindow,reportedAt:new Date(at).toISOString()}]);
     }
     await client.query('COMMIT');return alerts;
   }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}

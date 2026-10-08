@@ -492,7 +492,7 @@ async function sendToSubscription(
     JSON.stringify(
       payload
     ),
-    {timeout:15000,TTL:300,urgency:"high"}
+    {timeout:15000,TTL:Number.isInteger(payload.ttl)?Math.max(60,Math.min(3600,payload.ttl)):300,urgency:"high"}
   );
 }
 
