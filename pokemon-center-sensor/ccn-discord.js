@@ -60,7 +60,7 @@
         for(const code of node.querySelectorAll('code')){
           const id=tidy(code.textContent);
           if(!/^\d{9,10}$/.test(id) || seenProducts.has(id))continue;
-          const anchor=[...node.querySelectorAll('a[href]')].filter(a=>(code.compareDocumentPosition(a)&Node.DOCUMENT_POSITION_PRECEDING) && /30th|prismatic|ascended|destined|premium collection/i.test(a.textContent)).pop();
+          const anchor=[...node.querySelectorAll('a[href]')].filter(a=>(code.compareDocumentPosition(a)&Node.DOCUMENT_POSITION_PRECEDING) && /30th|prismatic|ascended|destined|premium collection|first partner|pitch black|elite trainer|booster|\btin|collection/i.test(a.textContent)).pop();
           const name=tidy(anchor?.textContent);
           if(name){seenProducts.add(id);products.push({name:'Pokemon TCG '+name,url:'https://www.target.com/p/-/A-'+id,productId:id,seller:'',price:null,msrp:null,image:null,status:'upcoming'});}
         }

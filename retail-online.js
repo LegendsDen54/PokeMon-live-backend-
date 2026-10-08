@@ -211,7 +211,7 @@ async function poll(retailer) {
   state.nextCheck = Date.now() + (retailer === 'target' ? 1 : priorityWindow ? 5 : 30)*60000;
   try {
     if (retailer === 'target') {
-      try { for (const product of await require('./ccn-inventory').onlineProducts('target')) await trackTargetProduct(product); state.sourceCatalogError=null; }
+      try { const products=await require('./ccn-inventory').onlineProducts('target'); const current=new Set(products.map(product=>productUrl('target',product.url))); for (const product of products) await trackTargetProduct(product); for(const [url,item] of state.items)if(item.source==='source_report_candidate' && !current.has(url))state.items.delete(url); state.sourceCatalogError=null; }
       catch (error) { state.sourceCatalogError=error.message; }
     }
     if (Date.now() - state.lastDiscovery > (retailer === 'target' ? 5*60000 : priorityWindow || ["costco","sams"].includes(retailer) ? 30*60000 : 24*3600000)) {

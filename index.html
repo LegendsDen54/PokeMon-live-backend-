@@ -3364,6 +3364,7 @@ async function renderTargetDrops(data,observations,saved,sequence){
   for(const item of observations.values()){
     if(!preferred(item) || !key(item) || item.seller && !/^target$/i.test(item.seller))continue;
     const prior=watched.get(key(item));
+    if(item.source==='source_report_candidate' && !prior)continue;
     if(!prior)watched.set(key(item),{...item,sourceName:'Target public listing',at:item.observedAt || item.discoveredAt});
     const row=watched.get(key(item));
     if(!item.stale && item.sellerVerified && /^target$/i.test(item.seller) && ['instock','in_stock','available','preorder','out','outofstock','unavailable'].includes(item.status) && (!row.at || Date.parse(item.observedAt)>=Date.parse(row.at))){
@@ -3387,7 +3388,7 @@ async function renderTargetDrops(data,observations,saved,sequence){
     return '<article class="retailer-product-card" data-target-product="'+esc(key(item))+'">'+retailerImageMarkup(item.image,item.name)+'<div><h4><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a></h4><strong>'+esc(item.statusLabel)+'</strong><small>'+esc(offer)+' · '+esc(seller)+'</small><small>'+esc(timestamp)+'</small>'+attribution+'<a class="watchlist-buy-button" href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+(item.live?'LIVE / BUY NOW':'BUY NOW · CHECK TARGET')+'</a><small>Confirm seller, online stock and shipping at Target.</small></div></article>';
   }).join('');
   const health=data.error?'Automatic discovery is limited: '+esc(data.error)+'. Discord reports continue.':data.lastSuccess?'Automatic listing monitoring active · last successful read '+esc(new Date(data.lastSuccess).toLocaleTimeString()):'Automatic listing monitoring started · no successful public read yet.';
-  const html='<section class="store-checker"><h3>Target Drop</h3><details id="targetUpcomingDrops"><summary>Live products &amp; Upcoming Drops</summary>'+(cards?'<div class="retailer-product-grid">'+cards+'</div>':'<p>No current qualifying report. Monitoring continues.</p>')+'</details><small>'+health+'</small>'+(saved.sourceError?'<small>Source refresh unavailable · retrying automatically.</small>':'')+'<small>Source-live reports do not confirm checkout. Prices exclude tax and shipping.</small></section>';
+  const html='<section class="store-checker"><h3>Target Drops</h3><details id="targetUpcomingDrops"><summary>Live &amp; Upcoming Products</summary>'+(cards?'<div class="retailer-product-grid">'+cards+'</div>':'<p>No current qualifying report. Monitoring continues.</p>')+'</details><small>'+health+'</small>'+(saved.sourceError?'<small>Source refresh unavailable · retrying automatically.</small>':'')+'<small>Source-live reports do not confirm checkout. Prices exclude tax and shipping.</small></section>';
   if(otherRetailerCard.querySelector('#targetUpcomingDrops') && otherRetailerCard.dataset.targetMarkup===html)return;
   // Capture position at commit time so reading during a request is preserved.
   const scroll=document.getElementById('appScroll');const top=scroll?.scrollTop || 0;const windowTop=window.scrollY;
