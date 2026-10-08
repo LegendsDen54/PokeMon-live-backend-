@@ -82,6 +82,7 @@ function cleanOnlineProducts(input){
     if(url.protocol!=='https:' || !(allowed[retailer]?.includes(host) || onePieceShop) || !item.name)return null;
     const name=String(item.name).slice(0,240);const seller=String(item.seller || '').slice(0,100);
     if(retailer==='target' && ((seller && !/^target$/i.test(seller)) || (game==='pokemon' && !/ascended heroes|prismatic|destined rivals|30th|(?:ultra|special|super)[- ]premium collection|\b(?:upc|spc)\b/i.test(name))))return null;
+    if(retailer==='target' && game==='pokemon' && !require('./retail-online').isTcg(name))return null;
     const sellerVerified=retailer==='target'?/^target$/i.test(seller):retailer==='walmart'?Boolean(seller.trim()) && !/^(?:unknown|marketplace seller)$/i.test(seller.trim()):retailer==='sams'?/^sam'?s(?: club)?$/i.test(seller):retailer==='costco'?/^costco$/i.test(seller):retailer==='onepiece'?Boolean(seller):true;
     // Unknown sellers may appear as upcoming source reports, never as eligible stock.
     if(retailer==='walmart' && !sellerVerified && (seller || item.status!=='upcoming'))return null;
@@ -194,7 +195,7 @@ async function onlineProducts(retailer){
   const today=chicagoDay(Date.now());
   return [...latest.values()].filter(p=>{
     const dailyPotential=(p.status==='upcoming' || retailer==='onepiece') && p.dropClassification!=='known' && !p.expectedWindow;
-    return (!dailyPotential || chicagoDay(p.reportedAt)===today) && (retailer==='target' || p.status!=='reported_unavailable') && (p.withinPriceRule || p.price===null || p.msrp===null);
+    return (!dailyPotential || chicagoDay(p.reportedAt)===today) && (retailer==='target' || p.status!=='reported_unavailable') && (retailer==='target' || p.withinPriceRule || p.price===null || p.msrp===null);
   });
 }
 module.exports.onlineProducts=onlineProducts;

@@ -198,8 +198,14 @@ async function acceptObservation(retailer,safe,item){
 }
 async function poll(retailer) {
   const state = getState(retailer);
+  const manualPending=async()=>{
+    if(retailer!=='target')return false;
+    try{return (await require('./ccn-inventory').pendingInventory()).length>0;}
+    catch(error){state.error='Manual request priority could not be checked';return true;}
+  };
   const priorityWindow=retailer === "target" && targetWindow();
   if (state.running || (state.nextCheck > Date.now() && !(priorityWindow && !state.priorityWindow))) return;
+  if(await manualPending())return;
   state.priorityWindow=priorityWindow;
   state.running = true; state.lastRun = new Date().toISOString();
   state.nextCheck = Date.now() + (retailer === 'target' ? 1 : priorityWindow ? 5 : 30)*60000;
@@ -231,7 +237,10 @@ async function poll(retailer) {
     state.cursor=urls.length ? (offset+batch.length)%urls.length : 0;
     state.coverage={knownListings:urls.length,scheduledThisCycle:batch.length};
     let successes=0; const errors=[];
-    for (const url of batch) {try {await check(retailer,url);if(state.checkFailures)delete state.checkFailures[url];successes++;} catch(error) {errors.push(error.message);state.checkFailures ||= {};state.checkFailures[url]={at:new Date().toISOString(),error:error.message};}}
+    let attempted=0;
+    for (const url of batch) {if(await manualPending())break;attempted++;try {await check(retailer,url);if(state.checkFailures)delete state.checkFailures[url];successes++;} catch(error) {errors.push(error.message);state.checkFailures ||= {};state.checkFailures[url]={at:new Date().toISOString(),error:error.message};}}
+    state.coverage.attemptedThisCycle=attempted;
+    state.coverage.complete=attempted===batch.length;
     state.coverage.successfulThisCycle=successes;state.coverage.failedThisCycle=errors.length;state.lastCompletedAt=new Date().toISOString();
     if (successes) state.lastSuccess = new Date().toISOString();
     state.error = errors.length || state.discoveryError ? [...new Set([...errors,...(state.discoveryError?[state.discoveryError]:[])])].join("; ") : successes ? null : state.error;
