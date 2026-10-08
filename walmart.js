@@ -1013,6 +1013,10 @@ function productMatches(
     return false;
   }
 
+  if (product?.walmartItemId && getItemId(item)) {
+    return String(product.walmartItemId) === String(getItemId(item));
+  }
+
   const score =
     wordMatchScore(
       product?.name ||
@@ -1070,6 +1074,11 @@ function findCatalogMatchForItem(
 
   let best = null;
   let bestScore = 0;
+
+  const exact = catalogProducts.find(product => product.enabled !== false &&
+    product.msrp != null && product.walmartItemId &&
+    String(product.walmartItemId) === String(getItemId(item)));
+  if (exact) return exact;
 
   for (
     const product of
