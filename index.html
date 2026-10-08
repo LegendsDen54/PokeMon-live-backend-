@@ -4637,9 +4637,13 @@ function renderWalmartStatus(
       "WALMART";
 
 
-  const last =
-    schedule.lastScheduledRun ||
-    statusData?.lastRun;
+  const last = [
+    schedule.lastScheduledRun,
+    schedule.lastManualRun,
+    schedule.lastWakeRun,
+    statusData?.lastRun
+  ].filter(value => value && Number.isFinite(Date.parse(value)))
+    .sort((a,b) => Date.parse(b)-Date.parse(a))[0];
 
 
   walmartLastScan.textContent =
@@ -4697,13 +4701,15 @@ async function load(){
         fetch(
         `/api/status?t=${Date.now()}`,
         {
-          cache:"no-store"
+          cache:"no-store",
+          signal:AbortSignal.timeout(15000)
         }
       ),
         fetch(
           `/api/walmart/raffles?t=${Date.now()}`,
           {
-            cache:"no-store"
+            cache:"no-store",
+            signal:AbortSignal.timeout(15000)
           }
         )
       ]);
@@ -4888,18 +4894,19 @@ async function runManualWalmartScan(){
     ){
 
       walmartManualStatus.textContent="Connect the owner collector to authorize a fresh Walmart scan.";
-      if(currentLiveProducts.length)renderLiveProducts([]);
       return;
     }
 
 
     if(
-      !response.ok
+      !response.ok || data.ok === false || data.result?.ok === false || data.result?.skipped
     ){
 
       throw new Error(
         data.error ||
-        data.result?.reason ||
+        (data.result?.retryAfterSeconds
+          ? `${data.result.reason || 'Scan cooldown active'}. Try again in ${data.result.retryAfterSeconds} seconds.`
+          : data.result?.reason) ||
         "Manual scan failed"
       );
 
