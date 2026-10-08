@@ -126,6 +126,7 @@ async function saveNews(input){
     const unseen=!seen.includes(revision);
     if(previous && !changed){await client.query('COMMIT');return {...previous,isNew:false,isUpdated:false};}
     report.seenRevisions=[...new Set([...seen,revision])].slice(-100);
+    if(previous?.pipeline)report.pipeline=previous.pipeline;
     await client.query('INSERT INTO ccn_news_reports(source_url,data) VALUES($1,$2) ON CONFLICT(source_url) DO UPDATE SET data=EXCLUDED.data',[report.sourceUrl,report]);
     await client.query('COMMIT');
     return {...report,isNew:!previous,isUpdated:Boolean(previous && changed && unseen)};
@@ -137,11 +138,44 @@ async function news(game=null){
   return result.rows.map(row=>row.data);
 }
 module.exports.saveNews=saveNews;module.exports.news=news;
+let newsClaimsReady;
+async function initializeNewsClaims(){
+  if(!newsClaimsReady)newsClaimsReady=(async()=>{
+    await pool.query('CREATE TABLE IF NOT EXISTS ccn_news_notification_claims (claim_key TEXT PRIMARY KEY, claimed_at TIMESTAMPTZ NOT NULL DEFAULT now())');
+    const previous=await pool.query("SELECT data FROM ccn_news_reports WHERE (data->'pipeline'->'notification'->>'sent')::int>0 AND (data->'pipeline'->>'completedAt')::timestamptz>now()-interval '48 hours'");
+    for(const {data} of previous.rows){
+      const id=require('./source-alert-identity').identity({...data,editedAt:data.pipeline.sourceAt});
+      for(const key of [id.revision,id.event])await pool.query('INSERT INTO ccn_news_notification_claims(claim_key,claimed_at) VALUES($1,$2) ON CONFLICT(claim_key) DO NOTHING',[key,data.pipeline.completedAt]);
+    }
+  })().catch(error=>{newsClaimsReady=null;throw error;});
+  await newsClaimsReady;
+}
+module.exports.claimNewsNotification=async(report)=>{
+  const identity=require('./source-alert-identity').identity(report);
+  await initializeNewsClaims();
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    for(const key of [identity.revision,identity.event].sort())await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[key]);
+    const existing=await client.query('SELECT claim_key,claimed_at FROM ccn_news_notification_claims WHERE claim_key=ANY($1::text[])',[[identity.revision,identity.event]]);
+    const prior=report.pipeline;
+    const alreadyDelivered=prior?.notification?.sent>0 && Date.parse(prior.sourceAt)>=Date.parse(identity.at);
+    const window=identity.event.includes(':drawing-results:')?24*3600000:90*60000;
+    const duplicate=alreadyDelivered || existing.rows.some(row=>row.claim_key===identity.revision || Date.now()-Date.parse(row.claimed_at)<window);
+    if(duplicate){await client.query('COMMIT');return {allowed:false,id:identity.id,reason:'same_source_revision_or_event'};}
+    for(const key of [identity.revision,identity.event])await client.query('INSERT INTO ccn_news_notification_claims(claim_key) VALUES($1) ON CONFLICT(claim_key) DO UPDATE SET claimed_at=now()',[key]);
+    await client.query('COMMIT');return {allowed:true,id:identity.id};
+  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+};
+module.exports.releaseNewsNotification=async(report)=>{
+  const id=require('./source-alert-identity').identity(report);
+  await pool.query('DELETE FROM ccn_news_notification_claims WHERE claim_key=ANY($1::text[])',[[id.revision,id.event]]);
+};
 module.exports.recordNewsReceipt=async(report,delivery,savedAt)=>{
   if(!report.isNew && !report.isUpdated)return null;
   const completedAt=new Date().toISOString(),sourceAt=report.updatedAt || report.publishedAt;
   const status=delivery?.skipped?'suppressed':delivery==null?'not_triggered':delivery.subscriptions===0?'no_connected_push_device':delivery.sent>0?'sent_to_push_service':delivery.ok===false?'failed':'suppressed';
-  const pipeline={sourceAt,detectedAt:report.detectedAt || null,savedAt,completedAt,sourceToSavedMs:Date.parse(savedAt)-Date.parse(sourceAt),detectionToSavedMs:report.detectedAt?Math.max(0,Date.parse(savedAt)-Date.parse(report.detectedAt)):null,processingMs:Date.parse(completedAt)-Date.parse(savedAt),notification:{status,acceptedAt:delivery?.sent>0?delivery.completedAt || completedAt:null,sent:delivery?.sent || 0,failed:delivery?.failed || 0,subscriptions:delivery?.subscriptions ?? null,phoneDisplayConfirmed:false}};
+  const pipeline={sourceAt,detectedAt:report.detectedAt || null,savedAt,completedAt,sourceToSavedMs:Date.parse(savedAt)-Date.parse(sourceAt),detectionToSavedMs:report.detectedAt?Math.max(0,Date.parse(savedAt)-Date.parse(report.detectedAt)):null,processingMs:Date.parse(completedAt)-Date.parse(savedAt),notification:{status,reason:delivery?.reason || null,eventId:delivery?.eventId || null,acceptedAt:delivery?.sent>0?delivery.completedAt || completedAt:null,sent:delivery?.sent || 0,failed:delivery?.failed || 0,subscriptions:delivery?.subscriptions ?? null,phoneDisplayConfirmed:false}};
   await pool.query("UPDATE ccn_news_reports SET data=jsonb_set(data,'{pipeline}',$2::jsonb) WHERE source_url=$1 AND data->>'updatedAt'=$3",[report.sourceUrl,JSON.stringify(pipeline),report.updatedAt]);return pipeline;
 };
 module.exports.newsReceipts=async()=>{await newsStorage();return (await pool.query("SELECT data->>'sourceUrl' AS \"sourceUrl\",data->>'source' AS source,data->>'retailer' AS retailer,data->'pipeline' AS pipeline FROM ccn_news_reports WHERE data ? 'pipeline' ORDER BY data->'pipeline'->>'completedAt' DESC LIMIT 20")).rows;};

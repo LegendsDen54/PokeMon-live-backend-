@@ -40,6 +40,7 @@ self.addEventListener(
    PUSH NOTIFICATIONS
 ======================================== */
 
+let sourcePushQueue=Promise.resolve();
 self.addEventListener(
   "push",
   event => {
@@ -114,7 +115,7 @@ self.addEventListener(
         "pokemon-restock-alert",
 
       renotify:
-        true,
+        !data.eventId,
 
       requireInteraction:
         true,
@@ -145,11 +146,21 @@ self.addEventListener(
 
     event.waitUntil(
 
-      self.registration
-        .showNotification(
-          title,
-          options
-        )
+      (sourcePushQueue=sourcePushQueue.catch(()=>{}).then(async()=>{
+        // Persist an event receipt so repeated delivery cannot buzz the same device again.
+        if(data.eventId){
+          try{
+            const cache=await caches.open('source-push-receipts-v1');
+            const key=new Request(new URL('/__source_push_receipt/'+encodeURIComponent(data.eventId),self.location.origin));
+            const previous=await cache.match(key);
+            if(previous && Date.now()-Number(await previous.text())<90*60000)return;
+            await cache.put(key,new Response(String(Date.now())));
+            const keys=await cache.keys();
+            for(const old of keys.slice(0,Math.max(0,keys.length-200)))await cache.delete(old);
+          }catch{/* Server delivery claims still protect clients without cache storage. */}
+        }
+        await self.registration.showNotification(title,options);
+      }))
 
     );
 

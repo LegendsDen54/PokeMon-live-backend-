@@ -3,7 +3,7 @@ async function withEvidence(state,news){
   const now=Date.now(),day=at=>new Date(at).toLocaleDateString('en-CA',{timeZone:'America/Chicago'}),fresh=at=>Number.isFinite(Date.parse(at)) && now-Date.parse(at)>=0 && day(at)===day(now);
   const clues=[],seen=new Set();
   for(const report of news || []){
-    if(report.retailer!=='pokemoncenter' || !fresh(report.editedAt || report.publishedAt))continue;
+    if(!require('./source-alert-identity').pokemonCenterEvidenceEligible(report) || !fresh(report.editedAt || report.publishedAt))continue;
     const summary=String(report.summary || '');
     if(!/tcg|etb|elite trainer|booster|premium collection|invitation|invite|drop|restock|queue/i.test(summary))continue;
     const topic=/ascended heroes/i.test(summary)?'Ascended Heroes Pokémon Center ETB':/30th|anniversary/i.test(summary)&&/upc|ultra.?premium/i.test(summary)?'30th anniversary Ultra-Premium Collection':null;
