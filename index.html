@@ -1957,8 +1957,10 @@ html,body{height:100%;overflow:hidden;}
         class="tab"
         data-retailer="all"
       >
-        <img class="tab-brand-ccn" src="https://cdn.discordapp.com/icons/1410547930250612828/a_cedd0b0876cbd251049db02de2f2b85f.webp?size=80&amp;quality=lossless" alt="CCN logo">CCN TCG ALERTS
+        POKÉMON NEWS
       </button>
+      <button class="tab" data-retailer="onepiecenews"><img class="tab-brand" src="https://en.onepiece-cardgame.com/renewal/images/common/logo_op.png" alt="One Piece Card Game">ONE PIECE NEWS</button>
+      <button class="tab" data-retailer="onepiece"><img class="tab-brand" src="https://en.onepiece-cardgame.com/renewal/images/common/logo_op.png" alt="One Piece Card Game">ONE PIECE PRODUCTS</button>
 
       <button
         class="tab"
@@ -2193,6 +2195,7 @@ html,body{height:100%;overflow:hidden;}
   </section>
 
 
+  <section id="onePieceSection" class="section" style="display:none"><div id="onePieceCard" class="other-card"></div></section>
   <!-- NON-WALMART PLACEHOLDER -->
   <section
     id="otherRetailerSection"
@@ -2392,6 +2395,27 @@ let newestPokemonCenterSignal = null;
 let pokemonCenterToastTimer = null;
 let walmartManualScanRunning = false;
 
+async function renderOnePieceProducts(){
+  if(activeRetailer!=='onepiece')return;
+  const parent=document.getElementById('onePieceCard');
+  const store='<section class="store-checker"><h3>Mitsuwa · Arlington Heights</h3><p>Official ONE PIECE Card Game shop · 100 E Algonquin Rd, Arlington Heights, IL 60005</p><p>Bandai lists shop hours as 11 AM–8 PM. Current booster-box stock and prices are unconfirmed.</p><a class="retailer-link" href="https://shop.bandainamco-am.com/location-stores/mitsuwa-marketplace-chicago/" target="_blank" rel="noopener noreferrer">OFFICIAL STORE INFO ↗</a></section>';
+  try{
+    const data=await fetch('/api/ccn/online-products?retailer=onepiece',{cache:'no-store'}).then(r=>r.json());
+    if(activeRetailer!=='onepiece')return;
+    if(!data.ok)throw new Error('One Piece reports are temporarily unavailable.');
+    const items=(data.items || []).filter(p=>p.price==null || p.msrp==null || p.price<=p.msrp*1.5);
+    const qualifying=items.filter(p=>p.withinPriceRule && p.status==='reported_available' && !p.stale);
+    const pending=items.filter(p=>!qualifying.includes(p));
+    const card=item=>{
+      const label=item.status==='upcoming'?'Potential drop · availability unconfirmed':item.status==='queue'?'Source reports a queue':item.stale?'Earlier source report · stock unconfirmed':'Source reports available · confirm at store';
+      const price=item.price==null?'Price unverified':'USD '+Number(item.price).toFixed(2);
+      const ceiling=item.msrp==null?'MSRP unverified · purchase eligibility pending':'MSRP USD '+Number(item.msrp).toFixed(2)+' · Your ceiling USD '+(item.msrp*1.5).toFixed(2);
+      return '<article class="retailer-product-card">'+retailerImageMarkup(item.image,item.name)+'<div><h4>'+esc(item.name)+'</h4><small>'+esc(label)+'</small><small>'+esc(price+' · '+(item.seller || 'Seller unverified'))+'</small><small>'+esc(ceiling)+'</small><small>'+esc(item.source)+' · Announced '+esc(new Date(item.reportedAt).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</small><a class="retailer-link" href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">OPEN STORE ↗</a><a href="'+esc(item.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW SOURCE ↗</a></div></article>';
+    };
+    parent.innerHTML='<h2>One Piece Products</h2><p>MSRP to 150% of verified MSRP · Original announcements keep their dates.</p><section class="store-checker"><h3>Qualifying reported deals</h3><div class="retailer-product-grid">'+(qualifying.map(card).join('') || '<p>No fresh eligible deals confirmed by sources.</p>')+'</div></section><section class="store-checker"><h3>Potential Drops / Pending Verification</h3><div class="retailer-product-grid">'+(pending.map(card).join('') || '<p>No new qualifying watch items today.</p>')+'</div></section>'+store;
+  }catch(error){if(activeRetailer==='onepiece')parent.innerHTML='<h2>One Piece Products</h2><p>'+esc(error.message)+'</p>'+store;}
+}
+
 async function renderCcnOnlineProducts(retailer){
   if(['target','sams','costco'].includes(retailer) && activeRetailer!==retailer)return;
   const parent=retailer==='walmart'?walmartSection:retailer==='pokemoncenter'?document.getElementById('pokemonCenterSection'):otherRetailerCard;
@@ -2409,7 +2433,7 @@ async function renderCcnOnlineProducts(retailer){
       const state=live?source+' reports live · confirm at retailer':item.status==='reported_available'?'Earlier availability report · recheck at retailer':item.status==='queue'?source+' reports a queue':item.dropClassification==='known'?'Scheduled drop · availability unconfirmed':'Potential drop · availability unconfirmed';
       const pending=!item.withinPriceRule?'<small>Seller / price verification pending</small>':'';
       const action={walmart:'OPEN WALMART',target:'OPEN TARGET',sams:"OPEN SAM’S CLUB",costco:'OPEN COSTCO',pokemoncenter:'OPEN POKÉMON CENTER'}[retailer];
-      return '<article class="retailer-product-card">'+retailerImageMarkup(item.image,item.name)+'<div><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a><small>'+esc(state)+'</small>'+pending+(item.expectedWindow?'<small>'+esc(item.expectedWindow)+'</small>':'')+'<small>'+esc(item.seller || 'Seller unverified')+(item.price!==null?' · USD '+Number(item.price).toFixed(2):' · Price unverified')+'</small><small>Reported '+esc(new Date(item.reportedAt).toLocaleString())+'</small><a class="retailer-link" href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(action)+' ↗</a><a href="'+esc(item.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW SOURCE ↗</a></div></article>';
+      return '<article class="retailer-product-card">'+retailerImageMarkup(item.image,item.name)+'<div><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a><small>'+esc(state)+'</small>'+(item.imageLabel?'<small>'+esc(item.imageLabel)+'</small>':'')+pending+(item.expectedWindow?'<small>'+esc(item.expectedWindow)+'</small>':'')+'<small>'+esc(item.seller || 'Seller unverified')+(item.price!==null?' · USD '+Number(item.price).toFixed(2):' · Price unverified')+'</small><small>Announced '+esc(new Date(item.reportedAt).toLocaleString())+'</small><a class="retailer-link" href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(action)+' ↗</a><a href="'+esc(item.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW SOURCE ↗</a></div></article>';
     }).join('');
     if(retailer==='pokemoncenter'){section.hidden=!cards;section.innerHTML=cards?'<div class="retailer-product-grid">'+cards+'</div>':'';return;}
     section.innerHTML='<h3>'+(retailer==='walmart'?'Legends Den Watchlist':"Today’s Potential Drops / Watchlist")+'</h3><div class="retailer-product-grid">'+(cards || '<p>No qualifying new product announcements today.</p>')+'</div>';
@@ -2421,12 +2445,15 @@ async function renderCcnOnlineProducts(retailer){
   }catch{}
 }
 async function renderPokemonRestocks(){
+  const game=activeRetailer==='onepiecenews'?'onepiece':'pokemon';
+  if(!['all','onepiecenews'].includes(activeRetailer))return;
   if(pokemonRestocksCard.contains(document.activeElement) && /INPUT|BUTTON/.test(document.activeElement.tagName))return;
-  const header='<div class="pokemon-restocks-widget"><h3>Pokémon TCG Source Alerts</h3><p>CCN · Rippin Packz · The Poke Gang · Pokémon Restocks & News</p>';
-  const footer='<p><a href="https://discord.com/channels/1410547930250612828/1514248684575920160" target="_blank" rel="noopener noreferrer">OPEN CCN IN DISCORD ↗</a></p></div>';
+  const header='<div class="pokemon-restocks-widget"><h3>'+(game==='onepiece'?'One Piece News':'Pokémon News')+'</h3><p>Announcements · drops · product updates</p>';
+  const footer='<p><a href="https://discord.com/channels/1410547930250612828/'+(game==='onepiece'?'1460973555092033650':'1514248684575920160')+'" target="_blank" rel="noopener noreferrer">OPEN SOURCE CHANNEL ↗</a></p></div>';
   try{
-    const response=await fetch('/api/ccn/news',{cache:'no-store'});
+    const response=await fetch('/api/ccn/news?game='+game,{cache:'no-store'});
     const data=await response.json();
+    if(game!==(activeRetailer==='onepiecenews'?'onepiece':'pokemon') || !['all','onepiecenews'].includes(activeRetailer))return;
     if(!data.ok)throw new Error(data.error || 'CCN feed unavailable');
     const seenCcnPosts=new Map();
     [...(data.posts || [])].sort((a,b)=>Date.parse(b.editedAt || b.publishedAt)-Date.parse(a.editedAt || a.publishedAt)).forEach(post=>{
@@ -2445,12 +2472,12 @@ async function renderPokemonRestocks(){
       const products=post.products || [];
       const cleanSummary=summary.replace(/^.*?(?=(?:Walmart US V\d|Target Restocks|CCN source report|Just a reminder|Target has))/i,'').replace(/(?:Walmart US V\d|Target Restocks)\s*/i,'').replace(/(?:Offer Id|Copyable Pid|App Links|Links Ebay|Monitors v)[\s\S]*$/i,'').trim();
       const title=products.length?products.map(p=>p.name).join(' · '):(cleanSummary.split(/\bPrice\b|\n/)[0] || summary).slice(0,110);
-      const retailer=({target:'Target',walmart:'Walmart',pokemoncenter:'Pokémon Center'})[post.retailer] || 'CCN';
+      const retailer=({target:'Target',walmart:'Walmart',pokemoncenter:'Pokémon Center',onepiece:'One Piece',sams:"Sam’s Club",costco:'Costco'})[post.retailer] || (post.source || 'Trusted source');
       const statuses=[...new Set(products.map(p=>p.status))];
       const label=statuses.length===1?({upcoming:'Upcoming',reported_available:'Reported live',reported_unavailable:'Reported sold out',queue:'Reported queue'})[statuses[0]]:'Source update';
-      return '<article class="ccn-readable-post"><div class="ccn-post-meta"><span>'+esc(retailer)+'</span><span>'+esc(label || 'Source update')+'</span></div><h4>'+esc(title)+'</h4><p>'+esc(cleanSummary.length>190?cleanSummary.slice(0,190)+'…':cleanSummary)+'</p>'+(summary.length>190?'<details><summary>Read full update</summary><p>'+esc(summary)+'</p></details>':'')+'<footer><time>'+esc(new Date(post.publishedAt).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</time>'+(post.editedAt?' · Edited '+esc(new Date(post.editedAt).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})):'')+' · <a href="'+esc(post.sourceUrl)+'" target="_blank" rel="noopener noreferrer">View source ↗</a></footer></article>';
+      return '<article class="ccn-readable-post"><div class="ccn-post-meta"><span>'+esc(game==='onepiece'?'ONE PIECE':'POKÉMON')+'</span><span>'+esc(retailer)+'</span><span>'+esc(label || 'Source update')+'</span></div><h4>'+esc(title)+'</h4><p>'+esc(cleanSummary.length>230?cleanSummary.slice(0,230)+'…':cleanSummary)+'</p>'+(summary.length>230?'<details><summary>Read full update</summary><p>'+esc(summary)+'</p></details>':'')+'<footer>'+esc(post.source || 'Trusted source')+' · Announced <time>'+esc(new Date(post.publishedAt).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</time> · <a href="'+esc(post.sourceUrl)+'" target="_blank" rel="noopener noreferrer">View source ↗</a></footer></article>';
     }).join('');
-    pokemonRestocksCard.innerHTML=header+(rows || '<p>No CCN updates have been imported today. This is not a live Discord feed; open CCN for immediate alerts.</p>')+footer;
+    pokemonRestocksCard.innerHTML=header+(rows || '<p>No new '+(game==='onepiece'?'One Piece':'Pokémon')+' announcements saved today.</p>')+footer;
   }catch(error){pokemonRestocksCard.innerHTML=header+'<p>'+esc(error.message)+'</p>'+footer;}
 }
 
@@ -4644,6 +4671,7 @@ async function load(){
     );
     renderCcnOnlineProducts('walmart');
     renderCcnOnlineProducts('pokemoncenter');
+    renderOnePieceProducts();
     updateCostcoOnlineBadge();
 
     if(
@@ -4861,6 +4889,7 @@ function setRetailer(
   activeRetailer =
     retailer;
   rememberInventoryChoice('monitor:lastRetailer',retailer);
+  document.getElementById('onePieceSection').style.display='none';
   document.getElementById('trustedSourceReadiness')?.remove();
 
   document
@@ -4901,7 +4930,7 @@ function setRetailer(
   );
 
   if(
-    retailer === "all"
+    retailer === "all" || retailer === "onepiecenews"
   ){
     walmartSection.style.display =
       "none";
@@ -4920,6 +4949,13 @@ function setRetailer(
   pokemonRestocksSection.classList.remove(
     "show"
   );
+  if(retailer==='onepiece'){
+    walmartSection.style.display='none';
+    otherRetailerSection.classList.remove('show');
+    document.getElementById('onePieceSection').style.display='block';
+    renderOnePieceProducts();
+    return;
+  }
 
   if(
     retailer === "walmart"

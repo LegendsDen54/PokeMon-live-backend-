@@ -76,36 +76,40 @@ function cleanOnlineProducts(input){
   return (Array.isArray(input.products)?input.products:[]).slice(0,40).map(item=>{
     let url;try{url=new URL(item.url);}catch{return null;}
     const host=url.hostname.toLowerCase();const retailer=input.retailer;
+    const game=/one[ -]?piece/i.test(item.name || '') || input.game==='onepiece' || retailer==='onepiece'?'onepiece':'pokemon';
     const allowed={target:['www.target.com','target.com'],walmart:['www.walmart.com','walmart.com'],pokemoncenter:['www.pokemoncenter.com','pokemoncenter.com'],sams:['www.samsclub.com','samsclub.com'],costco:['www.costco.com','costco.com']};
-    if(url.protocol!=='https:' || !allowed[retailer]?.includes(host) || !item.name)return null;
+    const onePieceShop=game==='onepiece' && retailer==='onepiece' && /^(?:www\.)?(?:flipsidegaming\.com|smokeandmirrorshobby\.com|shop\.bandainamco-am\.com|en\.onepiece-cardgame\.com)$/.test(host);
+    if(url.protocol!=='https:' || !(allowed[retailer]?.includes(host) || onePieceShop) || !item.name)return null;
     const name=String(item.name).slice(0,240);const seller=String(item.seller || '').slice(0,100);
-    if(retailer==='target' && ((item.status!=='upcoming' && !/^target$/i.test(seller)) || (seller && !/^target$/i.test(seller)) || !/ascended heroes|prismatic|destined rivals|30th|(?:ultra|special|super)[- ]premium collection|\b(?:upc|spc)\b/i.test(name)))return null;
-    const sellerVerified=retailer==='target'?/^target$/i.test(seller):retailer==='walmart'?/^(?:walmart|gt collectibles(?: and toys)?)$/i.test(seller):retailer==='sams'?/^sam'?s(?: club)?$/i.test(seller):retailer==='costco'?/^costco$/i.test(seller):true;
+    if(retailer==='target' && ((item.status!=='upcoming' && !/^target$/i.test(seller)) || (seller && !/^target$/i.test(seller)) || (game==='pokemon' && !/ascended heroes|prismatic|destined rivals|30th|(?:ultra|special|super)[- ]premium collection|\b(?:upc|spc)\b/i.test(name))))return null;
+    const sellerVerified=retailer==='target'?/^target$/i.test(seller):retailer==='walmart'?/^(?:walmart(?:\.com)?|gt collectibles(?: and toys)?)$/i.test(seller):retailer==='sams'?/^sam'?s(?: club)?$/i.test(seller):retailer==='costco'?/^costco$/i.test(seller):retailer==='onepiece'?Boolean(seller):true;
     // Unknown sellers may appear as upcoming source reports, never as eligible stock.
     if(retailer==='walmart' && !sellerVerified && (seller || item.status!=='upcoming'))return null;
-    if(!/pok[eé]mon|trading card/i.test(name))return null;
+    if(!/pok[eé]mon|trading card|one[ -]?piece/i.test(name))return null;
     if(retailer==='pokemoncenter' && !/tcg|trading card|booster|trainer box|premium collection|(?:ex|v|gx) box|tin|battle deck/i.test(name))return null;
     const price=typeof item.price==='number' && Number.isFinite(item.price)&&item.price>0?item.price:null;
     const msrp=typeof item.msrp==='number' && Number.isFinite(item.msrp)&&item.msrp>0?item.msrp:null;
-    const withinPriceRule=retailer==='walmart'?sellerVerified && price!==null && msrp!==null && price<=msrp*1.5:sellerVerified;
-    let image=null;try{const im=new URL(item.image);if(im.protocol==='https:' && /(?:^|\.)(?:target\.com|scene7\.com|walmartimages\.com|pokemoncenter\.com|costco\.com|samsclub\.com)$/.test(im.hostname))image=im.href;}catch{}
-    const id=retailer==='target'?url.pathname.match(/\/A-(\d+)/)?.[1]:['walmart','sams'].includes(retailer)?url.pathname.match(/\/ip\/(?:[^/]+\/)?(\d+)\/?$/)?.[1]:retailer==='costco'?(url.pathname.match(/\/(\d{8,})\/?$/)?.[1] || url.pathname.match(/\.product\.(\d+)\.html/)?.[1] || (/^\d+$/.test(url.searchParams.get('partNumbers') || '')?url.searchParams.get('partNumbers'):null)):url.pathname.match(/\/product\/([^/]+)/)?.[1];
+    const withinPriceRule=retailer==='walmart' || game==='onepiece'?sellerVerified && price!==null && msrp!==null && price<=msrp*1.5:sellerVerified;
+    let image=null;try{const im=new URL(item.image);if(im.protocol==='https:' && (/(?:^|\.)(?:target\.com|scene7\.com|walmartimages\.com|pokemoncenter\.com|costco\.com|samsclub\.com)$/.test(im.hostname) || game==='onepiece' && /^(?:cdn\.shopify\.com|en\.onepiece-cardgame\.com)$/.test(im.hostname)))image=im.href;}catch{}
+    const id=retailer==='onepiece'?url.pathname.match(/\/products?\/([^/]+)/)?.[1]:retailer==='target'?url.pathname.match(/\/A-(\d+)/)?.[1]:['walmart','sams'].includes(retailer)?url.pathname.match(/\/ip\/(?:[^/]+\/)?(\d+)\/?$/)?.[1]:retailer==='costco'?(url.pathname.match(/\/(\d{8,})\/?$/)?.[1] || url.pathname.match(/\.product\.(\d+)\.html/)?.[1] || (/^\d+$/.test(url.searchParams.get('partNumbers') || '')?url.searchParams.get('partNumbers'):null)):url.pathname.match(/\/product\/([^/]+)/)?.[1];
     if(!id)return null;
     if(retailer==='walmart')url=new URL('https://www.walmart.com/ip/'+id);
     if(retailer==='target')url=new URL('https://www.target.com/p/-/A-'+id);
     if(retailer!=='costco' || url.pathname!=='/CompareProductsDisplay')url.search='';url.hash='';
-    return {name,url:url.href,image,seller,price,msrp,sellerVerified,withinPriceRule,status:['reported_available','upcoming','reported_unavailable','queue'].includes(item.status)?item.status:'upcoming',productId:id,expectedWindow:String(item.expectedWindow || '').slice(0,250),dropClassification:item.retailerConfirmed===true && item.confirmationUrl && String(item.confirmationUrl).startsWith(url.origin+'/')?'known':'potential'};
+    return {name,game,retailer,url:url.href,image,seller,price,msrp,sellerVerified,withinPriceRule,status:['reported_available','upcoming','reported_unavailable','queue'].includes(item.status)?item.status:'upcoming',productId:id,expectedWindow:String(item.expectedWindow || '').slice(0,250),dropClassification:item.retailerConfirmed===true && item.confirmationUrl && String(item.confirmationUrl).startsWith(url.origin+'/')?'known':'potential'};
   }).filter(Boolean);
 }
 async function saveNews(input){
-  if(!/pok[eé]mon|\btcg\b|prismatic|destined rivals|ascended heroes|30th.*(?:etb|collection|bundle)/i.test(String(input.summary || "")+" "+JSON.stringify(input.products || []))) throw new Error("Only Pokémon TCG product and restock reports are accepted");
+  const game=input.game==='onepiece' || input.retailer==='onepiece' || /one[ -]?piece/i.test(String(input.summary || '')+' '+JSON.stringify(input.products || []))?'onepiece':'pokemon';
+  if(!/pok[eé]mon|one[ -]?piece|\btcg\b|prismatic|destined rivals|ascended heroes|30th.*(?:etb|collection|bundle)/i.test(String(input.summary || "")+" "+JSON.stringify(input.products || []))) throw new Error("Only Pokémon or One Piece TCG reports are accepted");
   const timestamp=Date.parse(input.publishedAt);
   const edited=input.editedAt==null?null:Date.parse(input.editedAt);
   const effective=edited ?? timestamp;
   const sources={'1410547930250612828':'CCN','1367457689386356766':'Rippin Packz','1190757531988000930':'The Poke Gang','1182136115981996033':'Pokemon Restocks & News'};
+  if(game==='onepiece')Object.assign(sources,{'1322998319005433958':'Poke Restock','1202410810459037756':'Dark Rarity','646566276030005259':'Gamescape','1223272823959720008':'UVT Official','1381654330632830997':'The Syndicate','1369077918244012072':'Pokemon Restocks and Alerts','1185117808183484466':'MOM - TCGs and Collectibles'});
   const match=String(input.sourceUrl || '').match(/^https:\/\/discord\.com\/channels\/(\d+)\/\d+\/\d+$/);
   if(!match || !sources[match[1]] || !input.summary || !Number.isFinite(timestamp) || !Number.isFinite(effective) || timestamp>Date.now()+60000 || effective<timestamp || effective>Date.now()+60000 || Date.now()-effective>48*3600000) throw new Error("Provide an actual trusted Discord message link, summary and publication time; old messages need their recent actual edit time");
-  const report={sourceUrl:input.sourceUrl,summary:String(input.summary).trim().slice(0,1000),retailer:["costco","sams","bestbuy","target","pokemoncenter","walmart","barnes","dollargeneral"].includes(input.retailer)?input.retailer:null,publishedAt:new Date(timestamp).toISOString(),editedAt:edited===null?null:new Date(edited).toISOString(),updatedAt:new Date(effective).toISOString(),source:sources[match[1]],importedAt:new Date().toISOString()};
+  const report={game,sourceUrl:input.sourceUrl,summary:String(input.summary).trim().slice(0,1000),retailer:["costco","sams","bestbuy","target","pokemoncenter","walmart","barnes","dollargeneral","onepiece"].includes(input.retailer)?input.retailer:null,publishedAt:new Date(timestamp).toISOString(),editedAt:edited===null?null:new Date(edited).toISOString(),updatedAt:new Date(effective).toISOString(),source:sources[match[1]],importedAt:new Date().toISOString()};
   report.products=cleanOnlineProducts(input);
   const detected=Date.parse(input.detectedAt);
   report.detectedAt=Number.isFinite(detected) && detected>=effective && detected<=Date.now()+60000?new Date(detected).toISOString():null;
@@ -127,9 +131,9 @@ async function saveNews(input){
     return {...report,isNew:!previous,isUpdated:Boolean(previous && changed && unseen)};
   }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 }
-async function news(){
+async function news(game=null){
   await newsStorage();
-  const result=await pool.query("SELECT data FROM ccn_news_reports WHERE (COALESCE(data->>'updatedAt',data->>'publishedAt'))::timestamptz >= date_trunc('day',now() AT TIME ZONE 'America/Chicago') AT TIME ZONE 'America/Chicago' ORDER BY (COALESCE(data->>'updatedAt',data->>'publishedAt'))::timestamptz DESC LIMIT 40");
+  const result=await pool.query("SELECT data FROM ccn_news_reports WHERE (COALESCE(data->>'updatedAt',data->>'publishedAt'))::timestamptz >= date_trunc('day',now() AT TIME ZONE 'America/Chicago') AT TIME ZONE 'America/Chicago' AND ($1::text IS NULL OR COALESCE(data->>'game',CASE WHEN data->>'summary' ~* 'one[ -]?piece' THEN 'onepiece' ELSE 'pokemon' END)=$1) ORDER BY (COALESCE(data->>'updatedAt',data->>'publishedAt'))::timestamptz DESC LIMIT 80",[game]);
   return result.rows.map(row=>row.data);
 }
 module.exports.saveNews=saveNews;module.exports.news=news;
@@ -144,16 +148,17 @@ module.exports.newsReceipts=async()=>{await newsStorage();return (await pool.que
 
 async function onlineProducts(retailer){
   await newsStorage();
-  const rows=await pool.query("SELECT data FROM ccn_news_reports WHERE data->>'retailer'=$1 AND (COALESCE(data->>'updatedAt',data->>'publishedAt'))::timestamptz > now()-interval '7 days' ORDER BY (COALESCE(data->>'updatedAt',data->>'publishedAt'))::timestamptz DESC LIMIT 200",[retailer]);
+  const rows=await pool.query("SELECT data FROM ccn_news_reports WHERE (data->>'retailer'=$1 OR $1='onepiece' AND data->>'game'='onepiece') AND (COALESCE(data->>'updatedAt',data->>'publishedAt'))::timestamptz > now()-interval '7 days' ORDER BY (COALESCE(data->>'updatedAt',data->>'publishedAt'))::timestamptz DESC LIMIT 200",[retailer]);
   const posts=rows.rows.map(row=>row.data);const latest=new Map();
-  for(const post of posts.filter(p=>p.retailer===retailer))for(const product of post.products || []){
+  for(const post of posts)for(const product of post.products || []){
+    if(retailer==='onepiece'?(post.game!=='onepiece' && product.game!=='onepiece'):(post.game==='onepiece' || product.game==='onepiece'))continue;
     if(latest.has(product.url))continue;
-    latest.set(product.url,{...product,source:post.source,sourceUrl:post.sourceUrl,reportedAt:post.updatedAt || post.publishedAt,stale:Date.now()-Date.parse(post.updatedAt || post.publishedAt)>30*60000});
+    latest.set(product.url,{...product,...(product.productId==='20964873413' && post.retailer==='walmart'?{image:'https://pokemon-live-backend.onrender.com/delta-reign-illustration.png',imageLabel:'Custom illustration · official product art unavailable'}:{}),source:post.source,sourceUrl:post.sourceUrl,reportedAt:post.updatedAt || post.publishedAt,stale:Date.now()-Date.parse(post.updatedAt || post.publishedAt)>30*60000});
   }
   const chicagoDay=value=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
   const today=chicagoDay(Date.now());
   return [...latest.values()].filter(p=>{
-    const dailyPotential=p.status==='upcoming' && p.dropClassification!=='known' && !p.expectedWindow;
+    const dailyPotential=(p.status==='upcoming' || retailer==='onepiece') && p.dropClassification!=='known' && !p.expectedWindow;
     return (!dailyPotential || chicagoDay(p.reportedAt)===today) && (retailer==='target' || p.status!=='reported_unavailable') && (p.withinPriceRule || p.price===null || p.msrp===null);
   });
 }
@@ -176,7 +181,7 @@ async function onlineAlerts(report){
       const chicagoDay=value=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
       const freshDay=early && previous && chicagoDay(previous.reportedAt)!==chicagoDay(at);
       const changed=!previous || previous.status!==item.status || previous.eligible!==eligibility || previous.expectedWindow!==item.expectedWindow || freshDay;
-      const priceExcluded=report.retailer==='walmart' && item.price!==null && item.msrp!==null && item.price>item.msrp*1.5;
+      const priceExcluded=(report.retailer==='walmart' || report.game==='onepiece') && item.price!==null && item.msrp!==null && item.price>item.msrp*1.5;
       const sourceAnnouncement=['upcoming','reported_available','queue'].includes(item.status);
       if(changed && !priceExcluded && sourceAnnouncement && Date.now()-at<(early || !eligibility?90:30)*60000)alerts.push({...item,alertKind:early?'early':eligibility?'stock':'source'});
       await client.query('INSERT INTO ccn_online_alert_states(product_key,data) VALUES($1,$2) ON CONFLICT(product_key) DO UPDATE SET data=EXCLUDED.data',[key,{status:item.status,eligible:eligibility,expectedWindow:item.expectedWindow,reportedAt:new Date(at).toISOString()}]);
