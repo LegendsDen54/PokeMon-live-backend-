@@ -134,6 +134,8 @@ self.addEventListener(
           data.retailer ||
           null,
 
+        game: data.game || null,
+
         product:
           data.product ||
           data.name ||
@@ -182,10 +184,25 @@ self.addEventListener('notificationclick', event => {
   } catch {
     target=new URL('/',self.location.origin);
   }
+  // Stock notifications open their app tab. Verified Walmart drawing alerts
+  // retain their required direct drawing-page destination.
+  const drawing=target.hostname==='www.walmart.com' && target.pathname==='/shop/collectibles/draw';
+  const retailer=alert.game==='onepiece'?(alert.product?'onepiece':'onepiecenews'):alert.retailer;
+  if(!drawing && ['all','walmart','target','pokemoncenter','sams','costco','bestbuy','barnes','dollargeneral','onepiece','onepiecenews'].includes(retailer)){
+    const destination=new URL('/',self.location.origin);
+    destination.searchParams.set('retailer',retailer);
+    if(target.origin===self.location.origin)for(const key of ['productId','zip','upc']){
+      if(target.searchParams.has(key))destination.searchParams.set(key,target.searchParams.get(key));
+    }
+    destination.hash='notification='+encodeURIComponent(JSON.stringify({...alert,retailer,clickedAt:new Date().toISOString()}));
+    target=destination;
+  }
   event.waitUntil((async()=>{
     const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+    // Always navigate app notifications, even when its URL already matches:
+    // users may have switched tabs inside that window since the last tap.
     const exact=windows.find(client=>client.url===target.href);
-    if(exact)return exact.focus();
+    if(exact && target.origin!==self.location.origin)return exact.focus();
     if(target.origin===self.location.origin){
       const app=windows.find(client=>new URL(client.url).origin===self.location.origin);
       if(app){
