@@ -1001,6 +1001,7 @@ a{
 }
 
 .tab-brand-barnes{width:112px;height:auto;max-height:24px;object-fit:contain;padding:5px;background:#fff;border-radius:4px;box-sizing:content-box;}
+.tab-brand-onepiece{width:68px;height:34px;object-fit:contain;background:#fff;border-radius:4px;padding:3px;}
 .tab-brand-ccn{width:32px;height:32px;object-fit:contain;border-radius:6px;vertical-align:middle;margin-right:8px;}
 .store-checker label{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1;}
 @media(max-width:600px){.store-checker input,.store-checker button{width:100%;min-width:0;min-height:44px;box-sizing:border-box;}.store-checker-row{flex-direction:column;}.store-checker label{width:100%;}}
@@ -1959,8 +1960,8 @@ html,body{height:100%;overflow:hidden;}
       >
         POKÉMON NEWS
       </button>
-      <button class="tab" data-retailer="onepiecenews"><img class="tab-brand" src="https://en.onepiece-cardgame.com/renewal/images/common/logo_op.png" alt="One Piece Card Game">ONE PIECE NEWS</button>
-      <button class="tab" data-retailer="onepiece"><img class="tab-brand" src="https://en.onepiece-cardgame.com/renewal/images/common/logo_op.png" alt="One Piece Card Game">ONE PIECE PRODUCTS</button>
+      <button class="tab" data-retailer="onepiecenews"><img class="tab-brand tab-brand-onepiece" src="/one-piece-logo.png" alt="One Piece Card Game">ONE PIECE NEWS</button>
+      <button class="tab" data-retailer="onepiece"><img class="tab-brand tab-brand-onepiece" src="/one-piece-logo.png" alt="One Piece Card Game">ONE PIECE PRODUCTS</button>
 
       <button
         class="tab"
@@ -2395,10 +2396,24 @@ let newestPokemonCenterSignal = null;
 let pokemonCenterToastTimer = null;
 let walmartManualScanRunning = false;
 
+const onePieceReleaseCatalog=[
+  {name:'EB-05 · ONE PIECE Heroines Edition vol.2 · Extra Booster Pack',date:'2026-10-30',image:'/one-piece-eb05.webp',url:'https://en.onepiece-cardgame.com/products/eb05.html',detail:'English edition · 12 cards per pack · MSRP USD 4.99 per pack.'},
+  {name:'EB-05 · ONE PIECE Heroines Edition vol.2 · Booster Display Box',date:'2026-10-30',image:'/one-piece-eb05-box.webp',url:'https://en.onepiece-cardgame.com/products/eb05.html',detail:'English edition · Official display-box packaging. Box MSRP unverified; purchase eligibility pending.'},
+  {name:'TS-03 · Mini Case Set · Luffy / Shanks / Hancock',date:'2026-10-30',image:'/one-piece-ts03.webp',url:'https://en.onepiece-cardgame.com/products/ts03.html',detail:'MSRP USD 11.99 · 1 mini case, 1 promo card and 2 OP-17 booster packs. Six case / promo designs.'}
+];
+function onePieceUpcomingMarkup(){
+  const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const value=t=>parts.find(p=>p.type===t).value;
+  const today=value('year')+'-'+value('month')+'-'+value('day');
+  const cutoff=new Date(today+'T12:00:00Z');cutoff.setUTCMonth(cutoff.getUTCMonth()+1);
+  const items=onePieceReleaseCatalog.filter(p=>p.date>=today && p.date<=cutoff.toISOString().slice(0,10));
+  return '<section class="store-checker"><h3>Upcoming Releases · Next Month</h3><p>Official English release dates · Retailer availability unconfirmed.</p><div class="retailer-product-grid">'+(items.map(p=>'<article class="retailer-product-card">'+retailerImageMarkup(p.image,p.name)+'<div><h4><a href="'+p.url+'" target="_blank" rel="noopener noreferrer">'+esc(p.name)+'</a></h4><small>Releases '+esc(new Date(p.date+'T12:00:00').toLocaleDateString([],{month:'long',day:'numeric',year:'numeric'}))+'</small><small>'+esc(p.detail)+'</small><small>Bandai official product page · Verified October 7, 2026</small><a class="retailer-link" href="'+p.url+'" target="_blank" rel="noopener noreferrer">OFFICIAL PRODUCT DETAILS ↗</a></div></article>').join('') || '<p>No verified releases in the next month.</p>')+'</div></section>';
+}
+
 async function renderOnePieceProducts(){
   if(activeRetailer!=='onepiece')return;
   const parent=document.getElementById('onePieceCard');
-  const store='<section class="store-checker"><h3>Mitsuwa · Arlington Heights</h3><p>Official ONE PIECE Card Game shop · 100 E Algonquin Rd, Arlington Heights, IL 60005</p><p>Bandai lists shop hours as 11 AM–8 PM. Current booster-box stock and prices are unconfirmed.</p><a class="retailer-link" href="https://shop.bandainamco-am.com/location-stores/mitsuwa-marketplace-chicago/" target="_blank" rel="noopener noreferrer">OFFICIAL STORE INFO ↗</a></section>';
+  const store=onePieceUpcomingMarkup()+'<section class="store-checker"><a href="https://shop.bandainamco-am.com/location-stores/mitsuwa-marketplace-chicago/" target="_blank" rel="noopener noreferrer" style="display:block;color:inherit;text-decoration:none"><h3>Mitsuwa · Arlington Heights ↗</h3><p>Official ONE PIECE Card Game shop · 100 E Algonquin Rd, Arlington Heights, IL 60005</p><p>Bandai lists shop hours as 11 AM–8 PM. Current booster-box stock and prices are unconfirmed.</p><span class="retailer-link">OPEN OFFICIAL STORE WEBSITE ↗</span></a></section>';
   try{
     const data=await fetch('/api/ccn/online-products?retailer=onepiece',{cache:'no-store'}).then(r=>r.json());
     if(activeRetailer!=='onepiece')return;
@@ -2448,7 +2463,7 @@ async function renderPokemonRestocks(){
   const game=activeRetailer==='onepiecenews'?'onepiece':'pokemon';
   if(!['all','onepiecenews'].includes(activeRetailer))return;
   if(pokemonRestocksCard.contains(document.activeElement) && /INPUT|BUTTON/.test(document.activeElement.tagName))return;
-  const header='<div class="pokemon-restocks-widget"><h3>'+(game==='onepiece'?'One Piece News':'Pokémon News')+'</h3><p>Announcements · drops · product updates</p>';
+  const header='<div class="pokemon-restocks-widget"><h3>'+(game==='onepiece'?'One Piece News':'Pokémon News')+'</h3><p>'+(game==='onepiece'?'New products · Set release dates · Potential online drops · Queues':'Announcements · drops · product updates')+'</p>';
   const footer='<p><a href="https://discord.com/channels/1410547930250612828/'+(game==='onepiece'?'1460973555092033650':'1514248684575920160')+'" target="_blank" rel="noopener noreferrer">OPEN SOURCE CHANNEL ↗</a></p></div>';
   try{
     const response=await fetch('/api/ccn/news?game='+game,{cache:'no-store'});
@@ -2458,6 +2473,7 @@ async function renderPokemonRestocks(){
     const seenCcnPosts=new Map();
     [...(data.posts || [])].sort((a,b)=>Date.parse(b.editedAt || b.publishedAt)-Date.parse(a.editedAt || a.publishedAt)).forEach(post=>{
       const text=String(post.summary || '').replace(/^CCN source report:\s*/i,'').replace(/\s+/g,' ').trim().toLowerCase();
+      if(game==='onepiece' && !/new product|new set|release|launch|upcoming|potential|queue|preorder|pre-order|announcement|announced|online drop/.test(text))return;
       const products=(post.products || []).map(p=>({id:p.productId,status:p.status,seller:p.seller,price:p.price})).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
       // The same drawing announcement may arrive as a Discord excerpt and a collector summary.
       const drawTime=text.match(/\b(\d{1,2}):([0-5]\d)\s*(am|pm)\s*pdt\b/);
