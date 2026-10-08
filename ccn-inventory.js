@@ -76,24 +76,24 @@ function cleanOnlineProducts(input){
   return (Array.isArray(input.products)?input.products:[]).slice(0,40).map(item=>{
     let url;try{url=new URL(item.url);}catch{return null;}
     const host=url.hostname.toLowerCase();const retailer=input.retailer;
-    const allowed={target:['www.target.com','target.com'],walmart:['www.walmart.com','walmart.com'],pokemoncenter:['www.pokemoncenter.com','pokemoncenter.com']};
+    const allowed={target:['www.target.com','target.com'],walmart:['www.walmart.com','walmart.com'],pokemoncenter:['www.pokemoncenter.com','pokemoncenter.com'],sams:['www.samsclub.com','samsclub.com'],costco:['www.costco.com','costco.com']};
     if(url.protocol!=='https:' || !allowed[retailer]?.includes(host) || !item.name)return null;
     const name=String(item.name).slice(0,240);const seller=String(item.seller || '').slice(0,100);
     if(retailer==='target' && ((item.status!=='upcoming' && !/^target$/i.test(seller)) || (seller && !/^target$/i.test(seller)) || !/ascended heroes|prismatic|destined rivals|30th|(?:ultra|special|super)[- ]premium collection|\b(?:upc|spc)\b/i.test(name)))return null;
-    const sellerVerified=retailer!=='walmart' || /^(?:walmart|gt collectibles(?: and toys)?)$/i.test(seller);
+    const sellerVerified=retailer==='target'?/^target$/i.test(seller):retailer==='walmart'?/^(?:walmart|gt collectibles(?: and toys)?)$/i.test(seller):retailer==='sams'?/^sam'?s(?: club)?$/i.test(seller):retailer==='costco'?/^costco$/i.test(seller):true;
     // Unknown sellers may appear as upcoming source reports, never as eligible stock.
     if(retailer==='walmart' && !sellerVerified && (seller || item.status!=='upcoming'))return null;
     if(!/pok[eé]mon|trading card/i.test(name))return null;
     if(retailer==='pokemoncenter' && !/tcg|trading card|booster|trainer box|premium collection|(?:ex|v|gx) box|tin|battle deck/i.test(name))return null;
     const price=typeof item.price==='number' && Number.isFinite(item.price)&&item.price>0?item.price:null;
     const msrp=typeof item.msrp==='number' && Number.isFinite(item.msrp)&&item.msrp>0?item.msrp:null;
-    const withinPriceRule=retailer!=='walmart' || sellerVerified && price!==null && msrp!==null && price<=msrp*1.5;
-    let image=null;try{const im=new URL(item.image);if(im.protocol==='https:' && /(?:^|\.)(?:target\.com|scene7\.com|walmartimages\.com|pokemoncenter\.com)$/.test(im.hostname))image=im.href;}catch{}
-    const id=retailer==='target'?url.pathname.match(/\/A-(\d+)/)?.[1]:retailer==='walmart'?url.pathname.match(/\/ip\/(?:[^/]+\/)?(\d+)\/?$/)?.[1]:url.pathname.match(/\/product\/([^/]+)/)?.[1];
+    const withinPriceRule=retailer==='walmart'?sellerVerified && price!==null && msrp!==null && price<=msrp*1.5:sellerVerified;
+    let image=null;try{const im=new URL(item.image);if(im.protocol==='https:' && /(?:^|\.)(?:target\.com|scene7\.com|walmartimages\.com|pokemoncenter\.com|costco\.com|samsclub\.com)$/.test(im.hostname))image=im.href;}catch{}
+    const id=retailer==='target'?url.pathname.match(/\/A-(\d+)/)?.[1]:['walmart','sams'].includes(retailer)?url.pathname.match(/\/ip\/(?:[^/]+\/)?(\d+)\/?$/)?.[1]:retailer==='costco'?(url.pathname.match(/\/(\d{8,})\/?$/)?.[1] || url.pathname.match(/\.product\.(\d+)\.html/)?.[1] || (/^\d+$/.test(url.searchParams.get('partNumbers') || '')?url.searchParams.get('partNumbers'):null)):url.pathname.match(/\/product\/([^/]+)/)?.[1];
     if(!id)return null;
     if(retailer==='walmart')url=new URL('https://www.walmart.com/ip/'+id);
     if(retailer==='target')url=new URL('https://www.target.com/p/-/A-'+id);
-    url.search='';url.hash='';
+    if(retailer!=='costco' || url.pathname!=='/CompareProductsDisplay')url.search='';url.hash='';
     return {name,url:url.href,image,seller,price,msrp,sellerVerified,withinPriceRule,status:['reported_available','upcoming','reported_unavailable','queue'].includes(item.status)?item.status:'upcoming',productId:id,expectedWindow:String(item.expectedWindow || '').slice(0,250),dropClassification:item.retailerConfirmed===true && item.confirmationUrl && String(item.confirmationUrl).startsWith(url.origin+'/')?'known':'potential'};
   }).filter(Boolean);
 }
