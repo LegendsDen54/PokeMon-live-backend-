@@ -1,5 +1,19 @@
 [
   {
+    "id": "mega-moonlit-tin",
+    "name": "Pokemon TCG Mega Moonlit Tin — Receive 1 at Random",
+    "set": "Mega Moonlit",
+    "productType": "Tin",
+    "searchTerm": "Pokemon Mega Moonlit Tin",
+    "walmartItemId": "19999900284",
+    "retailers": ["walmart"],
+    "msrp": 21.99,
+    "msrpSource": "https://www.pokeguardian.com/3073996_mega-moonlit-tin-revealed",
+    "msrpCorroborationUrl": "https://www.bestbuy.com/product/pokemon-trading-card-game-mega-moonlit-tin-styles-may-vary/JJG2TL3VPX/sku/6674265",
+    "image": "https://i5.walmartimages.com/seo/POKEMON-MEGA-MOONLIT-TIN_3984a177-5138-46e0-a9b4-b72decb0844f.31179b1819f9774f9b3cfa3eee15b179.jpeg?odnHeight=573&odnWidth=573&odnBg=FFFFFF",
+    "enabled": true
+  },
+  {
     "id": "30th-booster-bundle",
     "name": "Pokemon TCG 30th Celebration Booster Bundle",
     "set": "30th Celebration",

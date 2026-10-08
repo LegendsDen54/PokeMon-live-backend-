@@ -262,10 +262,8 @@ function isGtApprovedSeller(value) {
 }
 
 function isApprovedSeller(value) {
-  return (
-    isWalmartSeller(value) ||
-    isGtApprovedSeller(value)
-  );
+  // Actual seller identity is required; price eligibility is checked separately.
+  return Boolean(String(value || '').trim()) && !/^(?:unknown|marketplace seller)$/i.test(String(value).trim());
 }
 
 
@@ -2269,8 +2267,7 @@ function makeResult(
     );
 
   const approvedSeller =
-    directSeller ||
-    gtApprovedSeller;
+    isApprovedSeller(seller);
 
   const price =
     getPrice(item);
@@ -2311,16 +2308,11 @@ function makeResult(
     getItemId(item);
 
   /*
-    IMPORTANT:
-    Walmart direct keeps actual
-    restock-alert eligibility.
-
-    GT is visible when approved and
-    price-qualified, but remains
-    separately labeled.
+    Actual sellers retain their labels. Every seller needs
+    verified MSRP, a qualifying price and fresh availability.
   */
   const inStock =
-    directSeller &&
+    approvedSeller &&
     offerAvailable &&
     priceQualified &&
     officialProduct;
@@ -2382,11 +2374,10 @@ function makeResult(
     approvedSeller,
 
     /*
-      Compatibility with existing
-      GT-related code.
+      Compatibility with marketplace offer handling.
     */
     approvedMarketplace:
-      gtApprovedSeller,
+      !directSeller && approvedSeller && priceQualified,
 
     seller:
       directSeller
@@ -2419,7 +2410,7 @@ function makeResult(
     displayEligible,
 
     alertEligible:
-      directSeller &&
+      approvedSeller &&
       offerAvailable &&
       priceQualified &&
       officialProduct,
@@ -2428,7 +2419,7 @@ function makeResult(
       itemId,
 
     image:
-      getImage(item),
+      getImage(item) || product?.image || null,
 
     url:
       getProductUrl(item),
@@ -3012,6 +3003,15 @@ function chooseBestMatch(
   product,
   results
 ) {
+  const qualified = results.filter(item =>
+    productMatches(product, item) &&
+    isApprovedSeller(getSellerName(item)) &&
+    withinPriceRule(getPrice(item), resolveMsrp(item, product))
+  ).sort((a, b) => {
+    const available = item => normalizeStatus(getAvailability(item), item?.isOutOfStock === false) === 'instock';
+    return Number(available(b)) - Number(available(a)) || getPrice(a) - getPrice(b);
+  });
+  if (qualified.length) return qualified[0];
   const walmartMatch =
     results.find(
       item =>

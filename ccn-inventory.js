@@ -82,7 +82,7 @@ function cleanOnlineProducts(input){
     if(url.protocol!=='https:' || !(allowed[retailer]?.includes(host) || onePieceShop) || !item.name)return null;
     const name=String(item.name).slice(0,240);const seller=String(item.seller || '').slice(0,100);
     if(retailer==='target' && ((item.status!=='upcoming' && !/^target$/i.test(seller)) || (seller && !/^target$/i.test(seller)) || (game==='pokemon' && !/ascended heroes|prismatic|destined rivals|30th|(?:ultra|special|super)[- ]premium collection|\b(?:upc|spc)\b/i.test(name))))return null;
-    const sellerVerified=retailer==='target'?/^target$/i.test(seller):retailer==='walmart'?/^(?:walmart(?:\.com)?|gt collectibles(?: and toys)?)$/i.test(seller):retailer==='sams'?/^sam'?s(?: club)?$/i.test(seller):retailer==='costco'?/^costco$/i.test(seller):retailer==='onepiece'?Boolean(seller):true;
+    const sellerVerified=retailer==='target'?/^target$/i.test(seller):retailer==='walmart'?Boolean(seller.trim()) && !/^(?:unknown|marketplace seller)$/i.test(seller.trim()):retailer==='sams'?/^sam'?s(?: club)?$/i.test(seller):retailer==='costco'?/^costco$/i.test(seller):retailer==='onepiece'?Boolean(seller):true;
     // Unknown sellers may appear as upcoming source reports, never as eligible stock.
     if(retailer==='walmart' && !sellerVerified && (seller || item.status!=='upcoming'))return null;
     if(!/pok[eé]mon|trading card|one[ -]?piece/i.test(name))return null;

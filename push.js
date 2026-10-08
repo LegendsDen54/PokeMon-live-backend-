@@ -599,8 +599,8 @@ async function broadcast(payload) {
    - Walmart Direct
    - Approved GT Collectibles offer
 
-   GT is allowed regardless of MSRP when
-   discovery explicitly marks it eligible.
+   Every actual seller must meet the verified
+   MSRP price limit before a purchase alert.
 ======================================== */
 
 async function sendRestockAlert(
@@ -609,7 +609,7 @@ async function sendRestockAlert(
   const walmartDirect =
     item?.directSeller === true;
 
-  const approvedGT =
+  const approvedMarketplace =
     item?.approvedMarketplace === true &&
     item?.alertEligible === true;
 
@@ -617,21 +617,21 @@ async function sendRestockAlert(
     !item ||
     item.retailer !== "walmart" ||
     item.inStock !== true ||
-    (!walmartDirect && !approvedGT)
+    item.withinPriceRule !== true ||
+    item.alertEligible !== true ||
+    (!walmartDirect && !approvedMarketplace)
   ) {
     return {
       ok: false,
       skipped: true,
 
       reason:
-        "Product is not an eligible Walmart-direct or approved GT Collectibles in-stock offer"
+        "Product is not an in-stock Walmart offer within the verified MSRP limit"
     };
   }
 
   const sellerLabel =
-    approvedGT
-      ? "GT Collectibles"
-      : "Walmart-direct";
+    walmartDirect ? "Walmart-direct" : String(item.seller || 'Marketplace seller');
 
   return broadcast({
     title:

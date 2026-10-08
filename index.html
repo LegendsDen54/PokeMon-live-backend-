@@ -3863,15 +3863,11 @@ function qualifiesForBuyNow(product){
   */
 
   const sellerQualified =
-    isApprovedSeller(product);
-
-  const underMsrp =
-    isUnderMsrp(product);
-
+    Boolean(String(product.seller || '').trim()) &&
+    !/^(?:unknown|marketplace seller)$/i.test(String(product.seller).trim());
 
   if(
-    !sellerQualified &&
-    !underMsrp
+    !sellerQualified
   ){
     return false;
   }
@@ -3906,7 +3902,7 @@ function buildLiveCard(product){
   ){
 
     priceLabel =
-      "APPROVED GT OFFER";
+      "QUALIFYING MARKETPLACE OFFER";
 
   }
 

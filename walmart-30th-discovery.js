@@ -374,6 +374,10 @@ function getPrice(item) {
 ======================================== */
 
 function getReferenceMsrp(item) {
+  const known = require('./products.json').find(product =>
+    product.walmartItemId && String(product.walmartItemId) === String(getItemId(item))
+  );
+  if (known && Number(known.msrp) > 0) return Number(known.msrp);
   const candidates = [
     item?.msrp,
 
@@ -1181,9 +1185,8 @@ function normalizeCandidate(item) {
 
   const approvedMarketplace =
     !directSeller &&
-    isApprovedMarketplaceSeller(
-      seller
-    );
+    Boolean(String(seller || '').trim()) &&
+    !/^(?:unknown|marketplace seller)$/i.test(String(seller).trim());
 
   const rawStatus =
     getAvailability(item);
@@ -1281,14 +1284,7 @@ function normalizeCandidate(item) {
     seller:
       directSeller
         ? "Walmart"
-        : (
-            approvedMarketplace
-              ? "GT COLLECTIBLES"
-              : (
-                  seller ||
-                  "Marketplace Seller"
-                )
-          ),
+        : (seller || "Marketplace Seller"),
 
     image:
       getImage(item),

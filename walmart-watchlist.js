@@ -114,7 +114,7 @@ function getConfiguredWatchlist() {
           null,
 
         image:
-          null,
+          product.image || null,
 
         url:
           product
