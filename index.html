@@ -4000,134 +4000,20 @@ function qualifiesForBuyNow(product){
 ========================================= */
 
 function buildLiveCard(product){
-
-  const image =
-    product.image ||
-    fallbackImage(product.name);
-
-  const msrp =
-    Number(product.msrp);
-
-  const price =
-    Number(product.price);
-
-  let priceLabel =
-    "WITHIN PRICE RULE";
-
-  if(
-    product.approvedMarketplace === true &&
-    product.alertEligible === true
-  ){
-
-    priceLabel =
-      "QUALIFYING MARKETPLACE OFFER";
-
-  }
-
-
-  if(
-    Number.isFinite(msrp) &&
-    Number.isFinite(price)
-  ){
-
-    const difference =
-      (
-        (price - msrp) /
-        msrp
-      ) * 100;
-
-
-    if(
-      difference <= 0
-    ){
-
-      priceLabel =
-        "AT / BELOW MSRP";
-
-    }else{
-
-      priceLabel =
-        `+${Math.round(difference)}% VS MSRP`;
-
-    }
-  }
-
-
+  const image = product.image || fallbackImage(product.name);
   return `
     <article class="product-card">
-
       <div class="product-image">
-
-        <img
-          src="${esc(image)}"
-          alt="${esc(product.name)}"
-          loading="lazy"
-          decoding="async"
-
-          onerror="
-            this.onerror=null;
-            this.src='${fallbackImage(
-              product.name
-            )}'
-          "
-        >
-
+        <img src="${esc(image)}" alt="${esc(product.name)}" loading="lazy" decoding="async"
+          onerror="this.onerror=null;this.src='${fallbackImage(product.name)}'">
       </div>
-
       <div class="live-flag" style="display:block;text-align:center;margin:6px auto 2px;width:max-content;">● LIVE</div>
-
-
       <div class="product-body">
-
-        <div class="product-name">
-          ${esc(product.name)}
-        </div>
-
-
-        <div class="product-seller">
-          Sold by:
-          ${esc(
-            product.seller ||
-            "Walmart"
-          )}
-        </div>
-
-
-        <div class="product-price">
-
-          ${money(product.price)}
-
-          ${
-            product.msrp != null
-              ?
-              `
-              <span class="msrp">
-                MSRP ${money(product.msrp)}
-              </span>
-              `
-              :
-              ""
-          }
-
-        </div>
-
-
-        <div class="price-rule">
-          ${esc(priceLabel)}
-        </div>
-
-
-        <a
-          class="buy-now"
-          href="${esc(product.url)}"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          BUY NOW →
-        </a>
-
+        <div class="product-name">${esc(product.name)}</div>
+        <div class="product-price">${money(product.price)}</div>
+        <div class="product-seller">Sold by: ${esc(product.seller || "Walmart")}</div>
+        <a class="buy-now" href="${esc(product.url)}" target="_blank" rel="noopener noreferrer">BUY NOW →</a>
       </div>
-
     </article>
   `;
 }
