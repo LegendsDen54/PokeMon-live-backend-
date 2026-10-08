@@ -9,7 +9,7 @@ async function restore() {
   try {
     await pool.query("CREATE TABLE IF NOT EXISTS retail_online_observations (retailer TEXT NOT NULL, url TEXT NOT NULL, data JSONB NOT NULL, PRIMARY KEY(retailer,url))");
     const result=await pool.query("SELECT retailer,url,data FROM retail_online_observations");
-    for(const row of result.rows)if(configs[row.retailer] && productUrl(row.retailer,row.url))getState(row.retailer).items.set(row.url,row.data);
+    for(const row of result.rows){const safe=configs[row.retailer] && productUrl(row.retailer,row.url);if(!safe)continue;const items=getState(row.retailer).items,prior=items.get(safe);if(!prior || (Date.parse(row.data.observedAt)||0)>=(Date.parse(prior.observedAt)||0))items.set(safe,{...row.data,url:safe});}
     storageReady=true;
   }catch(error){console.error("Online monitor storage unavailable:",error.message);}
 }
@@ -39,7 +39,7 @@ function isTcg(name) {
   if (/plush|shirt|hoodie|sneaker|lego|video game|funko|playmat only|sleeves|deck box only|card storage/.test(value)) return false;
   if (/binder/.test(value) && !/binder collection/.test(value)) return false;
   if (/deck box|playmat|protector|album/.test(value) && !/booster|elite trainer|premium collection|collection box|packs|\btin|bundle|promo/.test(value)) return false;
-  return /booster|elite trainer|\betb\b|\bupc\b|\bspc\b|premium collection|collection box|binder collection|poster collection|\btins?\b|blister|battle deck|theme deck|promo card|trading card game|\btcg\b/.test(value);
+  return /booster|elite trainer|\betb\b|\bupc\b|\bspc\b|premium collection|collection box|binder collection|poster collection|figure collection|sticker collection|\btins?\b|blister|battle deck|theme deck|promo card|trading card game|\btcg\b/.test(value);
 }
 function validUrl(retailer, value) {
   try {
@@ -54,6 +54,7 @@ function productUrl(retailer, value) {
   const url = validUrl(retailer, value);
   if (!url) return null;
   const path = new URL(url).pathname;
+  if(retailer==="target")return /^\/p\/(?:.+\/)?-\/A-\d+$/.test(path)?"https://www.target.com/p/-/A-"+path.match(/A-(\d+)$/)[1]:null;
   return ({sams:/^\/(ip|p)\/.+/, costco:/^\/p\/.+|\.product\.[\d]+\.html$/, target:/^\/p\/(?:.+\/)?-\/A-\d+$/}[retailer]).test(path) ? url : null;
 }
 function getState(retailer) {
@@ -95,7 +96,7 @@ async function page(url) {
       }
       const html = Buffer.concat(parts).toString("utf8");
       if (/access denied|verify you are human|captcha|robot or human/i.test(html) && !/"@type"\s*:\s*"Product"/.test(html)) throw new Error("Public page access is restricted");
-      requests.set(url, {html, fetchedAt:new Date().toISOString(), until:Date.now() + (new URL(url).hostname === configs.target.host && targetWindow() ? 5 : 10) * 60000});
+      requests.set(url, {html, fetchedAt:new Date().toISOString(), until:Date.now() + (new URL(url).hostname === configs.target.host ? 1 : 10) * 60000});
       if(requests.size>300)requests.delete(requests.keys().next().value);
       return html;
     } catch (error) {
@@ -146,12 +147,11 @@ function catalog(retailer) {
   return [...entries.values()];
 }
 async function check(retailer, url) {
-  if (retailer === 'target') throw new Error('Target shopping checks are disabled; use attributed Discord reports.');
   const safe = productUrl(retailer,url);
   if (!safe) throw new Error("Enter an individual product link from this retailer");
   const state = getState(retailer);
   const item = parseProduct(retailer,safe,await page(safe));
-  if (!item) throw new Error("No card-containing Pokémon product data was published on this page");
+  if (!item) throw new Error("No card-containing Pokémon product data with the required retailer seller was published on this page");
   item.observedAt=requests.get(safe)?.fetchedAt || item.observedAt;
   return acceptObservation(retailer,safe,item);
 }
@@ -179,10 +179,12 @@ async function acceptObservation(retailer,safe,item){
     } else item.lastMovementAlertAt=before?.lastMovementAlertAt || null;
   }
   const available=["instock","preorder"].includes(item.status);
-  const transition=available && (!before || before.status !== item.status);
+  const priorKnown=retailer==='target'?(before?.lastKnownStatus || before?.status):before?.status;
+  item.lastKnownStatus=item.status==='unknown'?priorKnown || null:item.status;
+  const transition=available && (!before || priorKnown !== item.status);
   item.alertRetryPending=available && Boolean(before?.alertRetryPending);
   item.alertRetryCount=transition?0:before?.alertRetryCount || 0;
-  if (transition || item.alertRetryPending && item.alertRetryCount<1) {
+  if ((retailer !== 'target' || targetPriority(item.name)) && (transition || item.alertRetryPending && item.alertRetryCount<1)) {
     if(!transition)item.alertRetryCount++;
     const delivery=await push.broadcast({title:`${configs[retailer].label} — Online TCG alert`,body:`${item.name} · ${item.status === "preorder" ? "Pre-order offer" : "Listed in stock"} · Confirm shipping to your ZIP`,url:safe,tag:`online-${retailer}-${item.productId}`});
     item.alertRetryPending=!delivery.sent && (delivery.subscriptions>0 || !delivery.ok);
@@ -190,32 +192,38 @@ async function acceptObservation(retailer,safe,item){
     if (!delivery.ok || !delivery.sent) console.error(`${configs[retailer].label} online alert delivery incomplete`,delivery);
   }
   await persist(item);
+  if(retailer==='target' && item.status==='out' && before?.lastKnownStatus!=='out')await require('./ccn-inventory').recordTargetSellout(item).catch(error=>console.error('Target sellout reconciliation unavailable:',error.message));
+  if (retailer === 'target' && (!before || before.status !== item.status || before.price !== item.price || before.name !== item.name)) onUpdate?.({retailer,productId:item.productId});
   return item;
 }
 async function poll(retailer) {
-  if (retailer === 'target') return;
   const state = getState(retailer);
   const priorityWindow=retailer === "target" && targetWindow();
   if (state.running || (state.nextCheck > Date.now() && !(priorityWindow && !state.priorityWindow))) return;
   state.priorityWindow=priorityWindow;
   state.running = true; state.lastRun = new Date().toISOString();
-  state.nextCheck = Date.now() + (priorityWindow ? 5 : 30)*60000;
+  state.nextCheck = Date.now() + (retailer === 'target' ? 1 : priorityWindow ? 5 : 30)*60000;
   try {
-    if (Date.now() - state.lastDiscovery > (priorityWindow || ["costco","sams"].includes(retailer) ? 30*60000 : 24*3600000)) {
+    if (retailer === 'target') {
+      try { for (const product of await require('./ccn-inventory').onlineProducts('target')) await trackTargetProduct(product); state.sourceCatalogError=null; }
+      catch (error) { state.sourceCatalogError=error.message; }
+    }
+    if (Date.now() - state.lastDiscovery > (retailer === 'target' ? 5*60000 : priorityWindow || ["costco","sams"].includes(retailer) ? 30*60000 : 24*3600000)) {
       state.lastDiscovery = Date.now();
       try {
         const $ = cheerio.load(await page(configs[retailer].search));
         $("a[href]").each((_,el) => {
           let link; try {link = productUrl(retailer,new URL($(el).attr("href"),configs[retailer].search).href);} catch {}
           const name = $(el).text().trim() || $(el).find("img").attr("alt");
-          if (link && isTcg(name) && state.items.size < 100 && !state.items.has(link)) state.items.set(link,{name,url:link,status:"unknown",channel:"online",retailer,quantity:null,source:"public_catalog_link",observedAt:new Date().toISOString()});
+          if (link && isTcg(name) && (retailer !== 'target' || targetPriority(name)) && state.items.size < (retailer === "target" ? 1000 : 100) && !state.items.has(link)) state.items.set(link,{name,url:link,status:"unknown",channel:"online",retailer,quantity:null,source:"public_catalog_link",observedAt:new Date().toISOString()});
         });
         state.discoveryError=null;state.lastDiscoverySuccess=new Date().toISOString();
       } catch(error) {state.discoveryError=error.message;state.error = error.message;}
     }
-    let urls = [...new Set([...catalog(retailer).map(i => i.url), ...(process.env[retailer.toUpperCase()+"_PUBLIC_WATCH_URLS"] || "").split(/[\n,]/)])].filter(url => productUrl(retailer,url));
+    let urls = [...new Set([...catalog(retailer).map(i => i.url), ...(process.env[retailer.toUpperCase()+"_PUBLIC_WATCH_URLS"] || "").split(/[\n,]/)].map(url=>productUrl(retailer,url)).filter(Boolean))];
     if (retailer === "target") {
-      const names=new Map(catalog(retailer).map(item=>[item.url,item.query || item.label]));
+      const names=new Map(catalog(retailer).map(item=>[productUrl(retailer,item.url),item.query || item.label]));
+      urls=urls.filter(url=>targetPriority(state.items.get(url)?.name || names.get(url)));
       urls.sort((a,b)=>Number(targetPriority(state.items.get(b)?.name || names.get(b)))-Number(targetPriority(state.items.get(a)?.name || names.get(a))));
     }
     const offset=state.cursor || 0;
@@ -233,7 +241,23 @@ function snapshot(retailer) {
   const state=getState(retailer);
   return {...state, health:state.error?"limited":!state.lastSuccess?"waiting":Date.now()-Date.parse(state.lastSuccess)>60*60000?"stale":"responding", items:[...state.items.values()].map(item => ({...item, stale:item.source==="browser_product_page"?Date.now()-Date.parse(item.observedAt)>5*60000:Boolean(requests.get(item.url)?.error || state.checkFailures?.[item.url]) || Date.now()-Date.parse(item.observedAt)>60*60000})), upcoming:retailer === "target" ? require("./target-drop-reports.json").filter(report=>productUrl("target",report.url) && /^https:\/\//.test(report.sourceUrl || "") && report.name && report.sourceName && report.expectedWindow && (Date.parse(report.expiresAt)>Date.now() || report.keepWatching === true) && Date.parse(report.reportedAt)<=Date.now()).map(report=>Date.parse(report.expiresAt)<=Date.now() ? {...report,expectedWindow:report.watchNote || "Watch item · previous reported window passed. Next drop date and availability unconfirmed."} : report) : [], catalog:catalog(retailer), searchUrl:configs[retailer].search, locatorUrl:configs[retailer].locator};
 }
-async function start() {
+let onUpdate=null;
+async function trackTargetProduct(product) {
+  const safe=productUrl('target',product.url);
+  if(!safe || !isTcg(product.name) || !targetPriority(product.name) || product.seller && !/^target$/i.test(product.seller))return;
+  const state=getState('target');
+  if(!state.items.has(safe)){
+    const candidate={retailer:'target',channel:'online',name:product.name,url:safe,productId:new URL(safe).pathname.match(/A-(\d+)/)?.[1],image:product.image || null,price:null,seller:null,sellerVerified:false,status:'unknown',source:'source_report_candidate',observedAt:null,discoveredAt:new Date().toISOString()};
+    state.items.set(safe,candidate);await persist(candidate);
+    state.nextCheck=0;
+  }
+}
+async function trackSourceReport(report) {
+  if(report.retailer!=='target')return;
+  for(const product of report.products || [])await trackTargetProduct(product);
+}
+async function start(callback) {
+  onUpdate=callback || null;
   await restore();
   const tick=() => Promise.allSettled(Object.keys(configs).map(poll));
   tick(); const timer=setInterval(tick,60000);timer.unref();
@@ -246,4 +270,4 @@ async function browserObservation(input){
  const item=await acceptObservation('target',safe,{retailer:'target',channel:'online',name:String(input.title).slice(0,240),url:safe,productId:new URL(safe).pathname.match(/A-(\d+)/)?.[1],sku:String(input.itemNumber || '').slice(0,40),status,rawStatus:status,image:String(input.image || '').startsWith('https://')?String(input.image).slice(0,1000):null,price,quantity:null,seller:verified?'Target':null,sellerVerified:verified,source:'browser_product_page',observedAt:new Date().toISOString()});
  getState('target').lastBrowserObservationAt=item.observedAt;return item;
 }
-module.exports={start,snapshot,check,isTcg,parseProduct,productUrl,targetPriority,browserObservation};
+module.exports={start,snapshot,check,isTcg,parseProduct,productUrl,targetPriority,browserObservation,trackSourceReport};

@@ -2044,6 +2044,7 @@ async function processCcnNews(input){
       if(!result?.sent && result?.ok===false)await ccnInventory.releaseNewsNotification(report);
       return {...result,eventId:notificationClaim.id};
     };
+    await retailOnline.trackSourceReport(report);
     announceCcnUpdate(report);
     const relevantPcReport=require('./source-alert-identity').pokemonCenterEvidenceEligible(report);
     const sourceEligible=report.retailer!=='pokemoncenter' || relevantPcReport;
@@ -2052,8 +2053,8 @@ async function processCcnNews(input){
     const productAlerts=await ccnInventory.onlineAlerts(report);
     const sourceRetailerLabel=(report.game==='onepiece'?'One Piece · ':'')+({target:'Target',walmart:'Walmart',pokemoncenter:'Pokémon Center',sams:"Sam's Club",costco:'Costco',onepiece:'TCG source'}[report.retailer] || '');
     if(productAlerts.length && !pcWarning && sourceEligible){
-      const early=productAlerts.every(p=>p.alertKind==='early'),pending=productAlerts.some(p=>p.alertKind!=='stock');
-      delivery=await push.broadcast({title:report.source+' — '+sourceRetailerLabel+(early?' potential drop':pending?' source update':' stock reported'),body:(productAlerts.map(p=>p.name).join('; ')+(early?' · Availability unconfirmed.':pending?' · Retailer verification pending.':'')).slice(0,180),url:productAlerts[0].url,retailer:report.retailer,game:report.game,product:productAlerts[0].name,publishedAt:report.publishedAt,sourceUrl:report.sourceUrl,ttl:pending?3600:300,tag:'ccn-product-'+report.retailer+'-'+productAlerts[0].productId}).catch(()=>({ok:false,error:'Push send failed'}));
+      const early=productAlerts.every(p=>p.alertKind==='early'),pending=productAlerts.some(p=>p.alertKind!=='stock'),targetLive=report.retailer==='target' && productAlerts.some(p=>p.status==='reported_available');
+      delivery=await push.broadcast({title:report.source+' — '+sourceRetailerLabel+(targetLive?' live restock reported':early?' potential drop':pending?' source update':' stock reported'),body:(productAlerts.map(p=>p.name).join('; ')+(early?' · Availability unconfirmed.':pending?' · Retailer verification pending.':'')).slice(0,180),url:productAlerts[0].url,retailer:report.retailer,game:report.game,product:productAlerts[0].name,publishedAt:report.publishedAt,sourceUrl:report.sourceUrl,ttl:pending?3600:300,tag:'ccn-product-'+report.retailer+'-'+productAlerts[0].productId}).catch(()=>({ok:false,error:'Push send failed'}));
     }
     if(sourceEligible && !pcWarning && !(report.products || []).length && (report.isNew || report.isUpdated || input.resendNotification===true) && sourceRetailerLabel && Date.now()-Date.parse(report.updatedAt || report.publishedAt)<90*60000 && (/drop|restock|preorder|pre-order|queue|raffle|draw|loaded|load.?up|live|stock/i.test(report.summary) || report.game==='onepiece' && /release|announcement|product|booster|deck|card reveal/i.test(report.summary))){
       delivery=await sendOnce(eventId=>push.broadcast({title:report.source+' — '+sourceRetailerLabel+' reported update',body:report.summary.slice(0,180),url:report.retailer==='walmart' && /raffle|draw/i.test(report.summary)?'https://www.walmart.com/shop/collectibles/draw':report.sourceUrl,retailer:report.retailer,game:report.game,publishedAt:report.publishedAt,sourceUrl:report.sourceUrl,eventId,ttl:3600,tag:'ccn-news-'+eventId}).catch(()=>({ok:false,error:'Push send failed'})));
@@ -3579,7 +3580,7 @@ async function runScheduledDiscovery() {
 app.listen(
   port,
   async () => {
-    if (process.env.RETAIL_PUBLIC_MONITOR_ENABLED !== "false") retailOnline.start().catch(error=>console.error("Online monitor startup failed:",error.message));
+    if (process.env.RETAIL_PUBLIC_MONITOR_ENABLED !== "false") retailOnline.start(update=>announceCcnUpdate({...update,isUpdated:true})).catch(error=>console.error("Online monitor startup failed:",error.message));
     console.log(
       `Pokemon monitor backend listening on ${port}`
     );

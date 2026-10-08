@@ -81,7 +81,7 @@ function cleanOnlineProducts(input){
     const onePieceShop=game==='onepiece' && retailer==='onepiece' && /^(?:www\.)?(?:flipsidegaming\.com|smokeandmirrorshobby\.com|shop\.bandainamco-am\.com|en\.onepiece-cardgame\.com)$/.test(host);
     if(url.protocol!=='https:' || !(allowed[retailer]?.includes(host) || onePieceShop) || !item.name)return null;
     const name=String(item.name).slice(0,240);const seller=String(item.seller || '').slice(0,100);
-    if(retailer==='target' && ((item.status!=='upcoming' && !/^target$/i.test(seller)) || (seller && !/^target$/i.test(seller)) || (game==='pokemon' && !/ascended heroes|prismatic|destined rivals|30th|(?:ultra|special|super)[- ]premium collection|\b(?:upc|spc)\b/i.test(name))))return null;
+    if(retailer==='target' && ((seller && !/^target$/i.test(seller)) || (game==='pokemon' && !/ascended heroes|prismatic|destined rivals|30th|(?:ultra|special|super)[- ]premium collection|\b(?:upc|spc)\b/i.test(name))))return null;
     const sellerVerified=retailer==='target'?/^target$/i.test(seller):retailer==='walmart'?Boolean(seller.trim()) && !/^(?:unknown|marketplace seller)$/i.test(seller.trim()):retailer==='sams'?/^sam'?s(?: club)?$/i.test(seller):retailer==='costco'?/^costco$/i.test(seller):retailer==='onepiece'?Boolean(seller):true;
     // Unknown sellers may appear as upcoming source reports, never as eligible stock.
     if(retailer==='walmart' && !sellerVerified && (seller || item.status!=='upcoming'))return null;
@@ -188,7 +188,7 @@ async function onlineProducts(retailer){
     if(retailer==='onepiece'?(post.game!=='onepiece' && product.game!=='onepiece'):(post.game==='onepiece' || product.game==='onepiece'))continue;
     const productKey=retailer==='walmart'?String(product.productId || product.url):product.url;
     if(latest.has(productKey))continue;
-    latest.set(productKey,{...product,...(product.productId==='20964873413' && post.retailer==='walmart'?{image:'https://pokemon-live-backend.onrender.com/delta-reign-illustration.png',imageLabel:'Custom illustration · official product art unavailable'}:{}),source:post.source,sourceUrl:post.sourceUrl,reportedAt:post.updatedAt || post.publishedAt,stale:Date.now()-Date.parse(post.updatedAt || post.publishedAt)>30*60000});
+    latest.set(productKey,{...product,...(product.productId==='20964873413' && post.retailer==='walmart'?{image:'https://pokemon-live-backend.onrender.com/delta-reign-illustration.png',imageLabel:'Custom illustration · official product art unavailable'}:{}),source:post.source,sourceUrl:post.sourceUrl,publishedAt:post.publishedAt,editedAt:post.editedAt || null,reportedAt:post.updatedAt || post.publishedAt,stale:Date.now()-Date.parse(post.updatedAt || post.publishedAt)>30*60000});
   }
   const chicagoDay=value=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
   const today=chicagoDay(Date.now());
@@ -225,6 +225,22 @@ async function onlineAlerts(report){
   }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
 }
 module.exports.onlineAlerts=onlineAlerts;
+
+// A fresh explicit retailer sellout ends the source-live episode as well.
+// This lets the next Discord restock alert without treating silence as a sellout.
+module.exports.recordTargetSellout=async(item)=>{
+  await newsStorage();
+  await pool.query('CREATE TABLE IF NOT EXISTS ccn_online_alert_states (product_key TEXT PRIMARY KEY, data JSONB NOT NULL)');
+  const key='target:'+item.url,at=Date.parse(item.observedAt);
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[key]);
+    const previous=(await client.query('SELECT data FROM ccn_online_alert_states WHERE product_key=$1',[key])).rows[0]?.data;
+    if(!previous || Date.parse(previous.reportedAt)<=at)await client.query('INSERT INTO ccn_online_alert_states(product_key,data) VALUES($1,$2) ON CONFLICT(product_key) DO UPDATE SET data=EXCLUDED.data',[key,{status:'reported_unavailable',eligible:true,expectedWindow:'',reportedAt:item.observedAt,evidence:'explicit_target_listing_sellout'}]);
+    await client.query('COMMIT');
+  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+};
 
 async function dgQueueStorage(){await storage();await pool.query("CREATE TABLE IF NOT EXISTS dg_check_requests (product_id TEXT NOT NULL, zip TEXT NOT NULL, requested_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(product_id,zip))");}
 module.exports.requestDg=async(productId,zip)=>{await dgQueueStorage();await pool.query("INSERT INTO dg_check_requests(product_id,zip) VALUES($1,$2) ON CONFLICT(product_id,zip) DO UPDATE SET requested_at=now() WHERE dg_check_requests.requested_at < now()-interval '1 hour' OR EXISTS (SELECT 1 FROM ccn_inventory_reports r WHERE r.retailer='dollargeneral' AND r.product_id=EXCLUDED.product_id AND r.zip=EXCLUDED.zip AND (r.data->>'checkedAt')::timestamptz>=dg_check_requests.requested_at)",[productId,zip]);};

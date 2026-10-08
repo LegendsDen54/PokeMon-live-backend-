@@ -2479,6 +2479,7 @@ async function renderOnePieceProducts(){
 }
 
 async function renderCcnOnlineProducts(retailer){
+  if(retailer==='target')return; // One combined Target panel handles source and retailer evidence.
   if(['target','sams','costco'].includes(retailer) && activeRetailer!==retailer)return;
   if(retailer==='costco'){otherRetailerCard.querySelector('#ccnOnline-costco')?.remove();return;}
   const parent=retailer==='walmart'?walmartSection:retailer==='pokemoncenter'?document.getElementById('pokemonCenterSection'):otherRetailerCard;
@@ -3342,9 +3343,68 @@ async function updateCostcoOnlineBadge(data){
     const count=costcoUnread(data).length;badge.hidden=!count;badge.textContent=count;badge.setAttribute('aria-label',count+' new Costco online signals');
   }catch{}
 }
+function targetOfficialUrl(value){
+  try{const url=new URL(value);const id=url.pathname.match(/^\/p\/(?:.*\/)?-\/A-(\d+)\/?$/)?.[1];return url.protocol==='https:' && ['target.com','www.target.com'].includes(url.hostname) && !url.username && !url.password && !url.port && id?'https://www.target.com/p/-/A-'+id:null;}catch{return null;}
+}
+async function renderTargetDrops(data,observations,saved,sequence){
+  let sourceProducts=saved.sourceProducts || [];saved.sourceError=false;
+  try{const response=await fetch('/api/ccn/online-products?retailer=target',{cache:'no-store'});const body=await response.json();if(response.ok && body.ok){sourceProducts=body.items || [];saved.sourceProducts=sourceProducts;}else saved.sourceError=true;}catch{saved.sourceError=true;}
+  if(activeRetailer!=='target' || sequence!==saved.renderSequence)return;
+  const preferred=item=>/ascended heroes|prismatic|destined rivals|30th|(?:ultra|super|special)[- ]premium collection|\b(?:upc|spc)\b/i.test(item.name || '');
+  const key=item=>targetOfficialUrl(item.url)?.match(/A-(\d+)/)?.[1];
+  const watched=new Map();
+  for(const item of data.upcoming || [])if(preferred(item) && key(item))watched.set(key(item),{...item,at:item.editedAt || item.reportedAt});
+  for(const sourceItem of sourceProducts){
+    const item={...sourceItem,stale:Date.now()-Date.parse(sourceItem.reportedAt)>30*60000};
+    if(!preferred(item) || !key(item) || item.seller && !/^target$/i.test(item.seller))continue;
+    const prior=watched.get(key(item));
+    if(!prior || Date.parse(item.reportedAt)>=Date.parse(prior.at || 0))watched.set(key(item),{...prior,...item,image:item.image || prior?.image,sourceName:item.source,at:item.reportedAt});
+  }
+  // New listings join even when absent from the saved watchlist.
+  for(const item of observations.values()){
+    if(!preferred(item) || !key(item) || item.seller && !/^target$/i.test(item.seller))continue;
+    const prior=watched.get(key(item));
+    if(!prior)watched.set(key(item),{...item,sourceName:'Target public listing',at:item.observedAt || item.discoveredAt});
+    const row=watched.get(key(item));
+    if(!item.stale && item.sellerVerified && /^target$/i.test(item.seller) && ['instock','in_stock','available','preorder','out','outofstock','unavailable'].includes(item.status) && (!row.at || Date.parse(item.observedAt)>=Date.parse(row.at))){
+      watched.set(key(item),{...row,image:item.image || row.image,price:item.price,seller:item.seller,direct:item,status:item.status,stale:false});
+    }
+  }
+  const products=[...watched.values()].map(item=>{
+    const directLive=Boolean(item.direct && ['instock','in_stock','available','preorder'].includes(item.direct.status));
+    const sourceLive=item.status==='reported_available' && !item.stale;
+    const soldOut=['out','outofstock','unavailable','reported_unavailable'].includes(item.status);
+    const live=directLive || sourceLive;
+    const status=directLive?'LIVE — Target listing reports available':sourceLive?'LIVE — Discord reports available':soldOut?'Out of stock reported · watching for the next drop':item.status==='reported_available'?'Earlier live report · current stock unconfirmed':item.status==='queue'?'Reported queue · stock unconfirmed':item.expectedWindow || 'Potential · drop date and stock unconfirmed';
+    return {...item,url:targetOfficialUrl(item.url),live,statusLabel:status,sortRank:live?0:soldOut?2:1};
+  }).sort((a,b)=>a.sortRank-b.sortRank || (Date.parse(b.at)||0)-(Date.parse(a.at)||0));
+  const cards=products.map(item=>{
+    const original=item.publishedAt || item.reportedAt;
+    const timestamp=item.direct?(original?'Reported '+new Date(original).toLocaleString()+' · ':'')+'Target observed '+new Date(item.direct.observedAt).toLocaleString():original?'Reported '+new Date(original).toLocaleString():item.observedAt?'Listing found '+new Date(item.observedAt).toLocaleString():'Listing discovered · stock unconfirmed';
+    const attribution=item.sourceUrl?'<a href="'+esc(safeExternalUrl(item.sourceUrl) || item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(item.sourceName || 'Trusted Discord source')+'</a>':'<a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">Target public listing</a>';
+    const offer=item.price!=null?'$'+Number(item.price).toFixed(2):'Price unverified';
+    const seller=item.seller || 'Seller unverified · confirm sold by Target';
+    return '<article class="retailer-product-card" data-target-product="'+esc(key(item))+'">'+retailerImageMarkup(item.image,item.name)+'<div><h4><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a></h4><strong>'+esc(item.statusLabel)+'</strong><small>'+esc(offer)+' · '+esc(seller)+'</small><small>'+esc(timestamp)+'</small>'+attribution+'<a class="watchlist-buy-button" href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+(item.live?'LIVE / BUY NOW':'BUY NOW · CHECK TARGET')+'</a><small>Confirm seller, online stock and shipping at Target.</small></div></article>';
+  }).join('');
+  const health=data.error?'Automatic discovery is limited: '+esc(data.error)+'. Discord reports continue.':data.lastSuccess?'Automatic listing monitoring active · last successful read '+esc(new Date(data.lastSuccess).toLocaleTimeString()):'Automatic listing monitoring started · no successful public read yet.';
+  const html='<section class="store-checker"><h3>Target Drop</h3><details id="targetUpcomingDrops"><summary>Live products &amp; Upcoming Drops</summary>'+(cards?'<div class="retailer-product-grid">'+cards+'</div>':'<p>No current qualifying report. Monitoring continues.</p>')+'</details><small>'+health+'</small>'+(saved.sourceError?'<small>Source refresh unavailable · retrying automatically.</small>':'')+'<small>Source-live reports do not confirm checkout. Prices exclude tax and shipping.</small></section>';
+  if(otherRetailerCard.querySelector('#targetUpcomingDrops') && otherRetailerCard.dataset.targetMarkup===html)return;
+  // Capture position at commit time so reading during a request is preserved.
+  const scroll=document.getElementById('appScroll');const top=scroll?.scrollTop || 0;const windowTop=window.scrollY;
+  const anchor=[...otherRetailerCard.querySelectorAll('[data-target-product]')].find(card=>card.getBoundingClientRect().bottom>(scroll?.getBoundingClientRect().top || 0));
+  const anchorId=anchor?.dataset.targetProduct,anchorTop=anchor?.getBoundingClientRect().top;
+  const open=otherRetailerCard.querySelector('#targetUpcomingDrops')?.open ?? saved.upcomingOpen ?? true;
+  otherRetailerCard.innerHTML=html;otherRetailerCard.dataset.targetMarkup=html;
+  const details=otherRetailerCard.querySelector('#targetUpcomingDrops');details.open=open;details.addEventListener('toggle',()=>{saved.upcomingOpen=details.open;});
+  const replacement=anchorId?[...otherRetailerCard.querySelectorAll('[data-target-product]')].find(card=>card.dataset.targetProduct===anchorId):null;
+  if(scroll)scroll.scrollTop=top+(replacement?replacement.getBoundingClientRect().top-anchorTop:0);
+  if(window.scrollY!==windowTop)window.scrollTo({top:windowTop,behavior:'instant'});
+}
+
 async function renderPublicOnline(retailer){
   renderPublicOnline.saved ||= {};
   const saved=renderPublicOnline.saved[retailer] ||= {url:"",result:""};
+  const sequence=saved.renderSequence=(saved.renderSequence || 0)+1;
   const labels={sams:"Sam's Club",costco:"Costco",target:"Target"};
   if(retailer!=="target" && otherRetailerCard.querySelector('[data-online-search-retailer="'+retailer+'"]')) return;
   if(saved.checking || (otherRetailerCard.contains(document.activeElement) && /INPUT|SELECT/.test(document.activeElement.tagName))) return;
@@ -3362,6 +3422,7 @@ async function renderPublicOnline(retailer){
       for(const item of browser.items || []) if(!items.has(item.url) || Date.parse(item.observedAt)>Date.parse(items.get(item.url)?.observedAt || 0)) items.set(item.url,{...item,name:item.title,sku:item.itemNumber,status:item.availability,stale:Date.now()-Date.parse(item.observedAt)>5*60000});
     }
     if(activeRetailer!==retailer || (retailer!=="target" && warehouseChannels[retailer]!=="online")) return;
+    if(retailer==='target'){await renderTargetDrops(data,items,saved,sequence);return;}
     const targetPreferred = item => /ascended heroes|prismatic evolutions|destined rivals|30th|ultra[- ]premium collection|super[- ]premium collection|\bupc\b|\bspc\b/i.test(String(item.name || ""));
     const eligibleItems=[...items.values()].filter(item=>retailer!=="target" || (item.sellerVerified === true && /^target$/i.test(item.seller || ""))).sort((a,b)=>Number(onlinePurchaseAvailable(b,retailer))-Number(onlinePurchaseAvailable(a,retailer)));
     const cards=eligibleItems.filter(item=>!["target","costco","sams"].includes(retailer) || (!item.stale && ["instock","in_stock","available","preorder"].includes(item.status))).map(item=>{
@@ -3389,27 +3450,6 @@ async function renderPublicOnline(retailer){
       onlineForm.dataset.onlineSearchRetailer=retailer;
       onlineForm.onsubmit=async e=>{e.preventDefault();const select=onlineForm.querySelector('select'),productUrl=select.value || onlineForm.querySelector('[aria-label="Online product link"]').value.trim(),button=onlineForm.querySelector('button'),result=onlineForm.querySelector('[role="status"]');if(!productUrl){result.textContent='Choose a product or enter its official product link.';return;}button.disabled=true;result.textContent='Checking product…';try{const res=await fetch('/api/retail/product-check?retailer='+encodeURIComponent(retailer)+'&url='+encodeURIComponent(productUrl),{cache:'no-store'});const body=await res.json();if(!res.ok || !body.ok)throw Error();const item=body.item;result.innerHTML='<article class="ccn-product-tile">'+purchasePhotoMarkup({...item,url:item.url || productUrl},retailer)+'<h4>'+esc(item.name)+'</h4>'+(item.itemNumber || item.sku?'<small>Item '+esc(item.itemNumber || item.sku)+'</small>':'')+(item.price!=null?'<small>$'+Number(item.price).toFixed(2)+'</small>':'')+(item.seller?'<small>'+esc(item.seller)+'</small>':'')+'<a target="_blank" rel="noopener noreferrer" href="'+esc(productUrl)+'">OPEN PRODUCT</a></article>';}catch{result.textContent='Availability could not be confirmed. Please check the retailer.';}finally{button.disabled=false;}};
       wireWarehouseChannels(retailer);renderCcnOnlineProducts(retailer);return;
-    }    if(retailer==="target") {
-      const panel=document.createElement("section");panel.className="store-checker";
-      const available=eligibleItems.filter(item=>targetPreferred(item) && !item.stale && ["instock","preorder"].includes(item.status));
-      let sourceProducts=[];
-      try{const reports=await fetch('/api/ccn/online-products?retailer=target',{cache:'no-store'}).then(r=>r.json());if(reports.ok)sourceProducts=(reports.items || []).filter(item=>targetPreferred(item) && /^target$/i.test(item.seller || ''));}catch{}
-      if(activeRetailer!=='target')return;
-      const targetProductKey=item=>String(item.url).match(/A-(\d+)/)?.[1] || item.url;
-      const targetWatch=new Map((data.upcoming || []).filter(item=>targetPreferred(item)).map(item=>[targetProductKey(item),item]));
-      for(const item of sourceProducts){const key=targetProductKey(item),prior=targetWatch.get(key);if(!prior || Date.parse(item.reportedAt)>=Date.parse(prior.reportedAt))targetWatch.set(key,{...prior,...item,image:item.image || prior?.image,sourceName:item.source || 'Discord source',expectedWindow:item.expectedWindow || prior?.expectedWindow || 'Potential drop · date and availability unconfirmed'});}
-      const upcoming=[...targetWatch.values()].map(item=>{const live=available.some(row=>targetProductKey(row)===targetProductKey(item));const label=live?'LIVE NOW — fresh Target availability confirmed':item.status==='reported_available'?item.stale?'Earlier live report · current availability unconfirmed':'REPORTED LIVE — source reports available; confirm at Target':item.status==='reported_unavailable'?'Reported sold out · watching for another drop':item.status==='queue'?'Reported queue · availability unconfirmed':item.expectedWindow || 'Potential drop · date and availability unconfirmed';return {...item,expectedWindow:label,purchaseAvailable:live || onlinePurchaseAvailable(item,'target')};}).sort((a,b)=>Number(b.purchaseAvailable)-Number(a.purchaseAvailable));
-      panel.innerHTML='<h3>Target Drop</h3><details id="targetUpcomingDrops"><summary>Upcoming Drops</summary>'+ (upcoming.length?'<div class="retailer-product-grid">'+upcoming.map(item=>'<article class="retailer-product-card">'+purchasePhotoMarkup(item,'target',item.purchaseAvailable)+'<p><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a><br>'+esc(item.expectedWindow)+'<br><small>Reported '+esc(new Date(item.reportedAt).toLocaleString())+(item.editedAt?' · Edited '+esc(new Date(item.editedAt).toLocaleString()):'')+'</small><br><a href="'+esc(item.sourceUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(item.sourceName)+'</a></p></article>').join('')+'</div>':'<p>No current verified drop report. Background checks continue.</p>')+'</details><small>Prices exclude tax and shipping. Checkout determines the final total. Availability does not reserve stock.</small>';
-      otherRetailerCard.prepend(panel);
-      const upcomingSection=panel.querySelector('#targetUpcomingDrops');
-      upcomingSection.open=saved.upcomingOpen !== false;
-      upcomingSection.addEventListener('toggle',()=>{saved.upcomingOpen=upcomingSection.open;});
-
-    }
-    if(retailer==='target'){
-      otherRetailerCard.querySelector('.store-checker:not(:first-child)')?.remove();
-      Array.from(otherRetailerCard.children).filter(el=>el.tagName==='STRONG' || el.tagName==='P' || el.classList.contains('retailer-product-grid') || el.tagName==='SMALL').forEach(el=>el.remove());
-      renderCcnOnlineProducts('target');return;
     }
     if(retailer!=="target") wireWarehouseChannels(retailer);
     const input=document.getElementById("retailOnlineUrl");
