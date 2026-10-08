@@ -3,89 +3,115 @@
     "name": "Pokemon TCG 30th Celebration Binder Collection",
     "url": "https://www.target.com/p/pok-233-mon-trading-card-game-30th-celebration-binder-collection/-/A-1010892074",
     "image": "https://target.scene7.com/is/image/Target/GUEST_e3f41174-8c2d-420c-b59a-2a40857a89b0?wid=600&hei=600&qlt=80",
-    "sourceName": "CCN — possible preorder, unconfirmed",
-    "sourceUrl": "https://discord.com/channels/1410547930250612828/1514248684575920160/1557141345078874174",
-    "reportedAt": "2026-10-06T21:23:46.954Z",
-    "expectedWindow": "Watch overnight October 6–7. Community window: October 7, 2–5 a.m. Chicago; timing not confirmed by Target.",
-    "expiresAt": "2026-10-07T12:00:00Z",
-    "priorityStartsAt": "2026-10-07T07:00:00Z",
-    "priorityEndsAt": "2026-10-07T10:00:00Z",
-    "keepWatching": true
+    "sourceName": "CCN — potential drop, availability unconfirmed",
+    "sourceUrl": "https://discord.com/channels/1410547930250612828/1514248684575920160/1557626771573182486",
+    "reportedAt": "2026-10-08T05:32:41.649Z",
+    "expectedWindow": "CCN reports this could drop tonight or tomorrow night. Timing and checkout availability are unconfirmed.",
+    "keepWatching": true,
+    "watchNote": "New CCN potential-drop report October 8 at 12:32 AM Chicago; no retailer-confirmed opening time.",
+    "previousReports": [
+      {
+        "sourceUrl": "https://discord.com/channels/1410547930250612828/1514248684575920160/1557141345078874174",
+        "reportedAt": "2026-10-06T21:23:46.954Z",
+        "editedAt": null,
+        "expectedWindow": "Watch overnight October 6–7. Community window: October 7, 2–5 a.m. Chicago; timing not confirmed by Target."
+      }
+    ]
   },
   {
     "name": "Pokemon TCG 30th Celebration Elite Trainer Box",
     "url": "https://www.target.com/p/-/A-1010892076",
     "image": "https://target.scene7.com/is/image/Target/GUEST_40ed4d44-2adc-4cfe-a27b-0ce8b6e73cba?wid=600&hei=600&fmt=jpeg",
-    "sourceName": "CCN — expected candidate, availability unconfirmed",
-    "sourceUrl": "https://discord.com/channels/1410547930250612828/1424776504767680722/1556370406703759574",
-    "reportedAt": "2026-10-04T18:20:20.922Z",
-    "expectedWindow": "Watch overnight October 6–7. Community window: October 7, 2–5 a.m. Chicago; timing not confirmed by Target.",
-    "expiresAt": "2026-10-07T12:00:00Z",
-    "priorityStartsAt": "2026-10-07T07:00:00Z",
-    "priorityEndsAt": "2026-10-07T10:00:00Z",
+    "sourceName": "CCN — potential drop, availability unconfirmed",
+    "sourceUrl": "https://discord.com/channels/1410547930250612828/1514248684575920160/1557626771573182486",
+    "reportedAt": "2026-10-08T05:32:41.649Z",
+    "expectedWindow": "CCN reports this could drop tonight or tomorrow night. Timing and checkout availability are unconfirmed.",
     "keepWatching": true,
-    "editedAt": "2026-10-06T21:23:47.771Z",
-    "watchNote": "Potential restock watch · earlier overnight prediction passed; next date and availability unconfirmed."
+    "watchNote": "New CCN potential-drop report October 8 at 12:32 AM Chicago; no retailer-confirmed opening time.",
+    "previousReports": [
+      {
+        "sourceUrl": "https://discord.com/channels/1410547930250612828/1424776504767680722/1556370406703759574",
+        "reportedAt": "2026-10-04T18:20:20.922Z",
+        "editedAt": "2026-10-06T21:23:47.771Z",
+        "expectedWindow": "Watch overnight October 6–7. Community window: October 7, 2–5 a.m. Chicago; timing not confirmed by Target."
+      }
+    ]
   },
   {
     "name": "Pokemon TCG 30th Celebration Booster Bundle",
     "url": "https://www.target.com/p/-/A-1011407490",
     "image": "https://target.scene7.com/is/image/Target/GUEST_dced4296-9e16-4dfc-ba82-1cf211e03dbc?wid=600&hei=600&fmt=jpeg",
-    "sourceName": "CCN — expected candidate, availability unconfirmed",
-    "sourceUrl": "https://discord.com/channels/1410547930250612828/1424776504767680722/1556370406703759574",
-    "reportedAt": "2026-10-04T18:20:20.922Z",
-    "expectedWindow": "Watch overnight October 6–7. Community window: October 7, 2–5 a.m. Chicago; timing not confirmed by Target.",
-    "expiresAt": "2026-10-07T12:00:00Z",
-    "priorityStartsAt": "2026-10-07T07:00:00Z",
-    "priorityEndsAt": "2026-10-07T10:00:00Z",
+    "sourceName": "CCN — potential drop, availability unconfirmed",
+    "sourceUrl": "https://discord.com/channels/1410547930250612828/1514248684575920160/1557626771573182486",
+    "reportedAt": "2026-10-08T05:32:41.649Z",
+    "expectedWindow": "CCN reports this could drop tonight or tomorrow night. Timing and checkout availability are unconfirmed.",
     "keepWatching": true,
-    "editedAt": "2026-10-06T21:23:47.771Z",
-    "watchNote": "Potential restock watch · earlier overnight prediction passed; next date and availability unconfirmed."
+    "watchNote": "New CCN potential-drop report October 8 at 12:32 AM Chicago; no retailer-confirmed opening time.",
+    "previousReports": [
+      {
+        "sourceUrl": "https://discord.com/channels/1410547930250612828/1424776504767680722/1556370406703759574",
+        "reportedAt": "2026-10-04T18:20:20.922Z",
+        "editedAt": "2026-10-06T21:23:47.771Z",
+        "expectedWindow": "Watch overnight October 6–7. Community window: October 7, 2–5 a.m. Chicago; timing not confirmed by Target."
+      }
+    ]
   },
   {
     "name": "Pokemon TCG 30th Celebration Mini Tin",
     "url": "https://www.target.com/p/-/A-1012422107",
     "image": "https://target.scene7.com/is/image/Target/GUEST_d468293a-fb30-4b49-ba4e-4af57b55a85a?wid=600&hei=600&fmt=jpeg",
-    "sourceName": "CCN — expected candidate, availability unconfirmed",
-    "sourceUrl": "https://discord.com/channels/1410547930250612828/1424776504767680722/1556370406703759574",
-    "reportedAt": "2026-10-04T18:20:20.922Z",
-    "expectedWindow": "Watch overnight October 6–7. Community window: October 7, 2–5 a.m. Chicago; timing not confirmed by Target.",
-    "expiresAt": "2026-10-07T12:00:00Z",
-    "priorityStartsAt": "2026-10-07T07:00:00Z",
-    "priorityEndsAt": "2026-10-07T10:00:00Z",
+    "sourceName": "CCN — potential drop, availability unconfirmed",
+    "sourceUrl": "https://discord.com/channels/1410547930250612828/1514248684575920160/1557626771573182486",
+    "reportedAt": "2026-10-08T05:32:41.649Z",
+    "expectedWindow": "CCN reports this could drop tonight or tomorrow night. Timing and checkout availability are unconfirmed.",
     "keepWatching": true,
-    "editedAt": "2026-10-06T21:23:47.771Z",
-    "watchNote": "Potential restock watch · earlier overnight prediction passed; next date and availability unconfirmed."
+    "watchNote": "New CCN potential-drop report October 8 at 12:32 AM Chicago; no retailer-confirmed opening time.",
+    "previousReports": [
+      {
+        "sourceUrl": "https://discord.com/channels/1410547930250612828/1424776504767680722/1556370406703759574",
+        "reportedAt": "2026-10-04T18:20:20.922Z",
+        "editedAt": "2026-10-06T21:23:47.771Z",
+        "expectedWindow": "Watch overnight October 6–7. Community window: October 7, 2–5 a.m. Chicago; timing not confirmed by Target."
+      }
+    ]
   },
   {
     "name": "Pokemon TCG 30th Celebration Poster Collection",
     "url": "https://www.target.com/p/-/A-1010892067",
     "image": "https://target.scene7.com/is/image/Target/GUEST_caff1c6e-b09a-498d-99d5-d5b66202fa70?wid=600&hei=600&fmt=jpeg",
-    "sourceName": "CCN — expected candidate, availability unconfirmed",
-    "sourceUrl": "https://discord.com/channels/1410547930250612828/1424776504767680722/1556370406703759574",
-    "reportedAt": "2026-10-04T18:20:20.922Z",
-    "expectedWindow": "Watch overnight October 6–7. Community window: October 7, 2–5 a.m. Chicago; timing not confirmed by Target.",
-    "expiresAt": "2026-10-07T12:00:00Z",
-    "priorityStartsAt": "2026-10-07T07:00:00Z",
-    "priorityEndsAt": "2026-10-07T10:00:00Z",
+    "sourceName": "CCN — potential drop, availability unconfirmed",
+    "sourceUrl": "https://discord.com/channels/1410547930250612828/1514248684575920160/1557626771573182486",
+    "reportedAt": "2026-10-08T05:32:41.649Z",
+    "expectedWindow": "CCN reports this could drop tonight or tomorrow night. Timing and checkout availability are unconfirmed.",
     "keepWatching": true,
-    "editedAt": "2026-10-06T21:23:47.771Z",
-    "watchNote": "Potential restock watch · earlier overnight prediction passed; next date and availability unconfirmed."
+    "watchNote": "New CCN potential-drop report October 8 at 12:32 AM Chicago; no retailer-confirmed opening time.",
+    "previousReports": [
+      {
+        "sourceUrl": "https://discord.com/channels/1410547930250612828/1424776504767680722/1556370406703759574",
+        "reportedAt": "2026-10-04T18:20:20.922Z",
+        "editedAt": "2026-10-06T21:23:47.771Z",
+        "expectedWindow": "Watch overnight October 6–7. Community window: October 7, 2–5 a.m. Chicago; timing not confirmed by Target."
+      }
+    ]
   },
   {
     "name": "Pokemon TCG 30th Celebration Sylveon ex Box",
     "url": "https://www.target.com/p/-/A-1010892068",
     "image": "https://target.scene7.com/is/image/Target/GUEST_65085291-1d03-4b66-8c88-729c7ac7b66b?wid=600&hei=600&fmt=jpeg",
-    "sourceName": "CCN — expected candidate, availability unconfirmed",
-    "sourceUrl": "https://discord.com/channels/1410547930250612828/1424776504767680722/1556370406703759574",
-    "reportedAt": "2026-10-04T18:20:20.922Z",
-    "expectedWindow": "Watch overnight October 6–7. Community window: October 7, 2–5 a.m. Chicago; timing not confirmed by Target.",
-    "expiresAt": "2026-10-07T12:00:00Z",
-    "priorityStartsAt": "2026-10-07T07:00:00Z",
-    "priorityEndsAt": "2026-10-07T10:00:00Z",
+    "sourceName": "CCN — potential drop, availability unconfirmed",
+    "sourceUrl": "https://discord.com/channels/1410547930250612828/1514248684575920160/1557626771573182486",
+    "reportedAt": "2026-10-08T05:32:41.649Z",
+    "expectedWindow": "CCN reports this could drop tonight or tomorrow night. Timing and checkout availability are unconfirmed.",
     "keepWatching": true,
-    "editedAt": "2026-10-06T21:23:47.771Z",
-    "watchNote": "Potential restock watch · earlier overnight prediction passed; next date and availability unconfirmed."
+    "watchNote": "New CCN potential-drop report October 8 at 12:32 AM Chicago; no retailer-confirmed opening time.",
+    "previousReports": [
+      {
+        "sourceUrl": "https://discord.com/channels/1410547930250612828/1424776504767680722/1556370406703759574",
+        "reportedAt": "2026-10-04T18:20:20.922Z",
+        "editedAt": "2026-10-06T21:23:47.771Z",
+        "expectedWindow": "Watch overnight October 6–7. Community window: October 7, 2–5 a.m. Chicago; timing not confirmed by Target."
+      }
+    ]
   },
   {
     "name": "Pokemon TCG 30th Celebration Battle Deck — Umbreon ex",

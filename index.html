@@ -1019,6 +1019,29 @@ a{
   font-size:15px;
 }
 
+.store-checker > h3,
+.warehouse-watch-section > h3,
+.pokemon-restocks-widget > h3,
+#ccnInventoryReports > div > h3,
+#otherRetailerCard > h3,
+#pokemonCenterSection > h3{
+  margin:20px 0 14px;
+  padding-bottom:10px;
+  border-bottom:2px solid rgba(98,199,255,.38);
+  color:#f5fbff;
+  font-size:21px;
+  font-weight:800;
+  line-height:1.25;
+}
+.store-checker > h3:first-child,
+.pokemon-restocks-widget > h3:first-child{margin-top:0;}
+.pokemon-restocks-widget > h3 + p{color:#a9bfd0;font-size:14px;line-height:1.5;}
+@media(max-width:600px){
+  .store-checker > h3,.warehouse-watch-section > h3,
+  .pokemon-restocks-widget > h3,#ccnInventoryReports > div > h3,#otherRetailerCard > h3,
+  #pokemonCenterSection > h3{font-size:20px;}
+}
+
 .store-checker p{
   margin:0 0 10px;
 }
@@ -2457,6 +2480,7 @@ async function renderOnePieceProducts(){
 
 async function renderCcnOnlineProducts(retailer){
   if(['target','sams','costco'].includes(retailer) && activeRetailer!==retailer)return;
+  if(retailer==='costco'){otherRetailerCard.querySelector('#ccnOnline-costco')?.remove();return;}
   const parent=retailer==='walmart'?walmartSection:retailer==='pokemoncenter'?document.getElementById('pokemonCenterSection'):otherRetailerCard;
   try{
     const key=sessionStorage.getItem('ccnReportKey');
@@ -2488,7 +2512,9 @@ async function renderCcnOnlineProducts(retailer){
       const pending=!purchasable&&!item.withinPriceRule?'<small>Seller / price verification pending</small>':'';
       const action={walmart:'OPEN WALMART',target:'OPEN TARGET',sams:"OPEN SAM’S CLUB",costco:'OPEN COSTCO',pokemoncenter:'OPEN POKÉMON CENTER'}[retailer];
       const actionUrl=scheduled?'https://www.walmart.com/shop/collectibles/draw':item.url;
-      const photo=retailerImageMarkup(item.image || scheduled?.image,item.name);
+      const matchingTargetCard=retailer==='target'?[...parent.querySelectorAll('#targetUpcomingDrops article')].find(card=>[...card.querySelectorAll('a[href]')].some(a=>a.href.includes('/A-'+item.productId))):null;
+      const knownTargetImage=matchingTargetCard?.querySelector('img[src]')?.getAttribute('src');
+      const photo=retailerImageMarkup(item.image || scheduled?.image || knownTargetImage,item.name);
       const photoAction=purchasable?'<div class="watchlist-product-photo">'+photo+'<a class="watchlist-buy-button" href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+(item.scannerLive||ownerVerifiedLive?'LIVE NOW':'REPORTED LIVE')+'<br>BUY NOW ↗</a></div>':photo;
       const reportTime=item.reportedAt?'<small>Announced '+esc(new Date(item.reportedAt).toLocaleString())+'</small>':item.checkedAt?'<small>Found '+esc(new Date(item.checkedAt).toLocaleString())+'</small>':'';
       return '<article class="retailer-product-card">'+photoAction+'<div><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a><small>'+esc(state)+'</small>'+(scheduled?'<small>'+esc(raffleScheduleLabel(scheduled))+' · Entry not open yet</small>':'')+(item.imageLabel?'<small>'+esc(item.imageLabel)+'</small>':'')+pending+(item.expectedWindow?'<small>'+esc(item.expectedWindow)+'</small>':'')+'<small>'+esc(item.seller || 'Seller unverified')+(item.price!=null?' · USD '+Number(item.price).toFixed(2):' · Price unverified')+'</small>'+reportTime+(!purchasable?'<a class="retailer-link" href="'+esc(actionUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(scheduled?'OPEN WALMART DRAWINGS':action)+' ↗</a>':'')+(item.sourceUrl?'<a href="'+esc(item.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW SOURCE ↗</a>':'')+'</div></article>';
@@ -3095,21 +3121,22 @@ async function renderCcnInventory(retailer){
   }
   if(!/^\d{5}$/.test(zip))reportBody.hidden=true;
   let lastReportsFingerprint="";
-  async function refreshReports(){const zip=savedInventoryChoice('inventoryLastResultZip:'+retailer) || savedInventoryChoice('inventoryZip:'+retailer) || linkedZip;if(!/^\d{5}$/.test(zip))return;try{
+  async function refreshReports(){const zip=savedInventoryChoice('inventoryZip:'+retailer) || savedInventoryChoice('inventoryLastResultZip:'+retailer) || linkedZip;if(!/^\d{5}$/.test(zip))return;try{
     const data=await fetch("/api/ccn/inventory-reports?retailer="+encodeURIComponent(retailer)+"&zip="+encodeURIComponent(zip),{cache:"no-store"}).then(r=>r.json());
-    if(!section.isConnected || zip!==(savedInventoryChoice('inventoryLastResultZip:'+retailer) || savedInventoryChoice('inventoryZip:'+retailer) || linkedZip))return;
+    if(!section.isConnected || zip!==(savedInventoryChoice('inventoryZip:'+retailer) || savedInventoryChoice('inventoryLastResultZip:'+retailer) || linkedZip))return;
     if(!data.ok)throw new Error(data.error);
-    const selectedResult=stockParams.get('retailer')===retailer?stockParams.get('productId'):savedInventoryChoice('inventoryLastSearch:'+retailer);
+    const currentStockParams=new URLSearchParams(location.search);
+    const selectedResult=(currentStockParams.get('retailer')===retailer?currentStockParams.get('productId'):null) || savedInventoryChoice('inventoryProduct:'+retailer) || savedInventoryChoice('inventoryLastSearch:'+retailer);
     const fingerprint=JSON.stringify({zip,selectedResult,reports:data.reports});if(fingerprint===lastReportsFingerprint)return;lastReportsFingerprint=fingerprint;
     const productTiles=(data.reports || []).filter(report=>String(report.sourceUrl || '').startsWith('https://discord.com/channels/1367457689386356766/') && (!selectedResult || String(report.productId)===selectedResult)).map(report=>{
       const stockChange=row=>{const c=row.quantityChanges?.onHand;if(!c)return 'No comparable prior quantity';if(!c.delta)return 'Unchanged';return c.previous+' → '+c.current+' ('+(c.delta>0?'+':'')+c.delta+')'+(c.current===0?' · now zero reported':'');};
       const rows=(report.locations || []).map(row=>'<tr><th scope="row">'+esc(row.name)+'<small>'+esc(row.address)+'</small><small>'+esc(row.status || '')+'</small></th><td>'+esc(row.onOrder ?? '—')+'</td><td>'+esc(row.inTransit ?? '—')+'</td><td>'+esc(row.onHand ?? '—')+'</td><td>'+esc(stockChange(row))+'</td></tr>').join('');
       const image=report.image || knownProducts.find(p=>String(p.itemNumber)===String(report.productId))?.image;
-      return '<article class="ccn-product-tile">'+(retailer==='costco' && knownProducts.some(p=>p.image && String(p.itemNumber)===String(report.productId))?'':retailerImageMarkup(image,report.name))+'<h4>'+esc(report.name)+'</h4><small>Item '+esc(report.productId)+'</small><p>'+esc(report.result==='checker_error'?'Checker error · stock unknown':report.result==='no_stock_reported'?'Checker reported no stock found':'Reported warehouse stock')+(report.stale?' · STALE':'')+'</p><small>Checked '+esc(new Date(report.checkedAt).toLocaleString())+'</small>'+(rows?'<details open><summary>Locations ('+report.locations.length+')</summary><div class="ccn-location-scroll"><table><thead><tr><th>Location</th><th>Order</th><th>Transit</th><th>On hand</th><th>Change</th></tr></thead><tbody>'+rows+'</tbody></table></div><small>— means not supplied by the checker.</small></details>':'')+(report.detail?'<details><summary>Check details</summary><p>'+esc(report.detail)+'</p></details>':'')+'<p><a href="'+esc(report.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW RIPPIN PACKZ SOURCE ↗</a></p></article>';
+      return '<article class="ccn-product-tile">'+(retailer==='costco' && knownProducts.some(p=>p.image && String(p.itemNumber)===String(report.productId))?'':retailerImageMarkup(image,report.name))+'<h4>'+esc(report.name)+'</h4><small>Item '+esc(report.productId)+'</small><p>'+esc(report.result==='checker_error'?'Checker error · stock unknown':report.result==='no_stock_reported'?'No stock reported · missing stores remain unknown':'Reported warehouse stock')+(report.stale?' · STALE':'')+'</p><small>Checked '+esc(new Date(report.checkedAt).toLocaleString())+'</small>'+(rows?'<details open><summary>Locations ('+report.locations.length+')</summary><div class="ccn-location-scroll"><table><thead><tr><th>Location</th><th>Order</th><th>Transit</th><th>On hand</th><th>Change</th></tr></thead><tbody>'+rows+'</tbody></table></div><small>— means not supplied by the checker.</small></details>':'')+(report.detail?'<details'+(report.result==='checker_error'?' open':'')+'><summary>Check details</summary><p>'+esc(report.detail)+'</p></details>':'')+'<p><a href="'+esc(report.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW RIPPIN PACKZ SOURCE ↗</a></p></article>';
     }).join('');
-    reportBody.hidden=!productTiles;reportBody.innerHTML=productTiles?'<div class="ccn-product-grid">'+productTiles+'</div>':'';
+    reportBody.hidden=false;reportBody.innerHTML='<h3>Latest stock check</h3>'+(productTiles?'<div class="ccn-product-grid">'+productTiles+'</div>':'<p>No saved result for '+(selectedResult?'item '+esc(selectedResult)+' · ':'')+'ZIP '+esc(zip)+'. Stock is unknown. Request a fresh check below.</p>');
     updateCcnCountdowns();
-  }catch(error){if(!reportBody.children.length)reportBody.innerHTML='<p>'+esc(error.message)+'</p>';}}
+  }catch(error){if(!lastReportsFingerprint){reportBody.hidden=false;reportBody.innerHTML='<h3>Latest stock check</h3><p>Saved check unavailable. Stock is unknown. Please try again.</p>';}}}
   section.addEventListener('refresh-stock-report',refreshReports);
   await refreshReports();
   const reportPoll=setInterval(()=>{if(!section.isConnected){clearInterval(reportPoll);return;}refreshReports();},10000);
@@ -3136,7 +3163,7 @@ function watchInventoryRequest(retailer,getSelection,status,button,onCompleted){
   let state={status:'idle'},busy=false,lastKey='',failure='',pollBusy=false,lastPollAt=0;
   const paint=()=>{if(!status.isConnected)return;const cooldown=!!(state.availableAt && Date.parse(state.availableAt)>Date.now()),pending=!failure && !cooldown && (busy || state.status==='queued');status.classList.toggle('inventory-check-pending',pending);status.setAttribute('aria-busy',String(pending));status.textContent=failure || (busy?'Submitting check request…':inventoryCheckText(state));button.disabled=busy || cooldown;};
   async function update(){const selection=getSelection(),key=selection.productId+':'+selection.zip;if(!selection.productId || !/^\d{5}$/.test(selection.zip))return;if(key!==lastKey){lastKey=key;state={status:'idle'};paint();}
-    try{const r=await fetch('/api/inventory/request-status?retailer='+encodeURIComponent(retailer)+'&productId='+encodeURIComponent(selection.productId)+'&zip='+encodeURIComponent(selection.zip),{cache:'no-store'});const data=await r.json();if(!r.ok)throw Error();if(key!==getSelection().productId+':'+getSelection().zip || !status.isConnected)return;const newlyCompleted=data.status==='completed' && (state.status!=='completed' || state.checkedAt!==data.checkedAt);state=data;failure="";paint();if(newlyCompleted && onCompleted)onCompleted(data);}catch{if(status.isConnected)failure='Request status unavailable · saved stock is unchanged';}
+    try{const r=await fetch('/api/inventory/request-status?retailer='+encodeURIComponent(retailer)+'&productId='+encodeURIComponent(selection.productId)+'&zip='+encodeURIComponent(selection.zip),{cache:'no-store'});const data=await r.json();if(!r.ok)throw Error();if(key!==getSelection().productId+':'+getSelection().zip || !status.isConnected)return;const newlyCompleted=['completed','checker_error'].includes(data.status) && (state.status!==data.status || state.checkedAt!==data.checkedAt);state=data;failure="";paint();if(newlyCompleted && onCompleted)onCompleted(data);}catch{if(status.isConnected)failure='Request status unavailable · saved stock is unchanged';}
   }
   status.addEventListener('refresh-inventory-request',async()=>{if(pollBusy || busy || !status.isConnected)return;pollBusy=true;try{await update();}finally{pollBusy=false;}});
   const tick=setInterval(()=>{if(!status.isConnected){clearInterval(tick);clearInterval(poll);return;}paint();},1000);
