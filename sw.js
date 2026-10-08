@@ -164,16 +164,26 @@ self.addEventListener(
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   const alert=event.notification.data || {};
-  if(alert.url==='https://www.walmart.com/shop/collectibles/draw'){event.waitUntil(self.clients.openWindow(alert.url));return;}
-  const target=new URL('/',self.location.origin);
-  target.hash='notification='+encodeURIComponent(JSON.stringify({title:alert.title || event.notification.title,body:alert.body || event.notification.body,url:alert.url,retailer:alert.retailer,receivedAt:alert.receivedAt}));
+  let target;
+  try {
+    target=new URL(alert.url || '/',self.location.origin);
+    if(target.protocol!=='https:')target=new URL('/',self.location.origin);
+  } catch {
+    target=new URL('/',self.location.origin);
+  }
   event.waitUntil((async()=>{
     const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
-    const app=windows.find(client=>new URL(client.url).origin===self.location.origin);
-    if(app){
-      const navigated=await app.navigate(target.href).catch(()=>null);
-      return (navigated || app).focus();
+    const exact=windows.find(client=>client.url===target.href);
+    if(exact)return exact.focus();
+    if(target.origin===self.location.origin){
+      const app=windows.find(client=>new URL(client.url).origin===self.location.origin);
+      if(app){
+        const navigated=await app.navigate(target.href).catch(()=>null);
+        if(navigated)return navigated.focus();
+      }
     }
+    // Call openWindow inside the notification click lifetime so mobile browsers
+    // retain the user action needed to open the actual retailer destination.
     return self.clients.openWindow(target.href);
   })());
 });
