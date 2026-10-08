@@ -2802,7 +2802,7 @@ function wireWarehouseChecker(retailer){
 }
 
 function retailerImageMarkup(image, name){
-  const source = safeExternalUrl(image);
+  const source = /^\/one-piece-(?:eb05|eb05-box|ts03)\.webp$/.test(String(image || '')) ? image : safeExternalUrl(image);
   if(!source){
     return "<div class=\"retailer-product-image-frame image-unavailable\" role=\"img\" aria-label=\"Official product image unavailable\"></div>";
   }
