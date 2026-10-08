@@ -4023,20 +4023,28 @@ function buildLiveCard(product){
 
 function renderLiveProducts(items){
 
+  // Catalog, discovery and deal searches can return the same Walmart item.
+  const unique = new Map();
+  for(const item of Array.isArray(items) ? items : []){
+    if(!qualifiesForBuyNow(item)) continue;
+    const urlId=String(item.url || '').match(/\/ip\/(?:[^/?]+\/)?(\d+)(?:[/?]|$)/)?.[1];
+    const key=String(item.walmartItemId || item.itemId || urlId || item.productId || item.name);
+    const previous=unique.get(key);
+    const time=Date.parse(item.checkedAt || item.updatedAt || '') || 0;
+    const previousTime=Date.parse(previous?.checkedAt || previous?.updatedAt || '') || 0;
+    if(!previous || time>previousTime || (time===previousTime && Number(item.price)<Number(previous.price))){
+      unique.set(key,item);
+    }
+  }
+  livePanel.classList.add('open');
+
   currentLiveProducts =
-    Array.isArray(items)
-      ?
-      items
-        .filter(
-          qualifiesForBuyNow
-        )
+      Array.from(unique.values())
         .sort(
           (a,b) =>
             Number(a.price || Infinity) -
             Number(b.price || Infinity)
-        )
-      :
-      [];
+        );
 
 
   liveCount.textContent =
