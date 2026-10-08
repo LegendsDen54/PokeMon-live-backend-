@@ -878,7 +878,9 @@ a{
 }
 
 .watchlist-product-photo{width:76px;min-width:0;}
-.retailer-product-card .watchlist-buy-button{display:block;box-sizing:border-box;width:100%;margin-top:6px;padding:6px 3px;border-radius:6px;background:#b8f36e;color:#102008;font-size:9px;font-weight:800;line-height:1.25;text-align:center;text-decoration:none;}
+.watchlist-buy-button{display:block;box-sizing:border-box;width:100%;margin-top:6px;padding:6px 3px;border-radius:6px;background:#b8f36e;color:#102008;font-size:9px;font-weight:800;line-height:1.25;text-align:center;text-decoration:none;}
+.ccn-product-tile .watchlist-product-photo{width:100%;}
+.ccn-product-tile .watchlist-buy-button{font-size:12px;padding:9px 6px;}
 
 .ccn-product-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px;margin-top:16px;}
 .ccn-product-tile{min-width:0;padding:16px;background:#06111f;border:1px solid #26475f;border-radius:14px;text-align:left;}
@@ -2432,7 +2434,7 @@ async function renderOnePieceProducts(){
       const label=item.status==='upcoming'?'Potential drop · availability unconfirmed':item.status==='queue'?'Source reports a queue':item.stale?'Earlier source report · stock unconfirmed':'Source reports available · confirm at store';
       const price=item.price==null?'Price unverified':'USD '+Number(item.price).toFixed(2);
       const ceiling=item.msrp==null?'MSRP unverified · purchase eligibility pending':'MSRP USD '+Number(item.msrp).toFixed(2)+' · Your ceiling USD '+(item.msrp*1.5).toFixed(2);
-      return '<article class="retailer-product-card">'+retailerImageMarkup(item.image,item.name)+'<div><h4>'+esc(item.name)+'</h4><small>'+esc(label)+'</small><small>'+esc(price+' · '+(item.seller || 'Seller unverified'))+'</small><small>'+esc(ceiling)+'</small><small>'+esc(item.source)+' · Announced '+esc(new Date(item.reportedAt).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</small><a class="retailer-link" href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">OPEN STORE ↗</a><a href="'+esc(item.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW SOURCE ↗</a></div></article>';
+      return '<article class="retailer-product-card">'+purchasePhotoMarkup(item,'onepiece')+'<div><h4>'+esc(item.name)+'</h4><small>'+esc(label)+'</small><small>'+esc(price+' · '+(item.seller || 'Seller unverified'))+'</small><small>'+esc(ceiling)+'</small><small>'+esc(item.source)+' · Announced '+esc(new Date(item.reportedAt).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</small><a class="retailer-link" href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">OPEN STORE ↗</a><a href="'+esc(item.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW SOURCE ↗</a></div></article>';
     };
     parent.innerHTML='<h2>One Piece Products</h2><p>MSRP to 150% of verified MSRP · Original announcements keep their dates.</p><section class="store-checker"><h3>Qualifying reported deals</h3><div class="retailer-product-grid">'+(qualifying.map(card).join('') || '<p>No fresh eligible deals confirmed by sources.</p>')+'</div></section><section class="store-checker"><h3>Potential Drops / Pending Verification</h3><div class="retailer-product-grid">'+(pending.map(card).join('') || '<p>No new qualifying watch items today.</p>')+'</div></section>'+store;
   }catch(error){if(activeRetailer==='onepiece')parent.innerHTML='<h2>One Piece Products</h2><p>'+esc(error.message)+'</p>'+store;}
@@ -2464,7 +2466,7 @@ async function renderCcnOnlineProducts(retailer){
       const verifiedSeller=Boolean(String(item.seller||'').trim())&&!/^(unknown|marketplace seller)$/i.test(String(item.seller||'').trim());
       const ownerVerifiedLive=item.ownerVerifiedOffer===true;
       const reportedBuyable=live&&verifiedSeller&&(ownerVerifiedLive||(item.withinPriceRule&&isWithinPriceRule(item)));
-      const purchasable=retailer==='walmart'&&(item.scannerLive?qualifiesForBuyNow(item):reportedBuyable);
+      const purchasable=retailer==='walmart'?(item.scannerLive?qualifiesForBuyNow(item):reportedBuyable):onlinePurchaseAvailable(item,retailer);
       const scheduled=purchasable?null:scheduledDrawings.get(String(item.productId || ''));
       const state=purchasable?(item.scannerLive?'LIVE NOW · Available to buy':ownerVerifiedLive?'LIVE NOW · Owner verified checkout available':source+' reports live · confirm at retailer'):scheduled?'Confirmed scheduled drop · Walmart drawing':live?source+' reports live · confirm at retailer':item.status==='reported_available'?'Earlier availability report · recheck at retailer':item.status==='queue'?source+' reports a queue':item.dropClassification==='known'?'Scheduled drop · availability unconfirmed':'Potential drop · availability unconfirmed';
       const pending=!purchasable&&!item.withinPriceRule?'<small>Seller / price verification pending</small>':'';
@@ -2833,10 +2835,28 @@ function retailerImageMarkup(image, name){
   return "<div class=\"retailer-product-image-frame\"><img src=\"" + esc(source) + "\" alt=\"" + esc(name || "Product image") + "\" loading=\"lazy\" decoding=\"async\" referrerpolicy=\"no-referrer\" onerror=\"const frame=this.parentElement;this.remove();if(frame)frame.classList.add('image-unavailable')\"></div>";
 }
 
+function onlinePurchaseAvailable(item,retailer){
+  if(item.stale || item.channel==='store' || !safeExternalUrl(item.url))return false;
+  const status=String(item.status || item.availability || '').toLowerCase().replace(/[ _-]/g,'');
+  if(['outofstock','soldout','reportedunavailable','upcoming','queue','invitationonly'].includes(status))return false;
+  if(!['instock','available','preorder','reportedavailable'].includes(status) && item.inStock!==true && item.offerAvailable!==true)return false;
+  if(retailer==='target' && !/^target$/i.test(item.seller || ''))return false;
+  if(retailer==='walmart')return qualifiesForBuyNow(item);
+  if(retailer==='onepiece')return item.withinPriceRule===true && isWithinPriceRule(item);
+  return status!=='reportedavailable' || item.withinPriceRule===true;
+}
+
+function purchasePhotoMarkup(item,retailer,available=onlinePurchaseAvailable(item,retailer)){
+  const photo=retailerImageMarkup(item.image,item.name || item.title);
+  if(!available)return photo;
+  const label=item.status==='reported_available'?'REPORTED LIVE':'LIVE NOW';
+  return '<div class="watchlist-product-photo">'+photo+'<a class="watchlist-buy-button" href="'+esc(safeExternalUrl(item.url))+'" target="_blank" rel="noopener noreferrer">'+label+'<br>BUY NOW ↗</a></div>';
+}
+
 function bestBuyCheckerCard(item){
   const url = safeExternalUrl(item.url);
   const name = esc(item.name || "Pokémon product");
-  const photo = retailerImageMarkup(item.image, item.name);
+  const photo = purchasePhotoMarkup(item,'bestbuy',item.channel==='online' && onlinePurchaseAvailable(item,'bestbuy'));
   const title = url ? "<a href=\"" + esc(url) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" + name + "</a>" : name;
   const address = [item.storeAddress, [item.storeCity, item.storeState, item.storePostalCode].filter(Boolean).join(" ")].filter(Boolean).map(esc).join(" · ");
   const distance = item.distanceMiles == null ? null : Number(item.distanceMiles);
@@ -3231,7 +3251,7 @@ if(retailer==="dollargeneral")return renderDollarGeneral();
           ? "Quantity: " + esc(quantity)
           : (item.lowStock ? "Low stock · exact quantity not published" : "Available · exact quantity not published"))
         : null;
-      const productImage = retailerImageMarkup(item.image, item.name);
+      const productImage = purchasePhotoMarkup(item,retailer);
       return "<article class=\"retailer-product-card\">" + productImage + "<div><strong>" +
         linkedName + "</strong><small>SKU: " + esc(item.sku || item.productId || "Unavailable") +
         "</small><small>" + itemStatus + " · " + esc(price) + "</small>" + location +
@@ -3310,7 +3330,7 @@ async function renderPublicOnline(retailer){
         return '<article class="ccn-product-tile">'+retailerImageMarkup(item.image,item.name)+'<h4>'+(url?'<a target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">'+esc(item.name)+'</a>':esc(item.name))+'</h4>'+(number?'<small>Item '+esc(number)+'</small>':'')+(item.price!=null && Number.isFinite(Number(item.price))?'<small>$'+Number(item.price).toFixed(2)+'</small>':'')+(item.seller?'<small>'+esc(item.seller)+'</small>':'')+'</article>';
       }
       const shipping="<small>Shipping to your ZIP: confirm at retailer</small>";
-      return '<article class="retailer-product-card" style="position:relative">'+retailerImageMarkup(item.image,item.name)+'<div><strong>'+(url?'<a class="online-product-link" target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">'+esc(item.name)+'</a>':esc(item.name))+'</strong><small>'+esc(price)+'</small><small>Item / SKU: '+esc(item.sku || item.productId || "Not published")+'</small><small>'+esc(status)+'</small>'+shipping+'<small>'+(item.observedAt?esc(new Date(item.observedAt).toLocaleString()):"Not checked yet")+'</small></div></article>';
+      return '<article class="retailer-product-card" style="position:relative">'+purchasePhotoMarkup(item,retailer)+'<div><strong>'+(url?'<a class="online-product-link" target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">'+esc(item.name)+'</a>':esc(item.name))+'</strong><small>'+esc(price)+'</small><small>Item / SKU: '+esc(item.sku || item.productId || "Not published")+'</small><small>'+esc(status)+'</small>'+shipping+'<small>'+(item.observedAt?esc(new Date(item.observedAt).toLocaleString()):"Not checked yet")+'</small></div></article>';
     }).join("");
     const options=(data.catalog || []).filter(item=>item.url && (retailer!=="costco" || /ascended heroes|30th/i.test(item.label || item.query || ""))).map(item=>'<option value="'+esc(item.url || "")+'">'+esc(String(item.label || item.name || item.query).replace(/^(?:Confirmed(?: recent)?|Reported) · /, "").slice(0,85))+'</option>').join("");
     const header=retailer==="target" ? "" : warehouseChannelMarkup(retailer);
@@ -3323,7 +3343,7 @@ async function renderPublicOnline(retailer){
       const onlineForm=document.createElement('form');onlineForm.className='store-checker';onlineForm.innerHTML='<h3>Find an online product</h3><div class="store-checker-row"><select aria-label="Choose online product"><option value="">Choose a product by name</option>'+options+'</select><input type="url" aria-label="Online product link" placeholder="Or enter an official product link"><input aria-label="Online ZIP code" placeholder="Enter your ZIP code" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" ><button type="submit">CHECK PRODUCT</button></div><div role="status"></div>';
       otherRetailerCard.append(onlineForm);
       onlineForm.dataset.onlineSearchRetailer=retailer;
-      onlineForm.onsubmit=async e=>{e.preventDefault();const select=onlineForm.querySelector('select'),productUrl=select.value || onlineForm.querySelector('[aria-label="Online product link"]').value.trim(),button=onlineForm.querySelector('button'),result=onlineForm.querySelector('[role="status"]');if(!productUrl){result.textContent='Choose a product or enter its official product link.';return;}button.disabled=true;result.textContent='Checking product…';try{const res=await fetch('/api/retail/product-check?retailer='+encodeURIComponent(retailer)+'&url='+encodeURIComponent(productUrl),{cache:'no-store'});const body=await res.json();if(!res.ok || !body.ok)throw Error();const item=body.item;result.innerHTML='<article class="ccn-product-tile">'+(item.image?retailerImageMarkup(item.image,item.name):'')+'<h4>'+esc(item.name)+'</h4>'+(item.itemNumber || item.sku?'<small>Item '+esc(item.itemNumber || item.sku)+'</small>':'')+(item.price!=null?'<small>$'+Number(item.price).toFixed(2)+'</small>':'')+(item.seller?'<small>'+esc(item.seller)+'</small>':'')+'<a target="_blank" rel="noopener noreferrer" href="'+esc(productUrl)+'">OPEN PRODUCT</a></article>';}catch{result.textContent='Availability could not be confirmed. Please check the retailer.';}finally{button.disabled=false;}};
+      onlineForm.onsubmit=async e=>{e.preventDefault();const select=onlineForm.querySelector('select'),productUrl=select.value || onlineForm.querySelector('[aria-label="Online product link"]').value.trim(),button=onlineForm.querySelector('button'),result=onlineForm.querySelector('[role="status"]');if(!productUrl){result.textContent='Choose a product or enter its official product link.';return;}button.disabled=true;result.textContent='Checking product…';try{const res=await fetch('/api/retail/product-check?retailer='+encodeURIComponent(retailer)+'&url='+encodeURIComponent(productUrl),{cache:'no-store'});const body=await res.json();if(!res.ok || !body.ok)throw Error();const item=body.item;result.innerHTML='<article class="ccn-product-tile">'+purchasePhotoMarkup({...item,url:item.url || productUrl},retailer)+'<h4>'+esc(item.name)+'</h4>'+(item.itemNumber || item.sku?'<small>Item '+esc(item.itemNumber || item.sku)+'</small>':'')+(item.price!=null?'<small>$'+Number(item.price).toFixed(2)+'</small>':'')+(item.seller?'<small>'+esc(item.seller)+'</small>':'')+'<a target="_blank" rel="noopener noreferrer" href="'+esc(productUrl)+'">OPEN PRODUCT</a></article>';}catch{result.textContent='Availability could not be confirmed. Please check the retailer.';}finally{button.disabled=false;}};
       wireWarehouseChannels(retailer);renderCcnOnlineProducts(retailer);return;
     }    if(retailer==="target") {
       const panel=document.createElement("section");panel.className="store-checker";
@@ -3334,8 +3354,8 @@ async function renderPublicOnline(retailer){
       const targetProductKey=item=>String(item.url).match(/A-(\d+)/)?.[1] || item.url;
       const targetWatch=new Map((data.upcoming || []).filter(item=>targetPreferred(item)).map(item=>[targetProductKey(item),item]));
       for(const item of sourceProducts){const key=targetProductKey(item),prior=targetWatch.get(key);if(!prior || Date.parse(item.reportedAt)>=Date.parse(prior.reportedAt))targetWatch.set(key,{...prior,...item,image:item.image || prior?.image,sourceName:item.source || 'Discord source',expectedWindow:item.expectedWindow || prior?.expectedWindow || 'Potential drop · date and availability unconfirmed'});}
-      const upcoming=[...targetWatch.values()].map(item=>{const live=available.some(row=>targetProductKey(row)===targetProductKey(item));const label=live?'LIVE NOW — fresh Target availability confirmed':item.status==='reported_available'?item.stale?'Earlier live report · current availability unconfirmed':'REPORTED LIVE — source reports available; confirm at Target':item.status==='reported_unavailable'?'Reported sold out · watching for another drop':item.status==='queue'?'Reported queue · availability unconfirmed':item.expectedWindow || 'Potential drop · date and availability unconfirmed';return {...item,expectedWindow:label};});
-      panel.innerHTML='<h3>Target Drop</h3><details id="targetUpcomingDrops"><summary>Upcoming Drops</summary>'+ (upcoming.length?'<div class="retailer-product-grid">'+upcoming.map(item=>'<article class="retailer-product-card">'+retailerImageMarkup(item.image,item.name)+'<p><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a><br>'+esc(item.expectedWindow)+'<br><small>Reported '+esc(new Date(item.reportedAt).toLocaleString())+(item.editedAt?' · Edited '+esc(new Date(item.editedAt).toLocaleString()):'')+'</small><br><a href="'+esc(item.sourceUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(item.sourceName)+'</a></p></article>').join('')+'</div>':'<p>No current verified drop report. Background checks continue.</p>')+'</details><small>Prices exclude tax and shipping. Checkout determines the final total. Availability does not reserve stock.</small>';
+      const upcoming=[...targetWatch.values()].map(item=>{const live=available.some(row=>targetProductKey(row)===targetProductKey(item));const label=live?'LIVE NOW — fresh Target availability confirmed':item.status==='reported_available'?item.stale?'Earlier live report · current availability unconfirmed':'REPORTED LIVE — source reports available; confirm at Target':item.status==='reported_unavailable'?'Reported sold out · watching for another drop':item.status==='queue'?'Reported queue · availability unconfirmed':item.expectedWindow || 'Potential drop · date and availability unconfirmed';return {...item,expectedWindow:label,purchaseAvailable:live || onlinePurchaseAvailable(item,'target')};});
+      panel.innerHTML='<h3>Target Drop</h3><details id="targetUpcomingDrops"><summary>Upcoming Drops</summary>'+ (upcoming.length?'<div class="retailer-product-grid">'+upcoming.map(item=>'<article class="retailer-product-card">'+purchasePhotoMarkup(item,'target',item.purchaseAvailable)+'<p><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a><br>'+esc(item.expectedWindow)+'<br><small>Reported '+esc(new Date(item.reportedAt).toLocaleString())+(item.editedAt?' · Edited '+esc(new Date(item.editedAt).toLocaleString()):'')+'</small><br><a href="'+esc(item.sourceUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(item.sourceName)+'</a></p></article>').join('')+'</div>':'<p>No current verified drop report. Background checks continue.</p>')+'</details><small>Prices exclude tax and shipping. Checkout determines the final total. Availability does not reserve stock.</small>';
       otherRetailerCard.prepend(panel);
       const upcomingSection=panel.querySelector('#targetUpcomingDrops');
       upcomingSection.open=saved.upcomingOpen !== false;
