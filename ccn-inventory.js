@@ -207,6 +207,7 @@ async function checkerStorage(){
   await pool.query("CREATE TABLE IF NOT EXISTS inventory_search_viewers (viewer_id TEXT NOT NULL, retailer TEXT NOT NULL, product_id TEXT NOT NULL, zip TEXT NOT NULL, requested_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(viewer_id,retailer,product_id,zip))");
   await pool.query("ALTER TABLE inventory_search_viewers ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ");
   await pool.query("CREATE TABLE IF NOT EXISTS inventory_check_requests (retailer TEXT NOT NULL, product_id TEXT NOT NULL, zip TEXT NOT NULL, requested_at TIMESTAMPTZ NOT NULL DEFAULT now(), priority INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(retailer,product_id,zip))");
+  await pool.query("ALTER TABLE inventory_check_requests ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ");
   await pool.query("CREATE TABLE IF NOT EXISTS inventory_checker_cooldowns (retailer TEXT PRIMARY KEY, available_at TIMESTAMPTZ NOT NULL, source_url TEXT NOT NULL)");
 }
 function checkerInput(retailer,productId,zip){
@@ -231,16 +232,16 @@ module.exports.requestInventory=async(retailer,productId,zip,viewer)=>{
     if(cooldown){await client.query('COMMIT');return {status:'cooldown',checkerAvailableAt:cooldown.available_at,availableAt:cooldown.available_at};}
     const accepted=(await client.query('INSERT INTO inventory_search_viewers(viewer_id,retailer,product_id,zip) VALUES($1,$2,$3,$4) ON CONFLICT(viewer_id,retailer,product_id,zip) DO UPDATE SET requested_at=now(),completed_at=NULL RETURNING requested_at',[viewer,retailer,productId,zip])).rows[0];
     const personalAvailableAt=['costco','sams'].includes(retailer)?new Date(Date.parse(accepted.requested_at)+3600000).toISOString():null;
-    const existing=(await client.query("SELECT q.requested_at FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip WHERE q.retailer=$1 AND q.product_id=$2 AND q.zip=$3 AND (r.data IS NULL OR (r.data->>'checkedAt')::timestamptz<q.requested_at)",[retailer,productId,zip])).rows[0];
+    const existing=(await client.query("SELECT q.requested_at FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip WHERE q.retailer=$1 AND q.product_id=$2 AND q.zip=$3 AND q.cancelled_at IS NULL AND (r.data IS NULL OR (r.data->>'checkedAt')::timestamptz<q.requested_at)",[retailer,productId,zip])).rows[0];
     if(existing){await client.query('COMMIT');return {status:'queued',deduplicated:true,requestedAt:accepted.requested_at,personalAvailableAt,availableAt:personalAvailableAt};}
-    const row=(await client.query('INSERT INTO inventory_check_requests(retailer,product_id,zip,priority) VALUES($1,$2,$3,1) ON CONFLICT(retailer,product_id,zip) DO UPDATE SET requested_at=now(),priority=1 RETURNING requested_at',[retailer,productId,zip])).rows[0];
+    const row=(await client.query('INSERT INTO inventory_check_requests(retailer,product_id,zip,priority) VALUES($1,$2,$3,1) ON CONFLICT(retailer,product_id,zip) DO UPDATE SET requested_at=now(),priority=1,cancelled_at=NULL RETURNING requested_at',[retailer,productId,zip])).rows[0];
     await client.query('COMMIT');return {status:'queued',deduplicated:false,requestedAt:row.requested_at,personalAvailableAt,availableAt:personalAvailableAt};
   }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
 };
 module.exports.inventoryRequestStatus=async(retailer,productId,zip,viewer)=>{
   checkerInput(retailer,productId,zip);await checkerStorage();
   const cooldown=(await pool.query('SELECT available_at FROM inventory_checker_cooldowns WHERE retailer=$1 AND available_at>now()',[retailer])).rows[0];
-  const row=(await pool.query('SELECT q.requested_at,r.data FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip WHERE q.retailer=$1 AND q.product_id=$2 AND q.zip=$3',[retailer,productId,zip])).rows[0];
+  const row=(await pool.query('SELECT q.requested_at,q.cancelled_at,r.data FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip WHERE q.retailer=$1 AND q.product_id=$2 AND q.zip=$3',[retailer,productId,zip])).rows[0];
   const personalAvailableAt=await personalSearchWindow(retailer,viewer);
   const viewerRequest=viewer && (await pool.query('SELECT requested_at FROM inventory_search_viewers WHERE viewer_id=$1 AND retailer=$2 AND product_id=$3 AND zip=$4',[viewer,retailer,productId,zip])).rows[0];
   const permitted=Boolean(viewerRequest);
@@ -248,14 +249,26 @@ module.exports.inventoryRequestStatus=async(retailer,productId,zip,viewer)=>{
   const availableAt=personalAvailableAt && (!checkerAvailableAt || Date.parse(personalAvailableAt)>Date.parse(checkerAvailableAt))?personalAvailableAt:checkerAvailableAt;
   if(!permitted)return {status:personalAvailableAt?'personal_cooldown':checkerAvailableAt?'cooldown':'idle',personalAvailableAt,checkerAvailableAt,availableAt};
   const complete=row?.data && Date.parse(row.data.checkedAt)>=Math.max(Date.parse(row.requested_at),Date.parse(viewerRequest.requested_at));
-  return {status:complete?(row.data.result==='checker_error'?'checker_error':'completed'):row?'queued':'idle',requestedAt:row?.requested_at || null,checkedAt:complete?row.data.checkedAt:null,personalAvailableAt,checkerAvailableAt,availableAt};
+  return {status:row?.cancelled_at && Date.parse(row.cancelled_at)>=Date.parse(viewerRequest.requested_at)?'cancelled':complete?(row.data.result==='checker_error'?'checker_error':'completed'):row?'queued':'idle',requestedAt:row?.requested_at || null,checkedAt:complete?row.data.checkedAt:null,personalAvailableAt,checkerAvailableAt,availableAt};
 };
 module.exports.pendingInventory=async()=>{
-  await checkerStorage();return (await pool.query("SELECT q.retailer,q.product_id AS \"productId\",q.zip,q.requested_at AS \"requestedAt\",q.priority FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip LEFT JOIN inventory_checker_cooldowns c ON c.retailer=q.retailer WHERE (r.data IS NULL OR (r.data->>'checkedAt')::timestamptz<q.requested_at) AND (c.available_at IS NULL OR c.available_at<=now()) ORDER BY q.priority DESC,q.requested_at LIMIT 20")).rows;
+  await checkerStorage();return (await pool.query("SELECT q.retailer,q.product_id AS \"productId\",q.zip,q.requested_at AS \"requestedAt\",q.priority FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip LEFT JOIN inventory_checker_cooldowns c ON c.retailer=q.retailer WHERE q.cancelled_at IS NULL AND (r.data IS NULL OR (r.data->>'checkedAt')::timestamptz<q.requested_at) AND (c.available_at IS NULL OR c.available_at<=now()) ORDER BY q.priority DESC,q.requested_at LIMIT 20")).rows;
 };
 module.exports.recordCheckerCooldown=async(retailer,availableAt,sourceUrl)=>{
   checkerInput(retailer,'cooldown','60634');
   const at=Date.parse(availableAt);
   if(!Number.isFinite(at)||at<=Date.now()||at>Date.now()+24*3600000||!String(sourceUrl).startsWith('https://discord.com/channels/1367457689386356766/'))throw Error('Use the actual future cooldown and Rippin Packz response permalink');
   await checkerStorage();await pool.query('INSERT INTO inventory_checker_cooldowns(retailer,available_at,source_url) VALUES($1,$2,$3) ON CONFLICT(retailer) DO UPDATE SET available_at=GREATEST(inventory_checker_cooldowns.available_at,EXCLUDED.available_at),source_url=EXCLUDED.source_url',[retailer,new Date(at).toISOString(),sourceUrl]);
+};
+
+module.exports.cancelPendingInventory=async(requests)=>{
+ if(!Array.isArray(requests)||requests.length>20)throw Error('Load the pending requests first');
+ await checkerStorage();let cleared=0;
+ for(const request of requests){
+  checkerInput(request.retailer,request.productId,request.zip);
+  if(!Number.isFinite(Date.parse(request.requestedAt)))throw Error('Original request time required');
+  const result=await pool.query("UPDATE inventory_check_requests q SET cancelled_at=now() WHERE retailer=$1 AND product_id=$2 AND zip=$3 AND requested_at=$4 AND cancelled_at IS NULL AND NOT EXISTS (SELECT 1 FROM ccn_inventory_reports r WHERE r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip AND (r.data->>'checkedAt')::timestamptz>=q.requested_at)",[request.retailer,request.productId,request.zip,request.requestedAt]);
+  cleared+=result.rowCount;
+ }
+ return {cleared};
 };

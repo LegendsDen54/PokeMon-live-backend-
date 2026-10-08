@@ -2121,6 +2121,10 @@ app.get('/api/inventory/pending-checks',async(req,res)=>{
   if(!hasInventoryOwnerAccess(req))return pokemonCenterSensorUnauthorized(res);
   try{res.set('Cache-Control','no-store').json({ok:true,requests:await ccnInventory.pendingInventory()});}catch{res.status(503).json({ok:false,error:'Request queue unavailable'});}
 });
+app.post('/api/inventory/cancel-pending',async(req,res)=>{
+ if(!hasInventoryOwnerAccess(req))return pokemonCenterSensorUnauthorized(res);
+ try{res.json({ok:true,...await ccnInventory.cancelPendingInventory(req.body.requests)});}catch(error){res.status(400).json({ok:false,error:error.message});}
+});
 app.post('/api/inventory/checker-cooldown',async(req,res)=>{
   if(!hasInventoryOwnerAccess(req))return pokemonCenterSensorUnauthorized(res);
   try{await ccnInventory.recordCheckerCooldown(req.body.retailer,req.body.availableAt,req.body.sourceUrl);res.json({ok:true});}catch(error){res.status(400).json({ok:false,error:error.message});}
