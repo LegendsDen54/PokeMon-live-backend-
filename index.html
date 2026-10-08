@@ -5178,6 +5178,12 @@ function openClickedNotification(){
   let searchParams;try{const u=new URL(alert.url,location.origin);if(u.origin===location.origin && /^\d{5}$/.test(u.searchParams.get('zip') || '') && u.searchParams.get('productId')){searchParams=u.searchParams;rememberInventoryChoice('inventoryZip:'+retailer,searchParams.get('zip'));rememberInventoryChoice('inventoryProduct:'+retailer,searchParams.get('productId'));rememberInventoryChoice('inventoryLastSearch:'+retailer,searchParams.get('productId'));rememberInventoryChoice('inventoryLastResultZip:'+retailer,searchParams.get('zip'));}}catch{}
   if(retailer && document.querySelector('.tab[data-retailer="'+CSS.escape(retailer)+'"]'))setRetailer(retailer);
   document.getElementById('clickedNotification')?.remove();
+  // New notification routes already carry the exact retailer/product/ZIP.
+  // Show the normal selected result instead of an extra full-page alert card.
+  if(new URLSearchParams(location.search).get('retailer')===retailer){
+    history.replaceState(null,'',location.pathname+location.search);
+    return;
+  }
   const card=document.createElement('section');card.id='clickedNotification';card.tabIndex=-1;
   card.style.cssText='margin:20px auto;padding:24px;max-width:900px;border:2px solid #f5cc53;border-radius:16px;background:#172033;color:white;scroll-margin-top:20px';
   const heading=document.createElement('h2');heading.textContent=alert.title || 'Notification';card.append(heading);
