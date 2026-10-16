@@ -4,7 +4,9 @@
   "private": true,
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test tests/*.test.js",
+    "check:syntax": "node --check server.js && node --check monitor.js && node --check walmart.js && node --check pokemon-center.js && node --check multi-store.js && node --check retail-online.js && node --check pokemon-center-sensor/background.js && node --check pokemon-center-sensor/content.js && node --check pokemon-center-sensor/target.js"
   },
   "engines": {
     "node": ">=20"
