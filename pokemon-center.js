@@ -2459,6 +2459,14 @@ async function processSignal(
     return {ok: true, ignored: true, reason: "No identified card-containing TCG product", state: getState()};
   }
 
+  // Initial visible catalog entries seed tracking without implying movement or sending alerts.
+  if (signal.type === "PRODUCT_BASELINE") {
+    if (!isTcgProductEvent(signal)) return {ok:true, ignored:true, reason:"No identified card-containing TCG product"};
+    if (!products.has(productKey(signal))) mergeProduct({...signal, availability:"unknown", live:false});
+    refreshState();
+    return {ok:true, baseline:true, state:getState()};
+  }
+
   const initialScore =
     scoreSignal(
       signal

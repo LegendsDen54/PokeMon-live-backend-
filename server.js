@@ -2580,6 +2580,7 @@ const pokemonCenterSensorSignalTypes =
   new Set([
     "PAGE_CHANGE",
     "PRODUCT_DISCOVERED",
+    "PRODUCT_BASELINE",
     "PRODUCT_URL_CHANGE",
     "SKU_CHANGE",
     "IMAGE_CHANGE",

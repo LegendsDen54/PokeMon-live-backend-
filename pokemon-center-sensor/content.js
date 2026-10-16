@@ -8,6 +8,7 @@ const BASELINE_SETTLE_MS = 8000;
 
 let timer = null;
 let previous = null;
+const baselineProducts = new Set();
 let lastGenericChangeAt = 0;
 const baselineReadyAt = Date.now() + BASELINE_SETTLE_MS;
 
@@ -324,7 +325,15 @@ function observe() {
     // Keep sensor UI outside the product content used for change detection.
     document.documentElement.appendChild(reminder);
   }
-  compare(snapshot());
+  const current = snapshot();
+  if (Date.now() >= baselineReadyAt) {
+    for (const item of current.productLinks) {
+      if (baselineProducts.has(item.url)) continue;
+      baselineProducts.add(item.url);
+      signal("PRODUCT_BASELINE", {...item, tcgRelevant:true, observedOnly:true}, "Existing visible card product; availability unconfirmed. Baseline only, not a new listing or drop.");
+    }
+  }
+  compare(current);
 }
 
 function scheduleObserve() {

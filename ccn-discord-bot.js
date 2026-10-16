@@ -10,7 +10,7 @@ const sources=new Map([
 ]);
 const channels=new Set([...sources.values()].flatMap(source=>source.channels));
 function allowed(message){return sources.get(message.guildId)?.channels.includes(message.channelId);}
-const state={configured:false,connected:false,lastReceivedAt:null,lastPublishedAt:null,error:null,watchedChannels:channels.size};
+const state={configured:false,connected:false,lastReceivedAt:null,lastPublishedAt:null,error:null,watchedChannels:channels.size,channelHealth:[]};
 let client;
 const text=value=>String(value || '').replace(/\s+/g,' ').trim();
 function reports(message){
@@ -88,12 +88,23 @@ function start(publish){
     }catch{state.error='Cannot read an authorized channel message. Check bot permissions.';}
   }
   async function catchUp(){
+    const health=[];
     for(const id of channels){
-      try{const channel=await client.channels.fetch(id);if(!channel?.isTextBased() || !channel.messages)continue;
+      const source=[...sources.values()].find(row=>row.channels.includes(id))?.name;
+      try{
+        const channel=await client.channels.fetch(id);
+        if(!channel?.isTextBased() || !channel.messages)throw Error('not_readable');
         const messages=await channel.messages.fetch({limit:25});
         for(const message of [...messages.values()].sort((a,b)=>(b.editedTimestamp || b.createdTimestamp)-(a.editedTimestamp || a.createdTimestamp)))await receive(message);
-      }catch{state.error='A configured channel is not accessible. Check bot channel permissions.';}
+        health.push({channelId:id,source,status:'readable',lastCheckedAt:new Date().toISOString()});
+      }catch{
+        health.push({channelId:id,source,status:'inaccessible',lastCheckedAt:new Date().toISOString(),error:'Bot cannot read this channel. An administrator must verify View Channel and Read Message History.'});
+      }
     }
+    state.channelHealth=health;
+    const failed=health.filter(row=>row.status==='inaccessible');
+    if(failed.length)state.error=failed.length+' configured channel(s) inaccessible. See channelHealth for exact channels.';
+    else if(/configured channel|bot channel permissions/i.test(state.error || ''))state.error=null;
   }
   client.on('messageCreate',receive);
   client.on('messageUpdate',(_,message)=>receive(message));

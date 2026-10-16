@@ -23,6 +23,7 @@ const configs = {
   target: {label:"Target", host:"www.target.com", search:"https://www.target.com/s?searchTerm=pokemon+trading+cards", locator:"https://www.target.com/store-locator/find-stores"}
 };
 const catalogs = require("./retail-catalog.json");
+const { currentDropReport } = require("./drop-report-freshness");
 const states = new Map();
 const requests = new Map();
 function targetPriority(name) {
@@ -248,7 +249,7 @@ async function poll(retailer) {
 }
 function snapshot(retailer) {
   const state=getState(retailer);
-  return {...state, health:state.error?"limited":!state.lastSuccess?"waiting":Date.now()-Date.parse(state.lastSuccess)>60*60000?"stale":"responding", items:[...state.items.values()].map(item => ({...item, stale:item.source==="browser_product_page"?Date.now()-Date.parse(item.observedAt)>5*60000:Boolean(requests.get(item.url)?.error || state.checkFailures?.[item.url]) || Date.now()-Date.parse(item.observedAt)>60*60000})), upcoming:retailer === "target" ? require("./target-drop-reports.json").filter(report=>productUrl("target",report.url) && /^https:\/\//.test(report.sourceUrl || "") && report.name && report.sourceName && report.expectedWindow && (Date.parse(report.expiresAt)>Date.now() || report.keepWatching === true) && Date.parse(report.reportedAt)<=Date.now()).map(report=>Date.parse(report.expiresAt)<=Date.now() ? {...report,expectedWindow:report.watchNote || "Watch item · previous reported window passed. Next drop date and availability unconfirmed."} : report) : [], catalog:catalog(retailer), searchUrl:configs[retailer].search, locatorUrl:configs[retailer].locator};
+  return {...state, health:state.error?"limited":!state.lastSuccess?"waiting":Date.now()-Date.parse(state.lastSuccess)>60*60000?"stale":"responding", items:[...state.items.values()].map(item => ({...item, stale:item.source==="browser_product_page"?Date.now()-Date.parse(item.observedAt)>5*60000:Boolean(requests.get(item.url)?.error || state.checkFailures?.[item.url]) || Date.now()-Date.parse(item.observedAt)>60*60000})), upcoming:retailer === "target" ? require("./target-drop-reports.json").filter(report=>productUrl("target",report.url) && /^https:\/\//.test(report.sourceUrl || "") && report.name && report.sourceName && report.expectedWindow && (Date.parse(report.expiresAt)>Date.now() || report.keepWatching === true) && Date.parse(report.reportedAt)<=Date.now()).map(report=>currentDropReport(report)) : [], catalog:catalog(retailer), searchUrl:configs[retailer].search, locatorUrl:configs[retailer].locator};
 }
 let onUpdate=null;
 async function trackTargetProduct(product) {
