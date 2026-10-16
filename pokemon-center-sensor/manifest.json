@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Pok\u00e9mon Center Signal Sensor",
-  "version": "1.4.23",
-  "description": "Public product sensor for Pok\u00e9mon Center, Target, Best Buy, Sam's Club and Costco.",
+  "name": "Pokémon Center Signal Sensor",
+  "version": "1.4.24",
+  "description": "Public product sensor for Pokémon Center, Target, Best Buy, Sam's Club and Costco.",
   "permissions": [
     "storage",
     "tabs",
@@ -26,7 +26,7 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Pok\u00e9mon Center Signal Sensor",
+    "default_title": "Pokémon Center Signal Sensor",
     "default_popup": "popup.html"
   },
   "content_scripts": [

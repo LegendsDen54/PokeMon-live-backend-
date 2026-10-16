@@ -5,6 +5,23 @@ const fs = require('node:fs');
 const path = require('node:path');
 const source = name => fs.readFileSync(path.join(__dirname, '../pokemon-center-sensor', name), 'utf8');
 
+test('reattaching an open Pokemon Center tab keeps one heartbeat and observer', () => {
+  let observers = 0, intervals = 0, heartbeats = 0;
+  const context = vm.createContext({
+    URL, location: {href:'https://www.pokemoncenter.com/category/trading-card-game',pathname:'/category/trading-card-game'},
+    document: {title:'Trading Card Game',body:{innerText:''},querySelector:()=>null,querySelectorAll:()=>[],documentElement:{}},
+    chrome:{runtime:{sendMessage(message){if(message.kind==='heartbeat')heartbeats++;return Promise.resolve();}}},
+    MutationObserver:class {constructor(){observers++;} observe(){}},
+    setInterval(){intervals++;},setTimeout(){},clearTimeout(){}
+  });
+  vm.runInContext('const DEBOUNCE_MS = 2500', context);
+  vm.runInContext(source('content.js'), context);
+  vm.runInContext(source('content.js'), context);
+  assert.equal(heartbeats,1);
+  assert.equal(observers,1);
+  assert.equal(intervals,1);
+});
+
 test('reinjecting the public timeline sensor creates only one observer and timer pair', () => {
   let observers = 0, intervals = 0;
   const context = vm.createContext({

@@ -1,3 +1,7 @@
+(() => {
+"use strict";
+if (globalThis.__pokemonCenterSignalSensor) return;
+globalThis.__pokemonCenterSignalSensor = true;
 "use strict";
 
 const DEBOUNCE_MS = 2500;
@@ -357,3 +361,5 @@ new MutationObserver(scheduleObserve)
   });
 
 setInterval(() => send("heartbeat", {}), HEARTBEAT_MS);
+
+})();

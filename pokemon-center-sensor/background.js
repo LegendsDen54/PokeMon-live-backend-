@@ -243,6 +243,11 @@ async function refreshTargetTabs() {
 }
 
 
+async function attachOpenPokemonCenterSensors(){
+  const tabs=await chrome.tabs.query({url:'https://www.pokemoncenter.com/*'});
+  await Promise.all(tabs.filter(tab=>Number.isInteger(tab.id)).map(tab=>chrome.scripting.executeScript({target:{tabId:tab.id},files:['content.js']}).catch(()=>{})));
+}
+
 async function attachOpenDiscordSensors(){
   const tabs=await chrome.tabs.query({url:Object.keys(DISCORD_SOURCES).map(id=>'https://discord.com/channels/'+id+'/*')});
   await Promise.all(tabs.filter(tab=>{const parts=new URL(tab.url).pathname.split('/');return discordSourceFor(parts[2],parts[3]);}).map(tab=>chrome.scripting.executeScript({target:{tabId:tab.id},files:['discord-sources.js','ccn-discord.js']}).catch(()=>{})));
@@ -254,10 +259,12 @@ chrome.runtime.onInstalled.addListener(() => {
     periodInMinutes: 1
   });
   attachOpenPokemonRestocksSensors().catch(() => {});
+  attachOpenPokemonCenterSensors().catch(() => {});
   attachOpenDiscordSensors().catch(()=>{});
 });
 
 chrome.runtime.onStartup.addListener(() => {
+  attachOpenPokemonCenterSensors().catch(() => {});
   attachOpenDiscordSensors().catch(()=>{});
   chrome.alarms.create(REFRESH_ALARM, {
     periodInMinutes: 1
@@ -273,6 +280,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
 chrome.alarms.onAlarm.addListener(alarm => {
   if (alarm.name === REFRESH_ALARM) {
+    attachOpenPokemonCenterSensors().catch(() => {});
     flushCcnReports().catch(() => {});
     refreshPokemonCenterTabs().catch(() => {});
     refreshTargetTabs().catch(() => {});
