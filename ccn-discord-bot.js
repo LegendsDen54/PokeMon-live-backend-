@@ -10,7 +10,7 @@ const sources=new Map([
 ]);
 const channels=new Set([...sources.values()].flatMap(source=>source.channels));
 function allowed(message){return sources.get(message.guildId)?.channels.includes(message.channelId);}
-const state={configured:false,connected:false,lastReceivedAt:null,lastPublishedAt:null,error:null,watchedChannels:channels.size,channelHealth:[]};
+const state={configured:false,connected:false,lastReceivedAt:null,lastPublishedAt:null,error:null,watchedChannels:channels.size,bot:null,guildAccess:[],channelHealth:[]};
 let client;
 const text=value=>String(value || '').replace(/\s+/g,' ').trim();
 function reports(message){
@@ -97,8 +97,8 @@ function start(publish){
         const messages=await channel.messages.fetch({limit:25});
         for(const message of [...messages.values()].sort((a,b)=>(b.editedTimestamp || b.createdTimestamp)-(a.editedTimestamp || a.createdTimestamp)))await receive(message);
         health.push({channelId:id,source,status:'readable',lastCheckedAt:new Date().toISOString()});
-      }catch{
-        health.push({channelId:id,source,status:'inaccessible',lastCheckedAt:new Date().toISOString(),error:'Bot cannot read this channel. An administrator must verify View Channel and Read Message History.'});
+      }catch(error){
+        health.push({discordCode:error.code || null,httpStatus:error.status || null,channelId:id,source,status:'inaccessible',lastCheckedAt:new Date().toISOString(),error:'Bot cannot read this channel. An administrator must verify View Channel and Read Message History.'});
       }
     }
     state.channelHealth=health;
@@ -108,7 +108,7 @@ function start(publish){
   }
   client.on('messageCreate',receive);
   client.on('messageUpdate',(_,message)=>receive(message));
-  client.on('ready',()=>{state.connected=true;state.error=null;catchUp().catch(()=>{});});
+  client.on('ready',()=>{state.connected=true;state.error=null;state.bot={id:client.user.id,username:client.user.username};state.guildAccess=[...sources].map(([guildId,source])=>({guildId,source:source.name,botIsMember:client.guilds.cache.has(guildId)}));catchUp().catch(()=>{});});
   client.on('shardDisconnect',()=>{state.connected=false;});
   client.on('shardResume',()=>{state.connected=true;catchUp().catch(()=>{});});
   client.on('error',()=>{state.error='Discord connection error. Check bot configuration.';});
