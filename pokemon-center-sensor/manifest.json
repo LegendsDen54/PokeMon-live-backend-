@@ -81,6 +81,15 @@
         "ccn-discord.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.target.com/p/*"
+      ],
+      "js": [
+        "target.js"
+      ],
+      "run_at": "document_idle"
     }
   ]
 }
