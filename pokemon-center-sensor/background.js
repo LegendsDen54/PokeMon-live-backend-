@@ -1,4 +1,5 @@
 "use strict";
+importScripts("discord-sources.js");
 
 const DEFAULT_BACKEND_URL =
   "https://pokemon-live-backend.onrender.com";
@@ -6,7 +7,6 @@ const DEFAULT_BACKEND_URL =
 const REFRESH_ALARM = "pokemon-center-scheduled-refresh";
 const ACTIVE_REFRESH_MS = 60 * 60 * 1000;
 const QUIET_REFRESH_MS = 15 * 60 * 1000;
-const CCN_CHANNELS = new Set(['1424776504767680722','1514248684575920160','1460973469150875720','1424776415286657136']);
 let ccnSending = false;
 let ccnQueueChanges = Promise.resolve();
 function ccnLocked(action){const result=ccnQueueChanges.then(action);ccnQueueChanges=result.catch(()=>{});return result;}
@@ -15,7 +15,7 @@ function ccnSenderAllowed(sender,payload){
     const tabUrl=new URL(sender.url || sender.tab?.url || '');
     const source=new URL(payload.sourceUrl);
     const parts=tabUrl.pathname.split('/');
-    return tabUrl.origin==='https://discord.com' && parts[2]==='1410547930250612828' && CCN_CHANNELS.has(parts[3]) && source.origin===tabUrl.origin && source.pathname.startsWith('/channels/1410547930250612828/'+parts[3]+'/') && /^\d+$/.test(source.pathname.split('/')[4] || '');
+    return tabUrl.origin==='https://discord.com' && discordSourceFor(parts[2],parts[3]) && source.origin===tabUrl.origin && source.pathname.startsWith('/channels/'+parts[2]+'/'+parts[3]+'/') && /^\d+$/.test(source.pathname.split('/')[4] || '');
   }catch{return false;}
 }
 // React only to fresh structured CCN reports; never execute instructions in summaries.
@@ -243,16 +243,22 @@ async function refreshTargetTabs() {
 }
 
 
+async function attachOpenDiscordSensors(){
+  const tabs=await chrome.tabs.query({url:Object.keys(DISCORD_SOURCES).map(id=>'https://discord.com/channels/'+id+'/*')});
+  await Promise.all(tabs.filter(tab=>{const parts=new URL(tab.url).pathname.split('/');return discordSourceFor(parts[2],parts[3]);}).map(tab=>chrome.scripting.executeScript({target:{tabId:tab.id},files:['discord-sources.js','ccn-discord.js']}).catch(()=>{})));
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.set({pokemonCenterHourlyRefreshEnabled:true,lastAutomaticRefreshAt:Date.now(),targetRefreshEnabled:true,lastTargetRefreshAt:Date.now()});
   chrome.alarms.create(REFRESH_ALARM, {
     periodInMinutes: 1
   });
   attachOpenPokemonRestocksSensors().catch(() => {});
-  chrome.tabs.query({url:'https://discord.com/channels/1410547930250612828/*'}).then(tabs=>Promise.all(tabs.filter(tab=>CCN_CHANNELS.has(new URL(tab.url).pathname.split('/')[3])).map(tab=>chrome.scripting.executeScript({target:{tabId:tab.id},files:['ccn-discord.js']}).catch(()=>{})))).catch(()=>{});
+  attachOpenDiscordSensors().catch(()=>{});
 });
 
 chrome.runtime.onStartup.addListener(() => {
+  attachOpenDiscordSensors().catch(()=>{});
   chrome.alarms.create(REFRESH_ALARM, {
     periodInMinutes: 1
   });

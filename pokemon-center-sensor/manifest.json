@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Pokémon Center Signal Sensor",
-  "version": "1.4.21",
-  "description": "Public product sensor for Pokémon Center, Target, Best Buy, Sam's Club and Costco.",
+  "name": "Pok\u00e9mon Center Signal Sensor",
+  "version": "1.4.22",
+  "description": "Public product sensor for Pok\u00e9mon Center, Target, Best Buy, Sam's Club and Costco.",
   "permissions": [
     "storage",
     "tabs",
@@ -16,14 +16,17 @@
     "https://www.costco.com/*",
     "https://x.com/PokemonRestocks*",
     "https://pokemon-live-backend.onrender.com/*",
+    "https://www.target.com/*",
     "https://discord.com/channels/1410547930250612828/*",
-    "https://www.target.com/*"
+    "https://discord.com/channels/1367457689386356766/*",
+    "https://discord.com/channels/1182136115981996033/*",
+    "https://discord.com/channels/1190757531988000930/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Pokémon Center Signal Sensor",
+    "default_title": "Pok\u00e9mon Center Signal Sensor",
     "default_popup": "popup.html"
   },
   "content_scripts": [
@@ -75,9 +78,13 @@
     },
     {
       "matches": [
-        "https://discord.com/channels/1410547930250612828/*"
+        "https://discord.com/channels/1410547930250612828/*",
+        "https://discord.com/channels/1367457689386356766/*",
+        "https://discord.com/channels/1182136115981996033/*",
+        "https://discord.com/channels/1190757531988000930/*"
       ],
       "js": [
+        "discord-sources.js",
         "ccn-discord.js"
       ],
       "run_at": "document_idle"

@@ -5,14 +5,14 @@
 (() => {
   if (window.__ccnMonitorBridge) return;
   window.__ccnMonitorBridge = true;
-  const guild = "1410547930250612828";
-  const channels = new Set(["1424776504767680722", "1514248684575920160", "1460973469150875720", "1424776415286657136"]);
+
   const sent = new Map();
   let timer;
   const tidy = value => String(value || "").replace(/\s+/g, " ").trim();
   function collect() {
     const route = location.pathname.split("/");
-    if (route[2] !== guild || !channels.has(route[3])) return;
+    const guild=route[2],source=discordSourceFor(guild,route[3]);
+    if(!source)return;
     for (const node of document.querySelectorAll('[id^="chat-messages-"]')) {
       const ids = node.id.match(/^chat-messages-(\d+)-(\d+)$/);
       if (!ids || ids[1] !== route[3]) continue;
@@ -65,7 +65,7 @@
           if(name){seenProducts.add(id);products.push({name:'Pokemon TCG '+name,url:'https://www.target.com/p/-/A-'+id,productId:id,seller:'',price:null,msrp:null,image:null,status:'upcoming'});}
         }
       }
-      const report={kind:'news',retailer,sourceUrl:`https://discord.com/channels/${guild}/${ids[1]}/${ids[2]}`,publishedAt,editedAt,summary:'CCN source report: '+body.slice(0,940),products};
+      const report={kind:'news',retailer,sourceUrl:`https://discord.com/channels/${guild}/${ids[1]}/${ids[2]}`,publishedAt,editedAt,detectedAt:new Date().toISOString(),summary:source.name+' source report: '+body.slice(0,940),products};
       const revision=JSON.stringify(report);
       if(sent.get(report.sourceUrl)===revision) continue;
       chrome.runtime.sendMessage({kind:'ccnNewsReport',payload:report}).then(result=>{

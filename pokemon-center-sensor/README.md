@@ -31,3 +31,22 @@ Version 1.4.12 adds five-minute automatic Target product-tab reloads. Enabled by
 Reload the unpacked extension and grant its new permission for the CCN Discord pages. The sensor reuses its existing saved backend connection: no key needs to be pasted into the report-transfer page. Open the configured CCN news, information, Pokémon and product-restocks channels in separate Discord tabs. New rendered messages and edits are queued after a 500 ms debounce and sent to the authenticated monitor endpoint. Failed transfers are retained locally with bounded backoff, jitter and Retry-After support. The popup shows last successful transfer, pending count and errors. Disable Transfer CCN alerts to pause.
 
 This bridge observes the loaded messages in those four channels only. It does not read other Discord servers, DMs, account tokens or hidden APIs. It cannot monitor a closed tab or retrieve messages that Discord has not rendered. Browser sleep, disconnection or background throttling can delay transfers. The scheduled collector remains a fallback. Multi-retailer digests stay with that collector to avoid misattribution. Walmart products with unverified price eligibility remain watchlist candidates, not purchase alerts.
+
+
+## 1.4.22: all four saved Discord servers
+
+The rendered-message bridge now covers the nine saved alert channels in CCN,
+Rippin Packz, Pokemon Restocks & News, and The Poke Gang. The server/channel
+allowlist is shared by content collection and background sender validation.
+Only loaded messages in these channels are observed; a tab on a different
+channel does not watch them. Keep one tab per watched channel open for continuous
+coverage. This does not use the desktop Discord application.
+
+Replace the files in the existing unpacked extension folder with this version,
+reload that same extension in chrome://extensions, and refresh the source tabs.
+Chrome may ask to approve access to the three additional Discord server paths.
+Preserve the existing extension identity to retain its saved pairing key.
+The popup shows transfer errors, pending reports, and the latest accepted report.
+Target must be on a Pokémon product page (a /p/ URL); its homepage is not a product
+sensor. Current reload cadence is one Target product tab per ten minutes and
+Pokémon Center once per hour, with queue and security-check pauses preserved.
