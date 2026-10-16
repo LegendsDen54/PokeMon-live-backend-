@@ -68,7 +68,7 @@
       const report={kind:'news',retailer,sourceUrl:`https://discord.com/channels/${guild}/${ids[1]}/${ids[2]}`,publishedAt,editedAt,detectedAt:new Date().toISOString(),summary:source.name+' source report: '+body.slice(0,940),products};
       const revision=JSON.stringify(report);
       if(sent.get(report.sourceUrl)===revision) continue;
-      chrome.runtime.sendMessage({kind:'ccnNewsReport',payload:report}).then(result=>{
+      Promise.resolve().then(() => chrome.runtime.sendMessage({kind:'ccnNewsReport',payload:report})).then(result=>{
         if(result?.ok) sent.set(report.sourceUrl,revision);
       }).catch(()=>{});
     }

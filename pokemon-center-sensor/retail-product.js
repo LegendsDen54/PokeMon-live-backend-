@@ -17,7 +17,7 @@
     const image=[].concat(product.image || [])[0];
     const payload={url:url.href,title:product.name,image:typeof image==="object"?image.url:image,price:offer.price!=null && offer.price!==""?Number(offer.price):null,itemNumber:product.sku || product.productID || null,availability,observedAt:new Date().toISOString()};
     const next=JSON.stringify({...payload,observedAt:null});
-    chrome.runtime.sendMessage({kind:retailer+"Observation",payload}).then(response=>{if(response?.ok)signature=next;}).catch(()=>{});
+    Promise.resolve().then(() => chrome.runtime.sendMessage({kind:retailer+"Observation",payload})).then(response=>{if(response?.ok)signature=next;}).catch(()=>{});
   }
   report();
   new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(report,2500);}).observe(document.documentElement,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:["content"]});

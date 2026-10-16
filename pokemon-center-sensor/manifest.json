@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Pok\u00e9mon Center Signal Sensor",
-  "version": "1.4.22",
+  "version": "1.4.23",
   "description": "Public product sensor for Pok\u00e9mon Center, Target, Best Buy, Sam's Club and Costco.",
   "permissions": [
     "storage",

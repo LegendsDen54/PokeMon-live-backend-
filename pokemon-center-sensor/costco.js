@@ -56,7 +56,7 @@ function report() {
   const signature = JSON.stringify(payload, (k,v) => k === "observedAt" ? undefined : v);
   if (signature === lastSignature) return;
   lastSignature = signature;
-  chrome.runtime.sendMessage({kind:"costcoObservation", payload}).catch(() => {});
+  Promise.resolve().then(() => chrome.runtime.sendMessage({kind:"costcoObservation", payload})).catch(() => {});
 }
 
 report();

@@ -15,7 +15,7 @@
       const button=area?.querySelector('button[data-test="orderPickupButton"],button[data-test="shippingButton"]');
       const availability=seller && button && !button.disabled && /add to cart|preorder/i.test(button.innerText)?(/preorder/i.test(button.innerText)?'preorder':'available'):'unknown';
       const priceText=area?.querySelector('[data-test="product-price"]')?.textContent || '';const match=priceText.match(/\$(\d+(?:\.\d{2})?)/);
-      chrome.runtime.sendMessage({kind:'targetObservation',payload:{url:location.href,title,seller,availability,price:match?Number(match[1]):null,image:document.querySelector('#PdpImageGallerySection img')?.currentSrc,itemNumber:location.pathname.match(/A-(\d+)/)?.[1]}}).catch(()=>{});return;
+      Promise.resolve().then(() => chrome.runtime.sendMessage({kind:'targetObservation',payload:{url:location.href,title,seller,availability,price:match?Number(match[1]):null,image:document.querySelector('#PdpImageGallerySection img')?.currentSrc,itemNumber:location.pathname.match(/A-(\d+)/)?.[1]}})).catch(()=>{});return;
     }
     const offer=[].concat(product.offers || []).find(o=>/^target$/i.test(o?.seller?.name || ""));
     if(!offer)return;
@@ -25,7 +25,7 @@
     const image=[].concat(product.image || [])[0];
     const payload={seller:"Target",url:url.href,title:product.name,image:typeof image==="object"?image.url:image,price:offer.price!=null && offer.price!==""?Number(offer.price):null,itemNumber:product.sku || product.productID || null,availability,observedAt:new Date().toISOString()};
     const next=JSON.stringify({...payload,observedAt:null});
-    chrome.runtime.sendMessage({kind:retailer+"Observation",payload}).then(response=>{if(response?.ok)signature=next;}).catch(()=>{});
+    Promise.resolve().then(() => chrome.runtime.sendMessage({kind:retailer+"Observation",payload})).then(response=>{if(response?.ok)signature=next;}).catch(()=>{});
   }
   report();
   new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(report,1500);}).observe(document.documentElement,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:["content"]});

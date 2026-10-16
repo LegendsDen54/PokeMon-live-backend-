@@ -1,4 +1,7 @@
 "use strict";
+(() => {
+if (globalThis.__pokemonRestocksSensor) return;
+globalThis.__pokemonRestocksSensor = true;
 
 /* Watches only newly visible posts on the public @PokemonRestocks timeline. */
 const seenPostIds = new Set();
@@ -125,3 +128,5 @@ setInterval(() => {
     location.reload();
   }
 }, 60 * 1000);
+
+})();

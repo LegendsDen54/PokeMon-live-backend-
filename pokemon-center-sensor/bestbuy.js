@@ -70,7 +70,7 @@ function canonicalProductUrl() {
 }
 
 function report() {
-  chrome.runtime.sendMessage({
+  Promise.resolve().then(() => chrome.runtime.sendMessage({
     kind: "bestBuyObservation",
     payload: {
       url: canonicalProductUrl(),
@@ -80,7 +80,7 @@ function report() {
       seller: seller(),
       availability: availability()
     }
-  }).catch(() => {});
+  })).catch(() => {});
 }
 
 report();
