@@ -816,6 +816,11 @@ function productKey(
 
 }
 
+function accessoryOnlyReport(event) {
+  const label = [event.name, event.detail].filter(Boolean).join(' ');
+  return event.thirdParty === true && /\b(?:plush|pins?|keychains?|playmats?|sleeves?|binders?|camera|cameras|polaroid|headset)\b/i.test(label) && !/\b(?:booster|elite trainer|etb|upc|spc|premium collection|battle deck|promo cards?|mini tins?|blister|card-containing)\b/i.test(label);
+}
+
 function isTcgProductEvent(event = {}) {
   const label = [event.name, event.url, event.detail].filter(Boolean).join(" ");
   const tcg = /\bpok[eé]mon\s*tcg\b|trading\s*card\s*game|\belite trainer box\b|\bbooster\s+(?:box|bundle|pack|display)\b|\bultra[- ]premium collection\b|\bpremium collection\b|\b(?:ex|v|vmax|v-?union|gx)\s+(?:box|collection)\b|\b(?:three|3)[- ]pack blister\b|\bsingle[- ]pack blister\b|\bleague battle deck\b|\bbattle deck\b|\bbuild\s*(?:&|and)\s*battle(?:\s+(?:box|stadium))?\b|\bpromo\s+card\b|\bcollector(?:'s)?\s+chest\b|\bmini\s*tins?\b|\btrainer\s+kit\b|\btheme\s+deck\b/i.test(label);
@@ -1456,7 +1461,7 @@ function recentMeaningfulEvents(
         event.at
       )
         .getTime() >=
-      cutoff
+      cutoff && !accessoryOnlyReport(event)
   );
 
 }
@@ -2459,6 +2464,8 @@ async function processSignal(
     refreshState();
     return {ok: true, ignored: true, reason: "No identified card-containing TCG product", state: getState()};
   }
+
+  if (accessoryOnlyReport(signal)) return {ok:true, ignored:true, reason:"Accessory-only report is not card inventory evidence"};
 
   // Initial visible catalog entries seed tracking without implying movement or sending alerts.
   if (signal.type === "PRODUCT_BASELINE") {
