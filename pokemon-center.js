@@ -2349,6 +2349,7 @@ async function processSignal(
     signal.source ===
       "browser-sensor" &&
     signal.sensorId &&
+    signal.type !== "PRODUCT_BASELINE" &&
     signal.type !==
       "QUEUE_ACTIVE" &&
     signal.queueActive !==

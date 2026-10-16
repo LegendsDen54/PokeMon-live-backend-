@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const pc = require("../pokemon-center");
 test("visible existing card products seed tracking without creating readiness events", async () => {
   const before = pc.getState();
-  const input = {type:"PRODUCT_BASELINE",source:"browser-sensor",observedOnly:true,tcgRelevant:true,name:"Pokémon TCG: Delta Reign Booster Bundle",url:"https://www.pokemoncenter.com/product/test-baseline/bundle",availability:"in_stock",live:true};
+  const input = {type:"PRODUCT_BASELINE",source:"browser-sensor",sensorId:"baseline-test-cold-sensor",observedOnly:true,tcgRelevant:true,name:"Pokémon TCG: Delta Reign Booster Bundle",url:"https://www.pokemoncenter.com/product/test-baseline/bundle",availability:"in_stock",live:true};
   const result = await pc.ingestSignal(input);
   assert.equal(result.baseline,true);
   const product = pc.getProducts().find(p=>p.url===input.url);
