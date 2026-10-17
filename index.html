@@ -1936,6 +1936,16 @@ html,body{height:100%;overflow:hidden;}
   #targetUpcomingDrops .retailer-product-grid{gap:10px;}
   .ccn-product-grid .ccn-product-tile{padding:10px;}
 }
+
+.inventory-source-result{text-align:left;min-width:0}
+.inventory-source-locations{list-style:none;padding:0;margin:12px 0}
+.inventory-source-location{padding:14px 0;border-bottom:1px solid #26475f;overflow-wrap:anywhere}
+.inventory-source-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin:10px 0}
+.inventory-source-fields dt{font-size:12px;color:var(--muted)}
+.inventory-source-fields dd{margin:3px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.inventory-source-text,.inventory-source-original pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}
+.inventory-source-original{margin-top:16px}
+.inventory-source-location small{display:block}
 </style>
 <style>
 #dgSearch{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:12px;align-items:end}#dgSearch label{display:flex;flex-direction:column;gap:6px;min-width:0}#dgSearch input,#dgSearch select{width:100%;min-width:0;height:44px;box-sizing:border-box;padding:10px;border:1px solid rgba(98,199,255,.35);border-radius:8px;background:#03101e;color:var(--text);font:inherit}#dgZip{text-align:center;font-variant-numeric:tabular-nums}#dgSearch button{grid-column:1/-1}.dg-stock-list{background:#101722;border:1px solid #334155;border-radius:10px;padding:12px;max-height:360px;overflow:auto;margin:12px 0}.dg-stock-row{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:8px;align-items:start;padding:5px 0;font-size:13px;line-height:1.5}.dg-stock-row strong{color:#86efac;font-variant-numeric:tabular-nums}.dg-stock-row span:nth-child(2){overflow-wrap:anywhere}@media(max-width:600px){#dgSearch{grid-template-columns:minmax(0,1fr) 100px}#dgSearch label:first-child{grid-column:1/-1}#dgSearch label:nth-child(2){grid-column:1/-1}#dgSearch button{min-height:44px}}
@@ -2339,6 +2349,7 @@ html,body{height:100%;overflow:hidden;}
 
 
 
+<script src="/inventory-report-view.js"></script>
 <script>
 
 /* =========================================
@@ -3027,8 +3038,7 @@ function wireBestBuyChecker(provider){
       if(!results.isConnected || sku!==skuInput.value.trim() || zip!==checkerZip.value.trim())return;
       const report=(data.reports || []).find(r=>r.productId===sku && String(r.sourceUrl || '').startsWith('https://discord.com/channels/1367457689386356766/'));
       if(!report){show('<p>No saved check for this product and ZIP. A fresh request will show here when the collector returns it.</p>');return;}
-      const rows=(report.locations || []).map(r=>'<tr><th scope="row">'+esc(r.name)+'<small>'+esc(r.address || '')+'</small></th><td>'+esc(r.onHand ?? 'Unknown')+'</td></tr>').join('');
-      show('<h4>'+esc(report.name)+'</h4><p>'+esc(report.result==='checker_error'?'Checker error · stock unknown':report.result==='no_stock_reported'?'No stock reported · missing stores remain unknown':'Rippin Packz reported stock')+'</p><small>Checked '+esc(new Date(report.checkedAt).toLocaleString())+(report.stale?' · STALE':'')+'</small>'+(rows?'<div class="ccn-location-scroll"><table><thead><tr><th>Store</th><th>On hand</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'')+'<p>'+esc(report.detail || '')+'</p>');
+      show('<h4>'+esc(report.name)+'</h4><p>'+esc(report.result==='checker_error'?'Checker error · stock unknown':report.result==='no_stock_reported'?'No stock reported · missing stores remain unknown':'Rippin Packz reported stock')+'</p><small>Checked '+esc(new Date(report.checkedAt).toLocaleString())+(report.stale?' · STALE':'')+'</small>'+InventoryReportView.render(report));
     }catch{show('<p>Saved check unavailable. Try again shortly.</p>');}
   }
   results.dataset.inventoryResults='bestbuy';results.addEventListener('refresh-inventory-results',showSelectedStock);
@@ -3137,7 +3147,6 @@ async function renderCcnInventory(retailer){
       watch.innerHTML='<h3>Products being watched</h3><div class="ccn-product-grid warehouse-watch-grid">'+tiles+'</div>'+(upcomingTiles?'<h3>Upcoming in-store drops</h3><div class="ccn-product-grid warehouse-watch-grid">'+upcomingTiles+'</div>':'');
     }catch(error){watch.textContent='Product watch list unavailable. Please try again.';}
   }
-  if(retailer==='costco'){reportBody.remove();return;}
   if(!/^\d{5}$/.test(zip))reportBody.hidden=true;
   let lastReportsFingerprint="";
   async function refreshReports(){const zip=savedInventoryChoice('inventoryZip:'+retailer) || savedInventoryChoice('inventoryLastResultZip:'+retailer) || linkedZip;if(!/^\d{5}$/.test(zip))return;try{
@@ -3148,10 +3157,8 @@ async function renderCcnInventory(retailer){
     const selectedResult=(currentStockParams.get('retailer')===retailer?currentStockParams.get('productId'):null) || savedInventoryChoice('inventoryProduct:'+retailer) || savedInventoryChoice('inventoryLastSearch:'+retailer);
     const fingerprint=JSON.stringify({zip,selectedResult,reports:data.reports});if(fingerprint===lastReportsFingerprint)return;lastReportsFingerprint=fingerprint;
     const productTiles=(data.reports || []).filter(report=>String(report.sourceUrl || '').startsWith('https://discord.com/channels/1367457689386356766/') && (!selectedResult || String(report.productId)===selectedResult)).map(report=>{
-      const stockChange=row=>{const c=row.quantityChanges?.onHand;if(!c)return 'No comparable prior quantity';if(!c.delta)return 'Unchanged';return c.previous+' → '+c.current+' ('+(c.delta>0?'+':'')+c.delta+')'+(c.current===0?' · now zero reported':'');};
-      const rows=(report.locations || []).map(row=>'<tr><th scope="row">'+esc(row.name)+'<small>'+esc(row.address)+'</small><small>'+esc(row.status || '')+'</small></th><td data-label="Order">'+esc(row.onOrder ?? '—')+'</td><td data-label="Transit">'+esc(row.inTransit ?? '—')+'</td><td data-label="On hand">'+esc(row.onHand ?? '—')+'</td><td data-label="Change">'+esc(stockChange(row))+'</td></tr>').join('');
       const image=report.image || knownProducts.find(p=>String(p.itemNumber)===String(report.productId))?.image;
-      return '<article class="ccn-product-tile">'+(retailer==='costco' && knownProducts.some(p=>p.image && String(p.itemNumber)===String(report.productId))?'':retailerImageMarkup(image,report.name))+'<h4>'+esc(report.name)+'</h4><small>Item '+esc(report.productId)+'</small><p>'+esc(report.result==='checker_error'?'Checker error · stock unknown':report.result==='no_stock_reported'?'No stock reported · missing stores remain unknown':'Reported warehouse stock')+(report.stale?' · STALE':'')+'</p><small>Checked '+esc(new Date(report.checkedAt).toLocaleString())+'</small>'+(rows?'<details open><summary>Locations ('+report.locations.length+')</summary><div class="ccn-location-scroll"><table><thead><tr><th>Location</th><th>Order</th><th>Transit</th><th>On hand</th><th>Change</th></tr></thead><tbody>'+rows+'</tbody></table></div><small>— means not supplied by the checker.</small></details>':'')+(report.detail?'<details'+(report.result==='checker_error'?' open':'')+'><summary>Check details</summary><p>'+esc(report.detail)+'</p></details>':'')+'<p><a href="'+esc(report.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW RIPPIN PACKZ SOURCE ↗</a></p></article>';
+      return '<article class="ccn-product-tile">'+(image?retailerImageMarkup(image,report.name):'')+'<h4>'+esc(report.name)+'</h4><small>Item '+esc(report.productId)+' · ZIP '+esc(report.zip)+'</small><p>'+esc(report.result==='checker_error'?'Checker error · stock unknown':report.result==='no_stock_reported'?'No stock reported · missing stores remain unknown':'Reported warehouse stock')+(report.stale?' · STALE':'')+'</p><small>Checked '+esc(new Date(report.checkedAt).toLocaleString())+'</small>'+InventoryReportView.render(report)+'</article>';
     }).join('');
     reportBody.hidden=false;reportBody.innerHTML='<h3>Latest stock check</h3>'+(productTiles?'<div class="ccn-product-grid inventory-results-grid">'+productTiles+'</div>':'<p>No saved result for '+(selectedResult?'item '+esc(selectedResult)+' · ':'')+'ZIP '+esc(zip)+'. Stock is unknown. Request a fresh check below.</p>');
     updateCcnCountdowns();
@@ -5172,8 +5179,7 @@ function openClickedNotification(){
     fetch('/api/ccn/inventory-reports?retailer='+encodeURIComponent(retailer)+'&zip='+searchParams.get('zip'),{cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.json();}).then(data=>{
       const report=(data.reports || []).find(r=>r.productId===searchParams.get('productId'));
       if(!report){result.textContent='This search belongs to the browser that requested it. Open the monitor on that device to see its private result.';return;}
-      result.textContent='';const detail=document.createElement('p');detail.textContent=report.source+' · '+report.detail;result.append(detail);
-      for(const store of report.locations || []){const row=document.createElement('p');row.textContent=store.name+(store.address?' · '+store.address:'')+' · On hand: '+(store.onHand ?? 'Unknown')+' · '+store.status;result.append(row);}
+      result.innerHTML=InventoryReportView.render(report);
       const checked=document.createElement('small');checked.textContent='Checked '+new Date(report.checkedAt).toLocaleString();result.append(checked);
     }).catch(()=>{result.textContent='Saved result could not load. Reopen this notification to try again.';});
   }
