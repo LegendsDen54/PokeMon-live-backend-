@@ -265,8 +265,8 @@ function checkerInput(retailer,productId,zip){
   if(!['bestbuy','costco','sams','dollargeneral','barnes'].includes(retailer)||!/^\d{5}$/.test(zip)||!/^[A-Za-z0-9-]{1,40}$/.test(productId))throw Error('Choose a retailer, valid product identifier and five-digit ZIP');
 }
 async function personalSearchWindow(retailer,viewer,db=pool){
-  if(!viewer || !['sams','costco'].includes(retailer))return null;
-  const row=(await db.query("SELECT max(requested_at)+interval '1 hour' AS available_at FROM inventory_search_viewers WHERE viewer_id=$1 AND retailer=$2",[viewer,retailer])).rows[0];
+  if(!viewer || !['sams','costco','bestbuy'].includes(retailer))return null;
+  const row=(await db.query("SELECT max(requested_at)+interval '5 minutes' AS available_at FROM inventory_search_viewers WHERE viewer_id=$1 AND retailer=$2",[viewer,retailer])).rows[0];
   return row?.available_at && Date.parse(row.available_at)>Date.now()?row.available_at:null;
 }
 module.exports.requestInventory=async(retailer,productId,zip,viewer)=>{
@@ -282,7 +282,7 @@ module.exports.requestInventory=async(retailer,productId,zip,viewer)=>{
     const cooldown=(await client.query('SELECT available_at FROM inventory_checker_cooldowns WHERE retailer=$1 AND available_at>now()',[retailer])).rows[0];
     if(cooldown){await client.query('COMMIT');return {status:'cooldown',checkerAvailableAt:cooldown.available_at,availableAt:cooldown.available_at};}
     const accepted=(await client.query('INSERT INTO inventory_search_viewers(viewer_id,retailer,product_id,zip) VALUES($1,$2,$3,$4) ON CONFLICT(viewer_id,retailer,product_id,zip) DO UPDATE SET requested_at=now(),completed_at=NULL RETURNING requested_at',[viewer,retailer,productId,zip])).rows[0];
-    const personalAvailableAt=['costco','sams'].includes(retailer)?new Date(Date.parse(accepted.requested_at)+3600000).toISOString():null;
+    const personalAvailableAt=['costco','sams','bestbuy'].includes(retailer)?new Date(Date.parse(accepted.requested_at)+300000).toISOString():null;
     const existing=(await client.query("SELECT q.requested_at FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip WHERE q.retailer=$1 AND q.product_id=$2 AND q.zip=$3 AND q.cancelled_at IS NULL AND (r.data IS NULL OR (r.data->>'checkedAt')::timestamptz<q.requested_at)",[retailer,productId,zip])).rows[0];
     if(existing){await client.query('COMMIT');return {status:'queued',deduplicated:true,requestedAt:accepted.requested_at,personalAvailableAt,availableAt:personalAvailableAt};}
     const row=(await client.query('INSERT INTO inventory_check_requests(retailer,product_id,zip,priority) VALUES($1,$2,$3,1) ON CONFLICT(retailer,product_id,zip) DO UPDATE SET requested_at=now(),priority=1,cancelled_at=NULL RETURNING requested_at',[retailer,productId,zip])).rows[0];
