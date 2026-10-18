@@ -8,9 +8,9 @@ test('warehouse results use a table, preserve all source fields, and collapse ve
   const html=view.render({retailer:'costco',sourceText:'Page 1/2\nPage 2/2',locations:[{name:'MELROSE PARK',inTransit:77,onHand:null,sourceFields:[{name:'Added',value:'Oct 16th'},{name:'ZIP',value:'60160'}]}]});
   assert.match(html,/<table class="inventory-source-table">/);assert.match(html,/77/);assert.match(html,/Oct 16th/);assert.match(html,/60160/);assert.ok(!html.includes('inventory-source-original" open'));assert.ok(html.includes('Page 1/2\nPage 2/2'));
 });
-test('Costco results expire at one minute without affecting saved reports or other retailers',()=>{
+test('Costco results remain visible during the search cooldown',()=>{
   const report={retailer:'costco',checkedAt:'2026-10-18T04:40:38.444Z',sourceText:'retained'};
-  const at=Date.parse(report.checkedAt);assert.equal(view.resultVisible(report,at+59999),true);assert.equal(view.resultVisible(report,at+60000),false);assert.equal(report.sourceText,'retained');assert.equal(view.resultVisible({...report,retailer:'sams'},at+60001),true);assert.equal(view.resultVisible({retailer:'costco'},at),false);
+  const at=Date.parse(report.checkedAt);assert.equal(view.resultVisible(report,at+59999),true);assert.equal(view.resultVisible(report,at+3600000),true);assert.equal(report.sourceText,'retained');assert.equal(view.resultVisible({...report,retailer:'sams'},at+60001),true);assert.equal(view.resultVisible({retailer:'costco'},at),false);
 });
 test('preserves long Rip Radar details, source labels, multiline text and all locations',()=>{
   const input={detail:'Uploaded inventory; verify before driving. '.repeat(30),sourceText:'Rip Radar\nOn Hand: 1,058\nAdded Sept 24th\nCall club to verify.',sourceFields:[{name:'Radius',value:'50 miles'},{name:'Uploaded',value:'Sept 24th'}],locations:Array.from({length:115},(_,i)=>({name:'Club '+i,address:'ZIP 60164',onHand:i===0?0:null,onOrder:24,inTransit:null,distanceMiles:4.8,status:'Uploaded Sept 24th',sourceFields:[{name:'Price',value:'$39.98'},{name:'Reported quantity',value:'100+'}]}))};

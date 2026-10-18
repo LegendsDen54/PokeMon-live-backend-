@@ -30,7 +30,7 @@
   }
   const fieldMarkup=items=>(items || []).map(f=>'<div><dt>'+esc(f.name)+'</dt><dd>'+esc(f.value)+'</dd></div>').join('');
   function resultVisible(report,now=Date.now()){
-    return report.retailer!=='costco' || Number.isFinite(Date.parse(report.checkedAt)) && now<Date.parse(report.checkedAt)+60000;
+    return Number.isFinite(Date.parse(report.checkedAt));
   }
   function render(report){
     const rows=report.locations || [];
