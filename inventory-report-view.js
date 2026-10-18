@@ -33,7 +33,13 @@
     return Number.isFinite(Date.parse(report.checkedAt));
   }
   function render(report){
-    const rows=report.locations || [];
+    let rows=report.locations || [];
+    let unmatched=false;
+    if(report.retailer==='costco' && !rows.length && report.result==='checker_error' && report.sourceText){
+      const pattern=/(?:^|\n\n)([^\n]+)\nRetailer: Costco\nProduct: ([^\n]+)\nQty: (\d+) \| Status: ([^|\n]+) \| Added: ([^\n]+)\nZIP: (\d+) \| Miles: ([\d.]+) mi/g;
+      rows=Array.from(report.sourceText.matchAll(pattern),m=>({name:m[1],distanceMiles:Number(m[7]),onHand:null,onOrder:null,inTransit:/^In Transit$/i.test(m[4])?Number(m[3]):null,status:m[4],sourceFields:[{name:'Returned product',value:m[2]},{name:'Reported quantity',value:m[3]},{name:'Added',value:m[5]},{name:'ZIP',value:m[6]}]}));
+      unmatched=rows.length>0;
+    }
     const changes=row=>['onHand','onOrder','inTransit'].map(key=>{
       const c=row.quantityChanges?.[key];if(!c)return '';
       const label={onHand:'On hand',onOrder:'On order',inTransit:'In transit'}[key];
@@ -50,6 +56,7 @@
     return '<section class="inventory-source-result"><p><strong>'+esc(report.source || 'Rippin Packz stock checker')+'</strong></p>'+
       (report.detail?'<p class="inventory-source-text">'+esc(report.detail)+'</p>':'')+
       (report.sourceFields?.length?'<dl class="inventory-source-fields">'+fieldMarkup(report.sourceFields)+'</dl>':'')+
+      (unmatched?'<p><strong>Returned product differs from your selection.</strong> These source rows are shown for reference; they do not confirm stock for the requested item.</p>':'')+
       (table || (locations?'<h4>Reported locations ('+rows.length+')</h4><ol class="inventory-source-locations">'+locations+'</ol>':''))+
       (report.sourceText?'<details class="inventory-source-original"><summary>Original checker response</summary><pre>'+esc(report.sourceText)+'</pre></details>':'<p><small>The original response text was not saved with this check. All available saved fields are shown above.</small></p>')+
       (sourceUrl?'<p><a href="'+esc(sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW DISCORD RESULT ↗</a></p>':'')+'</section>';

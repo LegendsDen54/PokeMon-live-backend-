@@ -1944,7 +1944,7 @@ html,body{height:100%;overflow:hidden;}
 .inventory-source-fields dt{font-size:12px;color:var(--muted)}
 .inventory-source-fields dd{margin:3px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
 .inventory-source-text,.inventory-source-original pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}
-.inventory-source-original{margin-top:16px}
+.inventory-source-original{margin-top:16px}.inventory-source-original pre{max-height:45vh;overflow:auto}.warehouse-upcoming-grid{display:flex!important;flex-wrap:wrap;justify-content:center!important;text-align:center}.warehouse-upcoming-grid>.ccn-product-tile{width:min(100%,280px)}
 .inventory-source-location small{display:block}
 .inventory-table-scroll{max-height:65vh;overflow:auto;margin:12px 0;border:1px solid #26475f;border-radius:10px}
 .inventory-source-table{width:100%;border-collapse:collapse;font-size:13px;text-align:left}
@@ -3149,8 +3149,8 @@ async function renderCcnInventory(retailer){
       const readyProducts=products.filter(p=>p.image && p.itemNumber);
       const tiles=readyProducts.map(p=>'<article class="ccn-product-tile">'+(retailer==='costco'?retailerImageMarkup(p.image,p.label):'')+'<h4>'+esc(p.label.replace(/^(Confirmed|Reported released|Reported current|Reported upcoming|Confirmed recent) · /,''))+'</h4><small>Item '+esc(p.itemNumber)+'</small>'+(p.price!=null && Number.isFinite(Number(p.price))?'<small>$'+Number(p.price).toFixed(2)+'</small>':'')+(p.reportedPrice!=null?'<small>Reported $'+Number(p.reportedPrice).toFixed(2)+'</small>':'')+'</article>').join('');
       const upcomingProducts=products.filter(p=>p.stage==='upcoming' && p.image);
-      const upcomingTiles=upcomingProducts.map(p=>'<article class="ccn-product-tile">'+retailerImageMarkup(p.image,p.label)+'<h4>'+esc(p.label)+'</h4><p>'+esc(p.expectedWindow || 'Release timing unconfirmed')+'</p><small>Availability unconfirmed</small>'+(p.reportedAt?'<small>Originally reported '+esc(new Date(p.reportedAt).toLocaleString())+'</small>':'')+(p.sourceUrl?'<p><a href="'+esc(p.sourceUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(p.sourceName || 'View source')+' ↗</a></p>':'')+'</article>').join('');
-      watch.innerHTML='<h3>Products being watched</h3><div class="ccn-product-grid warehouse-watch-grid">'+tiles+'</div>'+(upcomingTiles?'<h3>Upcoming in-store drops</h3><div class="ccn-product-grid warehouse-watch-grid">'+upcomingTiles+'</div>':'');
+      const upcomingTiles=upcomingProducts.map(p=>'<article class="ccn-product-tile">'+retailerImageMarkup(p.image,p.label)+'<h4>'+esc(p.label)+'</h4><p>'+esc(p.expectedWindow || 'Release timing unconfirmed')+'</p>'+(p.sourceUrl?'<p><a href="'+esc(p.sourceUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(p.sourceName || 'View source')+' ↗</a></p>':'')+'</article>').join('');
+      watch.innerHTML='<h3>Products being watched</h3><div class="ccn-product-grid warehouse-watch-grid">'+tiles+'</div>'+(upcomingTiles?'<h3>Upcoming in-store drops</h3><div class="ccn-product-grid warehouse-watch-grid warehouse-upcoming-grid">'+upcomingTiles+'</div>':'');
     }catch(error){watch.textContent='Product watch list unavailable. Please try again.';}
   }
   if(!/^\d{5}$/.test(zip))reportBody.hidden=true;
