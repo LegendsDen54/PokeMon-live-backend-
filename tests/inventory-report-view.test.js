@@ -34,3 +34,13 @@ test('storage normalizer retains original response and extra fields',()=>{
   const result=context.module.exports.cleanForTest({retailer:'sams',productId:'990518062',zip:'60634',name:'Focused Fighters',checkedAt:new Date().toISOString(),sourceUrl:'https://discord.com/channels/1367457689386356766/1548379934207254649/1560778105516331090',result:'results',detail:'x'.repeat(700),sourceText:'Actual multiline\nchecker response',sourceFields:[{name:'Radius',value:'50 miles'}],locations:[{name:'Club',distanceMiles:4.8,onHand:0,sourceFields:[{name:'Added',value:'Sept 24th'}]}]});
   assert.equal(result.detail.length,700);assert.equal(result.sourceText,'Actual multiline\nchecker response');assert.equal(result.locations[0].sourceFields[0].value,'Sept 24th');assert.equal(result.sourceFields[0].value,'50 miles');
 });
+
+test('Costco Sams Club and Best Buy always render compact inventory tables',()=>{
+ for(const retailer of ['costco','sams','bestbuy']){
+  const html=view.render({retailer,locations:Array.from({length:20},(_,i)=>({name:'Store '+i,onHand:i,onOrder:null,inTransit:null,distanceMiles:i,status:'Reported',sourceFields:[]})),sourceText:'Full original response'});
+  assert.match(html,/<table class="inventory-source-table">/);
+  assert.equal((html.match(/<tr>/g)||[]).length,21);
+  assert.ok(!html.includes('<ol class="inventory-source-locations">'));
+  assert.ok(!html.includes('inventory-source-original" open'));
+ }
+});

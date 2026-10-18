@@ -51,7 +51,7 @@
       ['onHand','onOrder','inTransit'].map(key=>'<div><dt>'+({onHand:'On hand',onOrder:'On order',inTransit:'In transit'}[key])+'</dt><dd>'+esc(row[key] ?? 'Not supplied')+'</dd></div>').join('')+
       '<div><dt>Status</dt><dd>'+esc(row.status || 'Not supplied')+'</dd></div>'+fieldMarkup(row.sourceFields)+'</dl>'+changes(row)+'</li>').join('');
     const sourceUrl=/^https:\/\/discord\.com\/channels\/\d+\/\d+(?:\/\d+)?$/.test(report.sourceUrl || '')?report.sourceUrl:null;
-    const warehouse=['costco','sams'].includes(report.retailer);
+    const warehouse=['costco','sams','bestbuy'].includes(report.retailer);
     const table=warehouse && rows.length?'<h4>Reported locations ('+rows.length+')</h4><div class="inventory-table-scroll"><table class="inventory-source-table"><thead><tr><th>Store</th><th>Distance</th><th>On hand</th><th>On order</th><th>In transit</th><th>Status</th><th>Source details</th></tr></thead><tbody>'+rows.map(row=>'<tr><th scope="row">'+esc(row.name)+(row.address?'<small>'+esc(row.address)+'</small>':'')+'</th><td>'+esc(row.distanceMiles==null?'—':row.distanceMiles+' mi')+'</td>'+['onHand','onOrder','inTransit'].map(key=>'<td>'+esc(row[key] ?? '—')+'</td>').join('')+'<td>'+esc(row.status || 'Not supplied')+'</td><td><dl class="inventory-source-fields">'+fieldMarkup(row.sourceFields)+'</dl>'+changes(row)+'</td></tr>').join('')+'</tbody></table></div><small>— means not supplied by the checker. In transit does not confirm shelf stock.</small>':'';
     return '<section class="inventory-source-result"><p><strong>'+esc(report.source || 'Rippin Packz stock checker')+'</strong></p>'+
       (report.detail?'<p class="inventory-source-text">'+esc(report.detail)+'</p>':'')+
