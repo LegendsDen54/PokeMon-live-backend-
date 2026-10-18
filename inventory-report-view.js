@@ -29,6 +29,9 @@
     };
   }
   const fieldMarkup=items=>(items || []).map(f=>'<div><dt>'+esc(f.name)+'</dt><dd>'+esc(f.value)+'</dd></div>').join('');
+  function resultVisible(report,now=Date.now()){
+    return report.retailer!=='costco' || Number.isFinite(Date.parse(report.checkedAt)) && now<Date.parse(report.checkedAt)+60000;
+  }
   function render(report){
     const rows=report.locations || [];
     const changes=row=>['onHand','onOrder','inTransit'].map(key=>{
@@ -42,14 +45,16 @@
       ['onHand','onOrder','inTransit'].map(key=>'<div><dt>'+({onHand:'On hand',onOrder:'On order',inTransit:'In transit'}[key])+'</dt><dd>'+esc(row[key] ?? 'Not supplied')+'</dd></div>').join('')+
       '<div><dt>Status</dt><dd>'+esc(row.status || 'Not supplied')+'</dd></div>'+fieldMarkup(row.sourceFields)+'</dl>'+changes(row)+'</li>').join('');
     const sourceUrl=/^https:\/\/discord\.com\/channels\/\d+\/\d+(?:\/\d+)?$/.test(report.sourceUrl || '')?report.sourceUrl:null;
+    const warehouse=['costco','sams'].includes(report.retailer);
+    const table=warehouse && rows.length?'<h4>Reported locations ('+rows.length+')</h4><div class="inventory-table-scroll"><table class="inventory-source-table"><thead><tr><th>Store</th><th>Distance</th><th>On hand</th><th>On order</th><th>In transit</th><th>Status</th><th>Source details</th></tr></thead><tbody>'+rows.map(row=>'<tr><th scope="row">'+esc(row.name)+(row.address?'<small>'+esc(row.address)+'</small>':'')+'</th><td>'+esc(row.distanceMiles==null?'—':row.distanceMiles+' mi')+'</td>'+['onHand','onOrder','inTransit'].map(key=>'<td>'+esc(row[key] ?? '—')+'</td>').join('')+'<td>'+esc(row.status || 'Not supplied')+'</td><td><dl class="inventory-source-fields">'+fieldMarkup(row.sourceFields)+'</dl>'+changes(row)+'</td></tr>').join('')+'</tbody></table></div><small>— means not supplied by the checker. In transit does not confirm shelf stock.</small>':'';
     return '<section class="inventory-source-result"><p><strong>'+esc(report.source || 'Rippin Packz stock checker')+'</strong></p>'+
       (report.detail?'<p class="inventory-source-text">'+esc(report.detail)+'</p>':'')+
       (report.sourceFields?.length?'<dl class="inventory-source-fields">'+fieldMarkup(report.sourceFields)+'</dl>':'')+
-      (locations?'<h4>Reported locations ('+rows.length+')</h4><ol class="inventory-source-locations">'+locations+'</ol>':'')+
-      (report.sourceText?'<details class="inventory-source-original" open><summary>Original checker response</summary><pre>'+esc(report.sourceText)+'</pre></details>':'<p><small>The original response text was not saved with this check. All available saved fields are shown above.</small></p>')+
+      (table || (locations?'<h4>Reported locations ('+rows.length+')</h4><ol class="inventory-source-locations">'+locations+'</ol>':''))+
+      (report.sourceText?'<details class="inventory-source-original"><summary>Original checker response</summary><pre>'+esc(report.sourceText)+'</pre></details>':'<p><small>The original response text was not saved with this check. All available saved fields are shown above.</small></p>')+
       (sourceUrl?'<p><a href="'+esc(sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW DISCORD RESULT ↗</a></p>':'')+'</section>';
   }
-  const api={cleanDetails,render};
+  const api={cleanDetails,render,resultVisible};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   else root.InventoryReportView=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
