@@ -108,9 +108,12 @@ function isTcgText(value) {
 
 function isTcgProductText(value) {
   const label = String(value || "");
-  const accessory = /\b(?:sleeves?|deck box|binder|portfolio|playmat|coin|dice|damage counter|pin|keychain|plush|figure|apparel|shirt|hoodie|hat|backpack|lunchbox|mug|water bottle|sticker|poster|ornament)\b/i;
-  const premiumCollection = /\b(?:ultra|special|super)[- ]premium collection\b|\bpremium collection\b/i;
-  return isTcgText(label) && (premiumCollection.test(label) || !accessory.test(label));
+  // Product-specific evidence is required; generic "Pokémon" or "collection" is insufficient.
+  const tcg = isTcgText(label);
+  const merchandise = /\b(?:plush(?:ie)?|keychains?|apparel|shirts?|hoodies?|hats?|backpacks?|mugs?|water bottles?|ornaments?|figurines?|statues?|jewelry|phone cases?|posters?|stickers?|playmats?|card sleeves?|deck boxes?|binders?|portfolios?)\b/i;
+  const sealedCardCollection = /\b(?:poster collection|sticker collection|premium collection|figure collection|binder collection)\b/i.test(label) &&
+    /\b(?:pokemon tcg|pokémon tcg|trading card game|booster packs?|promo cards?)\b/i.test(label);
+  return tcg && (!merchandise.test(label) || sealedCardCollection);
 }
 
 function productLinks() {
