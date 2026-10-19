@@ -1962,10 +1962,9 @@ html,body{height:100%;overflow:hidden;}
 </style>
 <style>
 #ccnInventoryReports{background:transparent;border:0;padding:0;box-shadow:none;}
-.costco-check-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start;}
-.costco-check-layout>*{min-width:0;margin-top:0;}
-.costco-check-layout .inventory-results-grid{grid-template-columns:minmax(0,1fr);}
-@media(max-width:600px){.costco-check-layout{grid-template-columns:minmax(0,1fr);}}
+.costco-inventory-search .store-checker-row{display:flex;flex-direction:column;align-items:stretch;}
+.costco-inventory-search .store-checker-row>*{width:100%;min-width:0;box-sizing:border-box;}
+#ccnInventoryReports[data-retailer="costco"] .inventory-results-grid{grid-template-columns:minmax(0,1fr);}
 .app:has(.tab.active[data-retailer="sams"]){max-width:1160px;}
 #ccnInventoryReports[data-retailer="sams"] .inventory-results-grid{grid-template-columns:minmax(0,1fr);}
 #ccnInventoryReports[data-retailer="sams"] .ccn-location-scroll table{table-layout:fixed;font-size:13px;}
@@ -3141,10 +3140,7 @@ async function renderCcnInventory(retailer){
   const section=document.createElement("section");section.className="store-checker";section.id="ccnInventoryReports";section.dataset.retailer=retailer;
   const reportBody=document.createElement('div');reportBody.innerHTML='<p>Loading latest checks…</p>';section.append(reportBody);
   otherRetailerCard.append(section);
-  if(retailer==='costco'){
-    const layout=document.createElement('div');layout.className='costco-check-layout';
-    section.append(layout);layout.append(reportBody);addInventoryRequestControl(retailer,layout);
-  }else if(retailer==='sams')addInventoryRequestControl(retailer,otherRetailerCard);
+  if(["costco","sams"].includes(retailer))addInventoryRequestControl(retailer,otherRetailerCard);
   if(["costco","sams"].includes(retailer)){
     const watch=document.createElement("section");watch.className="warehouse-watch-section";
     section.prepend(watch);
@@ -3214,6 +3210,7 @@ function watchInventoryRequest(retailer,getSelection,status,button,onCompleted){
 }
 function addInventoryRequestControl(retailer,parent){
  const form=document.createElement('form');form.className='store-checker';form.innerHTML='<h3>Check a product near you</h3><div class="store-checker-row"><select aria-label="Choose stock checker product" required><option value="">Choose a product by name</option></select><input aria-label="Stock checker ZIP code" placeholder="Enter your ZIP code" inputmode="numeric" maxlength="5" required><button type="submit">CHECK INVENTORY</button></div><div class="inventory-product-preview"></div><p role="status">Choose a product and enter your ZIP.</p>';
+ if(retailer==='costco')form.classList.add('costco-inventory-search');
  parent.append(form);const picker=form.querySelector('select'),zipField=form.querySelector('input'),status=form.querySelector('[role="status"]'),button=form.querySelector('button'),preview=form.querySelector('.inventory-product-preview');
  const requestLink=new URLSearchParams(location.search);zipField.value=(requestLink.get('retailer')===retailer?requestLink.get('zip'):null) || savedInventoryChoice('inventoryZip:'+retailer);if(zipField.value)rememberInventoryChoice('inventoryZip:'+retailer,zipField.value);
  let products=[];
