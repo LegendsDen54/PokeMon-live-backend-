@@ -822,13 +822,15 @@ function accessoryOnlyReport(event) {
 }
 
 function isTcgProductEvent(event = {}) {
-  const label = [event.name, event.url, event.detail].filter(Boolean).join(" ");
-  const tcg = /\bpok[eé]mon\s*tcg\b|trading\s*card\s*game|\belite trainer box\b|\bbooster\s+(?:box|bundle|pack|display)\b|\bultra[- ]premium collection\b|\bpremium collection\b|\b(?:ex|v|vmax|v-?union|gx)\s+(?:box|collection)\b|\b(?:three|3)[- ]pack blister\b|\bsingle[- ]pack blister\b|\bleague battle deck\b|\bbattle deck\b|\bbuild\s*(?:&|and)\s*battle(?:\s+(?:box|stadium))?\b|\bpromo\s+card\b|\bcollector(?:'s)?\s+chest\b|\bmini\s*tins?\b|\btrainer\s+kit\b|\btheme\s+deck\b/i.test(label);
-  const accessory = /\b(?:sleeves?|deck box|binder|portfolio|playmat|coin|dice|damage counter|pin|keychain|plush|figure|apparel|shirt|hoodie|hat|backpack|lunchbox|mug|water bottle|sticker|poster|ornament)\b/i.test(label);
-  const premiumCollection = /\b(?:ultra|special|super)[- ]premium collection\b|\bpremium collection\b/i.test(label);
-  return event.tcgRelevant === true && tcg && (premiumCollection || !accessory) && /^https:\/\/www\.pokemoncenter\.com\/product\//i.test(String(event.url || ""));
+  const name = String(event.name || "");
+  const url = String(event.url || "");
+  const tcg = /\bpok[eé]mon\s*tcg\b|trading\s*card\s*game|\belite trainer box\b|\bbooster\s+(?:box|bundle|pack|display)\b|\bultra[- ]premium collection\b|\bpremium collection\b|\b(?:ex|v|vmax|v-?union|gx)\s+(?:box|collection)\b|\b(?:three|3)[- ]pack blister\b|\bsingle[- ]pack blister\b|\bleague battle deck\b|\bbattle deck\b|\bbuild\s*(?:&|and)\s*battle(?:\s+(?:box|stadium))?\b|\bpromo\s+card\b|\bcollector(?:'s)?\s+chest\b|\bmini\s*tins?\b|\btrainer\s+kit\b|\btheme\s+deck\b/i.test(name);
+  const merchandise = /\b(?:plush(?:ie)?|keychains?|apparel|shirts?|hoodies?|hats?|backpacks?|mugs?|water bottles?|ornaments?|figurines?|statues?|jewelry|phone cases?|posters?|stickers?|playmats?|card sleeves?|deck boxes?|binders?|portfolios?)\b/i.test(name);
+  const sealedCardCollection = /\b(?:poster collection|sticker collection|premium collection|figure collection|binder collection)\b/i.test(name) &&
+    /\b(?:pokemon tcg|pokémon tcg|trading card game|booster packs?|promo cards?)\b/i.test(name);
+  return event.tcgRelevant === true && tcg && (!merchandise || sealedCardCollection) &&
+    /^https:\/\/www\.pokemoncenter\.com\/product\//i.test(url);
 }
-
 
 function mergeProduct(
   signal
