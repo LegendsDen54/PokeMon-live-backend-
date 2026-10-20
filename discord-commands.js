@@ -29,6 +29,35 @@ function formatReport(report,retailer){
   if(!rows.length)body+='No store rows supplied; missing quantities remain unknown.\n';
   return body+suffix;
 }
+function formatReportMessage(report,retailer){
+  const clean=s=>String(s??'').replace(/([\\`*_~|>])/g,'\\$1');
+  const title=`${retailers[retailer]} · ${report.name||report.productId}`.slice(0,256);
+  const embeds=[];let used=title.length+300,shown=0;
+  for(const row of report.locations||[]){
+    const fields=new Map((row.sourceFields||[]).map(f=>[String(f.name).toLowerCase(),String(f.value)]));
+    const status=fields.get('status')||row.status;
+    const qty=fields.get('qty');
+    const lines=[];
+    if(qty&&status)lines.push(`**Qty:** ${clean(qty)}  |  **Status:** ${clean(status)}`);
+    else lines.push(`**On hand:** ${row.onHand??'Unknown'}  |  **On order:** ${row.onOrder??'Unknown'}  |  **In transit:** ${row.inTransit??'Unknown'}`);
+    if(fields.get('added'))lines.push(`**Added:** ${clean(fields.get('added'))}`);
+    const location=[];
+    if(fields.get('zip'))location.push(`**ZIP:** ${clean(fields.get('zip'))}`);
+    if(row.distanceMiles!==null&&row.distanceMiles!==undefined)location.push(`**Miles:** ${row.distanceMiles} mi`);
+    if(location.length)lines.push(location.join('  |  '));
+    if(row.address&&row.address!==row.name)lines.push(clean(row.address));
+    const field={name:clean(row.name||'Store').slice(0,256),value:lines.join('\n').slice(0,1024),inline:false};
+    if(used+field.name.length+field.value.length>5700)break;
+    if(!embeds.length||embeds.at(-1).fields.length===25)embeds.push({color:0xf2b544,fields:[]});
+    embeds.at(-1).fields.push(field);used+=field.name.length+field.value.length;shown++;
+  }
+  if(!embeds.length)embeds.push({color:0xf2b544,description:report.result==='no_stock_reported'?'The checker reported no stock. Missing stores remain unknown.':'No store quantities supplied. Stock remains unknown.',fields:[]});
+  embeds[0].title=title;
+  embeds[0].description=`${report.locations?.length||0} matching store record(s) · Private result\nChecked: ${report.checkedAt}${report.stale?' · Older result; recheck needed':''}`;
+  if(/^https:\/\/discord\.com\/channels\//.test(report.sourceUrl||''))embeds[0].url=report.sourceUrl;
+  embeds.at(-1).footer={text:`${shown} of ${report.locations?.length||0} stores shown · Reported inventory may be delayed. Check source dates and confirm before driving.`};
+  return {content:'',embeds,allowed_mentions:{parse:[]}};
+}
 function create({inventory, wake=()=>{}, env=process.env, fetchImpl=globalThis.fetch, now=Date.now}) {
   const seen = new Map();
   const completion=env.DATABASE_URL?require('./discord-search-delivery').create({inventory,env,fetchImpl,now}):null;
@@ -41,7 +70,7 @@ function create({inventory, wake=()=>{}, env=process.env, fetchImpl=globalThis.f
       dropCache={at:now(),posts};return posts;
     }catch{return [];}finally{clearTimeout(timer);}
   }
-  async function execute(interaction) {
+  async function execute(interaction,asMessage=false) {
     const name=interaction.data?.name;
     if(name==='monitor')return 'Open the monitor: https://pokemon-live-backend.onrender.com/';
     const values=Object.fromEntries((interaction.data?.options || []).map(o=>[o.name,String(o.value || '').trim()]));
@@ -66,7 +95,7 @@ function create({inventory, wake=()=>{}, env=process.env, fetchImpl=globalThis.f
     const reports=await inventory.list(retailer,zip,viewer);
     const report=reports.find(r=>r.productId===product);
     if(!report)return 'Saved result is temporarily unavailable. Stock is unknown.';
-    return formatReport(report,retailer);
+    return asMessage?formatReportMessage(report,retailer):formatReport(report,retailer);
   }
   async function handler(req,res) {
     if(!env.DISCORD_APPLICATION_PUBLIC_KEY || !env.DISCORD_APPLICATION_ID || !env.DISCORD_GUILD_ID)return res.status(503).json({error:'Discord commands are not configured'});
@@ -89,7 +118,7 @@ function create({inventory, wake=()=>{}, env=process.env, fetchImpl=globalThis.f
     if(seen.has(interaction.id))return res.json({type:5,data:{flags:64}});
     seen.set(interaction.id,now());while(seen.size>1000)seen.delete(seen.keys().next().value);
     res.json({type:5,data:{flags:64}}); // Acknowledge immediately; database work may exceed three seconds.
-    let content;try{content=await execute(interaction);}catch{content='Stock-check storage is temporarily unavailable. Stock remains unknown. Use /stockstatus before retrying a request.';}
+    let content;try{content=await execute(interaction,true);}catch{content='Stock-check storage is temporarily unavailable. Stock remains unknown. Use /stockstatus before retrying a request.';}
     if(completion&&interaction.data.name==='stock'&&/^(Your stock check is queued|This exact check is already queued)/.test(content)){
       try{
         const viewer='discord:'+crypto.createHash('sha256').update(interaction.guild_id+':'+interaction.member.user.id).digest('hex');
@@ -100,10 +129,10 @@ function create({inventory, wake=()=>{}, env=process.env, fetchImpl=globalThis.f
     try {
       const delivery=await fetchImpl(`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${interaction.token}/messages/@original`,{
         method:'PATCH',redirect:'error',signal:AbortSignal.timeout(8000),headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({content:content.slice(0,2000),allowed_mentions:{parse:[]}})});
+        body:JSON.stringify(typeof content==='string'?{content:content.slice(0,2000),embeds:[],allowed_mentions:{parse:[]}}:content)});
       console.log('Discord command response delivery:', {command:interaction.data.name,status:delivery.status,ok:delivery.ok});
     } catch { console.warn('Discord command response delivery failed; no credential or request content logged.'); }
   }
   return {handler,execute};
 }
-module.exports={commands,verified,create,formatReport};
+module.exports={commands,verified,create,formatReport,formatReportMessage};

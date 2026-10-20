@@ -32,13 +32,14 @@ function create({inventory,env,fetchImpl=globalThis.fetch,now=Date.now,pool}){
           const status=await inventory.inventoryRequestStatus(r.retailer,r.product_id,r.zip,r.viewer_id);
           if(!['completed','checker_error','cancelled','expired'].includes(status.status))continue;
           let content='Your search was '+status.status+'. Stock remains unknown.';
+          let message;
           if(status.status==='checker_error')content='The checker returned an error. Stock is unknown; no out-of-stock conclusion can be made.';
           if(status.status==='completed'){
             const report=(await inventory.list(r.retailer,r.zip,r.viewer_id)).find(p=>p.productId===r.product_id);
             if(!report)continue;
-            content=require('./discord-commands').formatReport(report,r.retailer);
+            message=require('./discord-commands').formatReportMessage(report,r.retailer);
           }
-          const response=await fetchImpl(`https://discord.com/api/v10/webhooks/${r.application_id}/${open(r.callback)}/messages/@original`,{method:'PATCH',redirect:'error',signal:AbortSignal.timeout(8000),headers:{'Content-Type':'application/json'},body:JSON.stringify({content,allowed_mentions:{parse:[]}})});
+          const response=await fetchImpl(`https://discord.com/api/v10/webhooks/${r.application_id}/${open(r.callback)}/messages/@original`,{method:'PATCH',redirect:'error',signal:AbortSignal.timeout(8000),headers:{'Content-Type':'application/json'},body:JSON.stringify(message||{content,embeds:[],allowed_mentions:{parse:[]}})});
           if(response.ok||[401,403,404].includes(response.status))await pool.query('DELETE FROM discord_search_delivery WHERE interaction_id=$1',[r.interaction_id]);
           else await pool.query("UPDATE discord_search_delivery SET attempts=attempts+1,next_attempt=now()+interval '20 seconds' WHERE interaction_id=$1",[r.interaction_id]);
           console.log('Private Discord search completion:',{status:response.status,ok:response.ok});
