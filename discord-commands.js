@@ -73,10 +73,11 @@ function create({inventory, wake=()=>{}, env=process.env, fetchImpl=globalThis.f
     res.json({type:5,data:{flags:64}}); // Acknowledge immediately; database work may exceed three seconds.
     let content;try{content=await execute(interaction);}catch{content='Stock-check storage is temporarily unavailable. Stock remains unknown. Use /stockstatus before retrying a request.';}
     try {
-      await fetchImpl(`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${interaction.token}/messages/@original`,{
+      const delivery=await fetchImpl(`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${interaction.token}/messages/@original`,{
         method:'PATCH',redirect:'error',signal:AbortSignal.timeout(8000),headers:{'Content-Type':'application/json'},
         body:JSON.stringify({content:content.slice(0,2000),allowed_mentions:{parse:[]}})});
-    } catch { /* No sensitive request or continuation token is logged. /stockstatus can recover status. */ }
+      console.log('Discord command response delivery:', {command:interaction.data.name,status:delivery.status,ok:delivery.ok});
+    } catch { console.warn('Discord command response delivery failed; no credential or request content logged.'); }
   }
   return {handler,execute};
 }
