@@ -22,6 +22,15 @@ function verified(raw, signature, timestamp, key, now=Date.now()) {
 const response = content => ({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
 function create({inventory, wake=()=>{}, env=process.env, fetchImpl=globalThis.fetch, now=Date.now}) {
   const seen = new Map();
+  let dropCache={at:0,posts:[]};
+  async function dropReports(){
+    if(now()-dropCache.at<30000)return dropCache.posts;
+    let timer;
+    try{
+      const posts=await Promise.race([Promise.resolve().then(()=>inventory.stockCommandNews?.()||[]),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Catalog unavailable')),1200);})]);
+      dropCache={at:now(),posts};return posts;
+    }catch{return [];}finally{clearTimeout(timer);}
+  }
   async function execute(interaction) {
     const name=interaction.data?.name;
     if(name==='monitor')return 'Open the monitor: https://pokemon-live-backend.onrender.com/';
@@ -69,7 +78,7 @@ function create({inventory, wake=()=>{}, env=process.env, fetchImpl=globalThis.f
       const opts=interaction.data?.options||[];
       const focused=opts.find(o=>o.focused);
       const choices=['stock','stockstatus'].includes(interaction.data?.name)&&focused?.name==='product'
-        ?require('./discord-product-choices').choices(opts.find(o=>o.name==='retailer')?.value,focused.value):[];
+        ?require('./discord-product-choices').choices(opts.find(o=>o.name==='retailer')?.value,focused.value,await dropReports(),now()):[];
       return res.json({type:8,data:{choices}});
     }
     if(!commands.some(c=>c.name===interaction.data?.name))return res.json(response('Unknown command.'));

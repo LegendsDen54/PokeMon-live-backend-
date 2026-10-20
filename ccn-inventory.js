@@ -138,6 +138,12 @@ async function news(game=null){
   return result.rows.map(row=>row.data);
 }
 module.exports.saveNews=saveNews;module.exports.news=news;
+async function stockCommandNews(){
+  await newsStorage();
+  const result=await pool.query("SELECT data FROM ccn_news_reports WHERE COALESCE(data->>'game','pokemon')='pokemon' ORDER BY (data->>'publishedAt')::timestamptz DESC LIMIT 500");
+  return result.rows.map(row=>row.data);
+}
+module.exports.stockCommandNews=stockCommandNews;
 let newsClaimsReady;
 async function initializeNewsClaims(){
   if(!newsClaimsReady)newsClaimsReady=(async()=>{

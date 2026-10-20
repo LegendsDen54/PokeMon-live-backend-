@@ -13,6 +13,7 @@ const {create,verified}=require('../discord-commands');
   assert(!verified(raw,sig,timestamp,hex,Date.now()+600001));
   const calls=[],posted=[]; let cooldown=false;
   const inventory={
+    stockCommandNews:async()=>[{publishedAt:new Date().toISOString(),retailer:'bestbuy',products:[{productId:'6606082',status:'reported_available'}]}],
     requestInventory:async(...args)=>{calls.push(args);return cooldown?{status:'cooldown',availableAt:'2026-10-21T00:00:00Z'}:{status:'queued'};},
     requestDg:async()=>{throw Error('Unexpected DG');},
     inventoryRequestStatus:async()=>({status:'completed'}),
@@ -37,8 +38,18 @@ const {create,verified}=require('../discord-commands');
   assert(suggestion.value.data.choices.length<=25);assert.equal(posted.length,0,'Autocomplete never requests stock or sends a followup');
   const outside=res();await bridge.handler(req({...input,type:4,guild_id:'999'}),outside);assert.deepEqual(outside.value,{type:8,data:{choices:[]}});
   const {choices}=require('../discord-product-choices');
-  assert(choices('barnes','30th').every(p=>/^\d{13}$/.test(p.value)));
-  assert(choices('dollargeneral','30th').some(p=>p.value==='196214158801'));
+  const catalogNow=Date.parse('2026-10-20T19:00:00Z');
+  const reports=[{publishedAt:'2026-10-20T12:00:00Z',products:[{retailer:'dollargeneral',productId:'196214158801',status:'reported_available'},{retailer:'barnes',productId:'0196214158801',status:'reported_available'}]}];
+  assert(choices('barnes','30th',reports,catalogNow).every(p=>/^\d{13}$/.test(p.value)));
+  assert(choices('dollargeneral','30th',reports,catalogNow).some(p=>p.value==='196214158801'));
+  const costcoReport=at=>[{publishedAt:at,retailer:'costco',products:[{productId:'2007495',status:'reported_available'}]}];
+  assert(choices('costco','',costcoReport('2026-10-06T19:00:00Z'),catalogNow).length>0);
+  assert.equal(choices('costco','',costcoReport('2026-10-06T18:59:59Z'),catalogNow).length,0);
+  assert.equal(choices('bestbuy','',[{publishedAt:'2026-10-19T18:00:00Z',retailer:'bestbuy',products:[{productId:'6606082',status:'reported_available'}]}],catalogNow).length,0);
+  const upcoming=known=>[{publishedAt:'2026-10-19T12:00:00Z',retailer:'bestbuy',products:[{productId:'6606082',status:'upcoming',dropClassification:known?'known':'potential',expectedWindow:'2026-10-23'}]}];
+  assert(choices('bestbuy','prismatic',upcoming(true),catalogNow).length>0);
+  assert.equal(choices('bestbuy','prismatic',upcoming(false),catalogNow).length,0);
+  assert.equal(choices('costco','',[],catalogNow).length,0,'Catalog verification date alone is not a drop');
   assert.equal(choices('costco','no such product').length,0);
   assert(choices('costco').every(p=>/^\d+$/.test(p.value)),'Unknown item numbers must not become suggestions');
   const accepted=res();await bridge.handler(req(input),accepted);assert.equal(accepted.value.type,5);assert.equal(accepted.value.data.flags,64);assert.equal(posted.length,1);assert.deepEqual(posted[0].body.allowed_mentions,{parse:[]});
