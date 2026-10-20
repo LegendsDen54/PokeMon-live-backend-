@@ -310,39 +310,7 @@ function determineStatus(item) {
 }
 
 function parseWalmartSchedule(value) {
-  const text =
-    String(value || "")
-      .replace(/<!--\s*-->/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-
-  const match =
-    text.match(
-      /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2}),?\s+(\d{1,2}:\d{2}\s*(?:a\.?(?:m\.?)?|p\.?(?:m\.?)))\s*(PDT|PST|EDT|EST|CDT|CST)\b/i
-    );
-
-  if (!match) {
-    return null;
-  }
-
-  const date =
-    new Date(
-      `${match[1]} ${match[2]}, ${new Date().getFullYear()} ${match[3].replace(/(a|p)\.?m\.?$/i, " $1M")} ${match[4].toUpperCase()}`
-    );
-
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  /*
-    Walmart's draw page omits the year. If the parsed date is already
-    well in the past, its listed month belongs to the next calendar year.
-  */
-  if (date.getTime() < Date.now() - 7 * 24 * 60 * 60 * 1000) {
-    date.setFullYear(date.getFullYear() + 1);
-  }
-
-  return date.toISOString();
+  return require('./walmart-draw-schedule').parseWindow(value)?.startsAt || null;
 }
 
 function isDrawCandidate(item) {
@@ -361,29 +329,7 @@ function hasWalmartItemId(item) {
 }
 
 function extractSchedulesByItemId(html) {
-  const schedules =
-    new Map();
-
-  const pattern =
-    /data-item-id="(\d+)"[\s\S]{0,20000}?Drawing starts\s*<span[^>]*>\s*(?:<!--\s*-->)?\s*([^<]+)/gi;
-
-  let match;
-
-  while ((match = pattern.exec(String(html || "")))) {
-    const startsAt =
-      parseWalmartSchedule(
-        decodeHtml(match[2])
-      );
-
-    if (startsAt) {
-      schedules.set(
-        match[1],
-        startsAt
-      );
-    }
-  }
-
-  return schedules;
+  return require('./walmart-draw-schedule').extractWindows(html);
 }
 
 function findDate(
@@ -991,12 +937,10 @@ async function scan() {
       extractSchedulesByItemId(html);
 
     for (const item of normalized) {
-      item.startsAt =
-        item.startsAt ||
-        schedules.get(
-          String(item.walmartItemId || "")
-        ) ||
-        null;
+      const window=schedules.get(String(item.walmartItemId || ""));
+      item.startsAt=window?.startsAt || item.startsAt || null;
+      item.endsAt=window?.endsAt || item.endsAt || null;
+      if(window){item.raffleStatus='upcoming';item.status='upcoming';item.scheduleSourceUrl=DRAW_URL;}
     }
 
     /*

@@ -1,0 +1,10 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {parseWindow,extractWindows}=require('../walmart-draw-schedule');
+const now=Date.parse('2026-10-20T21:00:00Z');
+assert.deepEqual(parseWindow('Oct 21, 2:00pm - 3:00pm PDT',now),{startsAt:'2026-10-21T21:00:00.000Z',endsAt:'2026-10-21T22:00:00.000Z'});
+assert.deepEqual(parseWindow('Oct 21, 9:00am PDT',now),{startsAt:'2026-10-21T16:00:00.000Z',endsAt:null});
+assert.equal(parseWindow('Oct 8, 9:00am PDT',now),null,'Expired dates must not roll into next year');
+const html='<div data-item-id="111111"><div>Drawing entry window <span> Oct 21, 2:00pm - 3:00pm PDT</span></div></div><div data-item-id="222222"><div>No schedule</div></div><div data-item-id="333333">Drawing starts <span>Oct 22, 9:00am PDT</span></div>';
+const windows=extractWindows(html,now);assert.equal(windows.size,2);assert(!windows.has('222222'),'Do not borrow the next product schedule');assert.equal(windows.get('111111').endsAt,'2026-10-21T22:00:00.000Z');
+console.log('Walmart drawing parser: actual entry-window range, legacy start, exact item association and expired-date rejection passed.');

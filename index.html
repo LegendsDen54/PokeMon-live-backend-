@@ -4266,14 +4266,17 @@ function raffleScheduleLabel(item){
 
   }
 
-  return `JOIN TIME: ${date.toLocaleString([], {
+  const label = date.toLocaleString([], {
     weekday:"long",
     month:"short",
     day:"numeric",
     hour:"numeric",
     minute:"2-digit",
     timeZoneName:"short"
-  })}`;
+  });
+  const end=new Date(item.endsAt || item.closesAt || '');
+  const close=Number.isNaN(end.getTime())?'Closing time not announced':`CLOSES: ${end.toLocaleString([], {weekday:'long',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'})}`;
+  return `CONFIRMED DRAWING · OPENS: ${label} · ${close}`;
 }
 
 
