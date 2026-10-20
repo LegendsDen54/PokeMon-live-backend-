@@ -41,6 +41,9 @@ const walmart30thDiscovery =
 ======================================== */
 
 const app = express();
+// Signature verification needs exact raw bytes, before the general JSON parser.
+app.post('/api/discord/interactions',express.raw({type:'application/json',limit:'32kb'}),
+  require('./discord-commands').create({inventory:ccnInventory,wake:()=>inventoryCommandWorker.wake()}).handler);
 app.get('/api/bestbuy/verified-catalog', (req,res) => {
   res.set('Cache-Control','no-store');
   res.json({ok:true,...bestBuyVerifiedCatalog,products:bestBuyVerifiedCatalog.products.filter(p=>p.seller==='Best Buy' && /^\d{7,8}$/.test(p.sku))});
@@ -2124,6 +2127,13 @@ app.get('/api/inventory/owner-notification-status',async(req,res)=>{
   try{res.set('Cache-Control','no-store').json({ok:true,...await require('./inventory-completion-push').ownerStatus()});}catch{res.status(503).json({ok:false,error:'Notification status unavailable'});}
 });
 app.get('/api/inventory/worker-status',(req,res)=>res.set('Cache-Control','no-store').json({ok:true,...inventoryCommandWorker.health()}));
+app.post('/api/discord/connection-test',async(req,res)=>{
+  if(!hasInventoryOwnerAccess(req))return pokemonCenterSensorUnauthorized(res);
+  const bridge=require('./discord-alerts');
+  const delivery=await bridge.send({eventId:require('crypto').randomUUID(),tag:'discord-connection-test',
+    title:'Legends Den monitor connected',body:'Connection test only — no stock or drop is being reported.',url:'https://pokemon-live-backend.onrender.com/'});
+  res.set('Cache-Control','no-store').json({ok:delivery.ok && !delivery.skipped,configured:bridge.status().configured,delivery});
+});
 app.post('/api/inventory/check',async(req,res)=>{
   const retailer=String(req.body.retailer || ''),productId=String(req.body.productId || '').trim(),zip=String(req.body.zip || '').trim();
   if(retailer==='barnes' && !/^\d{13}$/.test(productId))return res.status(400).json({ok:false,error:'Enter the exact 13-digit Barnes & Noble EAN'});

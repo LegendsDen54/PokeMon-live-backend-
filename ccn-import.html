@@ -29,6 +29,10 @@ document.getElementById('checkpointRun').onclick=()=>controlRun('checkpoint');
 document.getElementById('finishRun').onclick=()=>controlRun('finish',null,true);
 document.getElementById('releaseRun').onclick=()=>controlRun('finish',null,false);
 document.getElementById('newsReceipts').onclick=async()=>{const out=document.getElementById('newsReceiptStatus');try{const r=await fetch('/api/ccn/news-receipts',{cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.error || 'Owner collector required');out.textContent=JSON.stringify(d,null,2);}catch(e){out.textContent=e.message;}};
+const discordTest=document.createElement('button');discordTest.textContent='SEND DISCORD CONNECTION TEST';
+const discordTestStatus=document.createElement('pre');discordTestStatus.id='discordTestStatus';discordTestStatus.style.whiteSpace='pre-wrap';
+document.querySelector('section').append(discordTest,discordTestStatus);
+discordTest.onclick=async()=>{discordTest.disabled=true;try{const r=await fetch('/api/discord/connection-test',{method:'POST'});const d=await r.json();if(!r.ok)throw Error(d.error || 'Owner collector required');discordTestStatus.textContent=JSON.stringify(d,null,2);}catch{discordTestStatus.textContent='Discord connection test could not be confirmed. Check the channel before retrying.';}finally{discordTest.disabled=false;}};
 </script></html>
 <script>
 document.getElementById('clearPending').onclick=async()=>{

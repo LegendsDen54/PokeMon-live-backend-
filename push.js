@@ -3,6 +3,7 @@ require("dotenv").config();
 const webpush = require("web-push");
 const crypto = require("crypto");
 const { Pool } = require("pg");
+const discordAlerts = require('./discord-alerts');
 
 const VAPID_PUBLIC_KEY =
   (process.env.VAPID_PUBLIC_KEY || "").trim();
@@ -504,8 +505,10 @@ async function sendToSubscription(
 let lastBroadcast=null;
 async function broadcast(payload) {
   const startedAt=Date.now();
+  const discordDelivery = discordAlerts.send(payload).catch(() => ({ok:false,reason:'delivery_unknown'}));
   if (!configured) {
     return {
+      discord: await discordDelivery,
       ok: false,
       sent: 0,
       failed: 0,
@@ -574,6 +577,7 @@ async function broadcast(payload) {
 
   lastBroadcast={startedAt:new Date(startedAt).toISOString(),completedAt:new Date().toISOString(),durationMs:Date.now()-startedAt,accepted:sent,failed,removed,phoneDisplayConfirmed:false};
   return {
+    discord: await discordDelivery,
     durationMs:lastBroadcast.durationMs,
     completedAt:lastBroadcast.completedAt,
     phoneDisplayConfirmed:false,
