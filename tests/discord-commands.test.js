@@ -50,7 +50,7 @@ const {create,verified}=require('../discord-commands');
   assert(choices('bestbuy','prismatic',upcoming(true),catalogNow).length>0);
   assert.equal(choices('bestbuy','prismatic',upcoming(false),catalogNow).length,0);
   assert.equal(choices('costco','',[],catalogNow,[]).length,0,'Catalog verification date alone is not a drop');
-  assert.deepEqual(choices('costco','mini tins',[],catalogNow),[{name:'Pokemon Ascended Heroes 5 Mini Tins 2-Pack',value:'2007495'}]);
+  assert.deepEqual(choices('costco','mini tins',[],Date.parse('2026-10-20T20:20:00Z')),[{name:'Pokemon Ascended Heroes 5 Mini Tins 2-Pack',value:'2007495'}]);
   assert.equal(choices('costco','',[],Date.parse('2026-11-03T19:00:00Z')).length,0,'Dated Radar inventory must expire after 14 days');
   assert.equal(choices('costco','no such product').length,0);
   assert(choices('costco').every(p=>/^\d+$/.test(p.value)),'Unknown item numbers must not become suggestions');
