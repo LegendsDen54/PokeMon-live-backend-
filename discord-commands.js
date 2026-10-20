@@ -3,7 +3,7 @@ const crypto = require('node:crypto');
 const retailers = {bestbuy:'Best Buy',costco:'Costco',sams:"Sam’s Club",dollargeneral:'Dollar General',barnes:'Barnes & Noble'};
 const options = [
   {type:3,name:'retailer',description:'Store to check',required:true,choices:Object.entries(retailers).map(([value,name])=>({name,value}))},
-  {type:3,name:'product',description:'Exact SKU, item number, UPC or EAN',required:true,max_length:40},
+  {type:3,name:'product',description:'Choose a product by name from the suggestions',required:true,max_length:100,autocomplete:true},
   {type:3,name:'zip',description:'Five-digit US ZIP',required:true,min_length:5,max_length:5}
 ];
 const commands = [
@@ -27,7 +27,7 @@ function create({inventory, wake=()=>{}, env=process.env, fetchImpl=globalThis.f
     if(name==='monitor')return 'Open the monitor: https://pokemon-live-backend.onrender.com/';
     const values=Object.fromEntries((interaction.data?.options || []).map(o=>[o.name,String(o.value || '').trim()]));
     const {retailer,product,zip}=values;
-    if(!retailers[retailer] || !/^[A-Za-z0-9-]{1,40}$/.test(product || '') || !/^\d{5}$/.test(zip || '')) return 'Choose a supported retailer, exact product identifier and five-digit ZIP.';
+    if(!retailers[retailer] || !/^[A-Za-z0-9-]{1,40}$/.test(product || '') || !/^\d{5}$/.test(zip || '')) return 'Choose a retailer, select a product from the suggestions and enter your five-digit ZIP.';
     if(retailer==='barnes' && !/^\d{13}$/.test(product))return 'Barnes & Noble requires the exact 13-digit EAN.';
     if(retailer==='dollargeneral' && !require('./dollar-general.json').products.some(p=>p.upc===product))return 'Choose a verified Dollar General UPC from the monitor’s product menu.';
     const viewer='discord:'+crypto.createHash('sha256').update(interaction.guild_id+':'+interaction.member.user.id).digest('hex');
@@ -63,8 +63,15 @@ function create({inventory, wake=()=>{}, env=process.env, fetchImpl=globalThis.f
     let interaction;try{interaction=JSON.parse(req.body.toString('utf8'));}catch{return res.sendStatus(400);}
     if(interaction.application_id!==env.DISCORD_APPLICATION_ID)return res.sendStatus(403);
     if(interaction.type===1)return res.json({type:1});
-    if(interaction.type!==2 || interaction.guild_id!==env.DISCORD_GUILD_ID || !/^\d+$/.test(interaction.member?.user?.id || '') ||
-        (env.DISCORD_COMMAND_CHANNEL_ID && interaction.channel_id!==env.DISCORD_COMMAND_CHANNEL_ID))return res.json(response('Commands are available only in the configured Legends Den server/channel.'));
+    if(![2,4].includes(interaction.type) || interaction.guild_id!==env.DISCORD_GUILD_ID || !/^\d+$/.test(interaction.member?.user?.id || '') ||
+        (env.DISCORD_COMMAND_CHANNEL_ID && interaction.channel_id!==env.DISCORD_COMMAND_CHANNEL_ID))return res.json(interaction.type===4?{type:8,data:{choices:[]}}:response('Commands are available only in the configured Legends Den server/channel.'));
+    if(interaction.type===4){
+      const opts=interaction.data?.options||[];
+      const focused=opts.find(o=>o.focused);
+      const choices=['stock','stockstatus'].includes(interaction.data?.name)&&focused?.name==='product'
+        ?require('./discord-product-choices').choices(opts.find(o=>o.name==='retailer')?.value,focused.value):[];
+      return res.json({type:8,data:{choices}});
+    }
     if(!commands.some(c=>c.name===interaction.data?.name))return res.json(response('Unknown command.'));
     if(!/^\d+$/.test(interaction.id || '') || !/^[A-Za-z0-9._-]{1,512}$/.test(interaction.token || ''))return res.sendStatus(400);
     for(const [id,at] of seen)if(at<now()-900000)seen.delete(id);

@@ -1,0 +1,28 @@
+{
+  "products": [
+    {
+      "name": "Prismatic Evolutions Elite Trainer Box",
+      "ean": "0097712571638"
+    },
+    {
+      "name": "Prismatic Evolutions Super-Premium Collection",
+      "ean": "0196214112568"
+    },
+    {
+      "name": "Prismatic Evolutions Binder Collection",
+      "ean": "0097712572000"
+    },
+    {
+      "name": "30th Celebration Elite Trainer Box",
+      "ean": "0196214158801"
+    },
+    {
+      "name": "30th Celebration Poster Collection",
+      "ean": "0196214158757"
+    },
+    {
+      "name": "30th Celebration Mini Tin",
+      "ean": "0196214159082"
+    }
+  ]
+}
