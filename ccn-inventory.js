@@ -86,7 +86,7 @@ function cleanOnlineProducts(input){
     // Unknown sellers may appear as upcoming source reports, never as eligible stock.
     if(retailer==='walmart' && !sellerVerified && (seller || item.status!=='upcoming'))return null;
     if(!/pok[eé]mon|trading card|one[ -]?piece/i.test(name))return null;
-    if(retailer==='pokemoncenter' && !/tcg|trading card|booster|trainer box|premium collection|(?:ex|v|gx) box|tin|battle deck/i.test(name))return null;
+    if(retailer==='pokemoncenter' && !require('./pokemon-center-card-product')(name))return null;
     const price=typeof item.price==='number' && Number.isFinite(item.price)&&item.price>0?item.price:null;
     const msrp=typeof item.msrp==='number' && Number.isFinite(item.msrp)&&item.msrp>0?item.msrp:null;
     const withinPriceRule=retailer==='walmart' || game==='onepiece'?sellerVerified && price!==null && msrp!==null && price<=msrp*1.5:sellerVerified;
@@ -185,6 +185,7 @@ async function onlineProducts(retailer){
   const rows=await pool.query("SELECT data FROM ccn_news_reports WHERE (data->>'retailer'=$1 OR $1='onepiece' AND data->>'game'='onepiece') AND (COALESCE(data->>'updatedAt',data->>'publishedAt'))::timestamptz > now()-interval '7 days' ORDER BY (COALESCE(data->>'updatedAt',data->>'publishedAt'))::timestamptz DESC LIMIT 200",[retailer]);
   const posts=rows.rows.map(row=>row.data);const latest=new Map();
   for(const post of posts)for(const product of post.products || []){
+    if(retailer==='pokemoncenter' && !require('./pokemon-center-card-product')(product.name))continue;
     if(retailer==='onepiece'?(post.game!=='onepiece' && product.game!=='onepiece'):(post.game==='onepiece' || product.game==='onepiece'))continue;
     const productKey=retailer==='walmart'?String(product.productId || product.url):product.url;
     if(latest.has(productKey))continue;
