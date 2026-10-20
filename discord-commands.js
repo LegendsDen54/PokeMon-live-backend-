@@ -20,8 +20,18 @@ function verified(raw, signature, timestamp, key, now=Date.now()) {
   } catch { return false; }
 }
 const response = content => ({type:4,data:{content,flags:64,allowed_mentions:{parse:[]}}});
+function formatReport(report,retailer){
+  const rows=(report.locations||[]).map(r=>`${r.name||'Store'}${r.address&&r.address!==r.name?' — '+r.address:''}: on hand ${r.onHand??'unknown'}, on order ${r.onOrder??'unknown'}, in transit ${r.inTransit??'unknown'}`);
+  let body=`${retailers[retailer]} · ${report.name||report.productId}\nChecked ${report.checkedAt}${report.stale?' · Older result; recheck needed':''}\n`;
+  const suffix='\nSource: '+(report.sourceUrl||'not supplied');let count=0;
+  for(const row of rows){if(body.length+row.length+suffix.length+100>1900)break;body+=row+'\n';count++;}
+  if(count<rows.length)body+=`Showing ${count} of ${rows.length} store rows; the source contains the full response.\n`;
+  if(!rows.length)body+='No store rows supplied; missing quantities remain unknown.\n';
+  return body+suffix;
+}
 function create({inventory, wake=()=>{}, env=process.env, fetchImpl=globalThis.fetch, now=Date.now}) {
   const seen = new Map();
+  const completion=env.DATABASE_URL?require('./discord-search-delivery').create({inventory,env,fetchImpl,now}):null;
   let dropCache={at:0,posts:[]};
   async function dropReports(){
     if(now()-dropCache.at<30000)return dropCache.posts;
@@ -56,15 +66,7 @@ function create({inventory, wake=()=>{}, env=process.env, fetchImpl=globalThis.f
     const reports=await inventory.list(retailer,zip,viewer);
     const report=reports.find(r=>r.productId===product);
     if(!report)return 'Saved result is temporarily unavailable. Stock is unknown.';
-    const rows=(report.locations || []).map(r=>`${r.name || 'Store'}${r.address?' — '+r.address:''}: on hand ${r.onHand ?? 'unknown'}, on order ${r.onOrder ?? 'unknown'}, in transit ${r.inTransit ?? 'unknown'}`);
-    const header=`${retailers[retailer]} · ${report.name || product}\nChecked ${report.checkedAt}${report.stale?' · Older result; recheck needed':''}\n`;
-    const suffix='\nSource: '+(report.sourceUrl || 'not supplied');
-    let body=header;
-    let count=0;
-    for(const row of rows){if(body.length+row.length+suffix.length+100>1900)break;body+=row+'\n';count++;}
-    if(count<rows.length)body+=`Showing ${count} of ${rows.length} store rows; the source contains the full response.\n`;
-    if(!rows.length)body+='No store rows supplied; missing quantities remain unknown.\n';
-    return body+suffix;
+    return formatReport(report,retailer);
   }
   async function handler(req,res) {
     if(!env.DISCORD_APPLICATION_PUBLIC_KEY || !env.DISCORD_APPLICATION_ID || !env.DISCORD_GUILD_ID)return res.status(503).json({error:'Discord commands are not configured'});
@@ -88,6 +90,13 @@ function create({inventory, wake=()=>{}, env=process.env, fetchImpl=globalThis.f
     seen.set(interaction.id,now());while(seen.size>1000)seen.delete(seen.keys().next().value);
     res.json({type:5,data:{flags:64}}); // Acknowledge immediately; database work may exceed three seconds.
     let content;try{content=await execute(interaction);}catch{content='Stock-check storage is temporarily unavailable. Stock remains unknown. Use /stockstatus before retrying a request.';}
+    if(completion&&interaction.data.name==='stock'&&/^(Your stock check is queued|This exact check is already queued)/.test(content)){
+      try{
+        const viewer='discord:'+crypto.createHash('sha256').update(interaction.guild_id+':'+interaction.member.user.id).digest('hex');
+        const values=Object.fromEntries(interaction.data.options.map(o=>[o.name,String(o.value).trim()]));
+        if(await completion.track(interaction,viewer,values))content='Your stock check is queued. This private Discord reply will update automatically when the result is saved. If processing exceeds Discord’s 15-minute reply window, use /stockstatus with the same selections. Queueing is not a completed check.';
+      }catch{console.warn('Discord automatic completion unavailable; private status command remains available.');}
+    }
     try {
       const delivery=await fetchImpl(`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${interaction.token}/messages/@original`,{
         method:'PATCH',redirect:'error',signal:AbortSignal.timeout(8000),headers:{'Content-Type':'application/json'},
@@ -97,4 +106,4 @@ function create({inventory, wake=()=>{}, env=process.env, fetchImpl=globalThis.f
   }
   return {handler,execute};
 }
-module.exports={commands,verified,create};
+module.exports={commands,verified,create,formatReport};
