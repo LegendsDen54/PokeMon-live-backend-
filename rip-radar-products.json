@@ -1,0 +1,15 @@
+{
+  "products": [
+    {
+      "retailer": "costco",
+      "productId": "2007495",
+      "name": "Pokemon Ascended Heroes 5 Mini Tins 2-Pack",
+      "catalogMatch": "Monitor item 2007495: Ascended Heroes Mini Tin Bundle, 10 tins",
+      "sourceUrl": "https://discord.com/channels/1367457689386356766/1548379934207254649/1562198037873430528",
+      "observedAt": "2026-10-20T20:17:16.465Z",
+      "inventoryAddedDate": "2026-10-19",
+      "sourceStatus": "In Transit",
+      "evidence": "Rip Radar private Costco search: ZIP 60634, five matching stores. Product selection only; no shelf-stock claim."
+    }
+  ]
+}

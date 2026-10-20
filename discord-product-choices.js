@@ -1,6 +1,7 @@
 'use strict';
 // Reuse the monitor's known identifiers; catalog inclusion is not stock evidence.
 const retail=require('./retail-catalog.json');
+const radar=require('./rip-radar-products.json');
 const catalogs={
   bestbuy:require('./bestbuy-catalog.json').products.map(p=>({name:p.name,id:p.sku})),
   dollargeneral:require('./dollar-general.json').products.map(p=>({name:p.name,id:p.upc})),
@@ -24,10 +25,23 @@ function eligible(retailer,product,reports,now){
     });
   });
 }
-function choices(retailer,query='',reports=[],now=Date.now()){
+function radarEligible(p,now){
+  if(!/^https:\/\/discord\.com\/channels\/1367457689386356766\/1548379934207254649\/\d+$/.test(p.sourceUrl||''))return false;
+  const observed=Date.parse(p.observedAt);
+  if(!Number.isFinite(observed)||observed>now)return false;
+  if(p.retailer==='costco'){
+    const added=Date.parse(p.inventoryAddedDate+'T00:00:00Z');
+    const today=Date.parse(day(now)+'T00:00:00Z');
+    return Number.isFinite(added)&&added<=today&&today-added<=14*86400000;
+  }
+  return day(observed)===day(now);
+}
+function choices(retailer,query='',reports=[],now=Date.now(),radarEntries=radar.products){
   const terms=normalize(query).split(' ').filter(Boolean),seen=new Set();
-  return (catalogs[retailer]||[]).filter(p=>{
-    if(!p.id||seen.has(p.id)||!eligible(retailer,p,reports,now)||!terms.every(t=>normalize(p.name+' '+p.id).includes(t)))return false;
+  const liveRadar=radarEntries.filter(p=>p.retailer===retailer&&radarEligible(p,now));
+  const products=(catalogs[retailer]||[]).map(p=>({...p,name:liveRadar.find(r=>r.productId===String(p.id))?.name||p.name}));
+  return products.filter(p=>{
+    if(!p.id||seen.has(p.id)||!(liveRadar.some(r=>r.productId===String(p.id))||eligible(retailer,p,reports,now))||!terms.every(t=>normalize(p.name+' '+p.id).includes(t)))return false;
     seen.add(p.id);return true;
   }).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,25).map(p=>({name:p.name.slice(0,100),value:String(p.id)}));
 }
