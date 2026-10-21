@@ -80,6 +80,7 @@ function create({inventory, wake=()=>{}, env=process.env, fetchImpl=globalThis.f
     if(retailer==='dollargeneral' && !require('./dollar-general.json').products.some(p=>p.upc===product))return 'Choose a verified Dollar General UPC from the monitor’s product menu.';
     const viewer='discord:'+crypto.createHash('sha256').update(interaction.guild_id+':'+interaction.member.user.id).digest('hex');
     if(name==='stock') {
+      const unavailable=require('./inventory-product-support').unavailableReason(retailer,product);if(unavailable)return unavailable;
       const result=await inventory.requestInventory(retailer,product,zip,viewer);
       if(result.status==='queued') {
         if(retailer==='dollargeneral')await inventory.requestDg(product,zip);

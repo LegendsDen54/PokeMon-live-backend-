@@ -1,0 +1,11 @@
+'use strict';
+const assert=require('node:assert/strict');
+const support=require('../inventory-product-support');
+const catalog=require('../retail-catalog.json');
+assert.throws(()=>support.assertSupported('costco','2007494'),e=>e.code==='EXACT_PRODUCT_UNSUPPORTED' && /different product/.test(e.message));
+assert.throws(()=>support.assertSupported('costco','2007496'),e=>e.code==='EXACT_PRODUCT_UNSUPPORTED' && /30th ETB/.test(e.message));
+assert.doesNotThrow(()=>support.assertSupported('costco','2007495'));
+assert.doesNotThrow(()=>support.assertSupported('sams','990518062'));
+assert.equal(catalog.costco.find(p=>p.itemNumber==='2007496').query.includes('30th Anniversary'),true);
+assert.equal(catalog.costco.find(p=>p.itemNumber==='2007494').itemNumber,'2007494');
+console.log('Exact Costco identifiers stay distinct; unsupported checks reject and supported Costco/Sams remain available.');

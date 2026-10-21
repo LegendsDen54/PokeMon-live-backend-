@@ -278,6 +278,7 @@ async function personalSearchWindow(retailer,viewer,db=pool){
   return row?.available_at && Date.parse(row.available_at)>Date.now()?row.available_at:null;
 }
 module.exports.requestInventory=async(retailer,productId,zip,viewer)=>{
+  require('./inventory-product-support').assertSupported(retailer,productId);
   checkerInput(retailer,productId,zip);await checkerStorage();
   if(!viewer)throw Error('Private search session unavailable');
   const client=await pool.connect();

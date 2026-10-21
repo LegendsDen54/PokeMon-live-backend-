@@ -78,7 +78,9 @@
       "sourceUrl": "https://www.reddit.com/r/PokemonDeals/comments/1wln4lo/new_ascended_heroes_costco_sams_club_drops_are/",
       "verifiedAt": "2026-10-06",
       "image": "https://tcgplayer-cdn.tcgplayer.com/product/719650_200w.jpg",
-      "imageSource": "https://pokefocus.com/sealed/costco-ascended-heroes-mini-tins-5-pack"
+      "imageSource": "https://pokefocus.com/sealed/costco-ascended-heroes-mini-tins-5-pack",
+      "checkerSupported": false,
+      "checkerUnavailableReason": "Item 2007494 cannot currently be checked exactly. Rip Radar returns item 2007495 (10-tin 2-pack), which is a different product. Stock for 2007494 is unknown."
     },
     {
       "label": "Reported current · Ascended Heroes Mini Tin Bundle · 10 tins · Item 2007495",
@@ -105,7 +107,7 @@
       "evidence": "Community report"
     },
     {
-      "query": "Pokemon TCG 30th Celebration Elite Trainer Box Booster Bundle Collection",
+      "query": "Pokemon TCG 30th Anniversary Celebration Elite Trainer Box ETB Booster Bundle 2007496",
       "url": null,
       "stage": "upcoming",
       "verifiedAt": "2026-10-06",
@@ -113,13 +115,19 @@
       "priceVerified": false,
       "image": "https://d24n0m32eirf1b.cloudfront.net/media/api/newspost/products/costco_30th_2_pack_app.jpg?v=2ed6cbe0-m",
       "evidence": "CCN potential release report; Costco has not confirmed the drop, date or price",
-      "label": "Potential drop · 30th Celebration ETB + Booster Bundle",
+      "label": "30th Anniversary / Celebration ETB + Booster Bundle · Item 2007496",
       "reportedAt": "2026-10-06T16:12:00Z",
       "sourceUrl": "https://discord.com/channels/1410547930250612828/1424776504767680722/1557062971744850072",
       "sourceName": "CCN",
       "expectedWindow": "Potential drop · mid–late October · sales channel unconfirmed",
       "reportedPrice": 57.99,
-      "salesChannel": "unconfirmed"
+      "salesChannel": "unconfirmed",
+      "itemNumber": "2007496",
+      "identifierSourceUrl": "https://app.warehouserunner.com/costco/2007496-pok-mon-tcg-30th-celebration-elite-trainer-box-booster-bundl",
+      "identifierEvidence": "Third-party Warehouse Runner product listing identifies item2007496; not retailer-confirmed local stock.",
+      "identifierVerifiedAt": "2026-10-20",
+      "checkerSupported": false,
+      "checkerUnavailableReason": "Item 2007496 is listed by Warehouse Runner, but the current Rip Radar Costco checker does not yet expose this exact 30th ETB + Booster Bundle. Stock is unknown; no substitute product will be searched."
     },
     {
       "label": "Confirmed recent · Crown Zenith ETB + Koraidon ex + Miraidon Tins",
