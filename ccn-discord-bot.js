@@ -46,7 +46,7 @@ function reports(message){
       }
     }
   }
-  return [{kind:'news',retailer,sourceUrl:`https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}`,publishedAt:message.createdAt.toISOString(),editedAt:message.editedAt?.toISOString() || null,summary:sources.get(message.guildId).name+' source report: '+text(body).slice(0,940),products}];
+  return [{kind:'news',images:[...message.attachments.values()].filter(a=>String(a.contentType || '').startsWith('image/')).map(a=>a.url).concat(embeds.flatMap(e=>[e.image?.url,e.thumbnail?.url]).filter(Boolean)),retailer,sourceUrl:`https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}`,publishedAt:message.createdAt.toISOString(),editedAt:message.editedAt?.toISOString() || null,summary:sources.get(message.guildId).name+' source report: '+text(body).slice(0,940),products}];
 }
 function start(publish){
   const token=process.env.CCN_DISCORD_BOT_TOKEN;

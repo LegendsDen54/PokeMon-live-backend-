@@ -111,6 +111,7 @@ async function saveNews(input){
   if(!match || !sources[match[1]] || !input.summary || !Number.isFinite(timestamp) || !Number.isFinite(effective) || timestamp>Date.now()+60000 || effective<timestamp || effective>Date.now()+60000 || Date.now()-effective>48*3600000) throw new Error("Provide an actual trusted Discord message link, summary and publication time; old messages need their recent actual edit time");
   const report={game,sourceUrl:input.sourceUrl,summary:String(input.summary).trim().slice(0,1000),retailer:["costco","sams","bestbuy","target","pokemoncenter","walmart","barnes","dollargeneral","onepiece"].includes(input.retailer)?input.retailer:null,publishedAt:new Date(timestamp).toISOString(),editedAt:edited===null?null:new Date(edited).toISOString(),updatedAt:new Date(effective).toISOString(),source:sources[match[1]],importedAt:new Date().toISOString()};
   report.products=cleanOnlineProducts(input);
+  report.images=require('./news-post-view').images(input);
   const detected=Date.parse(input.detectedAt);
   report.detectedAt=Number.isFinite(detected) && detected>=effective && detected<=Date.now()+60000?new Date(detected).toISOString():null;
   await newsStorage();
@@ -122,7 +123,7 @@ async function saveNews(input){
     if(previous && Date.parse(previous.updatedAt || previous.publishedAt)>effective){await client.query('COMMIT');return {...previous,isNew:false,isUpdated:false};}
     const revision=require('crypto').createHash('sha256').update(JSON.stringify([report.retailer,report.summary,report.products])).digest('hex');
     const seen=previous?.seenRevisions || [];
-    const changed=!previous || previous.summary!==report.summary || previous.retailer!==report.retailer || JSON.stringify(previous.products || [])!==JSON.stringify(report.products);
+    const changed=!previous || previous.summary!==report.summary || previous.retailer!==report.retailer || JSON.stringify(previous.products || [])!==JSON.stringify(report.products) || JSON.stringify(previous.images || [])!==JSON.stringify(report.images);
     const unseen=!seen.includes(revision);
     if(previous && !changed){await client.query('COMMIT');return {...previous,isNew:false,isUpdated:false};}
     report.seenRevisions=[...new Set([...seen,revision])].slice(-100);

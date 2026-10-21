@@ -65,7 +65,7 @@
           if(name){seenProducts.add(id);products.push({name:'Pokemon TCG '+name,url:'https://www.target.com/p/-/A-'+id,productId:id,seller:'',price:null,msrp:null,image:null,status:'upcoming'});}
         }
       }
-      const report={kind:'news',retailer,sourceUrl:`https://discord.com/channels/${guild}/${ids[1]}/${ids[2]}`,publishedAt,editedAt,detectedAt:new Date().toISOString(),summary:source.name+' source report: '+body.slice(0,940),products};
+      const report={kind:'news',images:[...node.querySelectorAll('img[src]')].filter(img=>(img.alt==='Image' || /media|attachment|embed/i.test(img.className || '')) && !/emoji|avatar|profile_images/i.test((img.className || '')+' '+img.src)).map(img=>img.src),retailer,sourceUrl:`https://discord.com/channels/${guild}/${ids[1]}/${ids[2]}`,publishedAt,editedAt,detectedAt:new Date().toISOString(),summary:source.name+' source report: '+body.slice(0,940),products};
       const revision=JSON.stringify(report);
       if(sent.get(report.sourceUrl)===revision) continue;
       Promise.resolve().then(() => chrome.runtime.sendMessage({kind:'ccnNewsReport',payload:report})).then(result=>{

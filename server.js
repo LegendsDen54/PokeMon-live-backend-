@@ -1066,6 +1066,7 @@ app.get(
     );
   }
 );
+app.get('/news-post-view.js',(req,res)=>res.sendFile(path.join(__dirname,'news-post-view.js')));
 app.get('/inventory-report-view.js',(req,res)=>res.sendFile(path.join(__dirname,'inventory-report-view.js')));
 app.get('/delta-reign-illustration.png',(req,res)=>res.sendFile(path.join(__dirname,'delta-reign-illustration.png')));
 for(const asset of ['one-piece-logo.png','one-piece-eb05.webp','one-piece-eb05-box.webp','one-piece-ts03.webp']){

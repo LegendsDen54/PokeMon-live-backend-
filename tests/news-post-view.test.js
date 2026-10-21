@@ -1,0 +1,16 @@
+'use strict';
+const assert=require('node:assert/strict');
+const view=require('../news-post-view');
+for(const url of ['javascript:alert(1)','https://discord.gg/invite','https://discord.com/channels/1','https://discordapp.com/channels/1','https://user:password@example.com'])assert.equal(view.external(url),null);
+assert.equal(view.external('https://twitter.com/official/status/123'),'https://twitter.com/official/status/123');
+const markup=view.rich('<script>test</script> https://example.com/article. https://discord.com/channels/1');
+assert(!markup.includes('<script>'));
+assert.equal((markup.match(/<a /g)||[]).length,1);
+assert(markup.includes('href="https://example.com/article"'));
+const image='https://pbs.twimg.com/media/post.jpg';
+assert.deepEqual(view.images({images:[image,image,'data:image/png,test']}),[image]);
+const merged=view.dedupe([{game:'onepiece',summary:'Official https://twitter.com/official/status/123'},{game:'onepiece',summary:'Repost https://x.com/official/status/123',images:[image]}]);
+assert.equal(merged.length,1);assert.deepEqual(merged[0].images,[image]);
+assert.equal(view.dedupe([{summary:'Drawing opens'},{summary:'Drawing closes'}]).length,2);
+assert.equal(view.dedupe([{summary:'Preview A'},{summary:'Preview B'}]).length,2);
+console.log('News picture, external-link safety and repost deduplication tests passed.');

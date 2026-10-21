@@ -1911,6 +1911,7 @@ html,body{height:100%;overflow:hidden;}
 #dgResults .retailer-product-image-frame img{width:100%;height:100%;object-fit:contain;object-position:center;max-height:152px;}
 
 .ccn-readable-post{padding:16px;margin:12px 0;border:1px solid #334155;border-radius:12px;background:rgba(15,23,42,.65);text-align:left;overflow-wrap:anywhere}
+.news-post-images{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0}.news-post-images img{max-width:100%;width:auto;max-height:460px;object-fit:contain;border-radius:10px;background:#0f172a}
 .ccn-readable-post h4{font-size:16px;line-height:1.45;margin:10px 0}
 .ccn-readable-post p{font-size:14px;line-height:1.65;margin:10px 0;white-space:pre-line}
 .ccn-post-meta{display:flex;gap:8px;flex-wrap:wrap;font-size:12px}
@@ -2359,6 +2360,7 @@ html,body{height:100%;overflow:hidden;}
 
 
 <script src="/inventory-report-view.js"></script>
+<script src="/news-post-view.js"></script>
 <script>
 
 /* =========================================
@@ -2570,7 +2572,7 @@ async function renderPokemonRestocks(){
   if(!['all','onepiecenews'].includes(activeRetailer))return;
   if(pokemonRestocksCard.contains(document.activeElement) && /INPUT|BUTTON/.test(document.activeElement.tagName))return;
   const header='<div class="pokemon-restocks-widget"><h3>'+(game==='onepiece'?'One Piece News':'Pokémon News')+'</h3><p>'+(game==='onepiece'?'One Piece news · New products · Release dates · Online drops and queues':'Announcements · drops · product updates')+'</p>';
-  const footer='<p><a href="https://discord.com/channels/1410547930250612828/'+(game==='onepiece'?'1460973555092033650':'1514248684575920160')+'" target="_blank" rel="noopener noreferrer">OPEN SOURCE CHANNEL ↗</a></p></div>';
+  const footer='</div>';
   try{
     const response=await fetch('/api/ccn/news?game='+game,{cache:'no-store'});
     const data=await response.json();
@@ -2587,7 +2589,7 @@ async function renderPokemonRestocks(){
       const previous=seenCcnPosts.get(key);
       if(!previous || (/^\s*\[/.test(previous.summary || '') && !/^\s*\[/.test(post.summary || '')))seenCcnPosts.set(key,post);
     });
-    const uniquePosts=[...seenCcnPosts.values()];
+    const uniquePosts=NewsPostView.dedupe([...seenCcnPosts.values()]);
     const rows=uniquePosts.map(post=>{
       const summary=String(post.summary || '').replace(/^CCN source report:\s*/i,'').trim();
       const products=post.products || [];
@@ -2596,7 +2598,7 @@ async function renderPokemonRestocks(){
       const retailer=({target:'Target',walmart:'Walmart',pokemoncenter:'Pokémon Center',onepiece:'One Piece',sams:"Sam’s Club",costco:'Costco'})[post.retailer] || (post.source || 'Trusted source');
       const statuses=[...new Set(products.map(p=>p.status))];
       const label=statuses.length===1?({upcoming:'Upcoming',reported_available:'Reported live',reported_unavailable:'Reported sold out',queue:'Reported queue'})[statuses[0]]:'Source update';
-      return '<article class="ccn-readable-post"><div class="ccn-post-meta"><span>'+esc(game==='onepiece'?'ONE PIECE':'POKÉMON')+'</span><span>'+esc(retailer)+'</span><span>'+esc(label || 'Source update')+'</span></div><h4>'+esc(title)+'</h4><p>'+esc(cleanSummary.length>230?cleanSummary.slice(0,230)+'…':cleanSummary)+'</p>'+(summary.length>230?'<details><summary>Read full update</summary><p>'+esc(summary)+'</p></details>':'')+'<footer>'+esc(post.source || 'Trusted source')+' · Announced <time>'+esc(new Date(post.publishedAt).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</time> · <a href="'+esc(post.sourceUrl)+'" target="_blank" rel="noopener noreferrer">View source ↗</a></footer></article>';
+      return '<article class="ccn-readable-post"><div class="ccn-post-meta"><span>'+esc(game==='onepiece'?'ONE PIECE':'POKÉMON')+'</span>'+(post.retailer?'<span>'+esc(retailer)+'</span>':'')+(products.length?'<span>'+esc(label || 'Source update')+'</span>':'')+'</div>'+(products.length?'<h4>'+esc(title)+'</h4>':'')+'<p>'+NewsPostView.rich(cleanSummary)+'</p>'+NewsPostView.gallery(post)+'<footer>'+esc(post.source || 'Trusted source')+' · Announced <time>'+esc(new Date(post.publishedAt).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</time></footer></article>';
     }).join('');
     pokemonRestocksCard.innerHTML=header+(rows || '<p>No new '+(game==='onepiece'?'One Piece':'Pokémon')+' announcements saved today.</p>')+footer;
   }catch(error){pokemonRestocksCard.innerHTML=header+'<p>'+esc(error.message)+'</p>'+footer;}
