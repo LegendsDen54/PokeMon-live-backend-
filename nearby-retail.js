@@ -19,7 +19,7 @@ async function nearby(retailer,zip,radius=75){
     const place=(await geo.json()).places?.[0];
     const lat=Number(place?.latitude),lon=Number(place?.longitude);
     if(!Number.isFinite(lat)||!Number.isFinite(lon))throw new Error("ZIP location is unavailable");
-    const query=`[out:json][timeout:25];(nwr(around:160934,${lat},${lon})[shop][brand="Costco"];nwr(around:120701,${lat},${lon})[shop][brand="Sam's Club"];nwr(around:120701,${lat},${lon})[shop][name="Costco"];nwr(around:120701,${lat},${lon})[shop][name="Sam's Club"];);out center tags;`;
+    const query=`[out:json][timeout:25];(nwr(around:160934,${lat},${lon})[shop][brand="Costco"];nwr(around:160934,${lat},${lon})[shop][brand="Sam's Club"];nwr(around:160934,${lat},${lon})[shop][name="Costco"];nwr(around:160934,${lat},${lon})[shop][name="Sam's Club"];);out center tags;`;
     const endpoint=new URL(process.env.RETAIL_LOCATION_API_URL || "https://overpass.private.coffee/api/interpreter");
     endpoint.searchParams.set("data",query);
     const response=await fetch(endpoint,{headers,signal:AbortSignal.timeout(30000)});
@@ -27,18 +27,18 @@ async function nearby(retailer,zip,radius=75){
     const data=await response.json();if(data.remark)throw new Error("Location service returned an incomplete result");
     const locations=[];
     for(const el of data.elements || []){
-      const tags=el.tags || {};const store= /costco/i.test(tags.name)?"costco":"sams";
+      const tags=el.tags || {};const store= /costco/i.test(String(tags.name || tags.brand || ""))?"costco":"sams";
       const a=Number(el.lat ?? el.center?.lat),b=Number(el.lon ?? el.center?.lon);
       if(!Number.isFinite(a)||!Number.isFinite(b) || /gas|fuel|distribution|depot/i.test(tags.name))continue;
       const miles=distance(lat,lon,a,b);if(miles>100)continue;
       if(locations.some(i=>i.retailer===store && distance(i.latitude,i.longitude,a,b)<0.1))continue;
-      locations.push({retailer:store,name:tags.name,storeId:tags.ref || null,address:[tags["addr:housenumber"],tags["addr:street"],tags["addr:city"],tags["addr:state"],tags["addr:postcode"]].filter(Boolean).join(" "),phone:tags.phone || tags["contact:phone"] || null,latitude:a,longitude:b,distanceMiles:Number(miles.toFixed(1)),mapUrl:`https://www.openstreetmap.org/?mlat=${a}&mlon=${b}#map=16/${a}/${b}`,stockStatus:"unknown",quantity:null});
+      locations.push({retailer:store,name:tags.name,storeId:tags.ref || null,address:[tags["addr:housenumber"],tags["addr:street"],tags["addr:city"],tags["addr:state"],tags["addr:postcode"]].filter(Boolean).join(" "),phone:tags.phone || tags["contact:phone"] || null,latitude:a,longitude:b,distanceMiles:Number(miles.toFixed(1)),mapUrl:`https://www.openstreetmap.org/?mlat=${a}&mlon=${b}#map=16/${a}/${b}`,stockStatus:"unknown",stockSource:null,stockVerified:false,quantity:null});
     }
     locations.sort((a,b)=>a.distanceMiles-b.distanceMiles);
     cache.set(zip,{until:Date.now()+86400000,data:{locations,source:"OpenStreetMap contributors",sourceUrl:"https://www.openstreetmap.org/copyright",observedAt:new Date().toISOString(),postalCode:zip,radiusMiles:100,distanceType:"Approximate straight-line distance from ZIP center"}});
     while(cache.size>100)cache.delete(cache.keys().next().value);
   })();
   try{await pending;}catch(error){nextRequest=Math.max(nextRequest,Date.now()+300000);throw error;}finally{pending=null;}
-  return nearby(retailer,zip);
+  return nearby(retailer,zip,radius);
 }
 module.exports={nearby,distance};
