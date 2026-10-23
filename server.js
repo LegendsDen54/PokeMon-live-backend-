@@ -347,6 +347,19 @@ app.get("/api/retail/product-check", async (req,res) => {
   try {res.json({ok:true,item:await retailOnline.check(String(req.query.retailer || ""),String(req.query.url || ""))});}
   catch(error) {res.status(503).json({ok:false,error:error.message});}
 });
+// Warehouse inventory evidence is supplied by a connected checker, never inferred from locations.
+app.get("/api/retail/warehouse-search", async(req,res)=>{
+  try {
+    const retailer=String(req.query.retailer || "").toLowerCase();
+    const zip=String(req.query.zip || "");
+    const radius=req.query.radius == null ? 50 : Number(req.query.radius);
+    const sku=String(req.query.sku || "").trim();
+    if(!/^\\d{4,14}$/.test(sku))return res.status(400).json({ok:false,error:"Provide an exact item number"});
+    const result=await nearbyRetail.nearby(retailer,zip,radius);
+    res.set("Cache-Control","no-store");
+    res.json({ok:true,retailer,sku,zip,radiusMiles:radius,inventorySource:"not connected",inventoryChecked:false,locations:result.locations.map(store=>({...store,stockStatus:"unknown",stockVerified:false,quantity:null,inventoryMessage:"Warehouse location found; item-level inventory not yet available from Rippin Packs."}))});
+  } catch(error) {res.status(503).json({ok:false,error:error.message});}
+});
 app.get("/api/retail/locations", async(req,res)=>{
   try{res.json({ok:true,...await nearbyRetail.nearby(String(req.query.retailer || ""),String(req.query.zip || ""),req.query.radius == null ? 75 : Number(req.query.radius))});}
   catch(error){res.status(503).json({ok:false,error:error.message});}
