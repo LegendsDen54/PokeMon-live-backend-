@@ -348,7 +348,7 @@ app.get("/api/retail/product-check", async (req,res) => {
   catch(error) {res.status(503).json({ok:false,error:error.message});}
 });
 app.get("/api/retail/locations", async(req,res)=>{
-  try{res.json({ok:true,...await nearbyRetail.nearby(String(req.query.retailer || ""),String(req.query.zip || ""))});}
+  try{res.json({ok:true,...await nearbyRetail.nearby(String(req.query.retailer || ""),String(req.query.zip || ""),req.query.radius == null ? 75 : Number(req.query.radius))});}
   catch(error){res.status(503).json({ok:false,error:error.message});}
 });
 
