@@ -354,7 +354,7 @@ app.get("/api/retail/warehouse-search", async(req,res)=>{
     const zip=String(req.query.zip || "");
     const radius=req.query.radius == null ? 50 : Number(req.query.radius);
     const sku=String(req.query.sku || "").trim();
-    if(!/^\\d{4,14}$/.test(sku))return res.status(400).json({ok:false,error:"Provide an exact item number"});
+    if(!/^\d{4,14}$/.test(sku))return res.status(400).json({ok:false,error:"Provide an exact item number"});
     const result=await nearbyRetail.nearby(retailer,zip,radius);
     res.set("Cache-Control","no-store");
     res.json({ok:true,retailer,sku,zip,radiusMiles:radius,inventorySource:"not connected",inventoryChecked:false,locations:result.locations.map(store=>({...store,stockStatus:"unknown",stockVerified:false,quantity:null,inventoryMessage:"Warehouse location found; item-level inventory not yet available from Rippin Packs."}))});
