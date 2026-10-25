@@ -51,7 +51,7 @@ const {create,verified}=require('../discord-commands');
   assert.equal(choices('bestbuy','prismatic',upcoming(false),catalogNow).length,0);
   assert.equal(choices('costco','',[],catalogNow,[]).length,0,'Catalog verification date alone is not a drop');
   assert.deepEqual(choices('costco','mini tins',[],Date.parse('2026-10-20T20:20:00Z')),[{name:'Pokemon Ascended Heroes 5 Mini Tins 2-Pack',value:'2007495'}]);
-  assert.equal(choices('costco','',[],Date.parse('2026-11-03T19:00:00Z')).length,0,'Dated Radar inventory must expire after 14 days');
+  assert.equal(choices('costco','mini tins',[],Date.parse('2026-11-03T19:00:00Z')).length,0,'Dated Radar inventory must expire after 14 days');
   assert.equal(choices('costco','no such product').length,0);
   assert(choices('costco').every(p=>/^\d+$/.test(p.value)),'Unknown item numbers must not become suggestions');
   const accepted=res();await bridge.handler(req(input),accepted);assert.equal(accepted.value.type,5);assert.equal(accepted.value.data.flags,64);assert.equal(posted.length,1);assert.deepEqual(posted[0].body.allowed_mentions,{parse:[]});

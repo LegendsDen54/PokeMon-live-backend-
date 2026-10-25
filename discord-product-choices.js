@@ -6,12 +6,18 @@ const catalogs={
   bestbuy:require('./bestbuy-catalog.json').products.map(p=>({name:p.name,id:p.sku})),
   dollargeneral:require('./dollar-general.json').products.map(p=>({name:p.name,id:p.upc})),
   barnes:require('./barnes-catalog.json').products.map(p=>({name:p.name,id:p.ean})),
-  costco:(retail.costco||[]).map(p=>({name:p.label,id:p.itemNumber,url:p.url})),
+  costco:(retail.costco||[]).map(p=>({name:p.label,id:p.itemNumber,url:p.url,inStoreReportedAt:p.inStoreReportedAt,checkerSupported:p.checkerSupported})),
   sams:(retail.sams||[]).map(p=>({name:p.label,id:p.itemNumber,url:p.url}))
 };
 const normalize=s=>String(s||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\betb\b/g,'elite trainer box').replace(/[^a-z0-9]+/g,' ').trim();
 const day=ms=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(ms));
 function eligible(retailer,product,reports,now){
+  // Dated release reports keep exact Costco items searchable during the rollout.
+  // This enables a lookup; it is not evidence of stock at the requested ZIP.
+  if(retailer==='costco' && product.checkerSupported===true && /^\d{4}-\d{2}-\d{2}$/.test(product.inStoreReportedAt || '')){
+    const age=Date.parse(day(now)+'T00:00:00Z')-Date.parse(product.inStoreReportedAt+'T00:00:00Z');
+    if(age>=0 && age<=14*86400000)return true;
+  }
   return reports.some(report=>{
     const at=Date.parse(report.publishedAt);
     if(!Number.isFinite(at)||at>now)return false;
