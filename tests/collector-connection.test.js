@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const html=fs.readFileSync(require('node:path').join(__dirname,'../ccn-import.html'),'utf8');
 function collector(reply){
   const elements=new Map(),requests=[];
-  const document={visibilityState:'visible',addEventListener(){},getElementById(id){if(!elements.has(id))elements.set(id,{value:'',textContent:'',addEventListener(){}});return elements.get(id);}};
+  const document={visibilityState:'visible',addEventListener(){},createElement(){return {textContent:'',style:{}};},querySelector(){return {append(){}};},getElementById(id){if(!elements.has(id))elements.set(id,{value:'',textContent:'',addEventListener(){}});return elements.get(id);}};
   const context=vm.createContext({document,window:{addEventListener(){}},sessionStorage:{getItem(){return null;},removeItem(){}},fetch:async(url,options)=>{requests.push({url,options});return reply();}});
   vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],context);
   return {context,elements,requests};
