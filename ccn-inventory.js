@@ -60,11 +60,11 @@ async function save(input){
   await require('./inventory-completion-push').completed(report).catch(()=>console.warn('Private completion notification could not be queued'));
   return {report,alertLocations};
 }
-async function list(retailer,zip,viewer){
+async function list(retailer,zip,viewer,owner=false){
   await checkerStorage();
   const rows=await pool.query("SELECT data FROM ccn_inventory_reports WHERE retailer=$1 AND zip=$2",[retailer,zip]);
   const permitted=viewer?(await pool.query('SELECT product_id FROM inventory_search_viewers WHERE viewer_id=$1 AND retailer=$2 AND zip=$3',[viewer,retailer,zip])).rows.map(r=>r.product_id):[];
-  return rows.rows.filter(row=>permitted.includes(row.data.productId)).map(row=>({...row.data,stale:Date.now()-Date.parse(row.data.checkedAt)>90*60000}));
+  return rows.rows.filter(row=>owner===true || permitted.includes(row.data.productId)).map(row=>({...row.data,stale:Date.now()-Date.parse(row.data.checkedAt)>90*60000}));
 }
 module.exports={save,list};
 async function newsStorage(){
