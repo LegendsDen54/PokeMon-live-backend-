@@ -18,5 +18,15 @@
     const checked=Date.parse(item.checkedAt);
     return Number.isFinite(checked)&&checked<=now&&now-checked<86400000;
   }
-  return {isPokemon,isCurrent};
+  function isPastAnnouncement(item,now=Date.now()){
+    const text=String(item?.expectedWindow||'');
+    if(!/drawing/i.test(text))return false;
+    const date=text.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(20\d{2})\b/i);
+    if(!date)return false;
+    const announcedDay=Date.parse(`${date[1]} ${date[2]}, ${date[3]} 00:00:00 GMT`);
+    const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(now));
+    const part=type=>parts.find(p=>p.type===type).value;
+    return announcedDay<Date.UTC(Number(part('year')),Number(part('month'))-1,Number(part('day')));
+  }
+  return {isPokemon,isCurrent,isPastAnnouncement};
 });

@@ -2534,7 +2534,10 @@ async function renderCcnOnlineProducts(retailer){
     const drawings=retailer==='walmart'?await fetch('/api/walmart/raffles',{cache:'no-store'}).then(r=>r.json()).catch(()=>({items:[]})):{items:[]};
     const scheduledDrawings=new Map((drawings.items || []).filter(isConfirmedScheduledDrawing).map(item=>[String(item.walmartItemId || '').replace(/^walmart-raffle-/,''),item]));
     const watchItems=new Map();
-    for(const item of (data.items || []))watchItems.set(retailer==='walmart'?walmartProductKey(item):item.productId||item.url,item);
+    for(const item of (data.items || [])){
+      if(retailer==='walmart' && RafflePolicy.isPastAnnouncement(item) && !scheduledDrawings.has(String(item.productId||'')))continue;
+      watchItems.set(retailer==='walmart'?walmartProductKey(item):item.productId||item.url,item);
+    }
     if(retailer==='walmart')for(const product of currentLiveProducts){
       const id=walmartProductKey(product);
       const original=watchItems.get(id);
