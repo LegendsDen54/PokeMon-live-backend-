@@ -220,6 +220,22 @@ self.addEventListener('notificationclick', event => {
 // A failed app navigation must offer recovery instead of a white browser page.
 // Never cache private reports or replace external-source responses.
 self.addEventListener('fetch',event=>{
+  const requested=new URL(event.request.url);
+  if(event.request.destination==='image'&&requested.origin===self.location.origin&&
+      (requested.pathname==='/api/product-image'||requested.pathname.startsWith('/product-images/'))){
+    event.respondWith((async()=>{
+      const cache=await caches.open('verified-product-images-v1');
+      const cached=await cache.match(event.request);
+      if(cached)return cached;
+      const response=await fetch(event.request);
+      if(response.ok&&/^image\//i.test(response.headers.get('content-type')||'')){
+        await cache.put(event.request,response.clone());
+        const keys=await cache.keys();for(const old of keys.slice(0,Math.max(0,keys.length-40)))await cache.delete(old);
+      }
+      return response;
+    })());
+    return;
+  }
   if(event.request.mode!=='navigate'||new URL(event.request.url).origin!==self.location.origin)return;
   event.respondWith(fetch(event.request).then(response=>{
     if(!response.ok)throw Error('Monitor unavailable');

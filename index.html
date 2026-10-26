@@ -925,6 +925,8 @@ a{
 .retailer-product-image-frame.image-unavailable{
   background:#10233a;
 }
+.retailer-product-image-frame.product-photo-pending{background:#10233a;color:var(--muted);font-size:11px;text-align:center;overflow-wrap:anywhere;}
+.retailer-product-image-frame.product-photo-pending small{display:block;margin-top:5px;}
 
 .retailer-product-image-frame.image-unavailable::after{
   content:"Official image unavailable";
@@ -2558,7 +2560,7 @@ async function renderCcnOnlineProducts(retailer){
       const actionUrl=scheduled?'https://www.walmart.com/shop/collectibles/draw':item.url;
       const matchingTargetCard=retailer==='target'?[...parent.querySelectorAll('#targetUpcomingDrops article')].find(card=>[...card.querySelectorAll('a[href]')].some(a=>a.href.includes('/A-'+item.productId))):null;
       const knownTargetImage=matchingTargetCard?.querySelector('img[src]')?.getAttribute('src');
-      const photo=retailerImageMarkup(item.image || scheduled?.image || knownTargetImage,item.name);
+      const photo=retailerImageMarkup(item.image || scheduled?.image || knownTargetImage,item.name,item.productId);
       const photoAction=purchasable?'<div class="watchlist-product-photo">'+photo+'<a class="watchlist-buy-button" href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+(item.scannerLive||ownerVerifiedLive?'LIVE NOW':'REPORTED LIVE')+'<br>BUY NOW ↗</a></div>':photo;
       const reportTime=item.reportedAt?'<small>Announced '+esc(new Date(item.reportedAt).toLocaleString())+'</small>':item.checkedAt?'<small>Found '+esc(new Date(item.checkedAt).toLocaleString())+'</small>':'';
       return '<article class="retailer-product-card">'+photoAction+'<div><a href="'+esc(item.url)+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a><small>'+esc(state)+'</small>'+(scheduled?'<small>'+esc(raffleScheduleLabel(scheduled))+' · Entry not open yet</small>':'')+(item.imageLabel?'<small>'+esc(item.imageLabel)+'</small>':'')+pending+(item.expectedWindow?'<small>'+esc(item.expectedWindow)+'</small>':'')+'<small>'+esc(item.seller || 'Seller unverified')+(item.price!=null?' · USD '+Number(item.price).toFixed(2):' · Price unverified')+'</small>'+reportTime+(!purchasable?'<a class="retailer-link" href="'+esc(actionUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(scheduled?'OPEN WALMART DRAWINGS':action)+' ↗</a>':'')+(item.sourceUrl?'<a href="'+esc(item.sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW SOURCE ↗</a>':'')+'</div></article>';
@@ -2913,12 +2915,19 @@ function wireWarehouseChecker(retailer){
   });
 }
 
-function retailerImageMarkup(image, name){
-  const source = /^\/one-piece-(?:eb05|eb05-box|ts03)\.webp$/.test(String(image || '')) ? image : safeExternalUrl(image);
+function productImageSource(image,productId){
+  if(String(productId)==='19952559023')return '/product-images/walmart-19952559023.jpg';
+  if(/^\/(?:one-piece-(?:eb05|eb05-box|ts03)\.webp|product-images\/[a-z0-9-]+\.(?:jpg|png|webp))$/.test(String(image||'')))return image;
+  const source=safeExternalUrl(image);if(!source)return null;
+  const host=new URL(source).hostname;
+  return ['i5.walmartimages.com','i5.wal.co','www.pokemoncenter.com','www.pokemon.com','images.pokemon.com','target.scene7.com','scene7.targetimg1.com','images.costco-static.com','scene7.samsclub.com','cdn.shopify.com','pbs.twimg.com','d24n0m32eirf1b.cloudfront.net'].includes(host)?'/api/product-image?url='+encodeURIComponent(source):source;
+}
+function retailerImageMarkup(image, name,productId){
+  const source = productImageSource(image,productId);
   if(!source){
-    return "<div class=\"retailer-product-image-frame image-unavailable\" role=\"img\" aria-label=\"Official product image unavailable\"></div>";
+    return '<div class="retailer-product-image-frame product-photo-pending"><span>'+esc(name||'Product')+'<small>Photo pending · open product for details</small></span></div>';
   }
-  return "<div class=\"retailer-product-image-frame\"><img src=\"" + esc(source) + "\" alt=\"" + esc(name || "Product image") + "\" loading=\"lazy\" decoding=\"async\" referrerpolicy=\"no-referrer\" onerror=\"const frame=this.parentElement;this.remove();if(frame)frame.classList.add('image-unavailable')\"></div>";
+  return "<div class=\"retailer-product-image-frame\"><img src=\"" + esc(source) + "\" alt=\"" + esc(name || "Product image") + "\" loading=\"lazy\" decoding=\"async\" referrerpolicy=\"no-referrer\" onerror=\"this.hidden=true;const frame=this.parentElement;if(frame){frame.classList.add('product-photo-pending');const label=document.createElement('span');label.textContent=this.alt+' — photo temporarily unavailable; open product for details';frame.append(label);}\"></div>";
 }
 
 function onlinePurchaseAvailable(item,retailer){
@@ -4044,7 +4053,7 @@ function qualifiesForBuyNow(product){
 ========================================= */
 
 function buildLiveCard(product){
-  const image = product.image || fallbackImage(product.name);
+  const image = productImageSource(product.image,product.productId) || fallbackImage(product.name);
   return `
     <article class="product-card">
       <div class="product-image">
@@ -4319,7 +4328,7 @@ function buildRaffleCard(
 ){
 
   const image =
-    item.image ||
+    productImageSource(item.image,item.walmartItemId || item.productId) ||
     fallbackImage(
       item.name
     );

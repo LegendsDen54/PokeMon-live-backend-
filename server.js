@@ -1078,6 +1078,8 @@ app.get(
 );
 app.get('/news-post-view.js',(req,res)=>res.sendFile(path.join(__dirname,'news-post-view.js')));
 app.get('/raffle-policy.js',(req,res)=>res.sendFile(path.join(__dirname,'raffle-policy.js')));
+app.get('/api/product-image',require('./product-images').handler);
+app.use('/product-images',express.static(path.join(__dirname,'product-images'),{maxAge:'7d',immutable:true}));
 app.get('/inventory-report-view.js',(req,res)=>res.sendFile(path.join(__dirname,'inventory-report-view.js')));
 app.get('/delta-reign-illustration.png',(req,res)=>res.sendFile(path.join(__dirname,'delta-reign-illustration.png')));
 for(const asset of ['one-piece-logo.png','one-piece-eb05.webp','one-piece-eb05-box.webp','one-piece-ts03.webp']){
