@@ -13,6 +13,7 @@ const {
 
 const walmart = require("./walmart");
 const walmartRaffles = require("./walmart-raffles");
+const rafflePolicy = require('./raffle-policy');
 const scheduledRaffleAlerts=require("./raffle-scheduled-alerts");
 const pokemonCenter = require("./pokemon-center");
 const push = require("./push");
@@ -508,11 +509,7 @@ function mergeRaffles(
     .from(
       merged.values()
     )
-    .filter(
-      item =>
-        item?.raffle === true &&
-        String(item?.name || "").trim()
-    )
+    .filter(item => item?.raffle === true && rafflePolicy.isCurrent(item))
     .map(item => {
       // Product-specific reported schedule; an opening time is not live-stock confirmation.
       const id = String(item.walmartItemId || item.productId || "");
@@ -1080,6 +1077,7 @@ app.get(
   }
 );
 app.get('/news-post-view.js',(req,res)=>res.sendFile(path.join(__dirname,'news-post-view.js')));
+app.get('/raffle-policy.js',(req,res)=>res.sendFile(path.join(__dirname,'raffle-policy.js')));
 app.get('/inventory-report-view.js',(req,res)=>res.sendFile(path.join(__dirname,'inventory-report-view.js')));
 app.get('/delta-reign-illustration.png',(req,res)=>res.sendFile(path.join(__dirname,'delta-reign-illustration.png')));
 for(const asset of ['one-piece-logo.png','one-piece-eb05.webp','one-piece-eb05-box.webp','one-piece-ts03.webp']){
@@ -2861,11 +2859,7 @@ app.get(
 app.get(
   "/api/walmart/raffles",
   (req,res) => {
-    const items = (raffleState.items || []).filter(item => {
-      const end = Date.parse(item.endsAt || item.closesAt);
-      return !/closed|ended|completed/i.test(String(item.raffleStatus || item.status || ""))
-        && (!Number.isFinite(end) || end > Date.now());
-    });
+    const items = (raffleState.items || []).filter(item => rafflePolicy.isCurrent(item));
     res.json({
       ...raffleState,
       items,

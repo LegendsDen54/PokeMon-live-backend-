@@ -570,7 +570,7 @@ function normalizeRaffle(item) {
 
   if (
     !name ||
-    !isDrawCandidate(item)
+    !isDrawCandidate(item) || !isOfficialPokemonProduct(name)
   ) {
     return null;
   }
@@ -936,11 +936,22 @@ async function scan() {
     const schedules =
       extractSchedulesByItemId(html);
 
+    // Walmart keeps completed products in a separate carousel. showDrawCTA
+    // remains true there, so it cannot establish an active drawing.
+    const $=require('cheerio').load(html);
+    const closedIds=new Set();
+    $('section,article').each((_,section)=>{
+      if(/^Closed drawings$/i.test($(section).find('h2').first().text().trim())){
+        $(section).find('[data-item-id]').each((_,card)=>closedIds.add($(card).attr('data-item-id')));
+      }
+    });
+
     for (const item of normalized) {
+      if(closedIds.has(String(item.walmartItemId))){item.raffleStatus='closed';item.status='closed';continue;}
       const window=schedules.get(String(item.walmartItemId || ""));
       item.startsAt=window?.startsAt || item.startsAt || null;
       item.endsAt=window?.endsAt || item.endsAt || null;
-      if(window){item.raffleStatus='upcoming';item.status='upcoming';item.scheduleSourceUrl=DRAW_URL;}
+      if(window){item.raffleStatus=Date.parse(window.endsAt)<=Date.now()?'closed':Date.parse(window.startsAt)>Date.now()?'upcoming':'detected';item.status=item.raffleStatus;item.scheduleSourceUrl=DRAW_URL;}
     }
 
     /*

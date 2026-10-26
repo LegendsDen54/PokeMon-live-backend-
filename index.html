@@ -2361,6 +2361,7 @@ html,body{height:100%;overflow:hidden;}
 
 <script src="/inventory-report-view.js"></script>
 <script src="/news-post-view.js"></script>
+<script src="/raffle-policy.js"></script>
 <script>
 
 /* =========================================
@@ -2539,11 +2540,11 @@ async function renderCcnOnlineProducts(retailer){
       const original=watchItems.get(id);
       watchItems.set(id,{...original,...product,source:original?.source,sourceUrl:original?.sourceUrl,reportedAt:original?.reportedAt,scannerLive:true});
     }
-    const watchItemBuyable=item=>retailer==='walmart'?(item.scannerLive?qualifiesForBuyNow(item):item.status==='reported_available'&&!item.stale&&Boolean(item.seller)&&(item.ownerVerifiedOffer===true || item.withinPriceRule&&isWithinPriceRule(item))):onlinePurchaseAvailable(item,retailer);
+    const watchItemBuyable=item=>retailer==='walmart'?(item.scannerLive?qualifiesForBuyNow(item):item.status==='reported_available'&&!item.stale&&isTrustedWalmartSeller(item.seller)&&(item.ownerVerifiedOffer===true || item.withinPriceRule&&isWithinPriceRule(item))):onlinePurchaseAvailable(item,retailer);
     const cards=Array.from(watchItems.values()).sort((a,b)=>Number(watchItemBuyable(b))-Number(watchItemBuyable(a))).map(item=>{
       const source=item.source || 'Trusted source';
       const live=item.status==='reported_available' && !item.stale;
-      const verifiedSeller=Boolean(String(item.seller||'').trim())&&!/^(unknown|marketplace seller)$/i.test(String(item.seller||'').trim());
+      const verifiedSeller=retailer==='walmart'?isTrustedWalmartSeller(item.seller):Boolean(String(item.seller||'').trim())&&!/^(unknown|marketplace seller)$/i.test(String(item.seller||'').trim());
       const ownerVerifiedLive=item.ownerVerifiedOffer===true;
       const reportedBuyable=live&&verifiedSeller&&(ownerVerifiedLive||(item.withinPriceRule&&isWithinPriceRule(item)));
       const purchasable=retailer==='walmart'?(item.scannerLive?qualifiesForBuyNow(item):reportedBuyable):onlinePurchaseAvailable(item,retailer);
@@ -3984,6 +3985,9 @@ function isActuallyLive(product){
    WALMART BUY-NOW QUALIFIER
 ========================================= */
 
+function isTrustedWalmartSeller(seller){
+  return /^(walmart(?: com)?|gt collectibles(?: and toys)?|gt mj holdings)$/.test(normalize(seller));
+}
 function qualifiesForBuyNow(product){
 
   if(
@@ -4019,7 +4023,7 @@ function qualifiesForBuyNow(product){
   */
 
   const sellerName=normalize(product.seller||"");
-  const sellerQualified=Boolean(sellerName)&&!/^(unknown|marketplace seller)$/.test(sellerName);
+  const sellerQualified=isTrustedWalmartSeller(sellerName);
 
   if(
     !sellerQualified
@@ -4439,10 +4443,7 @@ function buildRaffleCard(
 ========================================= */
 
 function isCurrentRaffle(item){
-  const end = Date.parse(item.endsAt || item.closesAt);
-  return isRaffleItem(item)
-    && !/closed|ended|completed/i.test(String(item.raffleStatus || item.status || ""))
-    && (!Number.isFinite(end) || end > Date.now());
+  return isRaffleItem(item) && RafflePolicy.isCurrent(item);
 }
 
 function renderRaffles(){
@@ -5170,7 +5171,7 @@ window.addEventListener("touchend", async () => {
 
 const initialSearchParams=new URLSearchParams(location.search);
 const initialSearchRetailer=initialSearchParams.get('retailer');
-if(['bestbuy','costco','sams','dollargeneral','barnes'].includes(initialSearchRetailer) && /^\d{5}$/.test(initialSearchParams.get('zip') || ''))sessionStorage.setItem('inventoryZip:'+initialSearchRetailer,initialSearchParams.get('zip'));
+if(['bestbuy','costco','sams','dollargeneral','barnes'].includes(initialSearchRetailer) && /^\d{5}$/.test(initialSearchParams.get('zip') || '')){try{sessionStorage.setItem('inventoryZip:'+initialSearchRetailer,initialSearchParams.get('zip'));}catch{}}
 const restoredRetailer=initialSearchRetailer || savedInventoryChoice('monitor:lastRetailer');setRetailer(document.querySelector('.tab[data-retailer="'+CSS.escape(restoredRetailer || 'all')+'"]')?restoredRetailer:'all');
 function openClickedNotification(){
   if(!location.hash.startsWith('#notification='))return;

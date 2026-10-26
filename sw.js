@@ -129,6 +129,7 @@ self.addEventListener(
           data.url ||
           data.productUrl ||
           "/",
+        sourceUrl: data.sourceUrl || null,
 
         retailer:
           data.retailer ||
@@ -179,16 +180,16 @@ self.addEventListener('notificationclick', event => {
   const alert=event.notification.data || {};
   let target;
   try {
-    target=new URL(alert.url || '/',self.location.origin);
+    target=new URL(alert.sourceUrl || alert.url || '/',self.location.origin);
     if(target.protocol!=='https:')target=new URL('/',self.location.origin);
   } catch {
     target=new URL('/',self.location.origin);
   }
-  // Stock notifications open their app tab. Verified Walmart drawing alerts
-  // retain their required direct drawing-page destination.
+  // Preserve the exact external source. Private inventory completions keep
+  // their original same-origin product/ZIP route.
   const drawing=target.hostname==='www.walmart.com' && target.pathname==='/shop/collectibles/draw';
   const retailer=alert.game==='onepiece'?(alert.product?'onepiece':'onepiecenews'):alert.retailer;
-  if(!drawing && ['all','walmart','target','pokemoncenter','sams','costco','bestbuy','barnes','dollargeneral','onepiece','onepiecenews'].includes(retailer)){
+  if(target.origin===self.location.origin && !drawing && ['all','walmart','target','pokemoncenter','sams','costco','bestbuy','barnes','dollargeneral','onepiece','onepiecenews'].includes(retailer)){
     const destination=new URL('/',self.location.origin);
     destination.searchParams.set('retailer',retailer);
     if(target.origin===self.location.origin)for(const key of ['productId','zip','upc']){
@@ -214,6 +215,16 @@ self.addEventListener('notificationclick', event => {
     // retain the user action needed to open the actual retailer destination.
     return self.clients.openWindow(target.href);
   })());
+});
+
+// A failed app navigation must offer recovery instead of a white browser page.
+// Never cache private reports or replace external-source responses.
+self.addEventListener('fetch',event=>{
+  if(event.request.mode!=='navigate'||new URL(event.request.url).origin!==self.location.origin)return;
+  event.respondWith(fetch(event.request).then(response=>{
+    if(!response.ok)throw Error('Monitor unavailable');
+    return response;
+  }).catch(()=>new Response('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Monitor connection interrupted</title><body style="background:#101827;color:#fff;font:18px system-ui;padding:32px"><h1>Monitor could not load</h1><p>Your connection or the monitor server is temporarily unavailable. Your saved search has not been changed.</p><button onclick="location.reload()" style="font:inherit;padding:12px">Try again</button><p><a style="color:#f5cc53" href="/">Open monitor home</a></p></body></html>',{status:503,headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'}})));
 });
 
 /* ========================================
