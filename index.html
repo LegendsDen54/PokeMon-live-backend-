@@ -2537,6 +2537,7 @@ async function renderCcnOnlineProducts(retailer){
     const scheduledDrawings=new Map((drawings.items || []).filter(isConfirmedScheduledDrawing).map(item=>[String(item.walmartItemId || '').replace(/^walmart-raffle-/,''),item]));
     const watchItems=new Map();
     for(const item of (data.items || [])){
+      if(retailer==='pokemoncenter' && item.status==='upcoming' && [...parent.querySelectorAll('#pokemonDayWatchlist a[href]')].some(a=>a.href===item.url))continue;
       if(retailer==='walmart' && RafflePolicy.isPastAnnouncement(item) && !scheduledDrawings.has(String(item.productId||'')))continue;
       watchItems.set(retailer==='walmart'?walmartProductKey(item):item.productId||item.url,item);
     }
@@ -2681,7 +2682,7 @@ function renderPokemonCenter(state){
     (productBoxes ? "<div class=\"pokemon-center-products\">" + productBoxes + "</div>" : "") +
     "<p class=\"pokemon-center-activity\">" + (clues.length?'Current evidence clues: '+clues.length:activity) + "</p>" +
     outlook +
-    (dailyWatchlist?'<h3>Today’s Pokémon Center watchlist</h3>'+dailyWatchlist:'')+
+    (dailyWatchlist?'<div id="pokemonDayWatchlist"><h3>Today’s Pokémon Center watchlist</h3>'+dailyWatchlist+'</div>':'')+
     (evidenceCards?'<details id="pokemonReadinessEvidence"'+(sessionStorage.getItem('pokemonEvidenceOpen')==='true'?' open':'')+'><summary>Readiness evidence</summary><small>Evidence score, not a probability. Today’s discussion contributes a small clue; each source community contributes once; duplicate posts add no points. Older warnings lose weight. Daily clues reset at midnight Chicago time.</small>'+evidenceCards+'</details>':'')+
     "<a class=\"source-link\" href=\"https://www.pokemoncenter.com/\" target=\"_blank\" rel=\"noopener noreferrer\"><span class=\"pokemon-center-mark\" aria-hidden=\"true\"></span>Open Pokémon Center</a>";
   const evidenceDisclosure=document.getElementById('pokemonReadinessEvidence');
