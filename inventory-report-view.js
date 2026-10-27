@@ -61,7 +61,15 @@
       (report.sourceText?'<details class="inventory-source-original"><summary>Original checker response</summary><pre>'+esc(report.sourceText)+'</pre></details>':'<p><small>The original response text was not saved with this check. All available saved fields are shown above.</small></p>')+
       (sourceUrl?'<p><a href="'+esc(sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW DISCORD RESULT ↗</a></p>':'')+'</section>';
   }
-  const api={cleanDetails,render,resultVisible};
+  function resultLabel(report){
+    if(report.result==='checker_error'){
+      return /different product|differs from|no exact requested/i.test(report.detail || '')
+        ? 'Different product returned · requested-item stock unknown'
+        : 'Checker could not establish stock · quantities unknown';
+    }
+    return report.result==='no_stock_reported'?'No stock reported · missing stores remain unknown':'Reported stock';
+  }
+  const api={cleanDetails,render,resultVisible,resultLabel};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   else root.InventoryReportView=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
