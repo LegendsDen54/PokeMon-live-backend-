@@ -90,7 +90,7 @@ function cleanOnlineProducts(input){
     const price=typeof item.price==='number' && Number.isFinite(item.price)&&item.price>0?item.price:null;
     const msrp=typeof item.msrp==='number' && Number.isFinite(item.msrp)&&item.msrp>0?item.msrp:null;
     const withinPriceRule=retailer==='walmart' || game==='onepiece'?sellerVerified && price!==null && msrp!==null && price<=msrp*1.5:sellerVerified;
-    let image=null;try{const im=new URL(item.image);if(im.protocol==='https:' && (/(?:^|\.)(?:target\.com|scene7\.com|walmartimages\.com|pokemoncenter\.com|costco\.com|samsclub\.com)$/.test(im.hostname) || game==='onepiece' && /^(?:cdn\.shopify\.com|en\.onepiece-cardgame\.com)$/.test(im.hostname)))image=im.href;}catch{}
+    let image=null;try{const im=new URL(item.image);if(im.protocol==='https:' && !/^\/product\//i.test(im.pathname) && (/(?:^|\.)(?:target\.com|scene7\.com|walmartimages\.com|pokemoncenter\.com|costco\.com|samsclub\.com)$/.test(im.hostname) || im.hostname==='d24n0m32eirf1b.cloudfront.net' || game==='onepiece' && /^(?:cdn\.shopify\.com|en\.onepiece-cardgame\.com)$/.test(im.hostname)))image=im.href;}catch{}
     const id=retailer==='onepiece'?url.pathname.match(/\/products?\/([^/]+)/)?.[1]:retailer==='target'?url.pathname.match(/\/A-(\d+)/)?.[1]:['walmart','sams'].includes(retailer)?url.pathname.match(/\/ip\/(?:[^/]+\/)?(\d+)\/?$/)?.[1]:retailer==='costco'?(url.pathname.match(/\/(\d{8,})\/?$/)?.[1] || url.pathname.match(/\.product\.(\d+)\.html/)?.[1] || (/^\d+$/.test(url.searchParams.get('partNumbers') || '')?url.searchParams.get('partNumbers'):null)):url.pathname.match(/\/product\/([^/]+)/)?.[1];
     if(!id)return null;
     if(retailer==='walmart')url=new URL('https://www.walmart.com/ip/'+id);
@@ -120,6 +120,9 @@ async function saveNews(input){
     await client.query('BEGIN');
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',['ccn-news:'+report.sourceUrl]);
     const previous=(await client.query('SELECT data FROM ccn_news_reports WHERE source_url=$1',[report.sourceUrl])).rows[0]?.data;
+    // A text-only revision must not discard a previously verified picture.
+    if(!report.images.length && previous)report.images=require('./news-post-view').images(previous);
+    report.products=report.products.map(product=>({...product,image:product.image || (report.products.length===1?report.images[0]:null) || previous?.products?.find(p=>p.productId===product.productId)?.image || null}));
     if(previous && Date.parse(previous.updatedAt || previous.publishedAt)>effective){await client.query('COMMIT');return {...previous,isNew:false,isUpdated:false};}
     const revision=require('crypto').createHash('sha256').update(JSON.stringify([report.retailer,report.summary,report.products])).digest('hex');
     const seen=previous?.seenRevisions || [];
