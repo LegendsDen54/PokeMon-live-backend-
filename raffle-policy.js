@@ -7,8 +7,12 @@
     const name=String(item?.name||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
     return /\bpokemon\b/.test(name)&&/\b(tcg|trading card|booster|elite trainer|etb|collection|tin|blister)\b/.test(name)&&! /\b(mystery|repack|custom|graded|psa|plush|squeeze|fidget)\b/.test(name);
   }
+  function isOnePiece(item){
+    const name=String(item?.name||'').toLowerCase();
+    return /\bone[ -]piece\b/.test(name)&&/\b(tcg|card|cards|booster|deck|collection|display|premium)\b/.test(name)&&! /\b(mystery|repack|custom|graded|psa|plush|figure)\b/.test(name);
+  }
   function isCurrent(item,now=Date.now()){
-    if(!isPokemon(item)||/closed|ended|completed|cancel/i.test(String(item?.raffleStatus||item?.status||'')))return false;
+    if(!(isPokemon(item)||isOnePiece(item))||/closed|ended|completed|cancel/i.test(String(item?.raffleStatus||item?.status||'')))return false;
     const end=Date.parse(item.endsAt||item.closesAt),start=Date.parse(item.startsAt);
     if(Number.isFinite(end))return end>now;
     // Unknown closing time is not permission to show an old drawing forever.
@@ -28,5 +32,5 @@
     const part=type=>parts.find(p=>p.type===type).value;
     return announcedDay<Date.UTC(Number(part('year')),Number(part('month'))-1,Number(part('day')));
   }
-  return {isPokemon,isCurrent,isPastAnnouncement};
+  return {isPokemon,isOnePiece,isCurrent,isPastAnnouncement};
 });

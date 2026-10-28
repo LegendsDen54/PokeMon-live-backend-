@@ -91,7 +91,7 @@ function isOfficialPokemonProduct(value) {
     normalize(value);
 
   if (
-    !text.includes("pokemon")
+    !text.includes("pokemon") && !/\bone[ -]piece\b/.test(text)
   ) {
     return false;
   }
@@ -125,6 +125,7 @@ function isOfficialPokemonProduct(value) {
   }
 
   const allowed = [
+    /\bone[ -]piece\b.*\b(card game|booster|deck|collection|display|premium)\b/,
     /\belite trainer box\b/,
     /\betb\b/,
     /\bbooster bundle\b/,
@@ -683,7 +684,7 @@ function extractFromHtml(html) {
   const matches = [];
 
   const regex =
-    /((?:Pok[eé]mon|Pokemon)[^]{0,180}?)(?:Drawing ended|Drawing starts|Enter drawing|Upcoming drawing)/gi;
+    /((?:Pok[eé]mon|Pokemon|One[ -]Piece)[^]{0,180}?)(?:Drawing ended|Drawing starts|Enter drawing|Upcoming drawing)/gi;
 
   let match;
 
