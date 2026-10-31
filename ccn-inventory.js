@@ -16,7 +16,7 @@ function clean(input){
   const details=require('./inventory-report-view').cleanDetails(input);
   let image=null;
   try{const u=new URL(input.image);if(u.protocol==="https:" && /(?:^|\.)(?:costco\.com|samsclub\.com|scene7\.com|bbystatic\.com|bestbuy\.com|barnesandnoble\.com|bn\.com|wal\.co)$/.test(u.hostname))image=u.href;}catch{}
-  return {retailer:input.retailer,productId:input.productId,zip:input.zip,name:String(input.name).slice(0,240),image,source:input.sourceUrl.startsWith("https://discord.com/channels/1367457689386356766/") ? "Rippin Packz stock checker" : "CCN / Zephyr stock checker",sourceUrl:input.sourceUrl,checkedAt:new Date(checked).toISOString(),result:input.result,...details,locations:input.result==="results"?details.locations:[]};
+  return {retailer:input.retailer,productId:input.productId,zip:input.zip,name:String(input.name).slice(0,240),image,source:input.sourceUrl.startsWith("https://discord.com/channels/1367457689386356766/") ? "Rippin Packz stock checker" : "CCN / Zephyr stock checker",sourceUrl:input.sourceUrl,checkedAt:new Date(checked).toISOString(),result:input.result,...details,locations:input.result!=="checker_error"?details.locations:[]};
 }
 function quantityChanges(report,previous){
   const key=row=>(row.name+'|'+row.address).toLowerCase();

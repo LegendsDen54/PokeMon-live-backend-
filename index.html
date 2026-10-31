@@ -3061,7 +3061,7 @@ function wireBestBuyChecker(provider){
     try{
       const data=await fetch('/api/ccn/inventory-reports?retailer=bestbuy&zip='+encodeURIComponent(zip),{cache:'no-store'}).then(r=>r.json());
       if(!results.isConnected || sku!==skuInput.value.trim() || zip!==checkerZip.value.trim())return;
-      const report=(data.reports || []).find(r=>r.productId===sku && String(r.sourceUrl || '').startsWith('https://discord.com/channels/1367457689386356766/'));
+      const report=(data.reports || []).find(r=>r.productId===sku);
       if(!report){show('<p>No saved check for this product and ZIP. A fresh request will show here when the collector returns it.</p>');return;}
       show('<h4>'+esc(report.name)+'</h4><p>'+esc(InventoryReportView.resultLabel(report))+'</p><small>Checked '+esc(new Date(report.checkedAt).toLocaleString())+(report.stale?' · STALE':'')+'</small>'+InventoryReportView.render(report));
     }catch{show('<p>Saved check unavailable. Try again shortly.</p>');}

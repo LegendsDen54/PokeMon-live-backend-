@@ -4,6 +4,31 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const view=require('../inventory-report-view');
+test('Best Buy picker displays its authorized DM result for the selected SKU and ZIP',async()=>{
+  const page=fs.readFileSync(require.resolve('../index.html'),'utf8').replace(/\r\n/g,'\n');
+  const body=page.match(/async function showSelectedStock\(\)\{([\s\S]*?)\n  \}\n  results\.dataset/)[1];
+  let rendered='';
+  const report={retailer:'bestbuy',productId:'6624825',zip:'89128',name:'Destined Rivals ETB',checkedAt:'2026-10-31T15:43:29.747Z',sourceUrl:'https://discord.com/channels/@me/1557103976665583616/1566115405745889360',result:'no_stock_reported',sourceText:'Las Vegas Ii [0]',locations:[]};
+  const context={skuInput:{value:'6624825'},checkerZip:{value:'89128'},results:{isConnected:true},fetch:async url=>{assert.match(url,/retailer=bestbuy&zip=89128$/);return {json:async()=>({reports:[report]})};},show:html=>{rendered=html;},esc:s=>String(s),InventoryReportView:view,Date,encodeURIComponent};
+  await vm.runInNewContext('(async()=>{'+body+'})()',context);
+  assert.match(rendered,/Destined Rivals ETB/);
+  assert.match(rendered,/Las Vegas Ii \[0\]/);
+  report.productId='6685559';
+  await vm.runInNewContext('(async()=>{'+body+'})()',context);
+  assert.match(rendered,/No saved check/);
+});
+test('Best Buy dedicated checker DM results retain their source link and exact zero store rows',()=>{
+  const sourceUrl='https://discord.com/channels/@me/1557103976665583616/1566115405745889360';
+  const html=view.render({retailer:'bestbuy',sourceUrl,locations:[{name:'Las Vegas Ii',onHand:0,onOrder:null,inTransit:null}],sourceText:'SKU 6624825\nLas Vegas Ii [0]'});
+  assert.ok(html.includes('href="'+sourceUrl+'"'));
+  assert.match(html,/Las Vegas Ii/);
+  assert.match(html,/<td>0<\/td>/);
+  const context={module:{exports:{}},exports:{},process:{env:{}},require:name=>name==='pg'?{Pool:function(){}}:require('../'+name.replace(/^\.\//,'')),console};
+  vm.runInNewContext(fs.readFileSync(require.resolve('../ccn-inventory'),'utf8')+'\nmodule.exports.cleanForTest=clean;',context);
+  const result=context.module.exports.cleanForTest({retailer:'bestbuy',productId:'6624825',zip:'89128',name:'Destined Rivals Elite Trainer Box',checkedAt:new Date().toISOString(),sourceUrl,result:'no_stock_reported',locations:[{name:'Las Vegas Ii',onHand:0,onOrder:null,inTransit:null}]});
+  assert.equal(result.locations.length,1);
+  assert.equal(result.locations[0].onHand,0);
+});
 test('warehouse results use a table, preserve all source fields, and collapse verbatim text',()=>{
   const html=view.render({retailer:'costco',sourceText:'Page 1/2\nPage 2/2',locations:[{name:'MELROSE PARK',inTransit:77,onHand:null,sourceFields:[{name:'Added',value:'Oct 16th'},{name:'ZIP',value:'60160'}]}]});
   assert.match(html,/<table class="inventory-source-table">/);assert.match(html,/77/);assert.match(html,/Oct 16th/);assert.match(html,/60160/);assert.ok(!html.includes('inventory-source-original" open'));assert.ok(html.includes('Page 1/2\nPage 2/2'));
