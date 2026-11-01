@@ -3061,6 +3061,7 @@ function wireBestBuyChecker(provider){
     try{
       const data=await fetch('/api/ccn/inventory-reports?retailer=bestbuy&zip='+encodeURIComponent(zip),{cache:'no-store'}).then(r=>r.json());
       if(!results.isConnected || sku!==skuInput.value.trim() || zip!==checkerZip.value.trim())return;
+      if(!data.ok)throw new Error('Saved checks unavailable');
       const report=(data.reports || []).find(r=>r.productId===sku);
       if(!report){show('<p>No saved check for this product and ZIP. A fresh request will show here when the collector returns it.</p>');return;}
       show('<h4>'+esc(report.name)+'</h4><p>'+esc(InventoryReportView.resultLabel(report))+'</p><small>Checked '+esc(new Date(report.checkedAt).toLocaleString())+(report.stale?' · STALE':'')+'</small>'+InventoryReportView.render(report));
@@ -3182,7 +3183,7 @@ async function renderCcnInventory(retailer){
     const selectedResult=(currentStockParams.get('retailer')===retailer?currentStockParams.get('productId'):null) || savedInventoryChoice('inventoryProduct:'+retailer) || savedInventoryChoice('inventoryLastSearch:'+retailer);
     const visibleReports=(data.reports || []).filter(report=>InventoryReportView.resultVisible(report));
     const fingerprint=JSON.stringify({zip,selectedResult,reports:visibleReports});if(fingerprint===lastReportsFingerprint)return;lastReportsFingerprint=fingerprint;
-    const productTiles=visibleReports.filter(report=>String(report.sourceUrl || '').startsWith('https://discord.com/channels/1367457689386356766/') && (!selectedResult || String(report.productId)===selectedResult)).map(report=>{
+    const productTiles=visibleReports.filter(report=>!selectedResult || String(report.productId)===selectedResult).map(report=>{
       const image=report.image || knownProducts.find(p=>String(p.itemNumber)===String(report.productId))?.image;
       return '<article class="ccn-product-tile"><h4>'+esc(report.name)+'</h4><small>Item '+esc(report.productId)+' · ZIP '+esc(report.zip)+'</small><p>'+esc(InventoryReportView.resultLabel(report))+(report.stale?' · STALE':'')+'</p><small>Checked '+esc(new Date(report.checkedAt).toLocaleString())+'</small>'+InventoryReportView.render(report)+'</article>';
     }).join('');

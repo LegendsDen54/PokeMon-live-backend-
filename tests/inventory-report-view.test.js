@@ -9,13 +9,17 @@ test('Best Buy picker displays its authorized DM result for the selected SKU and
   const body=page.match(/async function showSelectedStock\(\)\{([\s\S]*?)\n  \}\n  results\.dataset/)[1];
   let rendered='';
   const report={retailer:'bestbuy',productId:'6624825',zip:'89128',name:'Destined Rivals ETB',checkedAt:'2026-10-31T15:43:29.747Z',sourceUrl:'https://discord.com/channels/@me/1557103976665583616/1566115405745889360',result:'no_stock_reported',sourceText:'Las Vegas Ii [0]',locations:[]};
-  const context={skuInput:{value:'6624825'},checkerZip:{value:'89128'},results:{isConnected:true},fetch:async url=>{assert.match(url,/retailer=bestbuy&zip=89128$/);return {json:async()=>({reports:[report]})};},show:html=>{rendered=html;},esc:s=>String(s),InventoryReportView:view,Date,encodeURIComponent};
+  const context={skuInput:{value:'6624825'},checkerZip:{value:'89128'},results:{isConnected:true},fetch:async url=>{assert.match(url,/retailer=bestbuy&zip=89128$/);return {json:async()=>({ok:true,reports:[report]})};},show:html=>{rendered=html;},esc:s=>String(s),InventoryReportView:view,Date,encodeURIComponent};
   await vm.runInNewContext('(async()=>{'+body+'})()',context);
   assert.match(rendered,/Destined Rivals ETB/);
   assert.match(rendered,/Las Vegas Ii \[0\]/);
   report.productId='6685559';
   await vm.runInNewContext('(async()=>{'+body+'})()',context);
   assert.match(rendered,/No saved check/);
+  context.fetch=async()=>({json:async()=>({ok:false,error:'CCN report storage unavailable'})});
+  await vm.runInNewContext('(async()=>{'+body+'})()',context);
+  assert.match(rendered,/Saved check unavailable/);
+  assert.doesNotMatch(rendered,/No saved check/);
 });
 test('Best Buy dedicated checker DM results retain their source link and exact zero store rows',()=>{
   const sourceUrl='https://discord.com/channels/@me/1557103976665583616/1566115405745889360';
@@ -32,6 +36,20 @@ test('Best Buy dedicated checker DM results retain their source link and exact z
 test('warehouse results use a table, preserve all source fields, and collapse verbatim text',()=>{
   const html=view.render({retailer:'costco',sourceText:'Page 1/2\nPage 2/2',locations:[{name:'MELROSE PARK',inTransit:77,onHand:null,sourceFields:[{name:'Added',value:'Oct 16th'},{name:'ZIP',value:'60160'}]}]});
   assert.match(html,/<table class="inventory-source-table">/);assert.match(html,/77/);assert.match(html,/Oct 16th/);assert.match(html,/60160/);assert.ok(!html.includes('inventory-source-original" open'));assert.ok(html.includes('Page 1/2\nPage 2/2'));
+});
+
+test('Costco displays the authorized exact-item response without filtering its Discord origin',async()=>{
+  const page=fs.readFileSync(require.resolve('../index.html'),'utf8').replace(/\r\n/g,'\n');
+  const body=page.match(/async function refreshReports\(\)\{([\s\S]*?)\n  section.addEventListener\('refresh-stock-report'/)[1].replace(/\}\s*$/,'');
+  const report={retailer:'costco',productId:'2007496',zip:'60634',name:'30th Celebration ETB + Booster Bundle 2-Pack',checkedAt:'2026-10-25T01:43:54.059Z',sourceUrl:'https://discord.com/channels/@me/1/2',result:'results',sourceText:'Exact original response',locations:[{name:'Yorkville',onOrder:77,onHand:null,inTransit:null}]};
+  const reportBody={};
+  const context={retailer:'costco',savedInventoryChoice:key=>key==='inventoryZip:costco'?'60634':'2007496',linkedZip:'60634',section:{isConnected:true},fetch:async()=>({json:async()=>({ok:true,reports:[report]})}),URLSearchParams,location:{search:'?retailer=costco&productId=2007496'},InventoryReportView:view,lastReportsFingerprint:'',knownProducts:[],reportBody,esc:s=>String(s),Date,encodeURIComponent,updateCcnCountdowns:()=>{}};
+  await vm.runInNewContext('(async()=>{'+body+'})()',context);
+  assert.match(reportBody.innerHTML,/Yorkville/);
+  assert.match(reportBody.innerHTML,/Exact original response/);
+  report.productId='2007495';context.lastReportsFingerprint='';
+  await vm.runInNewContext('(async()=>{'+body+'})()',context);
+  assert.doesNotMatch(reportBody.innerHTML,/Yorkville/);
 });
 test('Costco results remain visible during the search cooldown',()=>{
   const report={retailer:'costco',checkedAt:'2026-10-18T04:40:38.444Z',sourceText:'retained'};
