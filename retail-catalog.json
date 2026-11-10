@@ -83,12 +83,12 @@
       "checkerUnavailableReason": "Item 2007494 cannot currently be checked exactly. Rip Radar returns item 2007495 (10-tin 2-pack), which is a different product. Stock for 2007494 is unknown."
     },
     {
-      "label": "Reported current · Ascended Heroes Mini Tin Bundle · 10 tins · Item 2007495",
+      "label": "Ascended Heroes Mini Tins · 2 × 5-tin boxes (10 tins) · Item 2007495",
       "query": "Pokemon TCG Ascended Heroes Mini Tin Bundle 2007495",
       "url": null,
       "stage": "current",
       "verifiedAt": "2026-10-06",
-      "evidence": "Community report",
+      "evidence": "Owner confirmed bundle mapping November 9, 2026",
       "itemNumber": "2007495",
       "sourceUrl": "https://www.reddit.com/r/PokemonDeals/comments/1wln4lo/new_ascended_heroes_costco_sams_club_drops_are/",
       "image": "https://tcgplayer-cdn.tcgplayer.com/product/719650_200w.jpg",
@@ -96,7 +96,9 @@
       "imageCount": 2,
       "reportedPrice": 76.49,
       "priceSourceUrl": "https://costcofan.com/costco-pokemon-cards/",
-      "priceVerified": false
+      "priceVerified": false,
+      "checkerProductName": "Pokemon Ascended Heroes 5 Mini Tins",
+      "checkerSupported": true
     },
     {
       "label": "Reported current · Ascended Heroes Elite Trainer Box Bundle",
@@ -202,3 +204,4 @@
     }
   ]
 }
+
