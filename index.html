@@ -2524,7 +2524,7 @@ async function renderOnePieceProducts(){
 async function renderCcnOnlineProducts(retailer){
   if(retailer==='target')return; // One combined Target panel handles source and retailer evidence.
   if(['target','sams','costco'].includes(retailer) && activeRetailer!==retailer)return;
-  if(retailer==='costco'){otherRetailerCard.querySelector('#ccnOnline-costco')?.remove();return;}
+  if(['costco','sams'].includes(retailer)){otherRetailerCard.querySelector('#ccnOnline-'+retailer)?.remove();return;}
   const parent=retailer==='walmart'?walmartSection:retailer==='pokemoncenter'?document.getElementById('pokemonCenterSection'):otherRetailerCard;
   try{
     const key=sessionStorage.getItem('ccnReportKey');
@@ -3003,6 +3003,7 @@ async function renderCcnInventory(retailer){
   const reportBody=document.createElement('div');reportBody.innerHTML='<p>Loading latest checks…</p>';section.append(reportBody);
   otherRetailerCard.append(section);
   if(["costco","sams"].includes(retailer)){addInventoryRequestControl(retailer,otherRetailerCard);otherRetailerCard.insertBefore(otherRetailerCard.lastElementChild,section);}
+  if(retailer==='sams'){reportBody.remove();section.hidden=true;return;}
   if(["costco","sams"].includes(retailer)){
     const watch=document.createElement("details");watch.className="warehouse-watch-section";
     section.append(watch);
