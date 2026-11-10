@@ -14,6 +14,7 @@ function clean(input){
   if(!Number.isFinite(checked) || checked>Date.now()+60000 || Date.now()-checked>6*3600000) throw new Error("Report must have a recent actual check time");
   if(!["results","no_stock_reported","checker_error"].includes(input.result)) throw new Error("Invalid checker result");
   const details=require('./inventory-report-view').cleanDetails(input);
+  if(input.retailer==='bestbuy'&&input.productId==='all-products'&&input.result!=='checker_error'&&!details.products?.length)throw Error('All-product results require returned products');
   let image=null;
   try{const u=new URL(input.image);if(u.protocol==="https:" && /(?:^|\.)(?:costco\.com|samsclub\.com|scene7\.com|bbystatic\.com|bestbuy\.com|barnesandnoble\.com|bn\.com|wal\.co)$/.test(u.hostname))image=u.href;}catch{}
   return {retailer:input.retailer,productId:input.productId,zip:input.zip,name:String(input.name).slice(0,240),image,source:input.sourceUrl.startsWith("https://discord.com/channels/1367457689386356766/") ? "Rippin Packz stock checker" : "CCN / Zephyr stock checker",sourceUrl:input.sourceUrl,checkedAt:new Date(checked).toISOString(),result:input.result,...details,locations:input.result!=="checker_error"?details.locations:[]};
@@ -281,6 +282,7 @@ async function personalSearchWindow(retailer,viewer,db=pool){
   return row?.available_at && Date.parse(row.available_at)>Date.now()?row.available_at:null;
 }
 module.exports.requestInventory=async(retailer,productId,zip,viewer)=>{
+  if(retailer==='bestbuy')productId='all-products';
   require('./inventory-product-support').assertSupported(retailer,productId);
   checkerInput(retailer,productId,zip);await checkerStorage();
   if(!viewer)throw Error('Private search session unavailable');
@@ -302,6 +304,7 @@ module.exports.requestInventory=async(retailer,productId,zip,viewer)=>{
   }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
 };
 module.exports.inventoryRequestStatus=async(retailer,productId,zip,viewer)=>{
+  if(retailer==='bestbuy')productId='all-products';
   checkerInput(retailer,productId,zip);await checkerStorage();
   const cooldown=(await pool.query('SELECT available_at FROM inventory_checker_cooldowns WHERE retailer=$1 AND available_at>now()',[retailer])).rows[0];
   const row=(await pool.query('SELECT q.requested_at,q.cancelled_at,r.data FROM inventory_check_requests q LEFT JOIN ccn_inventory_reports r ON r.retailer=q.retailer AND r.product_id=q.product_id AND r.zip=q.zip WHERE q.retailer=$1 AND q.product_id=$2 AND q.zip=$3',[retailer,productId,zip])).rows[0];

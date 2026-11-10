@@ -332,7 +332,7 @@ app.use(
 );
 
 app.use(
-  express.json()
+  express.json({limit:'2mb'})
 );
 
 app.post('/api/target/browser-observation',async(req,res)=>{

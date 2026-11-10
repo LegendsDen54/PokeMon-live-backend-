@@ -19,7 +19,7 @@ exports.completed=async(report)=>{
   await storage();
   const viewers=(await pool.query(`SELECT v.viewer_id,v.requested_at FROM inventory_search_viewers v WHERE v.retailer=$1 AND v.product_id=$2 AND v.zip=$3 AND v.requested_at<=$4 AND v.requested_at>now()-interval '1 hour' AND EXISTS(SELECT 1 FROM inventory_push_devices d WHERE d.viewer_id=v.viewer_id)`,[report.retailer,report.productId,report.zip,report.checkedAt])).rows;
   const retailer={bestbuy:'Best Buy',costco:'Costco',sams:"Sam’s Club",dollargeneral:'Dollar General',barnes:'Barnes & Noble'}[report.retailer];
-  const result=report.result==='checker_error'?'Checker error; stock is unknown.':report.result==='no_stock_reported'?'No stock reported; missing stores remain unknown.':report.locations.some(l=>l.onHand>0)?'Stock reported. Open your search for stores and quantities.':'Results received. Open your search for store details; unreported quantities are unknown.';
+  const result=report.result==='checker_error'?'Checker error; stock is unknown.':report.result==='no_stock_reported'?'No stock reported; missing stores remain unknown.':[...(report.locations||[]),...(report.products||[]).flatMap(p=>p.locations||[])].some(l=>l.onHand>0)?'Stock reported. Open your search for stores and quantities.':'Results received. Open your search for store details; unreported quantities are unknown.';
   for(const v of viewers){
     const quick=Date.parse(report.checkedAt)-Date.parse(v.requested_at)<30000;
     const active=quick && (await pool.query("SELECT 1 FROM inventory_push_devices WHERE viewer_id=$1 AND visible AND seen_at>now()-interval '40 seconds'",[v.viewer_id])).rowCount;

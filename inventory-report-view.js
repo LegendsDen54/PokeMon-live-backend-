@@ -15,7 +15,17 @@
     const rows=input.locations ?? [];
     if(!Array.isArray(rows)||rows.length>1000)throw Error('Invalid location list');
     const quantity=value=>Number.isInteger(value)&&value>=0?value:null;
+    const products=input.products;
+    if(products!=null&&(!Array.isArray(products)||products.length>200))throw Error('Invalid product list');
+    const seen=new Set();
+    const cleanedProducts=products==null?undefined:products.map(product=>{
+      const sku=String(product.sku||product.productId||'');
+      if(!/^\d{7,8}$/.test(sku)||seen.has(sku)||!product.name)throw Error('Each product needs a unique actual SKU and name');seen.add(sku);
+      if(product.products!=null)throw Error('Nested product lists are not supported');
+      return {sku,name:bounded(product.name,500,'Product name'),lastScanned:bounded(product.lastScanned,240,'Last scanned'),...cleanDetails({...product,products:undefined})};
+    });
     return {
+      ...(cleanedProducts?{products:cleanedProducts}:{}),
       detail:bounded(input.detail,12000,'Check details'),
       sourceText:bounded(input.sourceText,60000,'Original checker response'),
       sourceFields:fields(input.sourceFields),
@@ -33,6 +43,7 @@
     return Number.isFinite(Date.parse(report.checkedAt));
   }
   function render(report){
+    if(report.retailer==='bestbuy'&&report.productId==='all-products')return renderBestBuy(report);
     let rows=report.locations || [];
     let unmatched=false;
     if(report.retailer==='costco' && !rows.length && report.result==='checker_error' && report.sourceText){
@@ -61,6 +72,11 @@
       (report.sourceText?'<details class="inventory-source-original"><summary>Original checker response</summary><pre>'+esc(report.sourceText)+'</pre></details>':'<p><small>The original response text was not saved with this check. All available saved fields are shown above.</small></p>')+
       (sourceUrl?'<p><a href="'+esc(sourceUrl)+'" target="_blank" rel="noopener noreferrer">VIEW DISCORD RESULT ↗</a></p>':'')+'</section>';
   }
+  function renderBestBuy(report){
+ const products=report.products||[];
+ const cards=products.map(p=>'<article class="bestbuy-stock-card"><h4>'+esc(p.name)+'</h4><p>SKU '+esc(p.sku)+' · Last scanned: '+esc(p.lastScanned||'Not supplied')+'</p>'+(p.detail?'<p>'+esc(p.detail)+'</p>':'')+'<dl class="inventory-source-fields">'+fieldMarkup(p.sourceFields)+'</dl><div class="inventory-table-scroll"><table class="inventory-source-table"><thead><tr><th>Store</th><th>Quantity</th><th>Details</th></tr></thead><tbody>'+p.locations.map(r=>'<tr><th scope="row">'+esc(r.name)+(r.address?'<small>'+esc(r.address)+'</small>':'')+'</th><td><strong class="'+(r.onHand>0?'bestbuy-positive':'')+'">'+esc(r.onHand??'Unknown')+'</strong></td><td>'+(r.distanceMiles!=null?esc(r.distanceMiles)+' mi · ':'')+esc(r.status)+(r.onOrder!=null?' · On order: '+esc(r.onOrder):'')+(r.inTransit!=null?' · In transit: '+esc(r.inTransit):'')+'<dl class="inventory-source-fields">'+fieldMarkup(r.sourceFields)+'</dl></td></tr>').join('')+'</tbody></table></div>'+(!p.locations.length?'<p>No stores supplied. Stock is unknown.</p>':'')+'</article>').join('');
+ return '<section class="inventory-source-result"><p><strong>'+products.length+' products returned</strong> · Zephyr stock checker</p><p>Scan times are shown exactly as reported. Missing products or stores are unknown; stock may change.</p>'+(report.detail?'<p>'+esc(report.detail)+'</p>':'')+(report.result==='checker_error'?'<p>Checker error: stock could not be established.</p>':'')+'<div class="bestbuy-stock-grid">'+cards+'</div><dl class="inventory-source-fields">'+fieldMarkup(report.sourceFields)+'</dl>'+(report.sourceText?'<details class="inventory-source-original"><summary>Full original Zephyr response</summary><pre>'+esc(report.sourceText)+'</pre></details>':'')+'</section>';
+ }
   function resultLabel(report){
     if(report.result==='checker_error'){
       return /different product|differs from|no exact requested/i.test(report.detail || '')

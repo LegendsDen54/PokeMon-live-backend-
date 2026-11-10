@@ -4,22 +4,13 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const view=require('../inventory-report-view');
-test('Best Buy picker displays its authorized DM result for the selected SKU and ZIP',async()=>{
-  const page=fs.readFileSync(require.resolve('../index.html'),'utf8').replace(/\r\n/g,'\n');
-  const body=page.match(/async function showSelectedStock\(\)\{([\s\S]*?)\n  \}\n  results\.dataset/)[1];
-  let rendered='';
-  const report={retailer:'bestbuy',productId:'6624825',zip:'89128',name:'Destined Rivals ETB',checkedAt:'2026-10-31T15:43:29.747Z',sourceUrl:'https://discord.com/channels/@me/1557103976665583616/1566115405745889360',result:'no_stock_reported',sourceText:'Las Vegas Ii [0]',locations:[]};
-  const context={skuInput:{value:'6624825'},checkerZip:{value:'89128'},results:{isConnected:true},fetch:async url=>{assert.match(url,/retailer=bestbuy&zip=89128$/);return {json:async()=>({ok:true,reports:[report]})};},show:html=>{rendered=html;},esc:s=>String(s),InventoryReportView:view,Date,encodeURIComponent};
-  await vm.runInNewContext('(async()=>{'+body+'})()',context);
-  assert.match(rendered,/Destined Rivals ETB/);
-  assert.match(rendered,/Las Vegas Ii \[0\]/);
-  report.productId='6685559';
-  await vm.runInNewContext('(async()=>{'+body+'})()',context);
-  assert.match(rendered,/No saved check/);
-  context.fetch=async()=>({json:async()=>({ok:false,error:'CCN report storage unavailable'})});
-  await vm.runInNewContext('(async()=>{'+body+'})()',context);
-  assert.match(rendered,/Saved check unavailable/);
-  assert.doesNotMatch(rendered,/No saved check/);
+test('Best Buy batches preserve all products, zero and unknown quantities and safe text',()=>{
+ const details=view.cleanDetails({sourceText:'Full response',products:[{sku:'6685559',name:'ETB <script>',lastScanned:'Nov 8 9:26 PM',locations:[{name:'Store A',onHand:0},{name:'Store B',onHand:4}]},{sku:'9999999',name:'New product',locations:[{name:'Store C'}]}]});
+ assert.equal(details.products.length,2);assert.equal(details.products[0].locations[0].onHand,0);assert.equal(details.products[1].locations[0].onHand,null);
+ const html=view.render({retailer:'bestbuy',productId:'all-products',...details});
+ for(const text of ['Store A','Store B','Store C','9999999','Nov 8 9:26 PM','Unknown','Full response'])assert.ok(html.includes(text));
+ assert.ok(html.includes('>0</strong>'));assert.ok(html.includes('>4</strong>'));assert.ok(!html.includes('<script>'));
+ assert.throws(()=>view.cleanDetails({products:[{sku:'6685559',name:'A'},{sku:'6685559',name:'B'}]}),/unique/);
 });
 test('Best Buy dedicated checker DM results retain their source link and exact zero store rows',()=>{
   const sourceUrl='https://discord.com/channels/@me/1557103976665583616/1566115405745889360';
