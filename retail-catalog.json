@@ -33,12 +33,18 @@
       "priceVerified": false
     },
     {
-      "label": "Confirmed · 151: 4 Mini Tins + 4 Promo Cards Bundle",
+      "label": "151 Mini Tins 4-Pack + 4 Promo Cards",
       "query": "Pokemon TCG 151 4 Mini Tins 4 Promo Cards Bundle",
       "url": "https://www.samsclub.com/ip/pokemon-4-mini-tins-4-promo-cards-bundle/17593918944",
       "stage": "current",
-      "verifiedAt": "2026-10-06",
-      "evidence": "Retailer listing"
+      "verifiedAt": "2026-11-09",
+      "evidence": "Dedicated Rippin Packz Sams Club checker button matched to existing retailer product listing; product-page ID used as monitor key, not internal Sams SKU",
+      "itemNumber": "17593918944",
+      "identifierType": "retailer product-page ID",
+      "checkerSupported": true,
+      "checkerButton": "151 Mini Tins 4-Pack",
+      "checkerChannel": "1569408928473940160",
+      "sourceUrl": "https://discord.com/channels/1367457689386356766/1569408928473940160/1569493680459354144"
     },
     {
       "label": "Recent historical · Heavy Hitters Premium Collection",
@@ -204,4 +210,3 @@
     }
   ]
 }
-
