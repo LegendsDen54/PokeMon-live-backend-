@@ -148,6 +148,20 @@
       "stage": "current",
       "verifiedAt": "2026-10-06",
       "evidence": "Retailer listing"
+    },
+    {
+      "label": "30th Celebration ETB + Booster Bundle 2-Pack · Online Item 2007497",
+      "query": "Pokemon TCG 30th Celebration Elite Trainer Box Booster Bundle 2 Pack 2007497",
+      "url": "https://www.costco.com/.product.2007497.html",
+      "itemNumber": "2007497",
+      "stage": "upcoming",
+      "salesChannel": "online",
+      "verifiedAt": "2026-11-11",
+      "reportedAt": "2026-11-10T15:16:36.809Z",
+      "sourceUrl": "https://discord.com/channels/1410547930250612828/1514248684575920160/1569732519249711126",
+      "evidence": "CCN reports exact Costco online listing loaded; source warns link will not work until live. No confirmed live stock or warehouse checker mapping.",
+      "checkerSupported": false,
+      "checkerUnavailableReason": "Online item 2007497 is awaiting exact warehouse checker verification. Use the online product link; do not substitute in-store item 2007496."
     }
   ],
   "target": [
